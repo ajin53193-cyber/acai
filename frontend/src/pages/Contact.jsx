@@ -3,18 +3,13 @@ import axios from "axios";
 import { toast } from "sonner";
 import { Phone, MessageCircle, Clock, Mail, Send, Headset } from "lucide-react";
 import { Reveal } from "@/components/Reveal";
+import { API, formatDetail } from "@/lib/api";
+import { useSettings } from "@/lib/useSettings";
 
-const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 const TYPES = ["项目合作", "团长合作", "资源对接", "其他"];
 
-const formatDetail = (detail) => {
-  if (!detail) return "提交失败，请稍后重试";
-  if (typeof detail === "string") return detail;
-  if (Array.isArray(detail)) return detail.map((e) => e?.msg || "").filter(Boolean).join("；");
-  return String(detail);
-};
-
 export default function Contact() {
+  const { contact } = useSettings();
   const [form, setForm] = useState({ name: "", phone: "", city: "", inquiry_type: "项目合作", message: "" });
   const [submitting, setSubmitting] = useState(false);
 
@@ -61,19 +56,19 @@ export default function Contact() {
                 <ul className="mt-8 flex-1 space-y-6 text-sm">
                   <li className="flex items-center gap-4" data-testid="contact-hotline">
                     <span className="flex h-11 w-11 items-center justify-center rounded-xl border border-amber-500/30 bg-amber-500/10 text-[#E5C158]"><Phone size={18} /></span>
-                    <div><div className="text-slate-400">客服热线</div><div className="mt-0.5 font-bold text-slate-100">400-888-6888</div></div>
+                    <div><div className="text-slate-400">客服热线</div><div className="mt-0.5 font-bold text-slate-100">{contact.hotline}</div></div>
                   </li>
                   <li className="flex items-center gap-4" data-testid="contact-wechat">
                     <span className="flex h-11 w-11 items-center justify-center rounded-xl border border-amber-500/30 bg-amber-500/10 text-[#E5C158]"><MessageCircle size={18} /></span>
-                    <div><div className="text-slate-400">微信客服</div><div className="mt-0.5 font-bold text-slate-100">heyingkefu</div></div>
+                    <div><div className="text-slate-400">微信客服</div><div className="mt-0.5 font-bold text-slate-100">{contact.wechat}</div></div>
                   </li>
                   <li className="flex items-center gap-4" data-testid="contact-hours">
                     <span className="flex h-11 w-11 items-center justify-center rounded-xl border border-amber-500/30 bg-amber-500/10 text-[#E5C158]"><Clock size={18} /></span>
-                    <div><div className="text-slate-400">工作时间</div><div className="mt-0.5 font-bold text-slate-100">9:00 - 21:00</div></div>
+                    <div><div className="text-slate-400">工作时间</div><div className="mt-0.5 font-bold text-slate-100">{contact.hours}</div></div>
                   </li>
                   <li className="flex items-center gap-4" data-testid="contact-email">
                     <span className="flex h-11 w-11 items-center justify-center rounded-xl border border-amber-500/30 bg-amber-500/10 text-[#E5C158]"><Mail size={18} /></span>
-                    <div><div className="text-slate-400">邮箱</div><div className="mt-0.5 font-bold text-slate-100">contact@heying.com</div></div>
+                    <div><div className="text-slate-400">邮箱</div><div className="mt-0.5 font-bold text-slate-100">{contact.email}</div></div>
                   </li>
                 </ul>
                 <a

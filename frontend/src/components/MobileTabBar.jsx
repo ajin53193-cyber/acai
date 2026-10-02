@@ -1,11 +1,10 @@
 import { Link, useLocation } from "react-router-dom";
-import { Home, LayoutGrid, Handshake, User, Headset } from "lucide-react";
+import { Home, LayoutGrid, Handshake, Headset } from "lucide-react";
 
 const TABS = [
   { name: "首页", path: "/", icon: Home, testid: "tab-home" },
   { name: "项目", path: "/projects", icon: LayoutGrid, testid: "tab-projects" },
   { name: "合作", path: "/cooperation", icon: Handshake, testid: "tab-cooperation" },
-  { name: "我的", path: "/about", icon: User, testid: "tab-mine" },
 ];
 
 export const MobileTabBar = () => {

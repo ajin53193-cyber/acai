@@ -1,54 +1,32 @@
-import { useEffect, useState, useCallback } from "react";
+import { useCallback, useState } from "react";
 import axios from "axios";
 import { toast } from "sonner";
-import { Lock, LogOut, Inbox, RefreshCw } from "lucide-react";
+import { Lock, LogOut, Inbox, FolderKanban, Settings2 } from "lucide-react";
 import { LogoMark } from "@/components/Logo";
+import { API, formatDetail } from "@/lib/api";
+import InboxAdmin from "@/pages/admin/InboxAdmin";
+import ProjectsAdmin from "@/pages/admin/ProjectsAdmin";
+import SettingsAdmin from "@/pages/admin/SettingsAdmin";
 
-const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 const TOKEN_KEY = "hy_admin_token";
-const STATUSES = ["待跟进", "跟进中", "已完成"];
 
-const formatDetail = (detail) => {
-  if (!detail) return "操作失败，请稍后重试";
-  if (typeof detail === "string") return detail;
-  if (Array.isArray(detail)) return detail.map((e) => e?.msg || "").filter(Boolean).join("；");
-  return String(detail);
-};
+const TABS = [
+  { key: "inbox", name: "留言管理", icon: Inbox, testid: "admin-tab-inbox" },
+  { key: "projects", name: "项目管理", icon: FolderKanban, testid: "admin-tab-projects" },
+  { key: "settings", name: "站点设置", icon: Settings2, testid: "admin-tab-settings" },
+];
 
 export default function Admin() {
   const [token, setToken] = useState(() => localStorage.getItem(TOKEN_KEY) || "");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
-  const [inquiries, setInquiries] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const [tab, setTab] = useState("inbox");
 
-  const load = useCallback(
-    async (t = token) => {
-      if (!t) return;
-      setLoading(true);
-      try {
-        const res = await axios.get(`${API}/admin/inquiries`, {
-          headers: { Authorization: `Bearer ${t}` },
-        });
-        setInquiries(res.data);
-      } catch (err) {
-        if (err.response?.status === 401) {
-          localStorage.removeItem(TOKEN_KEY);
-          setToken("");
-          toast.error("登录已过期，请重新登录");
-        } else {
-          toast.error("加载留言失败");
-        }
-      } finally {
-        setLoading(false);
-      }
-    },
-    [token]
-  );
-
-  useEffect(() => {
-    if (token) load(token);
-  }, [token, load]);
+  const onUnauthorized = useCallback(() => {
+    localStorage.removeItem(TOKEN_KEY);
+    setToken("");
+    toast.error("登录已过期，请重新登录");
+  }, []);
 
   const login = async (e) => {
     e.preventDefault();
@@ -59,20 +37,6 @@ export default function Admin() {
       toast.success("登录成功");
     } catch (err) {
       toast.error(formatDetail(err.response?.data?.detail));
-    }
-  };
-
-  const updateStatus = async (id, status) => {
-    try {
-      await axios.patch(
-        `${API}/admin/inquiries/${id}`,
-        { status },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-      setInquiries((prev) => prev.map((q) => (q.id === id ? { ...q, status } : q)));
-      toast.success("状态已更新");
-    } catch {
-      toast.error("更新失败");
     }
   };
 
@@ -120,72 +84,38 @@ export default function Admin() {
   }
 
   return (
-    <main className="mx-auto min-h-screen max-w-5xl px-4 pb-20 pt-32 sm:px-8" data-testid="admin-inbox-page">
+    <main className="mx-auto min-h-screen max-w-5xl px-4 pb-20 pt-28 sm:px-8" data-testid="admin-dashboard">
       <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h1 className="flex items-center gap-3 font-display text-2xl font-bold text-gold-gradient">
-            <Inbox size={24} /> 留言管理
-          </h1>
-          <p className="mt-1 text-sm text-slate-500" data-testid="admin-inbox-count">共 {inquiries.length} 条咨询留言</p>
-        </div>
-        <div className="flex gap-3">
-          <button
-            data-testid="admin-refresh-btn"
-            onClick={() => load()}
-            className="flex items-center gap-2 rounded-full border border-amber-500/25 px-5 py-2.5 text-sm text-[#E5C158] transition-colors hover:bg-amber-500/10"
-          >
-            <RefreshCw size={15} className={loading ? "animate-spin" : ""} /> 刷新
-          </button>
-          <button
-            data-testid="admin-logout-btn"
-            onClick={logout}
-            className="flex items-center gap-2 rounded-full border border-red-500/30 px-5 py-2.5 text-sm text-red-300 transition-colors hover:bg-red-500/10"
-          >
-            <LogOut size={15} /> 退出
-          </button>
-        </div>
+        <h1 className="font-display text-2xl font-bold text-gold-gradient">管理后台</h1>
+        <button
+          data-testid="admin-logout-btn"
+          onClick={logout}
+          className="flex items-center gap-2 rounded-full border border-red-500/30 px-5 py-2.5 text-sm text-red-300 transition-colors hover:bg-red-500/10"
+        >
+          <LogOut size={15} /> 退出
+        </button>
       </div>
 
-      {inquiries.length === 0 && !loading ? (
-        <div className="glass-card rounded-3xl py-20 text-center text-sm text-slate-500" data-testid="admin-inbox-empty">
-          暂无留言，访客提交咨询后将显示在这里
-        </div>
-      ) : (
-        <div className="space-y-5" data-testid="admin-inbox-list">
-          {inquiries.map((q, i) => (
-            <div key={q.id} className="glass-card rounded-2xl p-6" data-testid={`admin-inquiry-${i}`}>
-              <div className="flex flex-wrap items-start justify-between gap-4">
-                <div>
-                  <div className="flex flex-wrap items-center gap-3">
-                    <span className="font-display text-lg font-bold text-slate-50">{q.name}</span>
-                    <span className="rounded-full border border-amber-500/30 px-3 py-0.5 text-xs text-[#E5C158]">{q.inquiry_type}</span>
-                  </div>
-                  <div className="mt-2 text-sm text-slate-400">
-                    {q.phone} {q.city ? `· ${q.city}` : ""} · {new Date(q.created_at).toLocaleString("zh-CN")}
-                  </div>
-                </div>
-                <select
-                  data-testid={`admin-inquiry-status-${i}`}
-                  value={q.status}
-                  onChange={(e) => updateStatus(q.id, e.target.value)}
-                  className={`rounded-full border px-4 py-1.5 text-xs font-medium outline-none ${
-                    q.status === "已完成"
-                      ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-300"
-                      : q.status === "跟进中"
-                        ? "border-sky-500/40 bg-sky-500/10 text-sky-300"
-                        : "border-amber-500/40 bg-amber-500/10 text-[#E5C158]"
-                  }`}
-                >
-                  {STATUSES.map((s) => <option key={s} value={s} className="bg-[#0A1228]">{s}</option>)}
-                </select>
-              </div>
-              <p className="mt-4 rounded-xl border border-amber-500/10 bg-[#060B18]/60 p-4 text-sm leading-relaxed text-slate-300">
-                {q.message}
-              </p>
-            </div>
-          ))}
-        </div>
-      )}
+      <div className="mb-8 flex flex-wrap gap-2" data-testid="admin-tabs">
+        {TABS.map((t) => (
+          <button
+            key={t.key}
+            data-testid={t.testid}
+            onClick={() => setTab(t.key)}
+            className={`flex items-center gap-2 rounded-full px-5 py-2.5 text-sm font-medium transition-all duration-300 ${
+              tab === t.key
+                ? "bg-gold-gradient text-[#060B18] shadow-[0_0_16px_rgba(212,175,55,0.4)]"
+                : "border border-amber-500/20 text-slate-300 hover:border-[#D4AF37]/60 hover:text-[#FFE896]"
+            }`}
+          >
+            <t.icon size={15} /> {t.name}
+          </button>
+        ))}
+      </div>
+
+      {tab === "inbox" && <InboxAdmin token={token} onUnauthorized={onUnauthorized} />}
+      {tab === "projects" && <ProjectsAdmin token={token} onUnauthorized={onUnauthorized} />}
+      {tab === "settings" && <SettingsAdmin token={token} onUnauthorized={onUnauthorized} />}
     </main>
   );
 }

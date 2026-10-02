@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import { FilePlus2, Link2, Users, Target, Layers, Hexagon, ShieldCheck, Zap, Crown, Package, Gem } from "lucide-react";
 import { Reveal, SectionHeading } from "@/components/Reveal";
+import { useSettings } from "@/lib/useSettings";
 
 const STEPS = [
   { icon: FilePlus2, title: "项目发布", desc: "提交项目信息" },
@@ -38,6 +39,8 @@ const ADVANTAGES = [
 ];
 
 export default function Cooperation() {
+  const { contact } = useSettings();
+
   return (
     <main className="pt-28" data-testid="cooperation-page">
       <section className="grid-texture relative overflow-hidden pb-16 pt-10 text-center">
@@ -129,7 +132,7 @@ export default function Cooperation() {
             <div className="glass-card flex flex-col items-center justify-between gap-6 rounded-3xl border-amber-400/40 px-8 py-10 text-center shadow-[0_0_60px_-15px_rgba(212,175,55,0.3)] md:flex-row md:text-left">
               <div>
                 <h3 className="font-display text-xl font-bold text-slate-50 sm:text-2xl">联系客服加入团长</h3>
-                <p className="mt-2 text-sm text-slate-400">客服热线：400-888-6888 · 微信客服：heyingkefu</p>
+                <p className="mt-2 text-sm text-slate-400">客服热线：{contact.hotline} · 微信客服：{contact.wechat}</p>
               </div>
               <Link
                 to="/contact"

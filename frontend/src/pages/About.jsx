@@ -1,5 +1,6 @@
 import { Unlock, ShieldCheck, Handshake } from "lucide-react";
 import { Reveal, SectionHeading } from "@/components/Reveal";
+import { useSettings } from "@/lib/useSettings";
 
 const STATS = [
   { num: "36+", label: "优质项目" },
@@ -14,23 +15,11 @@ const VALUES = [
   { icon: Handshake, title: "共赢", desc: "推动伙伴共同成长，构建长期稳定、互利共赢的合作生态。" },
 ];
 
-const AVATARS = [
-  "https://images.unsplash.com/photo-1665224752561-85f4da9a5658?crop=entropy&cs=srgb&fm=jpg&q=85&w=400",
-  "https://images.unsplash.com/photo-1665224752136-4dbe2dfc8195?crop=entropy&cs=srgb&fm=jpg&q=85&w=400",
-  "https://images.unsplash.com/photo-1520689728498-7dd1a9814607?crop=entropy&cs=srgb&fm=jpg&q=85&w=400",
-  "https://images.unsplash.com/photo-1665224751641-8ea911ca2267?crop=entropy&cs=srgb&fm=jpg&q=85&w=400",
-];
-
-const TEAM = [
-  { name: "项目负责人", person: "陈志远", img: AVATARS[0] },
-  { name: "合作负责人", person: "林嘉豪", img: AVATARS[1] },
-  { name: "资源负责人", person: "周明轩", img: AVATARS[2] },
-  { name: "运营负责人", person: "吴国强", img: AVATARS[3] },
-  { name: "客服负责人", person: "许文博", img: AVATARS[1] },
-  { name: "品牌负责人", person: "郑立诚", img: AVATARS[2] },
-];
+const AVATARS_PLACEHOLDER = [];
 
 export default function About() {
+  const { team } = useSettings();
+
   return (
     <main className="pt-28" data-testid="about-page">
       <section className="grid-texture relative overflow-hidden pb-14 pt-10 text-center">
@@ -98,20 +87,20 @@ export default function About() {
         <div className="mx-auto max-w-7xl px-4 sm:px-8 lg:px-16">
           <SectionHeading title="核心团队" subtitle="专业团队，为每一次合作保驾护航" />
           <div className="grid grid-cols-2 gap-x-6 gap-y-12 sm:grid-cols-3 lg:grid-cols-6">
-            {TEAM.map((t, i) => (
-              <Reveal key={t.name} delay={i * 0.08}>
+            {team.map((t, i) => (
+              <Reveal key={`${t.role}-${i}`} delay={i * 0.08}>
                 <div className="group text-center" data-testid={`team-member-${i}`}>
                   <div className="relative mx-auto h-28 w-28 sm:h-32 sm:w-32">
                     <div className="absolute -inset-1.5 rounded-full bg-gold-gradient opacity-80 transition-all duration-500 group-hover:opacity-100 group-hover:shadow-[0_0_30px_rgba(212,175,55,0.5)]" />
                     <img
-                      src={t.img}
+                      src={t.image}
                       alt={t.person}
                       loading="lazy"
                       className="relative h-full w-full rounded-full border-4 border-[#060B18] object-cover transition-transform duration-500 group-hover:scale-105"
                     />
                   </div>
                   <div className="mt-5 font-display text-base font-bold text-slate-50">{t.person}</div>
-                  <div className="mt-1 text-xs tracking-[0.2em] text-[#D4AF37]">{t.name}</div>
+                  <div className="mt-1 text-xs tracking-[0.2em] text-[#D4AF37]">{t.role}</div>
                 </div>
               </Reveal>
             ))}

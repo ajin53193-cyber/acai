@@ -84,6 +84,39 @@ class StatusUpdate(BaseModel):
     status: str
 
 
+class ProjectInput(BaseModel):
+    title: str = Field(min_length=1, max_length=100)
+    category: str = Field(default="科技创新")
+    status: str = Field(default="对接中")
+    investment: str = Field(default="")
+    region: str = Field(default="全国")
+    description: str = Field(default="", max_length=2000)
+    highlights: List[str] = Field(default_factory=list)
+    image: str = Field(default="")
+
+
+class PublishUpdate(BaseModel):
+    published: bool
+
+
+class ContactInfo(BaseModel):
+    hotline: str = "400-888-6888"
+    wechat: str = "heyingkefu"
+    hours: str = "9:00 - 21:00"
+    email: str = "contact@heying.com"
+
+
+class TeamMember(BaseModel):
+    role: str = Field(min_length=1, max_length=30)
+    person: str = Field(min_length=1, max_length=30)
+    image: str = ""
+
+
+class SiteSettings(BaseModel):
+    contact: ContactInfo = ContactInfo()
+    team: List[TeamMember] = Field(default_factory=list)
+
+
 PROJECTS_SEED = [
     {
         "title": "绿源光伏社区电站",
@@ -206,11 +239,19 @@ async def root():
 
 @api_router.get("/projects")
 async def list_projects(category: Optional[str] = None):
-    query = {}
+    query = {"published": {"$ne": False}}
     if category and category != "全部":
         query["category"] = category
     projects = await db.projects.find(query, {"_id": 0}).to_list(100)
     return {"projects": projects}
+
+
+@api_router.get("/settings")
+async def get_settings():
+    doc = await db.settings.find_one({"key": "site"}, {"_id": 0, "key": 0})
+    if not doc:
+        return {"contact": ContactInfo().model_dump(), "team": []}
+    return doc
 
 
 @api_router.post("/contact", status_code=201)
@@ -244,6 +285,58 @@ async def update_inquiry(inquiry_id: str, data: StatusUpdate, _: str = Depends(r
     if result.matched_count == 0:
         raise HTTPException(status_code=404, detail="留言不存在")
     return {"message": "状态已更新"}
+
+
+@api_router.get("/admin/projects")
+async def admin_list_projects(_: str = Depends(require_admin)):
+    projects = await db.projects.find({}, {"_id": 0}).sort("created_at", -1).to_list(200)
+    return {"projects": projects}
+
+
+@api_router.post("/admin/projects", status_code=201)
+async def create_project(data: ProjectInput, _: str = Depends(require_admin)):
+    doc = {
+        "id": str(uuid.uuid4()),
+        **data.model_dump(),
+        "published": True,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    }
+    await db.projects.insert_one(doc)
+    return {"message": "项目已发布", "id": doc["id"]}
+
+
+@api_router.put("/admin/projects/{project_id}")
+async def update_project(project_id: str, data: ProjectInput, _: str = Depends(require_admin)):
+    result = await db.projects.update_one({"id": project_id}, {"$set": data.model_dump()})
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="项目不存在")
+    return {"message": "项目已更新"}
+
+
+@api_router.patch("/admin/projects/{project_id}/publish")
+async def toggle_project_publish(project_id: str, data: PublishUpdate, _: str = Depends(require_admin)):
+    result = await db.projects.update_one({"id": project_id}, {"$set": {"published": data.published}})
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="项目不存在")
+    return {"message": "已上架" if data.published else "已下架"}
+
+
+@api_router.delete("/admin/projects/{project_id}")
+async def delete_project(project_id: str, _: str = Depends(require_admin)):
+    result = await db.projects.delete_one({"id": project_id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="项目不存在")
+    return {"message": "项目已删除"}
+
+
+@api_router.put("/admin/settings")
+async def update_settings(data: SiteSettings, _: str = Depends(require_admin)):
+    await db.settings.update_one(
+        {"key": "site"},
+        {"$set": {**data.model_dump(), "key": "site"}},
+        upsert=True,
+    )
+    return {"message": "设置已保存"}
 
 
 app.include_router(api_router)
