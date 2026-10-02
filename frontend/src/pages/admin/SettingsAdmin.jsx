@@ -11,6 +11,7 @@ const inputCls =
 export default function SettingsAdmin({ token, onUnauthorized }) {
   const [contact, setContact] = useState(DEFAULT_SETTINGS.contact);
   const [team, setTeam] = useState(DEFAULT_SETTINGS.team);
+  const [stats, setStats] = useState(DEFAULT_SETTINGS.stats);
   const [saving, setSaving] = useState(false);
 
   const headers = { Authorization: `Bearer ${token}` };
@@ -21,6 +22,7 @@ export default function SettingsAdmin({ token, onUnauthorized }) {
       .then((res) => {
         setContact({ ...DEFAULT_SETTINGS.contact, ...(res.data.contact || {}) });
         if (res.data.team && res.data.team.length) setTeam(res.data.team);
+        if (res.data.stats && res.data.stats.length) setStats(res.data.stats);
       })
       .catch(() => {});
   }, []);
@@ -28,11 +30,13 @@ export default function SettingsAdmin({ token, onUnauthorized }) {
   const setContactField = (key) => (e) => setContact({ ...contact, [key]: e.target.value });
   const setMember = (i, key) => (e) =>
     setTeam((prev) => prev.map((m, idx) => (idx === i ? { ...m, [key]: e.target.value } : m)));
+  const setStat = (i, key) => (e) =>
+    setStats((prev) => prev.map((s, idx) => (idx === i ? { ...s, [key]: e.target.value } : s)));
 
   const save = async () => {
     setSaving(true);
     try {
-      await axios.put(`${API}/admin/settings`, { contact, team }, { headers });
+      await axios.put(`${API}/admin/settings`, { contact, team, stats }, { headers });
       invalidateSettings();
       toast.success("设置已保存，前台页面已同步更新");
     } catch (err) {
@@ -106,6 +110,48 @@ export default function SettingsAdmin({ token, onUnauthorized }) {
                   <Trash2 size={14} />
                 </button>
               </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="glass-card rounded-3xl p-7" data-testid="settings-stats-card">
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="font-display text-lg font-bold text-gold-gradient">平台数据</h3>
+            <p className="mt-1 text-xs text-slate-500">显示在首页首屏与「关于我们」数据墙，前 3 项会出现在首页</p>
+          </div>
+          <button
+            data-testid="settings-stats-add-btn"
+            onClick={() => setStats([...stats, { num: "", suffix: "+", label: "" }])}
+            className="flex items-center gap-1.5 rounded-full border border-amber-500/30 px-4 py-2 text-xs text-[#E5C158] transition-colors hover:bg-amber-500/10"
+          >
+            <Plus size={13} /> 添加数据
+          </button>
+        </div>
+        <div className="mt-6 space-y-4">
+          {stats.map((s, i) => (
+            <div key={i} className="flex flex-wrap items-center gap-3 rounded-2xl border border-amber-500/10 bg-[#060B18]/50 p-4" data-testid={`settings-stat-row-${i}`}>
+              <div className="flex-1 min-w-[90px]">
+                <label className="mb-1 block text-[10px] tracking-widest text-slate-500">数值</label>
+                <input data-testid={`settings-stat-num-${i}`} value={s.num} onChange={setStat(i, "num")} placeholder="36" className={inputCls} />
+              </div>
+              <div className="w-28">
+                <label className="mb-1 block text-[10px] tracking-widest text-slate-500">后缀</label>
+                <input data-testid={`settings-stat-suffix-${i}`} value={s.suffix} onChange={setStat(i, "suffix")} placeholder="+ / 分钟内" className={inputCls} />
+              </div>
+              <div className="flex-1 min-w-[120px]">
+                <label className="mb-1 block text-[10px] tracking-widest text-slate-500">标签</label>
+                <input data-testid={`settings-stat-label-${i}`} value={s.label} onChange={setStat(i, "label")} placeholder="优质项目" className={inputCls} />
+              </div>
+              <button
+                data-testid={`settings-stat-remove-${i}`}
+                onClick={() => setStats(stats.filter((_, idx) => idx !== i))}
+                className="mt-4 rounded-full border border-red-500/30 p-2.5 text-red-300 transition-colors hover:bg-red-500/10"
+                aria-label="删除数据"
+              >
+                <Trash2 size={14} />
+              </button>
             </div>
           ))}
         </div>

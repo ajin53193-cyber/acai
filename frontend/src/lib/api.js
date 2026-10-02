@@ -17,6 +17,12 @@ export const DEFAULT_SETTINGS = {
     { role: "客服负责人", person: "许文博", image: "https://images.unsplash.com/photo-1665224752136-4dbe2dfc8195?crop=entropy&cs=srgb&fm=jpg&q=85&w=400" },
     { role: "品牌负责人", person: "郑立诚", image: "https://images.unsplash.com/photo-1520689728498-7dd1a9814607?crop=entropy&cs=srgb&fm=jpg&q=85&w=400" },
   ],
+  stats: [
+    { num: "36", suffix: "+", label: "优质项目" },
+    { num: "120", suffix: "+", label: "合作伙伴" },
+    { num: "80", suffix: "+", label: "行业动态" },
+    { num: "30", suffix: "分钟内", label: "客服响应" },
+  ],
 };
 
 let cache = null;
@@ -30,6 +36,7 @@ export const fetchSettings = () => {
         cache = {
           contact: { ...DEFAULT_SETTINGS.contact, ...(res.data.contact || {}) },
           team: res.data.team && res.data.team.length ? res.data.team : DEFAULT_SETTINGS.team,
+          stats: res.data.stats && res.data.stats.length ? res.data.stats : DEFAULT_SETTINGS.stats,
         };
         return cache;
       })

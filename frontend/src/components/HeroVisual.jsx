@@ -1,5 +1,6 @@
 import { motion, useMotionValue, useSpring, useTransform } from "framer-motion";
 import { LogoMark } from "@/components/Logo";
+import { useSettings } from "@/lib/useSettings";
 
 const OrbitDot = ({ angle, radius, size = 8, delay = 0 }) => (
   <div
@@ -27,6 +28,7 @@ const Cube = ({ className, delay = 0, size = 26 }) => (
 );
 
 export const HeroVisual = () => {
+  const { stats } = useSettings();
   const mx = useMotionValue(0);
   const my = useMotionValue(0);
   const sx = useSpring(mx, { stiffness: 50, damping: 18 });
@@ -77,12 +79,12 @@ export const HeroVisual = () => {
         <Cube className="bottom-[24%] right-[2%]" size={34} delay={0.9} />
 
         <div className="animate-float absolute right-[16%] top-[6%] rounded-xl border border-amber-500/25 bg-[#0D1730]/85 px-3.5 py-2.5 backdrop-blur-md" style={{ animationDelay: "1.2s" }}>
-          <div className="text-[10px] uppercase tracking-wider text-slate-400">优质项目</div>
-          <div className="font-display text-lg font-black text-gold-gradient">36+</div>
+          <div className="text-[10px] uppercase tracking-wider text-slate-400">{stats[0]?.label || "优质项目"}</div>
+          <div className="font-display text-lg font-black text-gold-gradient">{stats[0]?.num || "36"}{stats[0]?.suffix ?? "+"}</div>
         </div>
         <div className="animate-float absolute bottom-[8%] right-[20%] rounded-xl border border-amber-500/25 bg-[#0D1730]/85 px-3.5 py-2.5 backdrop-blur-md" style={{ animationDelay: "2.6s" }}>
-          <div className="text-[10px] uppercase tracking-wider text-slate-400">合作伙伴</div>
-          <div className="font-display text-lg font-black text-gold-gradient">120+</div>
+          <div className="text-[10px] uppercase tracking-wider text-slate-400">{stats[1]?.label || "合作伙伴"}</div>
+          <div className="font-display text-lg font-black text-gold-gradient">{stats[1]?.num || "120"}{stats[1]?.suffix ?? "+"}</div>
         </div>
       </motion.div>
     </div>

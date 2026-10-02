@@ -6,6 +6,7 @@ import { FilePlus2, Link2, Users, Handshake, ChevronRight, ArrowRight } from "lu
 import { Reveal, SectionHeading } from "@/components/Reveal";
 import { Marquee } from "@/components/Marquee";
 import { HeroVisual } from "@/components/HeroVisual";
+import { useSettings } from "@/lib/useSettings";
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
@@ -50,6 +51,7 @@ const lineReveal = {
 
 export default function Home() {
   const [projects, setProjects] = useState([]);
+  const { stats } = useSettings();
 
   useEffect(() => {
     axios
@@ -128,10 +130,10 @@ export default function Home() {
               className="mt-12 flex gap-10"
               data-testid="hero-stats"
             >
-              {[["36+", "优质项目"], ["120+", "合作伙伴"], ["30分钟", "客服响应"]].map(([num, label]) => (
-                <div key={label}>
-                  <div className="font-display text-2xl font-black text-gold-gradient sm:text-3xl">{num}</div>
-                  <div className="mt-1 text-xs tracking-widest text-slate-400">{label}</div>
+              {stats.slice(0, 3).map((s) => (
+                <div key={s.label}>
+                  <div className="font-display text-2xl font-black text-gold-gradient sm:text-3xl">{s.num}{s.suffix}</div>
+                  <div className="mt-1 text-xs tracking-widest text-slate-400">{s.label}</div>
                 </div>
               ))}
             </motion.div>

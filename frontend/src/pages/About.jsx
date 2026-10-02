@@ -2,23 +2,16 @@ import { Unlock, ShieldCheck, Handshake } from "lucide-react";
 import { Reveal, SectionHeading } from "@/components/Reveal";
 import { useSettings } from "@/lib/useSettings";
 
-const STATS = [
-  { num: "36+", label: "优质项目" },
-  { num: "120+", label: "合作伙伴" },
-  { num: "80+", label: "行业动态" },
-  { num: "30", unit: "分钟内", label: "客服响应" },
-];
-
 const VALUES = [
-  { icon: Unlock, title: "开放", desc: "开放项目信息与合作机会，让每一位伙伴都能平等触达优质资源。" },
-  { icon: ShieldCheck, title: "可信", desc: "重视资源真实与对接效率，项目层层审核，信息透明可查。" },
-  { icon: Handshake, title: "共赢", desc: "推动伙伴共同成长，构建长期稳定、互利共赢的合作生态。" },
+  { icon: Unlock, title: "开放", desc: "开放项目信息与合作机会，让每一位伙伴都能平等触达优质资源。", img: "/images/ui/value-open.png" },
+  { icon: ShieldCheck, title: "可信", desc: "重视资源真实与对接效率，项目层层审核，信息透明可查。", img: "/images/ui/value-trust.png" },
+  { icon: Handshake, title: "共赢", desc: "推动伙伴共同成长，构建长期稳定、互利共赢的合作生态。", img: "/images/ui/value-win.png" },
 ];
 
 const AVATARS_PLACEHOLDER = [];
 
 export default function About() {
-  const { team } = useSettings();
+  const { team, stats } = useSettings();
 
   return (
     <main className="pt-28" data-testid="about-page">
@@ -35,26 +28,37 @@ export default function About() {
       <section className="pb-20" data-testid="about-intro-section">
         <div className="mx-auto grid max-w-7xl items-stretch gap-8 px-4 sm:px-8 lg:grid-cols-5 lg:px-16">
           <Reveal className="lg:col-span-2">
-            <div className="glass-card h-full rounded-3xl p-8 sm:p-10">
-              <h2 className="font-display text-2xl font-bold text-gold-gradient">平台简介</h2>
-              <div className="mt-4 h-px w-14 bg-gold-gradient" />
-              <p className="mt-6 text-sm leading-loose text-slate-300 sm:text-base">
-                合赢项目社专注优质项目资源对接、社群交流与商业合作，汇聚各方伙伴，发掘优质项目，搭建开放可信的项目协作平台。
-              </p>
-              <p className="mt-4 text-sm leading-loose text-slate-400">
-                我们相信，好的项目值得被更多人看见。通过严选审核机制、成熟社群网络与专业客服团队，合赢项目社让项目方、资源方与团长伙伴高效连接，让每一次合作都有迹可循、有始有终。
-              </p>
+            <div className="glass-card h-full overflow-hidden rounded-3xl">
+              <div className="relative h-44 overflow-hidden">
+                <img
+                  src="/images/ui/about-intro.png"
+                  alt="合赢项目社"
+                  loading="lazy"
+                  className="h-full w-full object-cover"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-[#0D1730] via-[#0A1228]/20 to-transparent" />
+              </div>
+              <div className="p-8 sm:p-9">
+                <h2 className="font-display text-2xl font-bold text-gold-gradient">平台简介</h2>
+                <div className="mt-4 h-px w-14 bg-gold-gradient" />
+                <p className="mt-6 text-sm leading-loose text-slate-300 sm:text-base">
+                  合赢项目社专注优质项目资源对接、社群交流与商业合作，汇聚各方伙伴，发掘优质项目，搭建开放可信的项目协作平台。
+                </p>
+                <p className="mt-4 text-sm leading-loose text-slate-400">
+                  我们相信，好的项目值得被更多人看见。通过严选审核机制、成熟社群网络与专业客服团队，合赢项目社让项目方、资源方与团长伙伴高效连接，让每一次合作都有迹可循、有始有终。
+                </p>
+              </div>
             </div>
           </Reveal>
 
           <div className="grid grid-cols-2 gap-5 lg:col-span-3" data-testid="about-stats-grid">
-            {STATS.map((s, i) => (
-              <Reveal key={s.label} delay={i * 0.1} className="h-full">
+            {stats.map((s, i) => (
+              <Reveal key={`${s.label}-${i}`} delay={i * 0.1} className="h-full">
                 <div className="glass-card group relative h-full overflow-hidden rounded-2xl border-amber-400/30 p-7 text-center shadow-[inset_0_0_40px_rgba(212,175,55,0.06)]" data-testid={`stat-tile-${i}`}>
                   <div className="pointer-events-none absolute -top-10 left-1/2 h-20 w-32 -translate-x-1/2 rounded-full bg-[#D4AF37]/20 blur-2xl transition-opacity duration-500 group-hover:opacity-100" />
                   <div className="font-display text-4xl font-black text-gold-gradient sm:text-5xl">
                     {s.num}
-                    {s.unit && <span className="ml-1 text-base font-bold">{s.unit}</span>}
+                    {s.suffix && <span className="ml-1 text-base font-bold">{s.suffix}</span>}
                   </div>
                   <div className="mt-3 text-sm tracking-[0.2em] text-slate-300">{s.label}</div>
                 </div>
@@ -70,12 +74,23 @@ export default function About() {
           <div className="grid grid-cols-1 gap-7 md:grid-cols-3">
             {VALUES.map((v, i) => (
               <Reveal key={v.title} delay={i * 0.12}>
-                <div className="glass-card group h-full rounded-3xl p-9 text-center" data-testid={`value-card-${i}`}>
-                  <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full border border-amber-400/40 bg-[#060B18] text-[#E5C158] shadow-[0_0_24px_rgba(212,175,55,0.25)] transition-transform duration-500 group-hover:scale-110">
-                    <v.icon size={26} />
+                <div className="glass-card group h-full overflow-hidden rounded-3xl" data-testid={`value-card-${i}`}>
+                  <div className="relative h-40 overflow-hidden">
+                    <img
+                      src={v.img}
+                      alt={v.title}
+                      loading="lazy"
+                      className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-110"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-[#0D1730] via-[#0A1228]/20 to-transparent" />
+                    <div className="absolute bottom-4 left-1/2 flex h-12 w-12 -translate-x-1/2 items-center justify-center rounded-full border border-amber-400/40 bg-[#060B18]/80 text-[#E5C158] shadow-[0_0_20px_rgba(212,175,55,0.35)] backdrop-blur-sm">
+                      <v.icon size={20} />
+                    </div>
                   </div>
-                  <h3 className="mt-6 font-display text-xl font-bold text-gold-gradient">{v.title}</h3>
-                  <p className="mt-3 text-sm leading-relaxed text-slate-400">{v.desc}</p>
+                  <div className="p-8 text-center">
+                    <h3 className="font-display text-xl font-bold text-gold-gradient">{v.title}</h3>
+                    <p className="mt-3 text-sm leading-relaxed text-slate-400">{v.desc}</p>
+                  </div>
                 </div>
               </Reveal>
             ))}

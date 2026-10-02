@@ -153,9 +153,16 @@ class TeamMember(BaseModel):
     image: str = ""
 
 
+class StatItem(BaseModel):
+    num: str = Field(min_length=1, max_length=20)
+    suffix: str = Field(default="", max_length=10)
+    label: str = Field(min_length=1, max_length=20)
+
+
 class SiteSettings(BaseModel):
     contact: ContactInfo = ContactInfo()
     team: List[TeamMember] = Field(default_factory=list)
+    stats: List[StatItem] = Field(default_factory=list)
 
 
 class ArticleInput(BaseModel):
