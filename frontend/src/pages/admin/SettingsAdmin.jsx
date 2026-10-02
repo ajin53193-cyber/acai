@@ -14,6 +14,7 @@ export default function SettingsAdmin({ token, onUnauthorized }) {
   const [stats, setStats] = useState(DEFAULT_SETTINGS.stats);
   const [categories, setCategories] = useState(DEFAULT_SETTINGS.categories);
   const [chatCfg, setChatCfg] = useState(DEFAULT_SETTINGS.chat);
+  const [tiers, setTiers] = useState(DEFAULT_SETTINGS.tiers);
   const [saving, setSaving] = useState(false);
 
   const headers = { Authorization: `Bearer ${token}` };
@@ -27,6 +28,7 @@ export default function SettingsAdmin({ token, onUnauthorized }) {
         if (res.data.stats && res.data.stats.length) setStats(res.data.stats);
         if (res.data.categories && res.data.categories.length) setCategories(res.data.categories);
         setChatCfg({ ...DEFAULT_SETTINGS.chat, ...(res.data.chat || {}) });
+        if (res.data.tiers && res.data.tiers.length) setTiers(res.data.tiers);
       })
       .catch(() => {});
   }, []);
@@ -38,11 +40,13 @@ export default function SettingsAdmin({ token, onUnauthorized }) {
     setStats((prev) => prev.map((s, idx) => (idx === i ? { ...s, [key]: e.target.value } : s)));
   const setCategory = (i) => (e) =>
     setCategories((prev) => prev.map((c, idx) => (idx === i ? e.target.value : c)));
+  const setTier = (i, key) => (e) =>
+    setTiers((prev) => prev.map((t, idx) => (idx === i ? { ...t, [key]: e.target.value } : t)));
 
   const save = async () => {
     setSaving(true);
     try {
-      await axios.put(`${API}/admin/settings`, { contact, team, stats, categories: categories.map((c) => c.trim()).filter(Boolean), chat: chatCfg }, { headers });
+      await axios.put(`${API}/admin/settings`, { contact, team, stats, categories: categories.map((c) => c.trim()).filter(Boolean), chat: chatCfg, tiers: tiers.filter((t) => t.count.trim() && t.income.trim()) }, { headers });
       invalidateSettings();
       toast.success("设置已保存，前台页面已同步更新");
     } catch (err) {
@@ -235,6 +239,54 @@ export default function SettingsAdmin({ token, onUnauthorized }) {
               testid="settings-chat-qr-upload"
             />
           </div>
+        </div>
+      </div>
+
+      <div className="glass-card rounded-3xl p-7" data-testid="settings-tiers-card">
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="font-display text-lg font-bold text-gold-gradient">团长收益体系</h3>
+            <p className="mt-1 text-xs text-slate-500">显示在「合作共赢」页的收益卡片，可设置一档为热门</p>
+          </div>
+          <button
+            data-testid="settings-tier-add-btn"
+            onClick={() => setTiers([...tiers, { count: "", income: "", featured: false }])}
+            className="flex items-center gap-1.5 rounded-full border border-amber-500/30 px-4 py-2 text-xs text-[#E5C158] transition-colors hover:bg-amber-500/10"
+          >
+            <Plus size={13} /> 添加档位
+          </button>
+        </div>
+        <div className="mt-6 space-y-4">
+          {tiers.map((t, i) => (
+            <div key={i} className="flex flex-wrap items-end gap-3 rounded-2xl border border-amber-500/10 bg-[#060B18]/50 p-4" data-testid={`settings-tier-row-${i}`}>
+              <div className="flex-1 min-w-[120px]">
+                <label className="mb-1 block text-[10px] tracking-widest text-slate-500">团队规模</label>
+                <input data-testid={`settings-tier-count-${i}`} value={t.count} onChange={setTier(i, "count")} placeholder="10人团队" className={inputCls} />
+              </div>
+              <div className="flex-1 min-w-[120px]">
+                <label className="mb-1 block text-[10px] tracking-widest text-slate-500">月入参考</label>
+                <input data-testid={`settings-tier-income-${i}`} value={t.income} onChange={setTier(i, "income")} placeholder="2-3万" className={inputCls} />
+              </div>
+              <label className="flex cursor-pointer items-center gap-2 pb-2.5 text-xs text-slate-300">
+                <input
+                  type="checkbox"
+                  data-testid={`settings-tier-featured-${i}`}
+                  checked={!!t.featured}
+                  onChange={(e) => setTiers((prev) => prev.map((x, idx) => (idx === i ? { ...x, featured: e.target.checked } : x)))}
+                  className="h-4 w-4 accent-amber-500"
+                />
+                热门
+              </label>
+              <button
+                data-testid={`settings-tier-remove-${i}`}
+                onClick={() => setTiers(tiers.filter((_, idx) => idx !== i))}
+                className="mb-0.5 rounded-full border border-red-500/30 p-2.5 text-red-300 transition-colors hover:bg-red-500/10"
+                aria-label="删除档位"
+              >
+                <Trash2 size={14} />
+              </button>
+            </div>
+          ))}
         </div>
       </div>
 

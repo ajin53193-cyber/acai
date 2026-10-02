@@ -29,6 +29,11 @@ export const DEFAULT_SETTINGS = {
     ai_enabled: false,
     qr_image: "",
   },
+  tiers: [
+    { count: "10人团队", income: "2-3万", featured: false },
+    { count: "20人团队", income: "5-6万", featured: true },
+    { count: "50人团队", income: "10万以上", featured: false },
+  ],
 };
 
 let cache = null;
@@ -45,6 +50,7 @@ export const fetchSettings = () => {
           stats: res.data.stats && res.data.stats.length ? res.data.stats : DEFAULT_SETTINGS.stats,
           categories: res.data.categories && res.data.categories.length ? res.data.categories : DEFAULT_SETTINGS.categories,
           chat: { ...DEFAULT_SETTINGS.chat, ...(res.data.chat || {}) },
+          tiers: res.data.tiers && res.data.tiers.length ? res.data.tiers : DEFAULT_SETTINGS.tiers,
         };
         return cache;
       })

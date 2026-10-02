@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import axios from "axios";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
-import { Plus, Pencil, Trash2, X, Eye, EyeOff } from "lucide-react";
+import { Plus, Pencil, Trash2, X, Eye, EyeOff, Crown } from "lucide-react";
 import { API, formatDetail } from "@/lib/api";
 import { ImageUpload, toFullUrl } from "@/components/ImageUpload";
 import { useSettings } from "@/lib/useSettings";
@@ -128,6 +128,18 @@ export default function ProjectsAdmin({ token, onUnauthorized }) {
     }
   };
 
+  const toggleFeatured = async (p) => {
+    const next = !p.featured;
+    try {
+      await axios.patch(`${API}/admin/projects/${p.id}/featured`, { featured: next }, { headers });
+      setProjects((prev) => prev.map((x) => (x.id === p.id ? { ...x, featured: next } : x)));
+      toast.success(next ? "已设为主打，将显示在项目中心第一位" : "已取消主打");
+    } catch (err) {
+      if (err.response?.status === 401) onUnauthorized();
+      else toast.error("操作失败");
+    }
+  };
+
   const remove = async (p) => {
     if (!window.confirm(`确定删除项目「${p.title}」吗？此操作不可恢复。`)) return;
     try {
@@ -170,6 +182,11 @@ export default function ProjectsAdmin({ token, onUnauthorized }) {
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="font-display font-bold text-slate-50">{p.title}</span>
                     <span className="rounded-full border border-amber-500/30 px-2.5 py-0.5 text-xs text-[#E5C158]">{p.category}</span>
+                    {p.featured && (
+                      <span className="flex items-center gap-1 rounded-full bg-gold-gradient px-2.5 py-0.5 text-xs font-bold text-[#060B18]">
+                        <Crown size={10} /> 主打
+                      </span>
+                    )}
                     <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${live ? "bg-emerald-500/10 text-emerald-300" : "bg-slate-500/15 text-slate-400"}`}>
                       {live ? "上架中" : "已下架"}
                     </span>
@@ -177,6 +194,15 @@ export default function ProjectsAdmin({ token, onUnauthorized }) {
                   <div className="mt-1 truncate text-xs text-slate-500">{p.region} · {p.investment} · {p.status}</div>
                 </div>
                 <div className="flex items-center gap-2">
+                  <button
+                    data-testid={`admin-project-featured-${i}`}
+                    onClick={() => toggleFeatured(p)}
+                    className={`flex items-center gap-1.5 rounded-full border px-4 py-2 text-xs transition-colors ${
+                      p.featured ? "border-[#FFE896]/60 bg-amber-500/15 text-[#FFE896]" : "border-amber-500/30 text-[#E5C158] hover:bg-amber-500/10"
+                    }`}
+                  >
+                    <Crown size={13} /> {p.featured ? "取消主打" : "设为主打"}
+                  </button>
                   <button
                     data-testid={`admin-project-toggle-${i}`}
                     onClick={() => togglePublish(p)}

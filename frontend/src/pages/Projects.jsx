@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import axios from "axios";
-import { Search, X, MapPin, BadgeCheck, ArrowRight } from "lucide-react";
+import { Search, X, MapPin, BadgeCheck, ArrowRight, Crown } from "lucide-react";
 import { Reveal, SectionHeading } from "@/components/Reveal";
 import { API } from "@/lib/api";
 import { useSettings } from "@/lib/useSettings";
@@ -102,7 +102,12 @@ export default function Projects() {
                         className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-110"
                       />
                       <div className="absolute inset-0 bg-gradient-to-t from-[#0A1228] via-transparent to-transparent" />
-                      <span className="absolute left-4 top-4 rounded-full bg-gold-gradient px-3 py-1 text-xs font-bold text-[#060B18]">
+                      {p.featured && (
+                        <span className="absolute left-4 top-4 flex items-center gap-1 rounded-full bg-gradient-to-r from-[#FFE896] to-[#D4AF37] px-3 py-1 text-xs font-black text-[#060B18] shadow-[0_0_14px_rgba(255,232,150,0.5)]">
+                          <Crown size={11} /> 主打
+                        </span>
+                      )}
+                      <span className={`absolute top-4 rounded-full border border-amber-500/40 bg-[#060B18]/75 px-3 py-1 text-xs text-[#E5C158] backdrop-blur-sm ${p.featured ? "left-24" : "left-4"}`}>
                         {p.status}
                       </span>
                       <span className="absolute right-4 top-4 rounded-full border border-amber-500/30 bg-[#060B18]/70 px-3 py-1 text-xs text-[#E5C158] backdrop-blur-sm">
@@ -159,7 +164,14 @@ export default function Projects() {
                   <X size={18} />
                 </button>
                 <div className="absolute bottom-5 left-6 right-6">
-                  <span className="rounded-full bg-gold-gradient px-3 py-1 text-xs font-bold text-[#060B18]">{active.status}</span>
+                  <div className="flex items-center gap-2">
+                    {active.featured && (
+                      <span className="flex items-center gap-1 rounded-full bg-gradient-to-r from-[#FFE896] to-[#D4AF37] px-3 py-1 text-xs font-black text-[#060B18]">
+                        <Crown size={11} /> 主打
+                      </span>
+                    )}
+                    <span className="rounded-full border border-amber-500/40 bg-[#060B18]/75 px-3 py-1 text-xs text-[#E5C158] backdrop-blur-sm">{active.status}</span>
+                  </div>
                   <h3 className="mt-3 font-display text-2xl font-black text-slate-50">{active.title}</h3>
                 </div>
               </div>

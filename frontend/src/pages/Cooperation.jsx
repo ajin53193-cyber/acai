@@ -10,11 +10,7 @@ const STEPS = [
   { icon: Users, title: "合作落地", desc: "团队对接稳定落地" },
 ];
 
-const TIERS = [
-  { count: "10人团队", income: "2-3万", unit: "月入参考", icon: User, featured: false },
-  { count: "20人团队", income: "5-6万", unit: "月入参考", icon: Users, featured: true },
-  { count: "50人团队", income: "10万以上", unit: "月入参考", icon: Crown, featured: false },
-];
+const TIER_ICONS = [User, Users, Crown, Gem, Package, Hexagon];
 
 const MODES = [
   {
@@ -45,7 +41,7 @@ const ADVANTAGES = [
 ];
 
 export default function Cooperation() {
-  const { contact } = useSettings();
+  const { contact, tiers } = useSettings();
 
   return (
     <main className="pt-28" data-testid="cooperation-page">
@@ -89,8 +85,10 @@ export default function Cooperation() {
         <div className="mx-auto max-w-7xl px-4 sm:px-8 lg:px-16">
           <SectionHeading title="团长收益体系" subtitle="团队发展收益参考 · 具体以正式合作协议为准" />
           <div className="grid grid-cols-1 items-stretch gap-6 sm:grid-cols-3">
-            {TIERS.map((t, i) => (
-              <Reveal key={t.count} delay={i * 0.12}>
+            {tiers.map((t, i) => {
+              const TierIcon = TIER_ICONS[i % TIER_ICONS.length];
+              return (
+              <Reveal key={`${t.count}-${i}`} delay={i * 0.12}>
                 <div
                   className={`glass-card group relative flex h-full flex-col items-center overflow-hidden rounded-3xl px-8 py-10 text-center ${
                     t.featured ? "border-amber-400/50 shadow-[0_0_50px_-10px_rgba(212,175,55,0.35)]" : ""
@@ -105,15 +103,16 @@ export default function Cooperation() {
                   <div className="absolute left-1/2 top-0 h-px w-2/3 -translate-x-1/2 bg-gradient-to-r from-transparent via-[#FFE896] to-transparent opacity-60" />
                   <div className="pointer-events-none absolute -top-10 left-1/2 h-20 w-32 -translate-x-1/2 rounded-full bg-[#D4AF37]/20 blur-2xl transition-opacity duration-500 group-hover:opacity-100" />
                   <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-amber-400/40 bg-[#060B18] text-[#E5C158] shadow-[0_0_20px_rgba(212,175,55,0.25)] transition-transform duration-500 group-hover:scale-110">
-                    <t.icon size={24} />
+                    <TierIcon size={24} />
                   </div>
                   <div className="mt-5 text-sm tracking-[0.25em] text-slate-400">{t.count}</div>
                   <div className="mt-3 font-display text-4xl font-black text-gold-gradient sm:text-5xl">{t.income}</div>
-                  <div className="mt-2 text-xs tracking-[0.2em] text-[#D4AF37]">{t.unit} / 月</div>
+                  <div className="mt-2 text-xs tracking-[0.2em] text-[#D4AF37]">月入参考 / 月</div>
                   <div className="mt-6 h-0.5 w-8 rounded-full bg-gold-gradient opacity-40 transition-all duration-500 group-hover:w-16 group-hover:opacity-100" />
                 </div>
               </Reveal>
-            ))}
+              );
+            })}
           </div>
           <Reveal className="mt-8 text-center">
             <p className="mx-auto max-w-2xl text-xs leading-relaxed text-slate-500" data-testid="tier-disclaimer">

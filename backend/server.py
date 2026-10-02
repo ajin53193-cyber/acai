@@ -140,6 +140,10 @@ class PublishUpdate(BaseModel):
     published: bool
 
 
+class FeaturedUpdate(BaseModel):
+    featured: bool
+
+
 class ContactInfo(BaseModel):
     hotline: str = "400-888-6888"
     wechat: str = "heyingkefu"
@@ -159,6 +163,12 @@ class StatItem(BaseModel):
     label: str = Field(min_length=1, max_length=20)
 
 
+class TierItem(BaseModel):
+    count: str = Field(min_length=1, max_length=30)
+    income: str = Field(min_length=1, max_length=30)
+    featured: bool = False
+
+
 class ChatConfig(BaseModel):
     welcome: str = "您好，欢迎来到合赢项目社！请描述您想咨询的问题，客服会尽快回复您。"
     ai_enabled: bool = False
@@ -171,6 +181,7 @@ class SiteSettings(BaseModel):
     stats: List[StatItem] = Field(default_factory=list)
     categories: List[str] = Field(default_factory=list)
     chat: ChatConfig = ChatConfig()
+    tiers: List[TierItem] = Field(default_factory=list)
 
 
 class ArticleInput(BaseModel):
@@ -354,7 +365,7 @@ async def list_projects(category: Optional[str] = None):
     query = {"published": {"$ne": False}}
     if category and category != "全部":
         query["category"] = category
-    projects = await db.projects.find(query, {"_id": 0}).to_list(100)
+    projects = await db.projects.find(query, {"_id": 0}).sort([("featured", -1), ("created_at", 1)]).to_list(100)
     return {"projects": projects}
 
 
@@ -580,6 +591,14 @@ async def toggle_project_publish(project_id: str, data: PublishUpdate, _: str = 
     if result.matched_count == 0:
         raise HTTPException(status_code=404, detail="项目不存在")
     return {"message": "已上架" if data.published else "已下架"}
+
+
+@api_router.patch("/admin/projects/{project_id}/featured")
+async def toggle_project_featured(project_id: str, data: FeaturedUpdate, _: str = Depends(require_admin)):
+    result = await db.projects.update_one({"id": project_id}, {"$set": {"featured": data.featured}})
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="项目不存在")
+    return {"message": "已设为主打" if data.featured else "已取消主打"}
 
 
 @api_router.delete("/admin/projects/{project_id}")
