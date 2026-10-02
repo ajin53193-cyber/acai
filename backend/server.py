@@ -374,12 +374,25 @@ async def generate_ai_reply(session_id: str):
         transcript = "\n".join(
             f"{'访客' if m['sender'] == 'visitor' else '客服'}: {m['text']}" for m in history
         )
+
+        projects = await db.projects.find(
+            {"published": {"$ne": False}},
+            {"_id": 0, "id": 0, "created_at": 0, "published": 0},
+        ).to_list(50)
+        kb = "\n".join(
+            f"· {p['title']}（{p['category']}｜{p['region']}｜投入区间{p.get('investment') or '详询客服'}｜{p['status']}）：{p.get('description', '')}"
+            + (f" 亮点：{'、'.join(p.get('highlights', []))}" if p.get("highlights") else "")
+            for p in projects
+        )
+
         system = (
             "你是「合赢项目社」的在线客服助手。平台专注优质项目资源对接、社群交流与商业合作，"
             "连接项目、资金、渠道与团队伙伴。核心服务：项目发布、资源对接、社群共建、合作落地；"
-            "合作方式：团长合作、项目方合作、资源方合作。工作时间 9:00-21:00，邮箱 contact@heying.com。"
+            "合作方式：团长合作、项目方合作、资源方合作。工作时间 9:00-21:00，邮箱 contact@heying.com。\n"
+            f"平台当前在架项目（回答项目相关问题时以此知识库为准）：\n{kb}\n"
             "回答规则：全程使用中文；语气专业热情；回答控制在80字以内；"
-            "不了解的具体项目细节不要编造，引导访客留下姓名和电话，人工客服会尽快跟进；"
+            "访客询问具体项目时，依据上方知识库准确回答其类别、区域、投入区间、合作状态与亮点；"
+            "知识库中没有的信息不要编造，引导访客留下姓名和电话，人工客服会尽快跟进；"
             "涉及收益时提醒以正式协议为准，不做收益承诺。"
         )
         chat = LlmChat(
