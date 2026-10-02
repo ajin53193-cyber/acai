@@ -10,12 +10,13 @@ from dotenv import load_dotenv
 
 load_dotenv(Path(__file__).parent / ".env")
 
-from fastapi import FastAPI, APIRouter, HTTPException, Depends, UploadFile, File
+from fastapi import FastAPI, APIRouter, HTTPException, Depends, UploadFile, File, Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from starlette.middleware.cors import CORSMiddleware
 from starlette.responses import Response
 from motor.motor_asyncio import AsyncIOMotorClient
 from pydantic import BaseModel, Field
+from zoneinfo import ZoneInfo
 import asyncio
 import requests
 
@@ -201,6 +202,35 @@ class ChatMessageInput(BaseModel):
 
 
 QR_KEYWORDS = ("怎么加入", "如何加入", "联系方式", "人工", "微信", "二维码", "扫码", "进群", "加群")
+
+CN_TZ = ZoneInfo("Asia/Shanghai")
+_geo_cache = {}
+
+
+def lookup_region(ip: str) -> str:
+    if ip in _geo_cache:
+        return _geo_cache[ip]
+    if ip.startswith(("10.", "192.168.", "127.", "172.")) or ip in ("::1", "localhost", "unknown"):
+        _geo_cache[ip] = "本地访问"
+        return "本地访问"
+    try:
+        resp = requests.get(
+            f"http://ip-api.com/json/{ip}?lang=zh-CN&fields=status,country,regionName,city",
+            timeout=5,
+        )
+        d = resp.json()
+        if d.get("status") == "success":
+            region = " ".join(x for x in [d.get("country"), d.get("regionName"), d.get("city")] if x)
+        else:
+            region = "未知地区"
+    except Exception:
+        region = "未知地区"
+    _geo_cache[ip] = region
+    return region
+
+
+class TrackInput(BaseModel):
+    path: str = Field(min_length=1, max_length=200)
 
 
 ARTICLES_SEED = [
@@ -728,6 +758,78 @@ async def admin_chat_reply(session_id: str, data: ChatMessageInput, _: str = Dep
     )
     doc.pop("_id", None)
     return doc
+
+
+@api_router.post("/track", status_code=201)
+async def track_visit(data: TrackInput, request: Request):
+    path = data.path if data.path.startswith("/") else "/"
+    if path.startswith("/admin"):
+        return {"ok": True}
+    ip = request.headers.get("x-forwarded-for", "").split(",")[0].strip() or (
+        request.client.host if request.client else "unknown"
+    )
+    now = datetime.now(timezone.utc)
+    region = await asyncio.to_thread(lookup_region, ip)
+    await db.visits.insert_one({
+        "id": str(uuid.uuid4()),
+        "ip": ip,
+        "region": region,
+        "path": path,
+        "ua": request.headers.get("user-agent", "")[:200],
+        "date": now.astimezone(CN_TZ).strftime("%Y-%m-%d"),
+        "created_at": now.isoformat(),
+    })
+    return {"ok": True}
+
+
+@api_router.get("/admin/stats/overview")
+async def stats_overview(date: str, _: str = Depends(require_admin)):
+    query = {"date": date}
+    visits = await db.visits.count_documents(query)
+    ips = await db.visits.distinct("ip", query)
+    pipeline = [
+        {"$match": query},
+        {"$group": {"_id": "$path", "count": {"$sum": 1}}},
+        {"$sort": {"count": -1}},
+        {"$limit": 10},
+    ]
+    pages = await db.visits.aggregate(pipeline).to_list(10)
+    return {
+        "date": date,
+        "visits": visits,
+        "unique_ips": len(ips),
+        "top_pages": [{"path": p["_id"], "count": p["count"]} for p in pages],
+    }
+
+
+@api_router.get("/admin/stats/daily")
+async def stats_daily(days: int = 14, _: str = Depends(require_admin)):
+    days = max(1, min(days, 90))
+    today = datetime.now(CN_TZ)
+    start = (today - timedelta(days=days - 1)).strftime("%Y-%m-%d")
+    pipeline = [
+        {"$match": {"date": {"$gte": start}}},
+        {"$group": {"_id": "$date", "visits": {"$sum": 1}, "ips": {"$addToSet": "$ip"}}},
+        {"$sort": {"_id": 1}},
+    ]
+    rows = await db.visits.aggregate(pipeline).to_list(90)
+    by_date = {r["_id"]: r for r in rows}
+    result = []
+    for i in range(days):
+        d = (today - timedelta(days=days - 1 - i)).strftime("%Y-%m-%d")
+        row = by_date.get(d)
+        result.append({
+            "date": d,
+            "visits": row["visits"] if row else 0,
+            "unique_ips": len(row["ips"]) if row else 0,
+        })
+    return {"days": result}
+
+
+@api_router.get("/admin/stats/visits")
+async def stats_visits(date: str, _: str = Depends(require_admin)):
+    visits = await db.visits.find({"date": date}, {"_id": 0, "ua": 0}).sort("created_at", -1).to_list(300)
+    return {"visits": visits}
 
 
 app.include_router(api_router)

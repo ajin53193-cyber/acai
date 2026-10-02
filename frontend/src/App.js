@@ -1,7 +1,9 @@
 import { useEffect, useRef } from "react";
 import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
 import Lenis from "lenis";
+import axios from "axios";
 import { Toaster } from "sonner";
+import { API } from "@/lib/api";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 import { MobileTabBar } from "@/components/MobileTabBar";
@@ -26,6 +28,9 @@ const Layout = () => {
       lenisRef.current.scrollTo(0, { immediate: true });
     } else {
       window.scrollTo(0, 0);
+    }
+    if (!pathname.startsWith("/admin")) {
+      axios.post(`${API}/track`, { path: pathname }).catch(() => {});
     }
   }, [pathname]);
 
