@@ -15,24 +15,28 @@ const SERVICES = [
     tag: "项目发布",
     title: "绿色能源合作项目",
     desc: "汇聚光伏、储能、充电桩等绿色能源优质项目，严选审核，长期收益清晰可见。",
+    img: "/images/ui/service-publish.png",
   },
   {
     icon: Link2,
     tag: "资源对接",
     title: "社群共建项目",
     desc: "为项目方精准匹配资金、渠道与团队伙伴，高效撮合，全程跟进对接进度。",
+    img: "/images/ui/service-link.png",
   },
   {
     icon: Users,
     tag: "社群共建",
     title: "资源对接平台项目",
     desc: "开放本地社群与团长席位，共建活跃商业社群，共享平台流量与资源红利。",
+    img: "/images/ui/service-community.png",
   },
   {
     icon: Handshake,
     tag: "合作落地",
     title: "新项目推荐",
     desc: "客服团队全程护航合作落地，从意向对接到签约执行，一站式陪伴成长。",
+    img: "/images/ui/service-deal.png",
   },
 ];
 
@@ -162,20 +166,31 @@ export default function Home() {
           <div className="grid grid-cols-2 gap-4 sm:gap-6 lg:grid-cols-4">
             {SERVICES.map((s, i) => (
               <Reveal key={s.tag} delay={i * 0.1}>
-                <div className="glass-card group flex h-full flex-col rounded-2xl p-5 sm:p-7" data-testid={`service-card-${i}`}>
-                  <div className="mb-5 flex h-12 w-12 items-center justify-center rounded-xl border border-amber-500/30 bg-amber-500/10 text-[#E5C158] transition-all duration-300 group-hover:shadow-[0_0_20px_rgba(212,175,55,0.4)]">
-                    <s.icon size={22} />
+                <div className="glass-card group flex h-full flex-col overflow-hidden rounded-2xl" data-testid={`service-card-${i}`}>
+                  <div className="relative h-32 overflow-hidden sm:h-36">
+                    <img
+                      src={s.img}
+                      alt={s.tag}
+                      loading="lazy"
+                      className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-110"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-[#0D1730] via-[#0A1228]/20 to-transparent" />
+                    <div className="absolute bottom-3 left-4 flex h-9 w-9 items-center justify-center rounded-lg border border-amber-400/40 bg-[#060B18]/70 text-[#E5C158] backdrop-blur-sm">
+                      <s.icon size={17} />
+                    </div>
                   </div>
-                  <div className="text-xs font-medium tracking-[0.2em] text-[#D4AF37]">{s.tag}</div>
-                  <h3 className="mt-2 font-display text-xl font-bold text-slate-50">{s.title}</h3>
-                  <p className="mt-3 flex-1 text-sm leading-relaxed text-slate-400">{s.desc}</p>
-                  <Link
-                    to="/projects"
-                    data-testid={`service-card-link-${i}`}
-                    className="mt-5 inline-flex items-center gap-1 text-sm font-medium text-[#E5C158] transition-all duration-300 hover:gap-2.5 hover:text-[#FFE896]"
-                  >
-                    查看详情 <ChevronRight size={15} />
-                  </Link>
+                  <div className="flex flex-1 flex-col p-5 sm:p-6">
+                    <div className="text-xs font-medium tracking-[0.2em] text-[#D4AF37]">{s.tag}</div>
+                    <h3 className="mt-2 font-display text-xl font-bold text-slate-50">{s.title}</h3>
+                    <p className="mt-3 flex-1 text-sm leading-relaxed text-slate-400">{s.desc}</p>
+                    <Link
+                      to="/projects"
+                      data-testid={`service-card-link-${i}`}
+                      className="mt-5 inline-flex items-center gap-1 text-sm font-medium text-[#E5C158] transition-all duration-300 hover:gap-2.5 hover:text-[#FFE896]"
+                    >
+                      查看详情 <ChevronRight size={15} />
+                    </Link>
+                  </div>
                 </div>
               </Reveal>
             ))}
@@ -233,11 +248,14 @@ export default function Home() {
         <div className="mx-auto max-w-5xl px-4 sm:px-8">
           <Reveal>
             <div className="glass-card relative overflow-hidden rounded-3xl border-amber-400/40 px-8 py-12 text-center shadow-[0_0_60px_-15px_rgba(212,175,55,0.35)] sm:px-14">
+              <img src="/images/ui/cta-banner.png" alt="" className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-45" />
+              <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-[#0A1228]/70 via-[#0A1228]/30 to-[#0A1228]/75" />
               <div className="pointer-events-none absolute -top-24 left-1/2 h-48 w-[520px] -translate-x-1/2 rounded-full bg-[#D4AF37]/15 blur-[80px]" />
+              <div className="relative">
               <h3 className="font-display text-2xl font-bold text-slate-50 sm:text-3xl">
                 准备好加入<span className="text-gold-gradient">合作</span>了吗？
               </h3>
-              <p className="mx-auto mt-4 max-w-xl text-sm text-slate-400 sm:text-base">
+              <p className="mx-auto mt-4 max-w-xl text-sm text-slate-300 sm:text-base">
                 联系客服获取团长入驻与项目合作详情，工作时间 9:00 - 21:00 全程在线。
               </p>
               <Link
@@ -247,6 +265,7 @@ export default function Home() {
               >
                 立即联系客服
               </Link>
+              </div>
             </div>
           </Reveal>
         </div>

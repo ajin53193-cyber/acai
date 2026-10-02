@@ -32,10 +32,10 @@ const MODES = [
 ];
 
 const ADVANTAGES = [
-  { icon: Layers, title: "平台项目资源", desc: "严选项目库持续更新，覆盖多行业赛道" },
-  { icon: Hexagon, title: "社群协作体系", desc: "成熟社群网络，信息高效流转共享" },
-  { icon: ShieldCheck, title: "客服全程对接", desc: "专业客服团队，合作全程跟进护航" },
-  { icon: Zap, title: "高效信息匹配", desc: "需求快速响应，精准撮合合作双方" },
+  { icon: Layers, title: "平台项目资源", desc: "严选项目库持续更新，覆盖多行业赛道", img: "/images/ui/adv-resources.png" },
+  { icon: Hexagon, title: "社群协作体系", desc: "成熟社群网络，信息高效流转共享", img: "/images/ui/adv-network.png" },
+  { icon: ShieldCheck, title: "客服全程对接", desc: "专业客服团队，合作全程跟进护航", img: "/images/ui/adv-service.png" },
+  { icon: Zap, title: "高效信息匹配", desc: "需求快速响应，精准撮合合作双方", img: "/images/ui/adv-match.png" },
 ];
 
 export default function Cooperation() {
@@ -57,9 +57,10 @@ export default function Cooperation() {
         <div className="mx-auto max-w-7xl px-4 sm:px-8 lg:px-16">
           <SectionHeading title="合作模式" subtitle="四步闭环，从发布到落地全程护航" />
           <Reveal>
-            <div className="glass-card relative rounded-3xl px-6 py-12 sm:px-12">
+            <div className="glass-card relative overflow-hidden rounded-3xl px-6 py-12 sm:px-12">
+              <img src="/images/ui/cta-banner.png" alt="" className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-15" />
               <div className="absolute left-[12%] right-[12%] top-[64px] hidden h-px bg-gradient-to-r from-transparent via-[#D4AF37]/50 to-transparent md:block" />
-              <div className="grid grid-cols-2 gap-6 gap-y-10 md:grid-cols-4 md:gap-10">
+              <div className="relative grid grid-cols-2 gap-6 gap-y-10 md:grid-cols-4 md:gap-10">
                 {STEPS.map((s, i) => (
                   <div key={s.title} className="relative text-center" data-testid={`flow-step-${i}`}>
                     <div className="relative mx-auto flex h-16 w-16 items-center justify-center rounded-2xl border border-amber-400/40 bg-[#060B18] text-[#E5C158] shadow-[0_0_24px_rgba(212,175,55,0.25)]">
@@ -117,27 +118,42 @@ export default function Cooperation() {
           <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
             {ADVANTAGES.map((a, i) => (
               <Reveal key={a.title} delay={i * 0.1}>
-                <div className="glass-card group h-full rounded-2xl p-7" data-testid={`advantage-card-${i}`}>
-                  <div className="flex h-11 w-11 items-center justify-center rounded-xl border border-amber-500/30 bg-amber-500/10 text-[#E5C158] transition-all duration-300 group-hover:shadow-[0_0_20px_rgba(212,175,55,0.4)]">
-                    <a.icon size={20} />
+                <div className="glass-card group h-full overflow-hidden rounded-2xl" data-testid={`advantage-card-${i}`}>
+                  <div className="relative h-36 overflow-hidden">
+                    <img
+                      src={a.img}
+                      alt={a.title}
+                      loading="lazy"
+                      className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-110"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-[#0D1730] via-[#0A1228]/20 to-transparent" />
                   </div>
-                  <h3 className="mt-5 font-display text-lg font-bold text-slate-50">{a.title}</h3>
-                  <p className="mt-2 text-sm leading-relaxed text-slate-400">{a.desc}</p>
+                  <div className="p-6">
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-amber-500/30 bg-amber-500/10 text-[#E5C158] transition-all duration-300 group-hover:shadow-[0_0_20px_rgba(212,175,55,0.4)]">
+                        <a.icon size={18} />
+                      </div>
+                      <h3 className="font-display text-lg font-bold text-slate-50">{a.title}</h3>
+                    </div>
+                    <p className="mt-3 text-sm leading-relaxed text-slate-400">{a.desc}</p>
+                  </div>
                 </div>
               </Reveal>
             ))}
           </div>
 
           <Reveal className="mt-16">
-            <div className="glass-card flex flex-col items-center justify-between gap-6 rounded-3xl border-amber-400/40 px-8 py-10 text-center shadow-[0_0_60px_-15px_rgba(212,175,55,0.3)] md:flex-row md:text-left">
-              <div>
+            <div className="glass-card relative flex flex-col items-center justify-between gap-6 overflow-hidden rounded-3xl border-amber-400/40 px-8 py-10 text-center shadow-[0_0_60px_-15px_rgba(212,175,55,0.3)] md:flex-row md:text-left">
+              <img src="/images/ui/cta-banner.png" alt="" className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-40" />
+              <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-[#0A1228]/70 via-[#0A1228]/40 to-[#0A1228]/70" />
+              <div className="relative">
                 <h3 className="font-display text-xl font-bold text-slate-50 sm:text-2xl">联系客服加入团长</h3>
-                <p className="mt-2 text-sm text-slate-400">客服热线：{contact.hotline} · 微信客服：{contact.wechat}</p>
+                <p className="mt-2 text-sm text-slate-300">客服热线：{contact.hotline} · 微信客服：{contact.wechat}</p>
               </div>
               <Link
                 to="/contact"
                 data-testid="cooperation-consult-btn"
-                className="shrink-0 rounded-full bg-gold-gradient px-9 py-3.5 text-sm font-bold text-[#060B18] shadow-[0_0_24px_rgba(212,175,55,0.4)] transition-all duration-300 hover:scale-105 active:scale-95"
+                className="relative shrink-0 rounded-full bg-gold-gradient px-9 py-3.5 text-sm font-bold text-[#060B18] shadow-[0_0_24px_rgba(212,175,55,0.4)] transition-all duration-300 hover:scale-105 active:scale-95"
               >
                 在线咨询
               </Link>
