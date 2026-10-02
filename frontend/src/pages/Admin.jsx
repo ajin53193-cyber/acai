@@ -1,11 +1,13 @@
 import { useCallback, useState } from "react";
 import axios from "axios";
 import { toast } from "sonner";
-import { Lock, LogOut, Inbox, FolderKanban, Settings2 } from "lucide-react";
+import { Lock, LogOut, Inbox, FolderKanban, Settings2, Newspaper, MessagesSquare } from "lucide-react";
 import { LogoMark } from "@/components/Logo";
 import { API, formatDetail } from "@/lib/api";
 import InboxAdmin from "@/pages/admin/InboxAdmin";
 import ProjectsAdmin from "@/pages/admin/ProjectsAdmin";
+import ArticlesAdmin from "@/pages/admin/ArticlesAdmin";
+import ChatAdmin from "@/pages/admin/ChatAdmin";
 import SettingsAdmin from "@/pages/admin/SettingsAdmin";
 
 const TOKEN_KEY = "hy_admin_token";
@@ -13,6 +15,8 @@ const TOKEN_KEY = "hy_admin_token";
 const TABS = [
   { key: "inbox", name: "留言管理", icon: Inbox, testid: "admin-tab-inbox" },
   { key: "projects", name: "项目管理", icon: FolderKanban, testid: "admin-tab-projects" },
+  { key: "articles", name: "新闻管理", icon: Newspaper, testid: "admin-tab-articles" },
+  { key: "chat", name: "在线客服", icon: MessagesSquare, testid: "admin-tab-chat" },
   { key: "settings", name: "站点设置", icon: Settings2, testid: "admin-tab-settings" },
 ];
 
@@ -115,6 +119,8 @@ export default function Admin() {
 
       {tab === "inbox" && <InboxAdmin token={token} onUnauthorized={onUnauthorized} />}
       {tab === "projects" && <ProjectsAdmin token={token} onUnauthorized={onUnauthorized} />}
+      {tab === "articles" && <ArticlesAdmin token={token} onUnauthorized={onUnauthorized} />}
+      {tab === "chat" && <ChatAdmin token={token} onUnauthorized={onUnauthorized} />}
       {tab === "settings" && <SettingsAdmin token={token} onUnauthorized={onUnauthorized} />}
     </main>
   );

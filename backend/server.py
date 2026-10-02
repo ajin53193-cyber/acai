@@ -158,6 +158,44 @@ class SiteSettings(BaseModel):
     team: List[TeamMember] = Field(default_factory=list)
 
 
+class ArticleInput(BaseModel):
+    title: str = Field(min_length=1, max_length=120)
+    summary: str = Field(default="", max_length=300)
+    content: str = Field(default="")
+    cover: str = Field(default="")
+
+
+class ChatStart(BaseModel):
+    session_id: str = Field(min_length=8, max_length=64)
+    name: str = Field(default="访客", max_length=30)
+
+
+class ChatMessageInput(BaseModel):
+    text: str = Field(min_length=1, max_length=1000)
+
+
+ARTICLES_SEED = [
+    {
+        "title": "分布式光伏新政落地，社区能源项目迎发展机遇",
+        "summary": "多地出台分布式光伏支持政策，社区共建电站模式成为绿色能源赛道的关注焦点。",
+        "content": "近期，多地陆续出台分布式光伏支持政策，鼓励社区、园区场景下的光伏共建模式。\n\n对项目方而言，并网流程进一步简化，收益结算更加透明；对合作伙伴而言，社区电站具备投入灵活、回报周期清晰的特点，是绿色能源赛道中门槛相对友好的参与方式。\n\n合赢项目社已上线多个光伏社区电站合作项目，覆盖华东、珠三角等区域，感兴趣的伙伴可前往项目中心查看详情，或联系客服获取项目资料。",
+        "cover": "/images/projects/news-1.png",
+    },
+    {
+        "title": "社区团购进入精细化运营阶段，供应链能力成竞争关键",
+        "summary": "行业从规模扩张转向精细化运营，产地直供与仓配一体化成为团长盈利的核心支撑。",
+        "content": "社区团购行业正在从早期的规模扩张，进入精细化运营阶段。用户更关注商品品质与履约体验，团长的盈利能力越来越依赖背后的供应链实力。\n\n产地直供、仓配一体化、高频刚需品类组合，正在成为优质团购项目的标配。平台通过集中采购与智能调度，帮助团长降低库存风险、提升复购率。\n\n合赢项目社的社区团购类项目均经过供应链实地考察，团长合作席位持续开放中。",
+        "cover": "/images/projects/news-2.png",
+    },
+    {
+        "title": "合赢项目社合作伙伴突破120家，服务网络持续扩大",
+        "summary": "平台合作伙伴数量突破120家，覆盖全国主要经济区，项目对接效率持续提升。",
+        "content": "截至本月，合赢项目社合作伙伴数量正式突破120家，覆盖华东、华南、西南、华中等主要经济区域。\n\n目前平台在库优质项目36个以上，涵盖绿色能源、科技创新、商业渠道、实体产业四大赛道，客服团队保持30分钟内响应的服务标准。\n\n感谢每一位伙伴的信任。平台将持续严选项目、优化对接流程，与所有伙伴聚力共赢。",
+        "cover": "/images/projects/news-3.png",
+    },
+]
+
+
 PROJECTS_SEED = [
     {
         "title": "绿源光伏社区电站",
@@ -276,6 +314,17 @@ async def startup():
             docs.append({"id": str(uuid.uuid4()), **p, "created_at": datetime.now(timezone.utc).isoformat()})
         await db.projects.insert_many(docs)
 
+    if await db.articles.count_documents({}) == 0:
+        docs = []
+        for a in ARTICLES_SEED:
+            docs.append({
+                "id": str(uuid.uuid4()),
+                **a,
+                "published": True,
+                "created_at": datetime.now(timezone.utc).isoformat(),
+            })
+        await db.articles.insert_many(docs)
+
 
 @api_router.get("/")
 async def root():
@@ -296,6 +345,63 @@ async def get_settings():
     doc = await db.settings.find_one({"key": "site"}, {"_id": 0, "key": 0})
     if not doc:
         return {"contact": ContactInfo().model_dump(), "team": []}
+    return doc
+
+
+@api_router.get("/articles")
+async def list_articles():
+    articles = await db.articles.find(
+        {"published": {"$ne": False}},
+        {"_id": 0, "content": 0},
+    ).sort("created_at", -1).to_list(100)
+    return {"articles": articles}
+
+
+@api_router.get("/articles/{article_id}")
+async def get_article(article_id: str):
+    doc = await db.articles.find_one({"id": article_id, "published": {"$ne": False}}, {"_id": 0})
+    if not doc:
+        raise HTTPException(status_code=404, detail="文章不存在")
+    return doc
+
+
+@api_router.post("/chat/start")
+async def chat_start(data: ChatStart):
+    now = datetime.now(timezone.utc).isoformat()
+    await db.chat_sessions.update_one(
+        {"id": data.session_id},
+        {"$setOnInsert": {"id": data.session_id, "created_at": now},
+         "$set": {"name": data.name}},
+        upsert=True,
+    )
+    return {"session_id": data.session_id}
+
+
+@api_router.get("/chat/{session_id}/messages")
+async def chat_messages(session_id: str):
+    messages = await db.chat_messages.find({"session_id": session_id}, {"_id": 0}).sort("created_at", 1).to_list(500)
+    return {"messages": messages}
+
+
+@api_router.post("/chat/{session_id}/messages", status_code=201)
+async def chat_send(session_id: str, data: ChatMessageInput):
+    session = await db.chat_sessions.find_one({"id": session_id})
+    if not session:
+        raise HTTPException(status_code=404, detail="会话不存在，请先开始咨询")
+    now = datetime.now(timezone.utc).isoformat()
+    doc = {
+        "id": str(uuid.uuid4()),
+        "session_id": session_id,
+        "sender": "visitor",
+        "text": data.text,
+        "created_at": now,
+    }
+    await db.chat_messages.insert_one(doc)
+    await db.chat_sessions.update_one(
+        {"id": session_id},
+        {"$set": {"last_message_at": now, "last_message": data.text[:50], "unread_admin": True}},
+    )
+    doc.pop("_id", None)
     return doc
 
 
@@ -416,6 +522,83 @@ async def serve_file(path: str):
         raise HTTPException(status_code=404, detail="文件不存在")
     data, content_type = await asyncio.to_thread(get_object, path)
     return Response(content=data, media_type=record.get("content_type", content_type))
+
+
+@api_router.get("/admin/articles")
+async def admin_list_articles(_: str = Depends(require_admin)):
+    articles = await db.articles.find({}, {"_id": 0}).sort("created_at", -1).to_list(200)
+    return {"articles": articles}
+
+
+@api_router.post("/admin/articles", status_code=201)
+async def create_article(data: ArticleInput, _: str = Depends(require_admin)):
+    doc = {
+        "id": str(uuid.uuid4()),
+        **data.model_dump(),
+        "published": True,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    }
+    await db.articles.insert_one(doc)
+    return {"message": "文章已发布", "id": doc["id"]}
+
+
+@api_router.put("/admin/articles/{article_id}")
+async def update_article(article_id: str, data: ArticleInput, _: str = Depends(require_admin)):
+    result = await db.articles.update_one({"id": article_id}, {"$set": data.model_dump()})
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="文章不存在")
+    return {"message": "文章已更新"}
+
+
+@api_router.patch("/admin/articles/{article_id}/publish")
+async def toggle_article_publish(article_id: str, data: PublishUpdate, _: str = Depends(require_admin)):
+    result = await db.articles.update_one({"id": article_id}, {"$set": {"published": data.published}})
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="文章不存在")
+    return {"message": "已发布" if data.published else "已下架"}
+
+
+@api_router.delete("/admin/articles/{article_id}")
+async def delete_article(article_id: str, _: str = Depends(require_admin)):
+    result = await db.articles.delete_one({"id": article_id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="文章不存在")
+    return {"message": "文章已删除"}
+
+
+@api_router.get("/admin/chat/sessions")
+async def admin_chat_sessions(_: str = Depends(require_admin)):
+    sessions = await db.chat_sessions.find({}, {"_id": 0}).sort("last_message_at", -1).to_list(200)
+    return {"sessions": sessions}
+
+
+@api_router.get("/admin/chat/{session_id}/messages")
+async def admin_chat_messages(session_id: str, _: str = Depends(require_admin)):
+    await db.chat_sessions.update_one({"id": session_id}, {"$set": {"unread_admin": False}})
+    messages = await db.chat_messages.find({"session_id": session_id}, {"_id": 0}).sort("created_at", 1).to_list(500)
+    return {"messages": messages}
+
+
+@api_router.post("/admin/chat/{session_id}/messages", status_code=201)
+async def admin_chat_reply(session_id: str, data: ChatMessageInput, _: str = Depends(require_admin)):
+    session = await db.chat_sessions.find_one({"id": session_id})
+    if not session:
+        raise HTTPException(status_code=404, detail="会话不存在")
+    now = datetime.now(timezone.utc).isoformat()
+    doc = {
+        "id": str(uuid.uuid4()),
+        "session_id": session_id,
+        "sender": "admin",
+        "text": data.text,
+        "created_at": now,
+    }
+    await db.chat_messages.insert_one(doc)
+    await db.chat_sessions.update_one(
+        {"id": session_id},
+        {"$set": {"last_message_at": now, "last_message": data.text[:50]}},
+    )
+    doc.pop("_id", None)
+    return doc
 
 
 app.include_router(api_router)

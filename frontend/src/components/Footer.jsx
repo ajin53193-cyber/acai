@@ -20,6 +20,7 @@ export const Footer = () => {
           <h4 className="mb-4 font-display text-base font-bold text-[#E5C158]">快速导航</h4>
           <ul className="space-y-2.5 text-sm text-slate-400">
             <li><Link data-testid="footer-projects-link" className="transition-colors hover:text-[#FFE896]" to="/projects">项目中心</Link></li>
+            <li><Link data-testid="footer-news-link" className="transition-colors hover:text-[#FFE896]" to="/news">新闻动态</Link></li>
             <li><Link data-testid="footer-cooperation-link" className="transition-colors hover:text-[#FFE896]" to="/cooperation">合作共赢</Link></li>
             <li><Link data-testid="footer-about-link" className="transition-colors hover:text-[#FFE896]" to="/about">关于我们</Link></li>
             <li><Link data-testid="footer-contact-link" className="transition-colors hover:text-[#FFE896]" to="/contact">联系我们</Link></li>

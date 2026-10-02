@@ -7,10 +7,13 @@ import { Footer } from "@/components/Footer";
 import { MobileTabBar } from "@/components/MobileTabBar";
 import Home from "@/pages/Home";
 import Projects from "@/pages/Projects";
+import News from "@/pages/News";
+import NewsDetail from "@/pages/NewsDetail";
 import Cooperation from "@/pages/Cooperation";
 import About from "@/pages/About";
 import Contact from "@/pages/Contact";
 import Admin from "@/pages/Admin";
+import { ChatWidget } from "@/components/ChatWidget";
 
 export const lenisRef = { current: null };
 
@@ -32,6 +35,8 @@ const Layout = () => {
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/projects" element={<Projects />} />
+        <Route path="/news" element={<News />} />
+        <Route path="/news/:id" element={<NewsDetail />} />
         <Route path="/cooperation" element={<Cooperation />} />
         <Route path="/about" element={<About />} />
         <Route path="/contact" element={<Contact />} />
@@ -39,6 +44,7 @@ const Layout = () => {
       </Routes>
       {!isAdmin && <Footer />}
       {!isAdmin && <MobileTabBar />}
+      {!isAdmin && <ChatWidget />}
     </>
   );
 };

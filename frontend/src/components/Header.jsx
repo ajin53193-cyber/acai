@@ -7,6 +7,7 @@ import { LogoFull } from "@/components/Logo";
 const NAV_ITEMS = [
   { name: "首页", path: "/", testid: "nav-home-link" },
   { name: "项目中心", path: "/projects", testid: "nav-projects-link" },
+  { name: "新闻动态", path: "/news", testid: "nav-news-link" },
   { name: "合作共赢", path: "/cooperation", testid: "nav-cooperation-link" },
   { name: "关于我们", path: "/about", testid: "nav-about-link" },
   { name: "联系我们", path: "/contact", testid: "nav-contact-link" },

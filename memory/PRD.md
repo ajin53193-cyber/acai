@@ -26,6 +26,9 @@
 - 2026-07-02 管理后台升级为三版块：留言管理 / 项目管理（新建、编辑、上架、下架、删除，前台项目中心实时同步）/ 站点设置（客服热线、微信、工作时间、邮箱 + 核心团队成员姓名、职务、形象照链接，前台联系页、页脚、关于页实时同步）
 - 2026-07-02 后台与前台完全分离（/admin 独立布局，无官网导航头/页脚/底栏）；图片直接上传（对象存储，团队形象照与项目封面均可本地上传，≤5MB，JPG/PNG/WEBP/GIF，经 /api/files 回源）
 - 2026-07-02 全站 UI 配图：AI 生成 9 张深蓝+金 3D 视觉图（/app/frontend/public/images/ui/），接入首页四大服务卡、合作优势四卡、两处 CTA 横幅背景、合作流程底纹
+- 2026-07-02 项目中心 9 个示例项目封面全部替换为同风格 AI 生成图（/app/frontend/public/images/projects/）
+- 2026-07-02 新闻动态：/news 列表 + /news/:id 详情页，后台「新闻管理」支持发布/编辑/上下架/删除（配图直传），种子文章 3 篇
+- 2026-07-02 内置在线客服：官网右下角悬浮聊天窗（访客输入称呼即可咨询，5 秒轮询），后台「在线客服」版块查看会话并回复，新消息金点提示
 - 后端接口：GET /api/projects、GET /api/settings、POST /api/contact、POST /api/admin/login、GET/PATCH /api/admin/inquiries、GET/POST/PUT/DELETE /api/admin/projects、PATCH /api/admin/projects/{id}/publish、PUT /api/admin/settings、POST /api/admin/upload、GET /api/files/{path}
 - 9 个种子项目（绿色能源/科技创新/商业渠道/实体产业）
 - 响应式：375 / 768 / 1366 均验证通过
