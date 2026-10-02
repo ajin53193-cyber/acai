@@ -1,30 +1,9 @@
-import { useEffect, useRef, useState } from "react";
-import { animate, useInView } from "framer-motion";
 import { Unlock, ShieldCheck, Handshake, FolderKanban, Users, Newspaper, Timer } from "lucide-react";
 import { Reveal, SectionHeading } from "@/components/Reveal";
+import { CountUp } from "@/components/CountUp";
 import { useSettings } from "@/lib/useSettings";
 
 const STAT_ICONS = [FolderKanban, Users, Newspaper, Timer];
-
-const CountUp = ({ value }) => {
-  const ref = useRef(null);
-  const inView = useInView(ref, { once: true, margin: "-60px" });
-  const target = parseInt(value, 10);
-  const [display, setDisplay] = useState(0);
-
-  useEffect(() => {
-    if (!inView || Number.isNaN(target)) return;
-    const controls = animate(0, target, {
-      duration: 1.8,
-      ease: [0.22, 1, 0.36, 1],
-      onUpdate: (v) => setDisplay(Math.round(v)),
-    });
-    return () => controls.stop();
-  }, [inView, target]);
-
-  if (Number.isNaN(target)) return <span ref={ref}>{value}</span>;
-  return <span ref={ref}>{display}</span>;
-};
 
 const VALUES = [
   { icon: Unlock, title: "开放", desc: "开放项目信息与合作机会，让每一位伙伴都能平等触达优质资源。", img: "/images/ui/value-open.png" },

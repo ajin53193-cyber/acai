@@ -6,6 +6,7 @@ import { FilePlus2, Link2, Users, Handshake, ChevronRight, ArrowRight } from "lu
 import { Reveal, SectionHeading } from "@/components/Reveal";
 import { Marquee } from "@/components/Marquee";
 import { HeroVisual } from "@/components/HeroVisual";
+import { CountUp } from "@/components/CountUp";
 import { useSettings } from "@/lib/useSettings";
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
@@ -132,7 +133,9 @@ export default function Home() {
             >
               {stats.slice(0, 3).map((s) => (
                 <div key={s.label}>
-                  <div className="font-display text-2xl font-black text-gold-gradient sm:text-3xl">{s.num}{s.suffix}</div>
+                  <div className="font-display text-2xl font-black text-gold-gradient sm:text-3xl">
+                    <CountUp value={s.num} />{s.suffix}
+                  </div>
                   <div className="mt-1 text-xs tracking-widest text-slate-400">{s.label}</div>
                 </div>
               ))}
