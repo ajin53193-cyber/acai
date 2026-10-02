@@ -1,21 +1,27 @@
 import { Link } from "react-router-dom";
-import { FilePlus2, Link2, Users, Target, Layers, Hexagon, ShieldCheck, Zap, Crown, Package, Gem } from "lucide-react";
+import { Users, User, Target, Layers, Hexagon, ShieldCheck, Zap, Crown, Package, Gem } from "lucide-react";
 import { Reveal, SectionHeading } from "@/components/Reveal";
 import { useSettings } from "@/lib/useSettings";
 
 const STEPS = [
-  { icon: FilePlus2, title: "项目发布", desc: "提交项目信息" },
-  { icon: Link2, title: "资源对接", desc: "匹配各方资源" },
-  { icon: Users, title: "团队共建", desc: "发展团队伙伴" },
-  { icon: Target, title: "合作落地", desc: "推动合作落地" },
+  { icon: ShieldCheck, title: "项目审核", desc: "专业机制层层审核" },
+  { icon: Target, title: "项目评估", desc: "全面评估项目价值" },
+  { icon: Layers, title: "项目整合", desc: "整合优质资源项目" },
+  { icon: Users, title: "合作落地", desc: "团队对接稳定落地" },
+];
+
+const TIERS = [
+  { count: "10人团队", income: "2-3万", unit: "月入参考", icon: User, featured: false },
+  { count: "20人团队", income: "5-6万", unit: "月入参考", icon: Users, featured: true },
+  { count: "50人团队", income: "10万以上", unit: "月入参考", icon: Crown, featured: false },
 ];
 
 const MODES = [
   {
     icon: Crown,
     title: "团长合作",
-    desc: "开放团长席位，共建本地社群与项目渠道",
-    points: ["专属城市团长席位", "平台项目优先代理权", "社群运营全程扶持", "团队业绩阶梯分成"],
+    desc: "招募团队长，平台提供稳定项目，共建团队持续收益",
+    points: ["专属城市团长席位", "平台稳定项目直供", "团队发展收益分成", "新项目每月群内分享"],
   },
   {
     icon: Package,
@@ -49,7 +55,7 @@ export default function Cooperation() {
           <h1 className="font-display text-3xl font-black tracking-tight text-gold-gradient sm:text-4xl lg:text-5xl">
             合作共赢
           </h1>
-          <p className="mt-4 text-base text-slate-400 sm:text-lg">连接项目、资金、渠道与团队伙伴</p>
+          <p className="mt-4 text-base text-slate-400 sm:text-lg">招募团队长 · 平台提供稳定项目 · 每月新项目群内分享</p>
         </Reveal>
       </section>
 
@@ -75,6 +81,44 @@ export default function Cooperation() {
                 ))}
               </div>
             </div>
+          </Reveal>
+        </div>
+      </section>
+
+      <section className="py-20" data-testid="cooperation-tiers-section">
+        <div className="mx-auto max-w-7xl px-4 sm:px-8 lg:px-16">
+          <SectionHeading title="团长收益体系" subtitle="团队发展收益参考 · 具体以正式合作协议为准" />
+          <div className="grid grid-cols-1 items-stretch gap-6 sm:grid-cols-3">
+            {TIERS.map((t, i) => (
+              <Reveal key={t.count} delay={i * 0.12}>
+                <div
+                  className={`glass-card group relative flex h-full flex-col items-center overflow-hidden rounded-3xl px-8 py-10 text-center ${
+                    t.featured ? "border-amber-400/50 shadow-[0_0_50px_-10px_rgba(212,175,55,0.35)]" : ""
+                  }`}
+                  data-testid={`tier-card-${i}`}
+                >
+                  {t.featured && (
+                    <span className="absolute right-5 top-5 rounded-full bg-gold-gradient px-3 py-1 text-[10px] font-black text-[#060B18]">
+                      热门
+                    </span>
+                  )}
+                  <div className="absolute left-1/2 top-0 h-px w-2/3 -translate-x-1/2 bg-gradient-to-r from-transparent via-[#FFE896] to-transparent opacity-60" />
+                  <div className="pointer-events-none absolute -top-10 left-1/2 h-20 w-32 -translate-x-1/2 rounded-full bg-[#D4AF37]/20 blur-2xl transition-opacity duration-500 group-hover:opacity-100" />
+                  <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-amber-400/40 bg-[#060B18] text-[#E5C158] shadow-[0_0_20px_rgba(212,175,55,0.25)] transition-transform duration-500 group-hover:scale-110">
+                    <t.icon size={24} />
+                  </div>
+                  <div className="mt-5 text-sm tracking-[0.25em] text-slate-400">{t.count}</div>
+                  <div className="mt-3 font-display text-4xl font-black text-gold-gradient sm:text-5xl">{t.income}</div>
+                  <div className="mt-2 text-xs tracking-[0.2em] text-[#D4AF37]">{t.unit} / 月</div>
+                  <div className="mt-6 h-0.5 w-8 rounded-full bg-gold-gradient opacity-40 transition-all duration-500 group-hover:w-16 group-hover:opacity-100" />
+                </div>
+              </Reveal>
+            ))}
+          </div>
+          <Reveal className="mt-8 text-center">
+            <p className="mx-auto max-w-2xl text-xs leading-relaxed text-slate-500" data-testid="tier-disclaimer">
+              以上收益为团队发展规模的参考区间，实际收益与团队运营情况相关，不构成收益承诺，具体以正式合作协议为准。
+            </p>
           </Reveal>
         </div>
       </section>

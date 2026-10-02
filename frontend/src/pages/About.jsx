@@ -45,10 +45,10 @@ export default function About() {
                 <h2 className="font-display text-2xl font-bold text-gold-gradient">平台简介</h2>
                 <div className="mt-4 h-px w-14 bg-gold-gradient" />
                 <p className="mt-6 text-sm leading-loose text-slate-300 sm:text-base">
-                  合赢项目社专注优质项目资源对接、社群交流与商业合作，汇聚各方伙伴，发掘优质项目，搭建开放可信的项目协作平台。
+                  合赢项目社专注优质项目资源对接，主要面向全国招募团队长。团队通过专业的项目审核、项目评估、项目整合，为团队长提供稳定可靠的优质项目。
                 </p>
                 <p className="mt-4 text-sm leading-loose text-slate-400">
-                  我们相信，好的项目值得被更多人看见。通过严选审核机制、成熟社群网络与专业客服团队，合赢项目社让项目方、资源方与团长伙伴高效连接，让每一次合作都有迹可循、有始有终。
+                  平台每月在微信群内分享最新项目，团队长带领团队发展即可获得持续收益。我们相信，好的项目值得被更多人看见，合赢项目社让每一次合作都有迹可循、有始有终。
                 </p>
               </div>
             </div>
