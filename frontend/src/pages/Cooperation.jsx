@@ -55,24 +55,26 @@ export default function Cooperation() {
         </Reveal>
       </section>
 
-      <section className="pb-20" data-testid="cooperation-flow-section">
+      <section className="pb-14 md:pb-20" data-testid="cooperation-flow-section">
         <div className="mx-auto max-w-7xl px-4 sm:px-8 lg:px-16">
           <SectionHeading title="合作模式" subtitle="四步闭环，从发布到落地全程护航" />
           <Reveal>
-            <div className="glass-card relative overflow-hidden rounded-3xl px-6 py-12 sm:px-12">
+            <div className="glass-card relative overflow-hidden rounded-3xl px-5 py-8 sm:px-12 sm:py-12">
               <img src="/images/ui/cta-banner.png" alt="" className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-15" />
               <div className="absolute left-[12%] right-[12%] top-[64px] hidden h-px bg-gradient-to-r from-transparent via-[#D4AF37]/50 to-transparent md:block" />
-              <div className="relative grid grid-cols-2 gap-6 gap-y-10 md:grid-cols-4 md:gap-10">
+              <div className="relative grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-4 md:gap-10">
                 {STEPS.map((s, i) => (
-                  <div key={s.title} className="relative text-center" data-testid={`flow-step-${i}`}>
-                    <div className="relative mx-auto flex h-16 w-16 items-center justify-center rounded-2xl border border-amber-400/40 bg-[#060B18] text-[#E5C158] shadow-[0_0_24px_rgba(212,175,55,0.25)]">
-                      <s.icon size={26} />
+                  <div key={s.title} className="relative flex items-center gap-4 text-left md:block md:text-center" data-testid={`flow-step-${i}`}>
+                    <div className="relative flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-amber-400/40 bg-[#060B18] text-[#E5C158] shadow-[0_0_24px_rgba(212,175,55,0.25)] md:mx-auto md:h-16 md:w-16">
+                      <s.icon size={24} />
                       <span className="absolute -right-2 -top-2 flex h-6 w-6 items-center justify-center rounded-full bg-gold-gradient text-xs font-black text-[#060B18]">
                         {i + 1}
                       </span>
                     </div>
-                    <h3 className="mt-5 font-display text-lg font-bold text-slate-50">{s.title}</h3>
-                    <p className="mt-1.5 text-sm text-slate-400">{s.desc}</p>
+                    <div>
+                      <h3 className="font-display text-base font-bold text-slate-50 md:mt-5 md:text-lg">{s.title}</h3>
+                      <p className="mt-1 text-xs text-slate-400 md:mt-1.5 md:text-sm">{s.desc}</p>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -81,7 +83,7 @@ export default function Cooperation() {
         </div>
       </section>
 
-      <section className="py-20" data-testid="cooperation-tiers-section">
+      <section className="py-14 md:py-20" data-testid="cooperation-tiers-section">
         <div className="mx-auto max-w-7xl px-4 sm:px-8 lg:px-16">
           <SectionHeading title="团长收益体系" subtitle="团队发展收益参考 · 具体以正式合作协议为准" />
           <div className="grid grid-cols-1 items-stretch gap-6 sm:grid-cols-3">
@@ -122,7 +124,7 @@ export default function Cooperation() {
         </div>
       </section>
 
-      <section className="bg-[#080E1F] py-20" data-testid="cooperation-modes-section">
+      <section className="bg-[#080E1F] py-14 md:py-20" data-testid="cooperation-modes-section">
         <div className="mx-auto max-w-7xl px-4 sm:px-8 lg:px-16">
           <SectionHeading title="合作方式" subtitle="三种身份，总有一个适合你" />
           <div className="grid grid-cols-1 gap-7 md:grid-cols-3">
@@ -155,7 +157,7 @@ export default function Cooperation() {
         </div>
       </section>
 
-      <section className="py-20" data-testid="cooperation-advantages-section">
+      <section className="py-14 md:py-20" data-testid="cooperation-advantages-section">
         <div className="mx-auto max-w-7xl px-4 sm:px-8 lg:px-16">
           <SectionHeading title="合作优势" subtitle="为什么选择合赢项目社" />
           <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">

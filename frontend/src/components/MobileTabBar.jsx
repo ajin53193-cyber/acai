@@ -14,6 +14,7 @@ export const MobileTabBar = () => {
     <nav
       data-testid="mobile-tab-bar"
       className="fixed inset-x-0 bottom-0 z-50 border-t border-amber-500/20 bg-[#0A1228]/90 backdrop-blur-xl lg:hidden"
+      style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
     >
       <div className="flex items-stretch justify-between px-2 py-2">
         <div className="flex flex-1 items-center justify-around">

@@ -8,7 +8,7 @@ export const Footer = () => {
 
   return (
     <footer data-testid="site-footer" className="border-t border-amber-500/15 bg-[#080E1F]">
-      <div className="mx-auto grid max-w-7xl gap-10 px-4 py-14 sm:px-8 md:grid-cols-3 lg:px-16">
+      <div className="mx-auto grid max-w-7xl gap-10 px-4 py-10 sm:px-8 md:grid-cols-3 md:py-14 lg:px-16">
         <div className="space-y-4">
           <LogoFull />
           <p className="max-w-xs text-sm leading-relaxed text-slate-400">

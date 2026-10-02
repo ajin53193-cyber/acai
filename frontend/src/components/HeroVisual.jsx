@@ -45,7 +45,7 @@ export const HeroVisual = () => {
   return (
     <div
       data-testid="hero-visual"
-      className="relative mx-auto aspect-square w-full max-w-[520px]"
+      className="relative mx-auto aspect-square w-full max-w-[300px] sm:max-w-[420px] lg:max-w-[520px]"
       style={{ perspective: 1000 }}
       onMouseMove={onMove}
       onMouseLeave={() => { mx.set(0); my.set(0); }}

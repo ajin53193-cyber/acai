@@ -165,14 +165,14 @@ export default function Home() {
 
       <Marquee />
 
-      <section className="py-20 md:py-24" data-testid="services-section">
+      <section className="py-14 md:py-24" data-testid="services-section">
         <div className="mx-auto max-w-7xl px-4 sm:px-8 lg:px-16">
           <SectionHeading title="优质项目推荐" subtitle="四大核心服务，构建项目合作全链路" />
           <div className="grid grid-cols-2 gap-4 sm:gap-6 lg:grid-cols-4">
             {SERVICES.map((s, i) => (
               <Reveal key={s.tag} delay={i * 0.1}>
                 <div className="glass-card group flex h-full flex-col overflow-hidden rounded-2xl" data-testid={`service-card-${i}`}>
-                  <div className="relative h-32 overflow-hidden sm:h-36">
+                  <div className="relative h-24 overflow-hidden sm:h-36">
                     <img
                       src={s.img}
                       alt={s.tag}
@@ -180,20 +180,20 @@ export default function Home() {
                       className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-110"
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-[#0D1730] via-[#0A1228]/20 to-transparent" />
-                    <div className="absolute bottom-3 left-4 flex h-9 w-9 items-center justify-center rounded-lg border border-amber-400/40 bg-[#060B18]/70 text-[#E5C158] backdrop-blur-sm">
-                      <s.icon size={17} />
+                    <div className="absolute bottom-2.5 left-3 flex h-8 w-8 items-center justify-center rounded-lg border border-amber-400/40 bg-[#060B18]/70 text-[#E5C158] backdrop-blur-sm sm:bottom-3 sm:left-4 sm:h-9 sm:w-9">
+                      <s.icon size={16} />
                     </div>
                   </div>
-                  <div className="flex flex-1 flex-col p-5 sm:p-6">
-                    <div className="text-xs font-medium tracking-[0.2em] text-[#D4AF37]">{s.tag}</div>
-                    <h3 className="mt-2 font-display text-xl font-bold text-slate-50">{s.title}</h3>
-                    <p className="mt-3 flex-1 text-sm leading-relaxed text-slate-400">{s.desc}</p>
+                  <div className="flex flex-1 flex-col p-4 sm:p-6">
+                    <div className="text-[10px] font-medium tracking-[0.2em] text-[#D4AF37] sm:text-xs">{s.tag}</div>
+                    <h3 className="mt-1.5 font-display text-base font-bold leading-snug text-slate-50 sm:mt-2 sm:text-xl">{s.title}</h3>
+                    <p className="mt-2 line-clamp-3 flex-1 text-xs leading-relaxed text-slate-400 sm:mt-3 sm:text-sm">{s.desc}</p>
                     <Link
                       to="/projects"
                       data-testid={`service-card-link-${i}`}
-                      className="mt-5 inline-flex items-center gap-1 text-sm font-medium text-[#E5C158] transition-all duration-300 hover:gap-2.5 hover:text-[#FFE896]"
+                      className="mt-3 inline-flex items-center gap-1 text-xs font-medium text-[#E5C158] transition-all duration-300 hover:gap-2.5 hover:text-[#FFE896] sm:mt-5 sm:text-sm"
                     >
-                      查看详情 <ChevronRight size={15} />
+                      查看详情 <ChevronRight size={14} />
                     </Link>
                   </div>
                 </div>
@@ -203,7 +203,7 @@ export default function Home() {
         </div>
       </section>
 
-      <section className="bg-[#080E1F] py-20 md:py-24" data-testid="featured-projects-section">
+      <section className="bg-[#080E1F] py-14 md:py-24" data-testid="featured-projects-section">
         <div className="mx-auto max-w-7xl px-4 sm:px-8 lg:px-16">
           <SectionHeading title="精选合作项目" subtitle="严选优质项目，真实可靠，持续更新" />
           <div className="grid grid-cols-1 gap-7 md:grid-cols-2 lg:grid-cols-3">
@@ -249,7 +249,7 @@ export default function Home() {
         </div>
       </section>
 
-      <section className="py-20" data-testid="cta-section">
+      <section className="py-14 md:py-20" data-testid="cta-section">
         <div className="mx-auto max-w-5xl px-4 sm:px-8">
           <Reveal>
             <div className="glass-card relative overflow-hidden rounded-3xl border-amber-400/40 px-8 py-12 text-center shadow-[0_0_60px_-15px_rgba(212,175,55,0.35)] sm:px-14">

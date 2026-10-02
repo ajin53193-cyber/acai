@@ -28,7 +28,7 @@ export default function About() {
         </Reveal>
       </section>
 
-      <section className="pb-20" data-testid="about-intro-section">
+      <section className="pb-14 md:pb-20" data-testid="about-intro-section">
         <div className="mx-auto grid max-w-7xl items-stretch gap-8 px-4 sm:px-8 lg:grid-cols-5 lg:px-16">
           <Reveal className="lg:col-span-2">
             <div className="glass-card h-full overflow-hidden rounded-3xl">
@@ -85,7 +85,7 @@ export default function About() {
         </div>
       </section>
 
-      <section className="bg-[#080E1F] py-20" data-testid="about-values-section">
+      <section className="bg-[#080E1F] py-14 md:py-20" data-testid="about-values-section">
         <div className="mx-auto max-w-7xl px-4 sm:px-8 lg:px-16">
           <SectionHeading title="平台价值观" subtitle="开放 · 可信 · 共赢" />
           <div className="grid grid-cols-1 gap-7 md:grid-cols-3">
@@ -115,7 +115,7 @@ export default function About() {
         </div>
       </section>
 
-      <section className="py-20" data-testid="about-team-section">
+      <section className="py-14 md:py-20" data-testid="about-team-section">
         <div className="mx-auto max-w-7xl px-4 sm:px-8 lg:px-16">
           <SectionHeading title="核心团队" subtitle="专业团队，为每一次合作保驾护航" />
           <div className="grid grid-cols-2 gap-x-6 gap-y-12 sm:grid-cols-3 lg:grid-cols-6">
