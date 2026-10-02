@@ -4,6 +4,7 @@ import Lenis from "lenis";
 import { Toaster } from "sonner";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
+import { MobileTabBar } from "@/components/MobileTabBar";
 import Home from "@/pages/Home";
 import Projects from "@/pages/Projects";
 import Cooperation from "@/pages/Cooperation";
@@ -59,6 +60,7 @@ function App() {
           <Route path="/admin" element={<Admin />} />
         </Routes>
         <Footer />
+        <MobileTabBar />
         <Toaster position="top-center" theme="dark" richColors />
       </BrowserRouter>
     </div>

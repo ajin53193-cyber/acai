@@ -56,7 +56,7 @@ export default function Cooperation() {
           <Reveal>
             <div className="glass-card relative rounded-3xl px-6 py-12 sm:px-12">
               <div className="absolute left-[12%] right-[12%] top-[64px] hidden h-px bg-gradient-to-r from-transparent via-[#D4AF37]/50 to-transparent md:block" />
-              <div className="grid grid-cols-1 gap-10 sm:grid-cols-2 md:grid-cols-4">
+              <div className="grid grid-cols-2 gap-6 gap-y-10 md:grid-cols-4 md:gap-10">
                 {STEPS.map((s, i) => (
                   <div key={s.title} className="relative text-center" data-testid={`flow-step-${i}`}>
                     <div className="relative mx-auto flex h-16 w-16 items-center justify-center rounded-2xl border border-amber-400/40 bg-[#060B18] text-[#E5C158] shadow-[0_0_24px_rgba(212,175,55,0.25)]">

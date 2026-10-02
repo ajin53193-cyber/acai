@@ -159,10 +159,10 @@ export default function Home() {
       <section className="py-20 md:py-24" data-testid="services-section">
         <div className="mx-auto max-w-7xl px-4 sm:px-8 lg:px-16">
           <SectionHeading title="优质项目推荐" subtitle="四大核心服务，构建项目合作全链路" />
-          <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
+          <div className="grid grid-cols-2 gap-4 sm:gap-6 lg:grid-cols-4">
             {SERVICES.map((s, i) => (
               <Reveal key={s.tag} delay={i * 0.1}>
-                <div className="glass-card group flex h-full flex-col rounded-2xl p-7" data-testid={`service-card-${i}`}>
+                <div className="glass-card group flex h-full flex-col rounded-2xl p-5 sm:p-7" data-testid={`service-card-${i}`}>
                   <div className="mb-5 flex h-12 w-12 items-center justify-center rounded-xl border border-amber-500/30 bg-amber-500/10 text-[#E5C158] transition-all duration-300 group-hover:shadow-[0_0_20px_rgba(212,175,55,0.4)]">
                     <s.icon size={22} />
                   </div>

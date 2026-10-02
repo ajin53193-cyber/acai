@@ -22,6 +22,7 @@
 
 ## 已实现（2026-07）
 - 2026-07-02 全部五个页面 + /admin 后台上线预览环境
+- 2026-07-02 移动端底部固定标签导航（首页/项目/合作/我的 + 情境式金色客服按钮），移动端双列卡片布局
 - 后端接口：GET /api/projects、POST /api/contact、POST /api/admin/login、GET /api/admin/inquiries、PATCH /api/admin/inquiries/{id}
 - 9 个种子项目（绿色能源/科技创新/商业渠道/实体产业）
 - 响应式：375 / 768 / 1366 均验证通过

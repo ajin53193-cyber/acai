@@ -41,7 +41,7 @@ export const Footer = () => (
       </div>
     </div>
 
-    <div className="border-t border-amber-500/10 py-5 text-center text-xs text-slate-500">
+    <div className="border-t border-amber-500/10 py-5 pb-24 text-center text-xs text-slate-500 lg:pb-5">
       © 2026 合赢项目社 HEYING PROJECT CLUB · 聚力项目，合作共赢 ·{" "}
       <Link to="/admin" data-testid="footer-admin-link" className="transition-colors hover:text-[#E5C158]">
         管理后台
