@@ -1,0 +1,157 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+    :root {
+        --background: 222 60% 6%;
+        --foreground: 210 40% 98%;
+        --card: 222 55% 10%;
+        --card-foreground: 210 40% 98%;
+        --popover: 222 55% 10%;
+        --popover-foreground: 210 40% 98%;
+        --primary: 45 74% 62%;
+        --primary-foreground: 222 60% 6%;
+        --secondary: 222 40% 14%;
+        --secondary-foreground: 210 40% 98%;
+        --muted: 222 40% 14%;
+        --muted-foreground: 215 20% 65%;
+        --accent: 45 74% 62%;
+        --accent-foreground: 222 60% 6%;
+        --destructive: 0 72% 51%;
+        --destructive-foreground: 0 0% 98%;
+        --border: 45 60% 50% / 0.2;
+        --input: 222 40% 20%;
+        --ring: 45 74% 62%;
+        --radius: 0.75rem;
+    }
+
+    * {
+        @apply border-border;
+    }
+
+    html {
+        background-color: #060b18;
+    }
+
+    body {
+        @apply text-foreground antialiased;
+        background-color: #060b18;
+        font-family: "Noto Sans SC", system-ui, -apple-system, sans-serif;
+        overflow-x: hidden;
+    }
+
+    ::selection {
+        background: rgba(212, 175, 55, 0.35);
+        color: #fff8e1;
+    }
+
+    ::-webkit-scrollbar {
+        width: 10px;
+    }
+    ::-webkit-scrollbar-track {
+        background: #060b18;
+    }
+    ::-webkit-scrollbar-thumb {
+        background: linear-gradient(180deg, #d4af37, #5c4a12);
+        border-radius: 8px;
+    }
+}
+
+@layer base {
+    [data-debug-wrapper="true"] {
+        display: contents !important;
+    }
+}
+
+@layer utilities {
+    .font-display {
+        font-family: "Noto Serif SC", "Noto Sans SC", serif;
+    }
+
+    .text-gold-gradient {
+        background: linear-gradient(135deg, #fff1c5 0%, #e5c158 50%, #b8860b 100%);
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
+    }
+
+    .bg-gold-gradient {
+        background: linear-gradient(135deg, #ffe896 0%, #d4af37 50%, #997316 100%);
+    }
+
+    .glass-card {
+        background: rgba(13, 23, 48, 0.72);
+        backdrop-filter: blur(18px);
+        -webkit-backdrop-filter: blur(18px);
+        border: 1px solid rgba(212, 175, 55, 0.18);
+        transition: border-color 0.35s ease, background-color 0.35s ease, transform 0.35s ease, box-shadow 0.35s ease;
+    }
+
+    .glass-card:hover {
+        border-color: rgba(255, 232, 150, 0.55);
+        background: rgba(17, 29, 60, 0.85);
+        box-shadow: 0 12px 48px -12px rgba(212, 175, 55, 0.25);
+    }
+
+    .grid-texture {
+        background-image:
+            linear-gradient(rgba(212, 175, 55, 0.05) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(212, 175, 55, 0.05) 1px, transparent 1px);
+        background-size: 56px 56px;
+    }
+
+    .animate-marquee {
+        animation: marquee 36s linear infinite;
+    }
+
+    .animate-spin-slow {
+        animation: spin 28s linear infinite;
+    }
+
+    .animate-spin-slower {
+        animation: spin-reverse 44s linear infinite;
+    }
+
+    .animate-float {
+        animation: floaty 7s ease-in-out infinite;
+    }
+
+    .animate-pulse-glow {
+        animation: pulseGlow 4s ease-in-out infinite;
+    }
+}
+
+@keyframes marquee {
+    from { transform: translateX(0); }
+    to { transform: translateX(-50%); }
+}
+
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+@keyframes spin-reverse {
+    from { transform: rotate(360deg); }
+    to { transform: rotate(0deg); }
+}
+
+@keyframes floaty {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-18px); }
+}
+
+@keyframes pulseGlow {
+    0%, 100% { opacity: 0.55; }
+    50% { opacity: 1; }
+}
+
+@keyframes dashFlow {
+    to { stroke-dashoffset: -240; }
+}
+
+.wave-line {
+    stroke-dasharray: 8 12;
+    animation: dashFlow 6s linear infinite;
+}
