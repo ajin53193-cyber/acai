@@ -163,6 +163,7 @@ class SiteSettings(BaseModel):
     contact: ContactInfo = ContactInfo()
     team: List[TeamMember] = Field(default_factory=list)
     stats: List[StatItem] = Field(default_factory=list)
+    categories: List[str] = Field(default_factory=list)
 
 
 class ArticleInput(BaseModel):

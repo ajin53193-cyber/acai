@@ -23,6 +23,7 @@ export const DEFAULT_SETTINGS = {
     { num: "80", suffix: "+", label: "行业动态" },
     { num: "30", suffix: "分钟内", label: "客服响应" },
   ],
+  categories: ["绿色能源", "科技创新", "商业渠道", "实体产业"],
 };
 
 let cache = null;
@@ -37,6 +38,7 @@ export const fetchSettings = () => {
           contact: { ...DEFAULT_SETTINGS.contact, ...(res.data.contact || {}) },
           team: res.data.team && res.data.team.length ? res.data.team : DEFAULT_SETTINGS.team,
           stats: res.data.stats && res.data.stats.length ? res.data.stats : DEFAULT_SETTINGS.stats,
+          categories: res.data.categories && res.data.categories.length ? res.data.categories : DEFAULT_SETTINGS.categories,
         };
         return cache;
       })

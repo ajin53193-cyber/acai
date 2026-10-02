@@ -12,6 +12,7 @@ export default function SettingsAdmin({ token, onUnauthorized }) {
   const [contact, setContact] = useState(DEFAULT_SETTINGS.contact);
   const [team, setTeam] = useState(DEFAULT_SETTINGS.team);
   const [stats, setStats] = useState(DEFAULT_SETTINGS.stats);
+  const [categories, setCategories] = useState(DEFAULT_SETTINGS.categories);
   const [saving, setSaving] = useState(false);
 
   const headers = { Authorization: `Bearer ${token}` };
@@ -23,6 +24,7 @@ export default function SettingsAdmin({ token, onUnauthorized }) {
         setContact({ ...DEFAULT_SETTINGS.contact, ...(res.data.contact || {}) });
         if (res.data.team && res.data.team.length) setTeam(res.data.team);
         if (res.data.stats && res.data.stats.length) setStats(res.data.stats);
+        if (res.data.categories && res.data.categories.length) setCategories(res.data.categories);
       })
       .catch(() => {});
   }, []);
@@ -32,11 +34,13 @@ export default function SettingsAdmin({ token, onUnauthorized }) {
     setTeam((prev) => prev.map((m, idx) => (idx === i ? { ...m, [key]: e.target.value } : m)));
   const setStat = (i, key) => (e) =>
     setStats((prev) => prev.map((s, idx) => (idx === i ? { ...s, [key]: e.target.value } : s)));
+  const setCategory = (i) => (e) =>
+    setCategories((prev) => prev.map((c, idx) => (idx === i ? e.target.value : c)));
 
   const save = async () => {
     setSaving(true);
     try {
-      await axios.put(`${API}/admin/settings`, { contact, team, stats }, { headers });
+      await axios.put(`${API}/admin/settings`, { contact, team, stats, categories: categories.map((c) => c.trim()).filter(Boolean) }, { headers });
       invalidateSettings();
       toast.success("设置已保存，前台页面已同步更新");
     } catch (err) {
@@ -155,6 +159,44 @@ export default function SettingsAdmin({ token, onUnauthorized }) {
             </div>
           ))}
         </div>
+      </div>
+
+      <div className="glass-card rounded-3xl p-7" data-testid="settings-categories-card">
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="font-display text-lg font-bold text-gold-gradient">项目分类</h3>
+            <p className="mt-1 text-xs text-slate-500">前台项目中心的筛选标签与后台新建项目时的可选项</p>
+          </div>
+          <button
+            data-testid="settings-category-add-btn"
+            onClick={() => setCategories([...categories, ""])}
+            className="flex items-center gap-1.5 rounded-full border border-amber-500/30 px-4 py-2 text-xs text-[#E5C158] transition-colors hover:bg-amber-500/10"
+          >
+            <Plus size={13} /> 添加分类
+          </button>
+        </div>
+        <div className="mt-6 flex flex-wrap gap-3">
+          {categories.map((c, i) => (
+            <div key={i} className="flex items-center gap-2 rounded-full border border-amber-500/15 bg-[#060B18]/50 py-1.5 pl-4 pr-1.5" data-testid={`settings-category-row-${i}`}>
+              <input
+                data-testid={`settings-category-input-${i}`}
+                value={c}
+                onChange={setCategory(i)}
+                placeholder="分类名称"
+                className="w-28 bg-transparent text-sm text-slate-200 outline-none placeholder:text-slate-500"
+              />
+              <button
+                data-testid={`settings-category-remove-${i}`}
+                onClick={() => setCategories(categories.filter((_, idx) => idx !== i))}
+                className="rounded-full p-1.5 text-red-300/70 transition-colors hover:bg-red-500/10 hover:text-red-300"
+                aria-label="删除分类"
+              >
+                <Trash2 size={13} />
+              </button>
+            </div>
+          ))}
+        </div>
+        <p className="mt-4 text-xs text-slate-600">注意：删除分类不会删除已有项目，这些项目仍保留原分类标签。</p>
       </div>
 
       <button

@@ -5,8 +5,8 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Plus, Pencil, Trash2, X, Eye, EyeOff } from "lucide-react";
 import { API, formatDetail } from "@/lib/api";
 import { ImageUpload, toFullUrl } from "@/components/ImageUpload";
+import { useSettings } from "@/lib/useSettings";
 
-const CATEGORIES = ["绿色能源", "科技创新", "商业渠道", "实体产业"];
 const STATUSES = ["对接中", "招募团长", "资金筹备"];
 
 const EMPTY_FORM = {
@@ -24,6 +24,7 @@ const inputCls =
   "w-full rounded-xl border border-amber-500/15 bg-[#060B18]/70 px-4 py-2.5 text-sm text-slate-200 outline-none transition-colors placeholder:text-slate-500 focus:border-[#D4AF37]/60";
 
 export default function ProjectsAdmin({ token, onUnauthorized }) {
+  const { categories } = useSettings();
   const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
@@ -59,7 +60,7 @@ export default function ProjectsAdmin({ token, onUnauthorized }) {
 
   const openCreate = () => {
     setEditing(null);
-    setForm(EMPTY_FORM);
+    setForm({ ...EMPTY_FORM, category: categories[0] || "其他" });
     setModalOpen(true);
   };
 
@@ -239,7 +240,7 @@ export default function ProjectsAdmin({ token, onUnauthorized }) {
                 <div>
                   <label className="mb-1.5 block text-xs tracking-widest text-slate-400">项目类别</label>
                   <select data-testid="project-form-category-select" value={form.category} onChange={set("category")} className={`${inputCls} appearance-none`}>
-                    {CATEGORIES.map((c) => <option key={c} value={c} className="bg-[#0A1228]">{c}</option>)}
+                    {(categories.includes(form.category) ? categories : [form.category, ...categories]).map((c) => <option key={c} value={c} className="bg-[#0A1228]">{c}</option>)}
                   </select>
                 </div>
                 <div>

@@ -4,13 +4,16 @@ import { motion, AnimatePresence } from "framer-motion";
 import axios from "axios";
 import { Search, X, MapPin, BadgeCheck, ArrowRight } from "lucide-react";
 import { Reveal, SectionHeading } from "@/components/Reveal";
+import { API } from "@/lib/api";
+import { useSettings } from "@/lib/useSettings";
 
-const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
-const CATEGORIES = ["全部", "绿色能源", "科技创新", "商业渠道", "实体产业"];
+const ALL_TAB = "全部";
 
 export default function Projects() {
+  const { categories } = useSettings();
+  const tabs = [ALL_TAB, ...categories];
   const [projects, setProjects] = useState([]);
-  const [category, setCategory] = useState("全部");
+  const [category, setCategory] = useState(ALL_TAB);
   const [keyword, setKeyword] = useState("");
   const [active, setActive] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -27,7 +30,7 @@ export default function Projects() {
     () =>
       projects.filter(
         (p) =>
-          (category === "全部" || p.category === category) &&
+          (category === ALL_TAB || p.category === category) &&
           (!keyword || p.title.includes(keyword) || p.description.includes(keyword))
       ),
     [projects, category, keyword]
@@ -57,7 +60,7 @@ export default function Projects() {
               />
             </div>
             <div className="flex flex-wrap gap-2" data-testid="projects-category-tabs">
-              {CATEGORIES.map((c) => (
+              {tabs.map((c) => (
                 <button
                   key={c}
                   data-testid={`category-tab-${c}`}

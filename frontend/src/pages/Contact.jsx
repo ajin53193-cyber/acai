@@ -1,7 +1,7 @@
 import { useState } from "react";
 import axios from "axios";
 import { toast } from "sonner";
-import { Phone, MessageCircle, Clock, Mail, Send, Headset } from "lucide-react";
+import { Clock, Mail, Send, Headset } from "lucide-react";
 import { Reveal } from "@/components/Reveal";
 import { API, formatDetail } from "@/lib/api";
 import { useSettings } from "@/lib/useSettings";
@@ -54,14 +54,6 @@ export default function Contact() {
                 <h2 className="font-display text-xl font-bold text-gold-gradient">联系方式</h2>
                 <div className="mt-3 h-px w-12 bg-gold-gradient" />
                 <ul className="mt-8 flex-1 space-y-6 text-sm">
-                  <li className="flex items-center gap-4" data-testid="contact-hotline">
-                    <span className="flex h-11 w-11 items-center justify-center rounded-xl border border-amber-500/30 bg-amber-500/10 text-[#E5C158]"><Phone size={18} /></span>
-                    <div><div className="text-slate-400">客服热线</div><div className="mt-0.5 font-bold text-slate-100">{contact.hotline}</div></div>
-                  </li>
-                  <li className="flex items-center gap-4" data-testid="contact-wechat">
-                    <span className="flex h-11 w-11 items-center justify-center rounded-xl border border-amber-500/30 bg-amber-500/10 text-[#E5C158]"><MessageCircle size={18} /></span>
-                    <div><div className="text-slate-400">微信客服</div><div className="mt-0.5 font-bold text-slate-100">{contact.wechat}</div></div>
-                  </li>
                   <li className="flex items-center gap-4" data-testid="contact-hours">
                     <span className="flex h-11 w-11 items-center justify-center rounded-xl border border-amber-500/30 bg-amber-500/10 text-[#E5C158]"><Clock size={18} /></span>
                     <div><div className="text-slate-400">工作时间</div><div className="mt-0.5 font-bold text-slate-100">{contact.hours}</div></div>
