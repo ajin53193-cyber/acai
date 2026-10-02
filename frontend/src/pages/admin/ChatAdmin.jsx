@@ -126,13 +126,13 @@ export default function ChatAdmin({ token, onUnauthorized }) {
                 </div>
               ))}
             </div>
-            <form onSubmit={reply} className="flex gap-2 border-t border-amber-500/15 p-3">
+            <form onSubmit={reply} className="flex items-center gap-2 border-t border-amber-500/15 p-3">
               <input
                 data-testid="admin-chat-reply-input"
                 value={text}
                 onChange={(e) => setText(e.target.value)}
                 placeholder="输入回复内容…"
-                className="flex-1 rounded-full border border-amber-500/15 bg-[#060B18]/70 px-4 py-2.5 text-sm text-slate-200 outline-none placeholder:text-slate-500 focus:border-[#D4AF37]/60"
+                className="min-w-0 flex-1 rounded-full border border-amber-500/15 bg-[#060B18]/70 px-4 py-2.5 text-sm text-slate-200 outline-none placeholder:text-slate-500 focus:border-[#D4AF37]/60"
               />
               <button
                 type="submit"
