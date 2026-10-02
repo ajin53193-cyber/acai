@@ -3,6 +3,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import axios from "axios";
 import { MessageCircle, X, Send } from "lucide-react";
 import { API } from "@/lib/api";
+import { toFullUrl } from "@/components/ImageUpload";
 import { useSettings } from "@/lib/useSettings";
 
 const SID_KEY = "hy_chat_sid";
@@ -144,6 +145,9 @@ export const ChatWidget = () => {
                           <div className="mb-0.5 text-[10px] font-bold text-[#D4AF37]">{m.via === "ai" ? "AI客服" : "客服"}</div>
                         )}
                         {m.text}
+                        {m.image && (
+                          <img src={toFullUrl(m.image)} alt="微信群二维码" className="mt-2 w-36 rounded-xl border border-amber-500/20" data-testid="chat-qr-image" />
+                        )}
                       </div>
                     </div>
                   ))}

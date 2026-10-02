@@ -5,11 +5,12 @@ import { Clock, Mail, Send, Headset } from "lucide-react";
 import { Reveal } from "@/components/Reveal";
 import { API, formatDetail } from "@/lib/api";
 import { useSettings } from "@/lib/useSettings";
+import { toFullUrl } from "@/components/ImageUpload";
 
 const TYPES = ["项目合作", "团长合作", "资源对接", "其他"];
 
 export default function Contact() {
-  const { contact } = useSettings();
+  const { contact, chat } = useSettings();
   const [form, setForm] = useState({ name: "", phone: "", city: "", inquiry_type: "项目合作", message: "" });
   const [submitting, setSubmitting] = useState(false);
 
@@ -63,6 +64,13 @@ export default function Contact() {
                     <div><div className="text-slate-400">邮箱</div><div className="mt-0.5 font-bold text-slate-100">{contact.email}</div></div>
                   </li>
                 </ul>
+                {chat.qr_image && (
+                  <div className="mt-8 rounded-2xl border border-amber-500/20 bg-[#060B18]/60 p-5 text-center" data-testid="contact-qr-block">
+                    <img src={toFullUrl(chat.qr_image)} alt="微信群二维码" className="mx-auto w-36 rounded-xl border border-amber-500/20" />
+                    <div className="mt-3 text-sm font-medium text-[#E5C158]">微信扫码进群</div>
+                    <div className="mt-1 text-xs text-slate-500">新项目每月在群内分享</div>
+                  </div>
+                )}
                 <a
                   href="#message-form"
                   data-testid="contact-online-consult-btn"

@@ -162,6 +162,7 @@ class StatItem(BaseModel):
 class ChatConfig(BaseModel):
     welcome: str = "您好，欢迎来到合赢项目社！请描述您想咨询的问题，客服会尽快回复您。"
     ai_enabled: bool = False
+    qr_image: str = ""
 
 
 class SiteSettings(BaseModel):
@@ -186,6 +187,9 @@ class ChatStart(BaseModel):
 
 class ChatMessageInput(BaseModel):
     text: str = Field(min_length=1, max_length=1000)
+
+
+QR_KEYWORDS = ("怎么加入", "如何加入", "联系方式", "人工", "微信", "二维码", "扫码", "进群", "加群")
 
 
 ARTICLES_SEED = [
@@ -390,11 +394,13 @@ async def generate_ai_reply(session_id: str):
             "团队通过专业的项目审核、项目评估、项目整合，保障项目稳定可靠；每月会在微信群内分享最新项目。"
             "团队发展收益参考：10人团队月入约2-3万元，20人团队约5-6万元，50人团队10万元以上；"
             "收益与团队运营情况相关，不构成收益承诺，具体以正式合作协议为准。"
-            "合作方式：团长合作、项目方合作、资源方合作。工作时间 9:00-21:00，邮箱 contact@heying.com。\n"
+            "合作方式：团长合作、项目方合作、资源方合作。当前主打稳定项目：外区礼品卡项目（收益稳定、项目合规）。"
+            "工作时间 9:00-21:00，邮箱 contact@heying.com。\n"
             f"平台当前在架项目（回答项目相关问题时以此知识库为准）：\n{kb}\n"
             "回答规则：全程使用中文；语气专业热情；回答控制在80字以内；"
             "访客询问具体项目时，依据上方知识库准确回答其类别、区域、投入区间、合作状态与亮点；"
             "访客询问团长收益时，依据上方收益参考回答，并提醒以正式合作协议为准；"
+            "访客询问怎么加入、联系方式或人工客服时，告知客服已发送微信群二维码，请扫码进群，人工客服会在群内一对一对接，不要编造微信号或电话；"
             "知识库中没有的信息不要编造，引导访客留下姓名和电话，人工客服会尽快跟进。"
         )
         chat = LlmChat(
@@ -487,6 +493,22 @@ async def chat_send(session_id: str, data: ChatMessageInput):
     )
     settings = await db.settings.find_one({"key": "site"}, {"_id": 0, "chat": 1})
     chat_cfg = (settings or {}).get("chat") or {}
+    qr_image = chat_cfg.get("qr_image", "")
+    if qr_image and any(k in data.text for k in QR_KEYWORDS):
+        qr_now = datetime.now(timezone.utc).isoformat()
+        await db.chat_messages.insert_one({
+            "id": str(uuid.uuid4()),
+            "session_id": session_id,
+            "sender": "admin",
+            "via": "ai",
+            "text": "欢迎加入合赢项目社！请扫描下方二维码进入微信群，新项目每月在群内分享，人工客服会在群内一对一对接您。",
+            "image": qr_image,
+            "created_at": qr_now,
+        })
+        await db.chat_sessions.update_one(
+            {"id": session_id},
+            {"$set": {"last_message_at": qr_now, "last_message": "[微信群二维码]"}},
+        )
     if chat_cfg.get("ai_enabled"):
         asyncio.create_task(generate_ai_reply(session_id))
     doc.pop("_id", None)

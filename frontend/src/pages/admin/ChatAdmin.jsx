@@ -3,6 +3,7 @@ import axios from "axios";
 import { toast } from "sonner";
 import { MessagesSquare, Send } from "lucide-react";
 import { API } from "@/lib/api";
+import { toFullUrl } from "@/components/ImageUpload";
 
 export default function ChatAdmin({ token, onUnauthorized }) {
   const [sessions, setSessions] = useState([]);
@@ -118,6 +119,9 @@ export default function ChatAdmin({ token, onUnauthorized }) {
                     {m.sender === "visitor" && <div className="mb-0.5 text-[10px] font-bold text-[#D4AF37]">{active?.name || "访客"}</div>}
                     {m.sender === "admin" && m.via === "ai" && <div className="mb-0.5 text-[10px] font-bold text-[#060B18]/70">AI客服</div>}
                     {m.text}
+                    {m.image && (
+                      <img src={toFullUrl(m.image)} alt="微信群二维码" className="mt-2 w-32 rounded-xl border border-black/10" />
+                    )}
                   </div>
                 </div>
               ))}
