@@ -46,7 +46,7 @@ export default function Cooperation() {
   return (
     <main className="pt-28" data-testid="cooperation-page">
       <section className="grid-texture relative overflow-hidden pb-16 pt-10 text-center">
-        <div className="pointer-events-none absolute left-1/2 top-0 h-72 w-[640px] -translate-x-1/2 rounded-full bg-[#D4AF37]/10 blur-[120px]" />
+        <div className="pointer-events-none absolute left-1/2 top-0 h-72 w-[640px] -translate-x-1/2 rounded-full bg-[#1E3A8A]/25 blur-[120px]" />
         <Reveal>
           <h1 className="font-display text-3xl font-black tracking-tight text-gold-gradient sm:text-4xl lg:text-5xl">
             合作共赢
