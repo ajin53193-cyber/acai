@@ -233,6 +233,29 @@ class TrackInput(BaseModel):
     path: str = Field(min_length=1, max_length=200)
 
 
+def parse_ua(ua: str):
+    u = ua.lower()
+    if "micromessenger" in u:
+        browser = "微信内置"
+    elif "edg" in u:
+        browser = "Edge"
+    elif "firefox" in u:
+        browser = "Firefox"
+    elif "chrome" in u:
+        browser = "Chrome"
+    elif "safari" in u:
+        browser = "Safari"
+    else:
+        browser = "其他浏览器"
+    if "ipad" in u or "tablet" in u:
+        device = "平板"
+    elif "mobile" in u or "iphone" in u or "android" in u:
+        device = "手机"
+    else:
+        device = "电脑"
+    return device, browser
+
+
 ARTICLES_SEED = [
     {
         "title": "分布式光伏新政落地，社区能源项目迎发展机遇",
@@ -770,12 +793,16 @@ async def track_visit(data: TrackInput, request: Request):
     )
     now = datetime.now(timezone.utc)
     region = await asyncio.to_thread(lookup_region, ip)
+    ua = request.headers.get("user-agent", "")[:200]
+    device, browser = parse_ua(ua)
     await db.visits.insert_one({
         "id": str(uuid.uuid4()),
         "ip": ip,
         "region": region,
         "path": path,
-        "ua": request.headers.get("user-agent", "")[:200],
+        "ua": ua,
+        "device": device,
+        "browser": browser,
         "date": now.astimezone(CN_TZ).strftime("%Y-%m-%d"),
         "created_at": now.isoformat(),
     })
@@ -794,11 +821,22 @@ async def stats_overview(date: str, _: str = Depends(require_admin)):
         {"$limit": 10},
     ]
     pages = await db.visits.aggregate(pipeline).to_list(10)
+
+    async def agg_field(field):
+        rows = await db.visits.aggregate([
+            {"$match": query},
+            {"$group": {"_id": f"${field}", "count": {"$sum": 1}}},
+            {"$sort": {"count": -1}},
+        ]).to_list(10)
+        return [{"name": r["_id"] or "未知", "count": r["count"]} for r in rows]
+
     return {
         "date": date,
         "visits": visits,
         "unique_ips": len(ips),
         "top_pages": [{"path": p["_id"], "count": p["count"]} for p in pages],
+        "devices": await agg_field("device"),
+        "browsers": await agg_field("browser"),
     }
 
 

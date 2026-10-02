@@ -9,6 +9,34 @@ const todayStr = () => {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 };
 
+const ShareCard = ({ title, items, total, testid }) => (
+  <div className="glass-card rounded-2xl p-6" data-testid={testid}>
+    <h3 className="font-display text-base font-bold text-gold-gradient">{title}</h3>
+    {items.length === 0 ? (
+      <div className="py-8 text-center text-xs text-slate-500">暂无数据</div>
+    ) : (
+      <div className="mt-5 space-y-3.5">
+        {items.map((it) => (
+          <div key={it.name} className="text-sm">
+            <div className="mb-1.5 flex items-center justify-between">
+              <span className="text-slate-300">{it.name}</span>
+              <span className="text-xs text-slate-400">
+                {it.count} 次 · <span className="font-bold text-[#E5C158]">{total ? Math.round((it.count / total) * 100) : 0}%</span>
+              </span>
+            </div>
+            <div className="h-1.5 overflow-hidden rounded-full bg-slate-800">
+              <div
+                className="h-full rounded-full bg-gold-gradient transition-all duration-700"
+                style={{ width: `${total ? (it.count / total) * 100 : 0}%` }}
+              />
+            </div>
+          </div>
+        ))}
+      </div>
+    )}
+  </div>
+);
+
 export default function StatsAdmin({ token, onUnauthorized }) {
   const [date, setDate] = useState(todayStr());
   const [overview, setOverview] = useState(null);
@@ -82,6 +110,11 @@ export default function StatsAdmin({ token, onUnauthorized }) {
             <div className="mt-1 text-xs tracking-widest text-slate-400">{c.label}（{date}）</div>
           </div>
         ))}
+      </div>
+
+      <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
+        <ShareCard title={`设备类型占比（${date}）`} items={overview?.devices || []} total={overview?.visits || 0} testid="stats-devices-card" />
+        <ShareCard title={`浏览器占比（${date}）`} items={overview?.browsers || []} total={overview?.visits || 0} testid="stats-browsers-card" />
       </div>
 
       <div className="glass-card rounded-2xl p-6" data-testid="stats-daily-chart">
