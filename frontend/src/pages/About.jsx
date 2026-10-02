@@ -1,6 +1,8 @@
-import { Unlock, ShieldCheck, Handshake } from "lucide-react";
+import { Unlock, ShieldCheck, Handshake, FolderKanban, Users, Newspaper, Timer } from "lucide-react";
 import { Reveal, SectionHeading } from "@/components/Reveal";
 import { useSettings } from "@/lib/useSettings";
+
+const STAT_ICONS = [FolderKanban, Users, Newspaper, Timer];
 
 const VALUES = [
   { icon: Unlock, title: "开放", desc: "开放项目信息与合作机会，让每一位伙伴都能平等触达优质资源。", img: "/images/ui/value-open.png" },
@@ -51,19 +53,33 @@ export default function About() {
             </div>
           </Reveal>
 
-          <div className="grid grid-cols-2 gap-5 lg:col-span-3" data-testid="about-stats-grid">
-            {stats.map((s, i) => (
-              <Reveal key={`${s.label}-${i}`} delay={i * 0.1} className="h-full">
-                <div className="glass-card group relative h-full overflow-hidden rounded-2xl border-amber-400/30 p-7 text-center shadow-[inset_0_0_40px_rgba(212,175,55,0.06)]" data-testid={`stat-tile-${i}`}>
-                  <div className="pointer-events-none absolute -top-10 left-1/2 h-20 w-32 -translate-x-1/2 rounded-full bg-[#D4AF37]/20 blur-2xl transition-opacity duration-500 group-hover:opacity-100" />
-                  <div className="font-display text-4xl font-black text-gold-gradient sm:text-5xl">
-                    {s.num}
-                    {s.suffix && <span className="ml-1 text-base font-bold">{s.suffix}</span>}
-                  </div>
-                  <div className="mt-3 text-sm tracking-[0.2em] text-slate-300">{s.label}</div>
-                </div>
-              </Reveal>
-            ))}
+          <div className="relative lg:col-span-3">
+            <div className="pointer-events-none absolute -bottom-12 left-1/2 h-24 w-4/5 -translate-x-1/2 rounded-[100%] bg-[#D4AF37]/20 blur-3xl" />
+            <div className="relative grid grid-cols-2 gap-5" data-testid="about-stats-grid">
+              {stats.map((s, i) => {
+                const Icon = STAT_ICONS[i % STAT_ICONS.length];
+                return (
+                  <Reveal key={`${s.label}-${i}`} delay={i * 0.1} className="h-full">
+                    <div
+                      className="glass-card group relative flex h-full flex-col items-center overflow-hidden rounded-2xl border-amber-400/30 px-6 py-8 text-center transition-all duration-500 hover:-translate-y-1.5 hover:shadow-[0_16px_50px_-12px_rgba(212,175,55,0.35)]"
+                      data-testid={`stat-tile-${i}`}
+                    >
+                      <div className="absolute left-1/2 top-0 h-px w-2/3 -translate-x-1/2 bg-gradient-to-r from-transparent via-[#FFE896] to-transparent opacity-60" />
+                      <div className="pointer-events-none absolute -top-10 left-1/2 h-20 w-32 -translate-x-1/2 rounded-full bg-[#D4AF37]/20 blur-2xl transition-opacity duration-500 group-hover:opacity-100" />
+                      <div className="relative flex h-12 w-12 items-center justify-center rounded-full border border-amber-400/40 bg-[#060B18] text-[#E5C158] shadow-[0_0_20px_rgba(212,175,55,0.25)] transition-all duration-500 group-hover:scale-110 group-hover:shadow-[0_0_30px_rgba(255,232,150,0.5)]">
+                        <Icon size={20} />
+                      </div>
+                      <div className="mt-4 font-display text-4xl font-black text-gold-gradient sm:text-5xl">
+                        {s.num}
+                        {s.suffix && <span className="ml-1 text-base font-bold">{s.suffix}</span>}
+                      </div>
+                      <div className="mt-3 text-sm tracking-[0.2em] text-slate-300">{s.label}</div>
+                      <div className="mt-4 h-0.5 w-8 rounded-full bg-gold-gradient opacity-40 transition-all duration-500 group-hover:w-14 group-hover:opacity-100" />
+                    </div>
+                  </Reveal>
+                );
+              })}
+            </div>
           </div>
         </div>
       </section>
