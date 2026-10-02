@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
 import { Plus, Pencil, Trash2, X, Eye, EyeOff } from "lucide-react";
 import { API, formatDetail } from "@/lib/api";
+import { ImageUpload, toFullUrl } from "@/components/ImageUpload";
 
 const CATEGORIES = ["绿色能源", "科技创新", "商业渠道", "实体产业"];
 const STATUSES = ["对接中", "招募团长", "资金筹备"];
@@ -160,7 +161,7 @@ export default function ProjectsAdmin({ token, onUnauthorized }) {
             return (
               <div key={p.id} className="glass-card flex flex-wrap items-center gap-4 rounded-2xl p-4" data-testid={`admin-project-row-${i}`}>
                 {p.image ? (
-                  <img src={p.image} alt="" className="h-14 w-20 rounded-lg object-cover" />
+                  <img src={toFullUrl(p.image)} alt="" className="h-14 w-20 rounded-lg object-cover" />
                 ) : (
                   <div className="flex h-14 w-20 items-center justify-center rounded-lg border border-amber-500/15 text-xs text-slate-600">无图</div>
                 )}
@@ -256,9 +257,13 @@ export default function ProjectsAdmin({ token, onUnauthorized }) {
                   <input data-testid="project-form-region-input" value={form.region} onChange={set("region")} placeholder="例如：华东大区 / 全国" className={inputCls} />
                 </div>
                 <div className="sm:col-span-2">
-                  <label className="mb-1.5 block text-xs tracking-widest text-slate-400">封面图片链接</label>
-                  <input data-testid="project-form-image-input" value={form.image} onChange={set("image")} placeholder="https://…（项目卡片配图）" className={inputCls} />
-                  {form.image && <img src={form.image} alt="预览" className="mt-3 h-28 w-full rounded-xl object-cover" />}
+                  <label className="mb-1.5 block text-xs tracking-widest text-slate-400">封面图片（直接上传，支持 JPG/PNG/WEBP/GIF，≤5MB）</label>
+                  <ImageUpload
+                    token={token}
+                    value={form.image}
+                    onChange={(url) => setForm({ ...form, image: url })}
+                    testid="project-form-image-upload"
+                  />
                 </div>
                 <div className="sm:col-span-2">
                   <label className="mb-1.5 block text-xs tracking-widest text-slate-400">项目描述</label>

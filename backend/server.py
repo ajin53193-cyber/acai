@@ -10,11 +10,14 @@ from dotenv import load_dotenv
 
 load_dotenv(Path(__file__).parent / ".env")
 
-from fastapi import FastAPI, APIRouter, HTTPException, Depends
+from fastapi import FastAPI, APIRouter, HTTPException, Depends, UploadFile, File
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from starlette.middleware.cors import CORSMiddleware
+from starlette.responses import Response
 from motor.motor_asyncio import AsyncIOMotorClient
 from pydantic import BaseModel, Field
+import asyncio
+import requests
 
 mongo_url = os.environ["MONGO_URL"]
 client = AsyncIOMotorClient(mongo_url)
@@ -25,6 +28,44 @@ api_router = APIRouter(prefix="/api")
 security = HTTPBearer()
 
 JWT_ALGORITHM = "HS256"
+
+STORAGE_BASE = (os.environ.get("INTEGRATION_PROXY_URL") or "").strip() or "https://integrations.emergentagent.com"
+STORAGE_URL = STORAGE_BASE.rstrip("/") + "/objstore/api/v1/storage"
+APP_NAME = "heying-project-club"
+storage_key = None
+
+
+def init_storage(force: bool = False):
+    global storage_key
+    if storage_key and not force:
+        return storage_key
+    resp = requests.post(
+        f"{STORAGE_URL}/init",
+        json={"emergent_key": os.environ.get("EMERGENT_LLM_KEY")},
+        timeout=30,
+    )
+    resp.raise_for_status()
+    storage_key = resp.json()["storage_key"]
+    return storage_key
+
+
+def put_object(path: str, data: bytes, content_type: str) -> dict:
+    key = init_storage()
+    resp = requests.put(
+        f"{STORAGE_URL}/objects/{path}",
+        headers={"X-Storage-Key": key, "Content-Type": content_type},
+        data=data,
+        timeout=120,
+    )
+    resp.raise_for_status()
+    return resp.json()
+
+
+def get_object(path: str):
+    key = init_storage()
+    resp = requests.get(f"{STORAGE_URL}/objects/{path}", headers={"X-Storage-Key": key}, timeout=60)
+    resp.raise_for_status()
+    return resp.content, resp.headers.get("Content-Type", "application/octet-stream")
 
 
 def hash_password(password: str) -> str:
@@ -213,6 +254,10 @@ PROJECTS_SEED = [
 
 @app.on_event("startup")
 async def startup():
+    try:
+        await asyncio.to_thread(init_storage)
+    except Exception as e:
+        print(f"Storage init failed: {e}")
     await db.users.create_index("username", unique=True)
     username = os.environ.get("ADMIN_USERNAME", "admin")
     password = os.environ.get("ADMIN_PASSWORD", "admin123")
@@ -337,6 +382,40 @@ async def update_settings(data: SiteSettings, _: str = Depends(require_admin)):
         upsert=True,
     )
     return {"message": "设置已保存"}
+
+
+ALLOWED_IMAGE_TYPES = {"image/jpeg", "image/png", "image/webp", "image/gif"}
+
+
+@api_router.post("/admin/upload", status_code=201)
+async def admin_upload(file: UploadFile = File(...), _: str = Depends(require_admin)):
+    if file.content_type not in ALLOWED_IMAGE_TYPES:
+        raise HTTPException(status_code=400, detail="仅支持 JPG / PNG / WEBP / GIF 图片")
+    data = await file.read()
+    if len(data) > 5 * 1024 * 1024:
+        raise HTTPException(status_code=400, detail="图片大小不能超过 5MB")
+    ext = file.filename.rsplit(".", 1)[-1].lower() if "." in (file.filename or "") else "png"
+    path = f"{APP_NAME}/uploads/{uuid.uuid4()}.{ext}"
+    result = await asyncio.to_thread(put_object, path, data, file.content_type)
+    await db.files.insert_one({
+        "id": str(uuid.uuid4()),
+        "storage_path": result["path"],
+        "original_filename": file.filename,
+        "content_type": file.content_type,
+        "size": result["size"],
+        "is_deleted": False,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    })
+    return {"url": f"/api/files/{result['path']}", "path": result["path"]}
+
+
+@api_router.get("/files/{path:path}")
+async def serve_file(path: str):
+    record = await db.files.find_one({"storage_path": path, "is_deleted": False})
+    if not record:
+        raise HTTPException(status_code=404, detail="文件不存在")
+    data, content_type = await asyncio.to_thread(get_object, path)
+    return Response(content=data, media_type=record.get("content_type", content_type))
 
 
 app.include_router(api_router)

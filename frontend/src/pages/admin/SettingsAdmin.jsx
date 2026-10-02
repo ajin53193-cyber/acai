@@ -3,6 +3,7 @@ import axios from "axios";
 import { toast } from "sonner";
 import { Plus, Trash2, Save } from "lucide-react";
 import { API, DEFAULT_SETTINGS, formatDetail, invalidateSettings } from "@/lib/api";
+import { ImageUpload } from "@/components/ImageUpload";
 
 const inputCls =
   "w-full rounded-xl border border-amber-500/15 bg-[#060B18]/70 px-4 py-2.5 text-sm text-slate-200 outline-none transition-colors placeholder:text-slate-500 focus:border-[#D4AF37]/60";
@@ -71,7 +72,7 @@ export default function SettingsAdmin({ token, onUnauthorized }) {
         <div className="flex items-center justify-between">
           <div>
             <h3 className="font-display text-lg font-bold text-gold-gradient">核心团队</h3>
-            <p className="mt-1 text-xs text-slate-500">显示在「关于我们」页面，照片粘贴图片链接即可更换</p>
+            <p className="mt-1 text-xs text-slate-500">显示在「关于我们」页面，点击按钮直接上传形象照</p>
           </div>
           <button
             data-testid="settings-team-add-btn"
@@ -85,15 +86,16 @@ export default function SettingsAdmin({ token, onUnauthorized }) {
           {team.map((m, i) => (
             <div key={i} className="rounded-2xl border border-amber-500/10 bg-[#060B18]/50 p-4" data-testid={`settings-team-row-${i}`}>
               <div className="flex flex-wrap items-center gap-4">
-                {m.image ? (
-                  <img src={m.image} alt={m.person} className="h-14 w-14 rounded-full border-2 border-[#D4AF37]/50 object-cover" />
-                ) : (
-                  <div className="flex h-14 w-14 items-center justify-center rounded-full border-2 border-dashed border-slate-600 text-[10px] text-slate-500">无照片</div>
-                )}
+                <ImageUpload
+                  token={token}
+                  value={m.image}
+                  onChange={(url) => setTeam((prev) => prev.map((x, idx) => (idx === i ? { ...x, image: url } : x)))}
+                  round
+                  testid={`settings-team-image-${i}`}
+                />
                 <div className="grid flex-1 gap-3 sm:grid-cols-2">
                   <input data-testid={`settings-team-person-${i}`} value={m.person} onChange={setMember(i, "person")} placeholder="姓名，如：陈志远" className={inputCls} />
                   <input data-testid={`settings-team-role-${i}`} value={m.role} onChange={setMember(i, "role")} placeholder="职务，如：项目负责人" className={inputCls} />
-                  <input data-testid={`settings-team-image-${i}`} value={m.image} onChange={setMember(i, "image")} placeholder="照片图片链接 https://…" className={`${inputCls} sm:col-span-2`} />
                 </div>
                 <button
                   data-testid={`settings-team-remove-${i}`}

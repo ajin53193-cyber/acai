@@ -14,8 +14,10 @@ import Admin from "@/pages/Admin";
 
 export const lenisRef = { current: null };
 
-const ScrollToTop = () => {
+const Layout = () => {
   const { pathname } = useLocation();
+  const isAdmin = pathname.startsWith("/admin");
+
   useEffect(() => {
     if (lenisRef.current) {
       lenisRef.current.scrollTo(0, { immediate: true });
@@ -23,7 +25,22 @@ const ScrollToTop = () => {
       window.scrollTo(0, 0);
     }
   }, [pathname]);
-  return null;
+
+  return (
+    <>
+      {!isAdmin && <Header />}
+      <Routes>
+        <Route path="/" element={<Home />} />
+        <Route path="/projects" element={<Projects />} />
+        <Route path="/cooperation" element={<Cooperation />} />
+        <Route path="/about" element={<About />} />
+        <Route path="/contact" element={<Contact />} />
+        <Route path="/admin" element={<Admin />} />
+      </Routes>
+      {!isAdmin && <Footer />}
+      {!isAdmin && <MobileTabBar />}
+    </>
+  );
 };
 
 function App() {
@@ -49,18 +66,7 @@ function App() {
   return (
     <div className="min-h-screen bg-[#060B18] text-slate-100" data-testid="app-root">
       <BrowserRouter>
-        <ScrollToTop />
-        <Header />
-        <Routes>
-          <Route path="/" element={<Home />} />
-          <Route path="/projects" element={<Projects />} />
-          <Route path="/cooperation" element={<Cooperation />} />
-          <Route path="/about" element={<About />} />
-          <Route path="/contact" element={<Contact />} />
-          <Route path="/admin" element={<Admin />} />
-        </Routes>
-        <Footer />
-        <MobileTabBar />
+        <Layout />
         <Toaster position="top-center" theme="dark" richColors />
       </BrowserRouter>
     </div>

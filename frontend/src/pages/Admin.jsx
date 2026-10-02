@@ -47,7 +47,7 @@ export default function Admin() {
 
   if (!token) {
     return (
-      <main className="grid-texture flex min-h-screen items-center justify-center px-4 pt-20" data-testid="admin-login-page">
+      <main className="grid-texture flex min-h-screen items-center justify-center px-4" data-testid="admin-login-page">
         <form onSubmit={login} className="glass-card w-full max-w-sm rounded-3xl p-9" data-testid="admin-login-form">
           <div className="mb-8 flex flex-col items-center">
             <LogoMark size={52} />
@@ -84,7 +84,7 @@ export default function Admin() {
   }
 
   return (
-    <main className="mx-auto min-h-screen max-w-5xl px-4 pb-20 pt-28 sm:px-8" data-testid="admin-dashboard">
+    <main className="mx-auto min-h-screen max-w-5xl px-4 pb-20 pt-14 sm:px-8" data-testid="admin-dashboard">
       <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
         <h1 className="font-display text-2xl font-bold text-gold-gradient">管理后台</h1>
         <button
