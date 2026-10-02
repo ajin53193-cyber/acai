@@ -13,6 +13,7 @@ export default function SettingsAdmin({ token, onUnauthorized }) {
   const [team, setTeam] = useState(DEFAULT_SETTINGS.team);
   const [stats, setStats] = useState(DEFAULT_SETTINGS.stats);
   const [categories, setCategories] = useState(DEFAULT_SETTINGS.categories);
+  const [chatCfg, setChatCfg] = useState(DEFAULT_SETTINGS.chat);
   const [saving, setSaving] = useState(false);
 
   const headers = { Authorization: `Bearer ${token}` };
@@ -25,6 +26,7 @@ export default function SettingsAdmin({ token, onUnauthorized }) {
         if (res.data.team && res.data.team.length) setTeam(res.data.team);
         if (res.data.stats && res.data.stats.length) setStats(res.data.stats);
         if (res.data.categories && res.data.categories.length) setCategories(res.data.categories);
+        setChatCfg({ ...DEFAULT_SETTINGS.chat, ...(res.data.chat || {}) });
       })
       .catch(() => {});
   }, []);
@@ -40,7 +42,7 @@ export default function SettingsAdmin({ token, onUnauthorized }) {
   const save = async () => {
     setSaving(true);
     try {
-      await axios.put(`${API}/admin/settings`, { contact, team, stats, categories: categories.map((c) => c.trim()).filter(Boolean) }, { headers });
+      await axios.put(`${API}/admin/settings`, { contact, team, stats, categories: categories.map((c) => c.trim()).filter(Boolean), chat: chatCfg }, { headers });
       invalidateSettings();
       toast.success("设置已保存，前台页面已同步更新");
     } catch (err) {
@@ -189,6 +191,41 @@ export default function SettingsAdmin({ token, onUnauthorized }) {
           ))}
         </div>
         <p className="mt-4 text-xs text-slate-600">注意：删除分类不会删除已有项目，这些项目仍保留原分类标签。</p>
+      </div>
+
+      <div className="glass-card rounded-3xl p-7" data-testid="settings-chat-card">
+        <h3 className="font-display text-lg font-bold text-gold-gradient">在线客服</h3>
+        <p className="mt-1 text-xs text-slate-500">配置访客打开聊天窗时看到的欢迎语，以及 AI 自动回复</p>
+        <div className="mt-6 space-y-5">
+          <div>
+            <label className="mb-1.5 block text-xs tracking-widest text-slate-400">欢迎语</label>
+            <textarea
+              data-testid="settings-chat-welcome-textarea"
+              value={chatCfg.welcome}
+              onChange={(e) => setChatCfg({ ...chatCfg, welcome: e.target.value })}
+              rows={2}
+              placeholder="您好，欢迎来到合赢项目社！…"
+              className={`${inputCls} resize-none`}
+            />
+          </div>
+          <div className="flex items-center justify-between rounded-2xl border border-amber-500/10 bg-[#060B18]/50 p-4">
+            <div>
+              <div className="text-sm font-medium text-slate-200">AI 自动回复</div>
+              <div className="mt-0.5 text-xs text-slate-500">开启后，访客消息会先由 AI 客服自动回复，人工客服可随时在「在线客服」版块接管</div>
+            </div>
+            <button
+              type="button"
+              data-testid="settings-chat-ai-toggle"
+              onClick={() => setChatCfg({ ...chatCfg, ai_enabled: !chatCfg.ai_enabled })}
+              className={`relative h-7 w-12 shrink-0 rounded-full transition-colors duration-300 ${chatCfg.ai_enabled ? "bg-gold-gradient" : "bg-slate-700"}`}
+              aria-label="AI自动回复开关"
+            >
+              <span
+                className={`absolute top-1 h-5 w-5 rounded-full bg-white shadow transition-all duration-300 ${chatCfg.ai_enabled ? "left-6" : "left-1"}`}
+              />
+            </button>
+          </div>
+        </div>
       </div>
 
       <button

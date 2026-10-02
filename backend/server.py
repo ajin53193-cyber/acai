@@ -159,11 +159,17 @@ class StatItem(BaseModel):
     label: str = Field(min_length=1, max_length=20)
 
 
+class ChatConfig(BaseModel):
+    welcome: str = "您好，欢迎来到合赢项目社！请描述您想咨询的问题，客服会尽快回复您。"
+    ai_enabled: bool = False
+
+
 class SiteSettings(BaseModel):
     contact: ContactInfo = ContactInfo()
     team: List[TeamMember] = Field(default_factory=list)
     stats: List[StatItem] = Field(default_factory=list)
     categories: List[str] = Field(default_factory=list)
+    chat: ChatConfig = ChatConfig()
 
 
 class ArticleInput(BaseModel):
@@ -352,8 +358,61 @@ async def list_projects(category: Optional[str] = None):
 async def get_settings():
     doc = await db.settings.find_one({"key": "site"}, {"_id": 0, "key": 0})
     if not doc:
-        return {"contact": ContactInfo().model_dump(), "team": []}
+        return {"contact": ContactInfo().model_dump(), "team": [], "chat": ChatConfig().model_dump()}
+    doc.setdefault("chat", ChatConfig().model_dump())
     return doc
+
+
+async def generate_ai_reply(session_id: str):
+    try:
+        from emergentintegrations.llm.chat import LlmChat, UserMessage, TextDelta, StreamDone
+
+        history = await db.chat_messages.find(
+            {"session_id": session_id}, {"_id": 0}
+        ).sort("created_at", -1).to_list(12)
+        history.reverse()
+        transcript = "\n".join(
+            f"{'访客' if m['sender'] == 'visitor' else '客服'}: {m['text']}" for m in history
+        )
+        system = (
+            "你是「合赢项目社」的在线客服助手。平台专注优质项目资源对接、社群交流与商业合作，"
+            "连接项目、资金、渠道与团队伙伴。核心服务：项目发布、资源对接、社群共建、合作落地；"
+            "合作方式：团长合作、项目方合作、资源方合作。工作时间 9:00-21:00，邮箱 contact@heying.com。"
+            "回答规则：全程使用中文；语气专业热情；回答控制在80字以内；"
+            "不了解的具体项目细节不要编造，引导访客留下姓名和电话，人工客服会尽快跟进；"
+            "涉及收益时提醒以正式协议为准，不做收益承诺。"
+        )
+        chat = LlmChat(
+            api_key=os.environ["EMERGENT_LLM_KEY"],
+            session_id=f"kefu-{session_id}-{uuid.uuid4()}",
+            system_message=system,
+        ).with_model("openai", "gpt-5.4")
+
+        reply = ""
+        async for event in chat.stream_message(UserMessage(text=f"最近对话记录：\n{transcript}\n\n请回复访客的最后一条消息。")):
+            if isinstance(event, TextDelta):
+                reply += event.content
+            elif isinstance(event, StreamDone):
+                break
+
+        reply = reply.strip()
+        if not reply:
+            return
+        now = datetime.now(timezone.utc).isoformat()
+        await db.chat_messages.insert_one({
+            "id": str(uuid.uuid4()),
+            "session_id": session_id,
+            "sender": "admin",
+            "via": "ai",
+            "text": reply,
+            "created_at": now,
+        })
+        await db.chat_sessions.update_one(
+            {"id": session_id},
+            {"$set": {"last_message_at": now, "last_message": reply[:50]}},
+        )
+    except Exception as e:
+        print(f"AI reply failed for {session_id}: {e}")
 
 
 @api_router.get("/articles")
@@ -382,7 +441,9 @@ async def chat_start(data: ChatStart):
          "$set": {"name": data.name}},
         upsert=True,
     )
-    return {"session_id": data.session_id}
+    settings = await db.settings.find_one({"key": "site"}, {"_id": 0, "chat": 1})
+    chat_cfg = (settings or {}).get("chat") or ChatConfig().model_dump()
+    return {"session_id": data.session_id, "welcome": chat_cfg.get("welcome", ""), "ai_enabled": chat_cfg.get("ai_enabled", False)}
 
 
 @api_router.get("/chat/{session_id}/messages")
@@ -409,6 +470,10 @@ async def chat_send(session_id: str, data: ChatMessageInput):
         {"id": session_id},
         {"$set": {"last_message_at": now, "last_message": data.text[:50], "unread_admin": True}},
     )
+    settings = await db.settings.find_one({"key": "site"}, {"_id": 0, "chat": 1})
+    chat_cfg = (settings or {}).get("chat") or {}
+    if chat_cfg.get("ai_enabled"):
+        asyncio.create_task(generate_ai_reply(session_id))
     doc.pop("_id", None)
     return doc
 

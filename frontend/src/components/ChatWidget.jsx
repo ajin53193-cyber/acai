@@ -3,6 +3,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import axios from "axios";
 import { MessageCircle, X, Send } from "lucide-react";
 import { API } from "@/lib/api";
+import { useSettings } from "@/lib/useSettings";
 
 const SID_KEY = "hy_chat_sid";
 const NAME_KEY = "hy_chat_name";
@@ -17,6 +18,7 @@ const getSessionId = () => {
 };
 
 export const ChatWidget = () => {
+  const { chat } = useSettings();
   const [open, setOpen] = useState(false);
   const [name, setName] = useState(() => localStorage.getItem(NAME_KEY) || "");
   const [started, setStarted] = useState(() => !!localStorage.getItem(NAME_KEY));
@@ -118,7 +120,15 @@ export const ChatWidget = () => {
             ) : (
               <>
                 <div ref={listRef} className="flex-1 space-y-3 overflow-y-auto p-4" data-testid="chat-messages">
-                  {messages.length === 0 && (
+                  {chat.welcome && (
+                    <div className="flex justify-start">
+                      <div className="max-w-[80%] rounded-2xl rounded-bl-sm border border-amber-500/20 bg-[#111D3C] px-4 py-2.5 text-sm leading-relaxed text-slate-200" data-testid="chat-welcome-message">
+                        <div className="mb-0.5 text-[10px] font-bold text-[#D4AF37]">客服</div>
+                        {chat.welcome}
+                      </div>
+                    </div>
+                  )}
+                  {messages.length === 0 && !chat.welcome && (
                     <p className="py-10 text-center text-xs text-slate-500">您好 {name}，请描述您想咨询的问题</p>
                   )}
                   {messages.map((m) => (
@@ -130,7 +140,9 @@ export const ChatWidget = () => {
                             : "rounded-bl-sm border border-amber-500/20 bg-[#111D3C] text-slate-200"
                         }`}
                       >
-                        {m.sender === "admin" && <div className="mb-0.5 text-[10px] font-bold text-[#D4AF37]">客服</div>}
+                        {m.sender === "admin" && (
+                          <div className="mb-0.5 text-[10px] font-bold text-[#D4AF37]">{m.via === "ai" ? "AI客服" : "客服"}</div>
+                        )}
                         {m.text}
                       </div>
                     </div>

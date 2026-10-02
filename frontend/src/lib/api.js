@@ -24,6 +24,10 @@ export const DEFAULT_SETTINGS = {
     { num: "30", suffix: "分钟内", label: "客服响应" },
   ],
   categories: ["绿色能源", "科技创新", "商业渠道", "实体产业"],
+  chat: {
+    welcome: "您好，欢迎来到合赢项目社！请描述您想咨询的问题，客服会尽快回复您。",
+    ai_enabled: false,
+  },
 };
 
 let cache = null;
@@ -39,6 +43,7 @@ export const fetchSettings = () => {
           team: res.data.team && res.data.team.length ? res.data.team : DEFAULT_SETTINGS.team,
           stats: res.data.stats && res.data.stats.length ? res.data.stats : DEFAULT_SETTINGS.stats,
           categories: res.data.categories && res.data.categories.length ? res.data.categories : DEFAULT_SETTINGS.categories,
+          chat: { ...DEFAULT_SETTINGS.chat, ...(res.data.chat || {}) },
         };
         return cache;
       })

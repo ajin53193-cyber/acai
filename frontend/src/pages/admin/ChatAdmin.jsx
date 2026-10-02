@@ -116,6 +116,7 @@ export default function ChatAdmin({ token, onUnauthorized }) {
                     }`}
                   >
                     {m.sender === "visitor" && <div className="mb-0.5 text-[10px] font-bold text-[#D4AF37]">{active?.name || "访客"}</div>}
+                    {m.sender === "admin" && m.via === "ai" && <div className="mb-0.5 text-[10px] font-bold text-[#060B18]/70">AI客服</div>}
                     {m.text}
                   </div>
                 </div>
