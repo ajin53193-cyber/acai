@@ -95,10 +95,16 @@
     }
 
     .grid-texture {
-        background-image:
-            linear-gradient(rgba(212, 175, 55, 0.05) 1px, transparent 1px),
-            linear-gradient(90deg, rgba(212, 175, 55, 0.05) 1px, transparent 1px);
-        background-size: 56px 56px;
+        background-image: none;
+    }
+
+    @media (min-width: 768px) {
+        .grid-texture {
+            background-image:
+                linear-gradient(rgba(212, 175, 55, 0.05) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(212, 175, 55, 0.05) 1px, transparent 1px);
+            background-size: 56px 56px;
+        }
     }
 
     .animate-marquee {
