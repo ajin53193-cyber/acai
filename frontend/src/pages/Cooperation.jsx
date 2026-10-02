@@ -148,7 +148,7 @@ export default function Cooperation() {
               <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-[#0A1228]/70 via-[#0A1228]/40 to-[#0A1228]/70" />
               <div className="relative">
                 <h3 className="font-display text-xl font-bold text-slate-50 sm:text-2xl">联系客服加入团长</h3>
-                <p className="mt-2 text-sm text-slate-300">客服热线：{contact.hotline} · 微信客服：{contact.wechat}</p>
+                <p className="mt-2 text-sm text-slate-300">工作时间 {contact.hours} · 邮箱 {contact.email}</p>
               </div>
               <Link
                 to="/contact"

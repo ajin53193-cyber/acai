@@ -58,14 +58,6 @@ export default function SettingsAdmin({ token, onUnauthorized }) {
         <p className="mt-1 text-xs text-slate-500">显示在「联系我们」页面与全站页脚</p>
         <div className="mt-6 grid gap-4 sm:grid-cols-2">
           <div>
-            <label className="mb-1.5 block text-xs tracking-widest text-slate-400">客服热线</label>
-            <input data-testid="settings-hotline-input" value={contact.hotline} onChange={setContactField("hotline")} className={inputCls} />
-          </div>
-          <div>
-            <label className="mb-1.5 block text-xs tracking-widest text-slate-400">微信客服</label>
-            <input data-testid="settings-wechat-input" value={contact.wechat} onChange={setContactField("wechat")} className={inputCls} />
-          </div>
-          <div>
             <label className="mb-1.5 block text-xs tracking-widest text-slate-400">工作时间</label>
             <input data-testid="settings-hours-input" value={contact.hours} onChange={setContactField("hours")} className={inputCls} />
           </div>

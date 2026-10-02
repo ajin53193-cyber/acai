@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { Phone, MessageCircle, Clock, Mail } from "lucide-react";
+import { Clock, Mail } from "lucide-react";
 import { LogoFull } from "@/components/Logo";
 import { useSettings } from "@/lib/useSettings";
 
@@ -30,12 +30,6 @@ export const Footer = () => {
         <div>
           <h4 className="mb-4 font-display text-base font-bold text-[#E5C158]">联系方式</h4>
           <ul className="space-y-3 text-sm text-slate-400">
-            <li className="flex items-center gap-2.5" data-testid="footer-hotline">
-              <Phone size={15} className="text-[#D4AF37]" /> 客服热线：{contact.hotline}
-            </li>
-            <li className="flex items-center gap-2.5" data-testid="footer-wechat">
-              <MessageCircle size={15} className="text-[#D4AF37]" /> 微信客服：{contact.wechat}
-            </li>
             <li className="flex items-center gap-2.5" data-testid="footer-hours">
               <Clock size={15} className="text-[#D4AF37]" /> 工作时间：{contact.hours}
             </li>
