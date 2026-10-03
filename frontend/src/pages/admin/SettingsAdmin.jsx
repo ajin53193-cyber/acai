@@ -28,7 +28,9 @@ export default function SettingsAdmin({ token, onUnauthorized }) {
         if (res.data.team && res.data.team.length) setTeam(res.data.team);
         if (res.data.stats && res.data.stats.length) setStats(res.data.stats);
         if (res.data.categories && res.data.categories.length) setCategories(res.data.categories);
-        setChatCfg({ ...DEFAULT_SETTINGS.chat, ...(res.data.chat || {}) });
+        const chatMerged = { ...DEFAULT_SETTINGS.chat, ...(res.data.chat || {}) };
+        chatMerged.questions = (chatMerged.questions || []).map((q) => (typeof q === "string" ? { text: q, image: "" } : q));
+        setChatCfg(chatMerged);
         if (res.data.tiers && res.data.tiers.length) setTiers(res.data.tiers);
         if (res.data.edges && res.data.edges.length) setEdges(res.data.edges);
       })
@@ -50,7 +52,7 @@ export default function SettingsAdmin({ token, onUnauthorized }) {
   const save = async () => {
     setSaving(true);
     try {
-      await axios.put(`${API}/admin/settings`, { contact, team, stats, categories: categories.map((c) => c.trim()).filter(Boolean), chat: { ...chatCfg, questions: (chatCfg.questions || []).map((q) => q.trim()).filter(Boolean) }, tiers: tiers.filter((t) => t.count.trim() && t.income.trim()), edges: edges.filter((x) => x.title.trim()) }, { headers });
+      await axios.put(`${API}/admin/settings`, { contact, team, stats, categories: categories.map((c) => c.trim()).filter(Boolean), chat: { ...chatCfg, questions: (chatCfg.questions || []).map((q) => ({ text: (q.text || "").trim(), image: q.image || "" })).filter((q) => q.text) }, tiers: tiers.filter((t) => t.count.trim() && t.income.trim()), edges: edges.filter((x) => x.title.trim()) }, { headers });
       invalidateSettings();
       toast.success("设置已保存，前台页面已同步更新");
     } catch (err) {
@@ -218,32 +220,53 @@ export default function SettingsAdmin({ token, onUnauthorized }) {
           </div>
           <div>
             <label className="mb-1.5 block text-xs tracking-widest text-slate-400">常见问题卡片</label>
-            <p className="mb-2 text-xs text-slate-600">显示在欢迎语下方，访客点击卡片即可一键提问</p>
-            <div className="space-y-2">
+            <p className="mb-2 text-xs text-slate-600">显示在欢迎语下方，访客点击卡片即可一键提问；配上图片后，点击卡片还会自动发出该图（如项目海报、收益图）</p>
+            <div className="space-y-3">
               {(chatCfg.questions || []).map((q, i) => (
-                <div key={i} className="flex items-center gap-2" data-testid={`settings-chat-question-row-${i}`}>
-                  <input
-                    data-testid={`settings-chat-question-input-${i}`}
-                    value={q}
-                    onChange={(e) => setChatCfg({ ...chatCfg, questions: chatCfg.questions.map((x, idx) => (idx === i ? e.target.value : x)) })}
-                    placeholder={`问题 ${i + 1}`}
-                    className={inputCls}
-                  />
-                  <button
-                    type="button"
-                    data-testid={`settings-chat-question-remove-${i}`}
-                    onClick={() => setChatCfg({ ...chatCfg, questions: chatCfg.questions.filter((_, idx) => idx !== i) })}
-                    className="shrink-0 rounded-full p-2 text-red-300/70 transition-colors hover:bg-red-500/10 hover:text-red-300"
-                    aria-label="删除问题"
-                  >
-                    <Trash2 size={13} />
-                  </button>
+                <div key={i} className="rounded-2xl border border-amber-500/10 bg-[#060B18]/50 p-3" data-testid={`settings-chat-question-row-${i}`}>
+                  <div className="flex items-center gap-2">
+                    <input
+                      data-testid={`settings-chat-question-input-${i}`}
+                      value={q.text}
+                      onChange={(e) => setChatCfg({ ...chatCfg, questions: chatCfg.questions.map((x, idx) => (idx === i ? { ...x, text: e.target.value } : x)) })}
+                      placeholder={`问题 ${i + 1}`}
+                      className={inputCls}
+                    />
+                    <button
+                      type="button"
+                      data-testid={`settings-chat-question-remove-${i}`}
+                      onClick={() => setChatCfg({ ...chatCfg, questions: chatCfg.questions.filter((_, idx) => idx !== i) })}
+                      className="shrink-0 rounded-full p-2 text-red-300/70 transition-colors hover:bg-red-500/10 hover:text-red-300"
+                      aria-label="删除问题"
+                    >
+                      <Trash2 size={13} />
+                    </button>
+                  </div>
+                  <div className="mt-2.5 flex items-center gap-3">
+                    <span className="shrink-0 text-[10px] text-slate-500">配图(可选)</span>
+                    <ImageUpload
+                      token={token}
+                      value={q.image}
+                      onChange={(url) => setChatCfg({ ...chatCfg, questions: chatCfg.questions.map((x, idx) => (idx === i ? { ...x, image: url } : x)) })}
+                      testid={`settings-chat-question-image-${i}`}
+                    />
+                    {q.image && (
+                      <button
+                        type="button"
+                        data-testid={`settings-chat-question-image-clear-${i}`}
+                        onClick={() => setChatCfg({ ...chatCfg, questions: chatCfg.questions.map((x, idx) => (idx === i ? { ...x, image: "" } : x)) })}
+                        className="shrink-0 text-[10px] text-slate-500 underline hover:text-red-300"
+                      >
+                        移除配图
+                      </button>
+                    )}
+                  </div>
                 </div>
               ))}
               <button
                 type="button"
                 data-testid="settings-chat-question-add-btn"
-                onClick={() => setChatCfg({ ...chatCfg, questions: [...(chatCfg.questions || []), ""] })}
+                onClick={() => setChatCfg({ ...chatCfg, questions: [...(chatCfg.questions || []), { text: "", image: "" }] })}
                 className="flex items-center gap-1.5 rounded-full border border-amber-500/30 px-4 py-2 text-xs text-[#E5C158] transition-colors hover:bg-amber-500/10"
               >
                 <Plus size={13} /> 添加问题

@@ -88,11 +88,11 @@ export default function About() {
       <section className="bg-[#080E1F] py-14 md:py-20" data-testid="about-values-section">
         <div className="mx-auto max-w-7xl px-4 sm:px-8 lg:px-16">
           <SectionHeading title="平台价值观" subtitle="开放 · 可信 · 共赢" />
-          <div className="grid grid-cols-1 gap-7 md:grid-cols-3">
+          <div className="grid grid-cols-2 gap-3 sm:gap-5 md:gap-7 lg:grid-cols-3">
             {VALUES.map((v, i) => (
               <Reveal key={v.title} delay={i * 0.12}>
                 <div className="glass-card group h-full overflow-hidden rounded-3xl" data-testid={`value-card-${i}`}>
-                  <div className="relative h-40 overflow-hidden">
+                  <div className="relative h-28 overflow-hidden sm:h-36 md:h-40">
                     <img
                       src={v.img}
                       alt={v.title}
@@ -100,13 +100,13 @@ export default function About() {
                       className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-110"
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-[#0D1730] via-[#0A1228]/20 to-transparent" />
-                    <div className="absolute bottom-4 left-1/2 flex h-12 w-12 -translate-x-1/2 items-center justify-center rounded-full border border-amber-400/40 bg-[#060B18]/80 text-[#E5C158] shadow-[0_0_20px_rgba(212,175,55,0.35)] backdrop-blur-sm">
-                      <v.icon size={20} />
+                    <div className="absolute bottom-3 left-1/2 flex h-9 w-9 -translate-x-1/2 items-center justify-center rounded-full border border-amber-400/40 bg-[#060B18]/80 text-[#E5C158] shadow-[0_0_20px_rgba(212,175,55,0.35)] backdrop-blur-sm md:bottom-4 md:h-12 md:w-12">
+                      <v.icon size={16} />
                     </div>
                   </div>
-                  <div className="p-8 text-center">
-                    <h3 className="font-display text-xl font-bold text-gold-gradient">{v.title}</h3>
-                    <p className="mt-3 text-sm leading-relaxed text-slate-400">{v.desc}</p>
+                  <div className="p-4 text-center md:p-8">
+                    <h3 className="font-display text-base font-bold text-gold-gradient md:text-xl">{v.title}</h3>
+                    <p className="mt-2 text-xs leading-relaxed text-slate-400 md:mt-3 md:text-sm">{v.desc}</p>
                   </div>
                 </div>
               </Reveal>

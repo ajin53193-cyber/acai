@@ -36,7 +36,7 @@ export default function News() {
             ) : articles.length === 0 ? (
               <div className="py-20 text-center text-sm text-slate-500" data-testid="news-empty">暂无动态</div>
             ) : (
-              <div className="grid grid-cols-1 gap-7 md:grid-cols-2 lg:grid-cols-3" data-testid="news-grid">
+              <div className="grid grid-cols-2 gap-3 sm:gap-5 md:gap-7 lg:grid-cols-3" data-testid="news-grid">
                 {articles.map((a, i) => (
                   <Reveal key={a.id} delay={(i % 3) * 0.08}>
                     <Link
@@ -45,7 +45,7 @@ export default function News() {
                       className="glass-card group block h-full overflow-hidden rounded-2xl"
                     >
                       {a.cover && (
-                        <div className="relative h-44 overflow-hidden">
+                        <div className="relative h-28 overflow-hidden sm:h-36 md:h-44">
                           <img
                             src={toFullUrl(a.cover)}
                             alt={a.title}
@@ -55,16 +55,16 @@ export default function News() {
                           <div className="absolute inset-0 bg-gradient-to-t from-[#0D1730] via-transparent to-transparent" />
                         </div>
                       )}
-                      <div className="p-6">
-                        <div className="flex items-center gap-1.5 text-xs text-slate-500">
+                      <div className="p-3 md:p-6">
+                        <div className="flex items-center gap-1.5 text-[10px] text-slate-500 md:text-xs">
                           <CalendarDays size={13} className="text-[#D4AF37]" />
                           {new Date(a.created_at).toLocaleDateString("zh-CN")}
                         </div>
-                        <h3 className="mt-3 font-display text-lg font-bold leading-snug text-slate-50 transition-colors group-hover:text-[#FFE896]">
+                        <h3 className="mt-2 font-display text-sm font-bold leading-snug text-slate-50 transition-colors group-hover:text-[#FFE896] md:mt-3 md:text-lg">
                           {a.title}
                         </h3>
-                        <p className="mt-2 line-clamp-2 text-sm leading-relaxed text-slate-400">{a.summary}</p>
-                        <span className="mt-4 inline-flex items-center gap-1 text-sm font-medium text-[#E5C158] transition-all duration-300 group-hover:gap-2.5 group-hover:text-[#FFE896]">
+                        <p className="mt-1.5 line-clamp-2 text-xs leading-relaxed text-slate-400 md:mt-2 md:text-sm">{a.summary}</p>
+                        <span className="mt-2.5 inline-flex items-center gap-1 text-xs font-medium text-[#E5C158] transition-all duration-300 group-hover:gap-2.5 group-hover:text-[#FFE896] md:mt-4 md:text-sm">
                           阅读全文 <ArrowRight size={15} />
                         </span>
                       </div>

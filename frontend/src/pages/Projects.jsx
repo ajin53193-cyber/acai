@@ -86,7 +86,7 @@ export default function Projects() {
           ) : filtered.length === 0 ? (
             <div className="py-20 text-center text-sm text-slate-500" data-testid="projects-empty">暂无匹配的项目，换个关键词试试</div>
           ) : (
-            <div className="grid grid-cols-1 gap-7 md:grid-cols-2 lg:grid-cols-3" data-testid="projects-grid">
+            <div className="grid grid-cols-2 gap-3 sm:gap-5 md:gap-7 lg:grid-cols-3" data-testid="projects-grid">
               {filtered.map((p, i) => (
                 <Reveal key={p.id} delay={(i % 3) * 0.08}>
                   <button
@@ -94,7 +94,7 @@ export default function Projects() {
                     data-testid={`project-card-${p.id}`}
                     className="glass-card group block w-full overflow-hidden rounded-2xl text-left"
                   >
-                    <div className="relative h-48 overflow-hidden">
+                    <div className="relative h-28 overflow-hidden sm:h-40 md:h-48">
                       <img
                         src={p.image}
                         alt={p.title}
@@ -103,25 +103,25 @@ export default function Projects() {
                       />
                       <div className="absolute inset-0 bg-gradient-to-t from-[#0A1228] via-transparent to-transparent" />
                       {p.featured && (
-                        <span className="absolute left-4 top-4 flex items-center gap-1 rounded-full bg-gradient-to-r from-[#FFE896] to-[#D4AF37] px-3 py-1 text-xs font-black text-[#060B18] shadow-[0_0_14px_rgba(255,232,150,0.5)]">
+                        <span className="absolute left-2 top-2 flex items-center gap-1 rounded-full bg-gradient-to-r from-[#FFE896] to-[#D4AF37] px-2 py-0.5 text-[10px] font-black text-[#060B18] shadow-[0_0_14px_rgba(255,232,150,0.5)] md:left-4 md:top-4 md:px-3 md:py-1 md:text-xs">
                           <Crown size={11} /> 主打
                         </span>
                       )}
-                      <span className={`absolute top-4 rounded-full border border-amber-500/40 bg-[#060B18]/75 px-3 py-1 text-xs text-[#E5C158] backdrop-blur-sm ${p.featured ? "left-24" : "left-4"}`}>
+                      <span className={`absolute top-2 rounded-full border border-amber-500/40 bg-[#060B18]/75 px-2 py-0.5 text-[10px] text-[#E5C158] backdrop-blur-sm md:top-4 md:px-3 md:py-1 md:text-xs ${p.featured ? "left-16 md:left-24" : "left-2 md:left-4"}`}>
                         {p.status}
                       </span>
-                      <span className="absolute right-4 top-4 rounded-full border border-amber-500/30 bg-[#060B18]/70 px-3 py-1 text-xs text-[#E5C158] backdrop-blur-sm">
+                      <span className="absolute right-2 top-2 hidden rounded-full border border-amber-500/30 bg-[#060B18]/70 px-2 py-0.5 text-[10px] text-[#E5C158] backdrop-blur-sm sm:block md:right-4 md:top-4 md:px-3 md:py-1 md:text-xs">
                         {p.category}
                       </span>
                     </div>
-                    <div className="p-6">
-                      <h3 className="font-display text-lg font-bold text-slate-50 transition-colors group-hover:text-[#FFE896]">
+                    <div className="p-3 md:p-6">
+                      <h3 className="font-display text-sm font-bold leading-snug text-slate-50 transition-colors group-hover:text-[#FFE896] md:text-lg">
                         {p.title}
                       </h3>
-                      <p className="mt-2 line-clamp-2 text-sm text-slate-400">{p.description}</p>
-                      <div className="mt-4 flex items-center justify-between border-t border-amber-500/10 pt-4 text-sm">
-                        <span className="flex items-center gap-1.5 text-slate-400">
-                          <MapPin size={14} className="text-[#D4AF37]" /> {p.region}
+                      <p className="mt-1.5 line-clamp-2 text-xs text-slate-400 md:mt-2 md:text-sm">{p.description}</p>
+                      <div className="mt-2.5 flex items-center justify-between gap-1 border-t border-amber-500/10 pt-2.5 text-[10px] md:mt-4 md:pt-4 md:text-sm">
+                        <span className="flex items-center gap-1 text-slate-400">
+                          <MapPin size={12} className="text-[#D4AF37]" /> {p.region}
                         </span>
                         <span className="text-slate-300">投入 <span className="font-bold text-[#E5C158]">{p.investment}</span></span>
                       </div>
@@ -182,7 +182,7 @@ export default function Projects() {
                   <span>投入区间：<span className="font-bold text-[#E5C158]">{active.investment}</span></span>
                 </div>
                 <p className="mt-5 text-sm leading-relaxed text-slate-300">{active.description}</p>
-                <div className="mt-6 grid gap-3 sm:grid-cols-3">
+                <div className="mt-6 grid grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-3">
                   {active.highlights.map((h) => (
                     <div key={h} className="flex items-center gap-2 rounded-xl border border-amber-500/15 bg-[#060B18]/60 px-3.5 py-3 text-xs text-slate-300">
                       <BadgeCheck size={15} className="shrink-0 text-[#D4AF37]" /> {h}

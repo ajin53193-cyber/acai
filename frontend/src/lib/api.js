@@ -28,7 +28,12 @@ export const DEFAULT_SETTINGS = {
     welcome: "您好，欢迎来到合赢项目社！请描述您想咨询的问题，客服会尽快回复您。",
     ai_enabled: false,
     qr_image: "",
-    questions: ["你们有什么项目？", "怎么合作？", "收益怎么样？", "怎么联系客服？"],
+    questions: [
+      { text: "你们有什么项目？", image: "" },
+      { text: "怎么合作？", image: "" },
+      { text: "收益怎么样？", image: "" },
+      { text: "怎么联系客服？", image: "" },
+    ],
   },
   tiers: [
     { count: "10人团队", income: "2-3万", featured: false },

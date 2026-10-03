@@ -207,11 +207,11 @@ export default function Home() {
       <section className="bg-[#080E1F] py-14 md:py-24" data-testid="featured-projects-section">
         <div className="mx-auto max-w-7xl px-4 sm:px-8 lg:px-16">
           <SectionHeading title="精选合作项目" subtitle="严选优质项目，真实可靠，持续更新" />
-          <div className="grid grid-cols-1 gap-7 md:grid-cols-2 lg:grid-cols-3">
+          <div className="grid grid-cols-2 gap-3 sm:gap-5 md:gap-7 lg:grid-cols-3">
             {projects.map((p, i) => (
               <Reveal key={p.id} delay={i * 0.08}>
                 <Link to="/projects" data-testid={`featured-project-card-${i}`} className="glass-card group block overflow-hidden rounded-2xl">
-                  <div className="relative h-44 overflow-hidden">
+                  <div className="relative h-28 overflow-hidden sm:h-36 md:h-44">
                     <img
                       src={p.image}
                       alt={p.title}
@@ -219,18 +219,18 @@ export default function Home() {
                       className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-110"
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-[#0A1228] via-transparent to-transparent" />
-                    <span className="absolute left-4 top-4 rounded-full bg-gold-gradient px-3 py-1 text-xs font-bold text-[#060B18]">
+                    <span className="absolute left-2 top-2 rounded-full bg-gold-gradient px-2 py-0.5 text-[10px] font-bold text-[#060B18] md:left-4 md:top-4 md:px-3 md:py-1 md:text-xs">
                       {p.status}
                     </span>
                   </div>
-                  <div className="p-6">
-                    <div className="text-xs tracking-[0.2em] text-[#D4AF37]">{p.category} · {p.region}</div>
-                    <h3 className="mt-2 font-display text-lg font-bold text-slate-50 transition-colors group-hover:text-[#FFE896]">
+                  <div className="p-3 md:p-6">
+                    <div className="text-[10px] tracking-[0.15em] text-[#D4AF37] md:text-xs md:tracking-[0.2em]">{p.category} · {p.region}</div>
+                    <h3 className="mt-1.5 font-display text-sm font-bold leading-snug text-slate-50 transition-colors group-hover:text-[#FFE896] md:mt-2 md:text-lg">
                       {p.title}
                     </h3>
-                    <p className="mt-2 line-clamp-2 text-sm text-slate-400">{p.description}</p>
-                    <div className="mt-4 flex items-center justify-between border-t border-amber-500/10 pt-4">
-                      <span className="text-sm text-slate-300">投入区间 <span className="font-bold text-[#E5C158]">{p.investment}</span></span>
+                    <p className="mt-1.5 line-clamp-2 text-xs text-slate-400 md:mt-2 md:text-sm">{p.description}</p>
+                    <div className="mt-2.5 flex items-center justify-between border-t border-amber-500/10 pt-2.5 md:mt-4 md:pt-4">
+                      <span className="text-[10px] text-slate-300 md:text-sm">投入区间 <span className="font-bold text-[#E5C158]">{p.investment}</span></span>
                       <ArrowRight size={16} className="text-[#D4AF37] transition-transform duration-300 group-hover:translate-x-1.5" />
                     </div>
                   </div>

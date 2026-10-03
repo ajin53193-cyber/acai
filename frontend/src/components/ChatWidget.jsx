@@ -135,18 +135,21 @@ export const ChatWidget = () => {
                   )}
                   {messages.length === 0 && chat.questions?.length > 0 && (
                     <div className="flex flex-wrap gap-2" data-testid="chat-question-cards">
-                      {chat.questions.map((q, i) => (
-                        <button
-                          key={i}
-                          type="button"
-                          data-testid={`chat-question-card-${i}`}
-                          onClick={() => sendText(q)}
-                          disabled={sending}
-                          className="rounded-full border border-amber-500/30 bg-[#0A1228]/80 px-3.5 py-1.5 text-xs text-[#E5C158] transition-colors duration-200 hover:border-[#D4AF37]/70 hover:bg-amber-500/10 active:scale-95 disabled:opacity-50"
-                        >
-                          {q}
-                        </button>
-                      ))}
+                      {chat.questions.map((q, i) => {
+                        const qText = typeof q === "string" ? q : q.text;
+                        return (
+                          <button
+                            key={i}
+                            type="button"
+                            data-testid={`chat-question-card-${i}`}
+                            onClick={() => sendText(qText)}
+                            disabled={sending}
+                            className="rounded-full border border-amber-500/30 bg-[#0A1228]/80 px-3.5 py-1.5 text-xs text-[#E5C158] transition-colors duration-200 hover:border-[#D4AF37]/70 hover:bg-amber-500/10 active:scale-95 disabled:opacity-50"
+                          >
+                            {qText}
+                          </button>
+                        );
+                      })}
                     </div>
                   )}
                   {messages.length === 0 && !chat.welcome && (

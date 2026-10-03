@@ -1,4 +1,5 @@
 import os
+import io
 import uuid
 import bcrypt
 import jwt
@@ -15,7 +16,8 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from starlette.middleware.cors import CORSMiddleware
 from starlette.responses import Response
 from motor.motor_asyncio import AsyncIOMotorClient
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
+from PIL import Image
 from zoneinfo import ZoneInfo
 import asyncio
 import requests
@@ -179,11 +181,21 @@ class EdgeItem(BaseModel):
 DEFAULT_CHAT_QUESTIONS = ["你们有什么项目？", "怎么合作？", "收益怎么样？", "怎么联系客服？"]
 
 
+class QuestionCard(BaseModel):
+    text: str = Field(min_length=1, max_length=50)
+    image: str = ""
+
+
 class ChatConfig(BaseModel):
     welcome: str = "您好，欢迎来到合赢项目社！请描述您想咨询的问题，客服会尽快回复您。"
     ai_enabled: bool = False
     qr_image: str = ""
-    questions: List[str] = Field(default_factory=lambda: list(DEFAULT_CHAT_QUESTIONS))
+    questions: List[QuestionCard] = Field(default_factory=lambda: [QuestionCard(text=q) for q in DEFAULT_CHAT_QUESTIONS])
+
+    @field_validator("questions", mode="before")
+    @classmethod
+    def _coerce_questions(cls, v):
+        return [{"text": q, "image": ""} if isinstance(q, str) else q for q in (v or [])]
 
 
 class SiteSettings(BaseModel):
@@ -440,7 +452,13 @@ async def get_settings():
     if not doc:
         return {"contact": ContactInfo().model_dump(), "team": [], "chat": ChatConfig().model_dump()}
     doc.setdefault("chat", ChatConfig().model_dump())
-    doc["chat"].setdefault("questions", list(DEFAULT_CHAT_QUESTIONS))
+    if "questions" not in doc["chat"]:
+        doc["chat"]["questions"] = ChatConfig().model_dump()["questions"]
+    else:
+        doc["chat"]["questions"] = [
+            {"text": q, "image": ""} if isinstance(q, str) else {"text": q.get("text", ""), "image": q.get("image", "")}
+            for q in doc["chat"]["questions"]
+        ]
     return doc
 
 
@@ -588,6 +606,25 @@ async def chat_send(session_id: str, data: ChatMessageInput):
             {"id": session_id},
             {"$set": {"last_message_at": qr_now, "last_message": "[服务号二维码]"}},
         )
+    for q in chat_cfg.get("questions") or []:
+        q_text = q if isinstance(q, str) else q.get("text", "")
+        q_image = "" if isinstance(q, str) else q.get("image", "")
+        if q_image and q_text and q_text == data.text:
+            card_now = datetime.now(timezone.utc).isoformat()
+            await db.chat_messages.insert_one({
+                "id": str(uuid.uuid4()),
+                "session_id": session_id,
+                "sender": "admin",
+                "via": "ai",
+                "text": "这是相关介绍图，供您参考：",
+                "image": q_image,
+                "created_at": card_now,
+            })
+            await db.chat_sessions.update_one(
+                {"id": session_id},
+                {"$set": {"last_message_at": card_now, "last_message": "[介绍图片]"}},
+            )
+            break
     if chat_cfg.get("ai_enabled"):
         asyncio.create_task(generate_ai_reply(session_id))
     doc.pop("_id", None)
@@ -690,6 +727,19 @@ async def update_settings(data: SiteSettings, _: str = Depends(require_admin)):
 ALLOWED_IMAGE_TYPES = {"image/jpeg", "image/png", "image/webp", "image/gif"}
 
 
+def to_webp(data: bytes) -> bytes:
+    img = Image.open(io.BytesIO(data))
+    if img.mode in ("RGBA", "LA") or (img.mode == "P" and "transparency" in img.info):
+        img = img.convert("RGBA")
+    else:
+        img = img.convert("RGB")
+    if max(img.size) > 1920:
+        img.thumbnail((1920, 1920), Image.LANCZOS)
+    buf = io.BytesIO()
+    img.save(buf, "WEBP", quality=82)
+    return buf.getvalue()
+
+
 @api_router.post("/admin/upload", status_code=201)
 async def admin_upload(file: UploadFile = File(...), _: str = Depends(require_admin)):
     if file.content_type not in ALLOWED_IMAGE_TYPES:
@@ -697,14 +747,21 @@ async def admin_upload(file: UploadFile = File(...), _: str = Depends(require_ad
     data = await file.read()
     if len(data) > 5 * 1024 * 1024:
         raise HTTPException(status_code=400, detail="图片大小不能超过 5MB")
-    ext = file.filename.rsplit(".", 1)[-1].lower() if "." in (file.filename or "") else "png"
+    content_type = file.content_type
+    if content_type != "image/gif":
+        try:
+            data = await asyncio.to_thread(to_webp, data)
+            content_type = "image/webp"
+        except Exception:
+            raise HTTPException(status_code=400, detail="图片文件损坏或无法解析")
+    ext = "webp" if content_type == "image/webp" else "gif"
     path = f"{APP_NAME}/uploads/{uuid.uuid4()}.{ext}"
-    result = await asyncio.to_thread(put_object, path, data, file.content_type)
+    result = await asyncio.to_thread(put_object, path, data, content_type)
     await db.files.insert_one({
         "id": str(uuid.uuid4()),
         "storage_path": result["path"],
         "original_filename": file.filename,
-        "content_type": file.content_type,
+        "content_type": content_type,
         "size": result["size"],
         "is_deleted": False,
         "created_at": datetime.now(timezone.utc).isoformat(),
