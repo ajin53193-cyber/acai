@@ -50,7 +50,7 @@ export default function SettingsAdmin({ token, onUnauthorized }) {
   const save = async () => {
     setSaving(true);
     try {
-      await axios.put(`${API}/admin/settings`, { contact, team, stats, categories: categories.map((c) => c.trim()).filter(Boolean), chat: chatCfg, tiers: tiers.filter((t) => t.count.trim() && t.income.trim()), edges: edges.filter((x) => x.title.trim()) }, { headers });
+      await axios.put(`${API}/admin/settings`, { contact, team, stats, categories: categories.map((c) => c.trim()).filter(Boolean), chat: { ...chatCfg, questions: (chatCfg.questions || []).map((q) => q.trim()).filter(Boolean) }, tiers: tiers.filter((t) => t.count.trim() && t.income.trim()), edges: edges.filter((x) => x.title.trim()) }, { headers });
       invalidateSettings();
       toast.success("设置已保存，前台页面已同步更新");
     } catch (err) {
@@ -215,6 +215,40 @@ export default function SettingsAdmin({ token, onUnauthorized }) {
               placeholder="您好，欢迎来到合赢项目社！…"
               className={`${inputCls} resize-none`}
             />
+          </div>
+          <div>
+            <label className="mb-1.5 block text-xs tracking-widest text-slate-400">常见问题卡片</label>
+            <p className="mb-2 text-xs text-slate-600">显示在欢迎语下方，访客点击卡片即可一键提问</p>
+            <div className="space-y-2">
+              {(chatCfg.questions || []).map((q, i) => (
+                <div key={i} className="flex items-center gap-2" data-testid={`settings-chat-question-row-${i}`}>
+                  <input
+                    data-testid={`settings-chat-question-input-${i}`}
+                    value={q}
+                    onChange={(e) => setChatCfg({ ...chatCfg, questions: chatCfg.questions.map((x, idx) => (idx === i ? e.target.value : x)) })}
+                    placeholder={`问题 ${i + 1}`}
+                    className={inputCls}
+                  />
+                  <button
+                    type="button"
+                    data-testid={`settings-chat-question-remove-${i}`}
+                    onClick={() => setChatCfg({ ...chatCfg, questions: chatCfg.questions.filter((_, idx) => idx !== i) })}
+                    className="shrink-0 rounded-full p-2 text-red-300/70 transition-colors hover:bg-red-500/10 hover:text-red-300"
+                    aria-label="删除问题"
+                  >
+                    <Trash2 size={13} />
+                  </button>
+                </div>
+              ))}
+              <button
+                type="button"
+                data-testid="settings-chat-question-add-btn"
+                onClick={() => setChatCfg({ ...chatCfg, questions: [...(chatCfg.questions || []), ""] })}
+                className="flex items-center gap-1.5 rounded-full border border-amber-500/30 px-4 py-2 text-xs text-[#E5C158] transition-colors hover:bg-amber-500/10"
+              >
+                <Plus size={13} /> 添加问题
+              </button>
+            </div>
           </div>
           <div className="flex items-center justify-between rounded-2xl border border-amber-500/10 bg-[#060B18]/50 p-4">
             <div>

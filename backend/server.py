@@ -176,10 +176,14 @@ class EdgeItem(BaseModel):
     image: str = ""
 
 
+DEFAULT_CHAT_QUESTIONS = ["你们有什么项目？", "怎么合作？", "收益怎么样？", "怎么联系客服？"]
+
+
 class ChatConfig(BaseModel):
     welcome: str = "您好，欢迎来到合赢项目社！请描述您想咨询的问题，客服会尽快回复您。"
     ai_enabled: bool = False
     qr_image: str = ""
+    questions: List[str] = Field(default_factory=lambda: list(DEFAULT_CHAT_QUESTIONS))
 
 
 class SiteSettings(BaseModel):
@@ -436,6 +440,7 @@ async def get_settings():
     if not doc:
         return {"contact": ContactInfo().model_dump(), "team": [], "chat": ChatConfig().model_dump()}
     doc.setdefault("chat", ChatConfig().model_dump())
+    doc["chat"].setdefault("questions", list(DEFAULT_CHAT_QUESTIONS))
     return doc
 
 
@@ -463,16 +468,18 @@ async def generate_ai_reply(session_id: str):
 
         system = (
             "你是「合赢项目社」的在线客服助手。平台主要面向全国招募团队长（团长），为团队长提供稳定项目；"
-            "团队通过专业的项目审核、项目评估、项目整合，保障项目稳定可靠；每月会在微信群内分享最新项目。"
+            "团队通过专业的项目审核、项目评估、项目整合，保障项目稳定可靠；平台每个月都会发布安全、稳定、合法的项目供团队长合作，"
+            "并在微信群内同步分享最新项目；平台不收取任何加盟费、服务费等费用。"
             "团队发展收益参考：10人团队月入约2-3万元，20人团队约5-6万元，50人团队10万元以上；"
             "收益与团队运营情况相关，不构成收益承诺，具体以正式合作协议为准。"
-            "合作方式：团长合作、项目方合作、资源方合作。当前主打稳定项目：外区礼品卡项目（收益稳定、项目合规）。"
+            "合作方式：团长合作、项目方合作、资源方合作。当前主打稳定项目：礼品卡项目（收益稳定、项目合规）。"
             "工作时间 9:00-21:00，邮箱 contact@heying.com。\n"
             f"平台当前在架项目（回答项目相关问题时以此知识库为准）：\n{kb}\n"
             "回答规则：全程使用中文；语气专业热情；回答控制在80字以内；"
             "访客询问具体项目时，依据上方知识库准确回答其类别、区域、投入区间、合作状态与亮点；"
             "访客询问团长收益时，依据上方收益参考回答，并提醒以正式合作协议为准；"
-            "访客询问怎么加入、联系方式或人工客服时，告知客服已发送微信服务号二维码，请扫码关注，人工客服会尽快一对一对接，不要编造微信号或电话；"
+            "访客询问是否收费时，明确告知平台不收取任何费用；"
+            "访客询问怎么加入、联系方式或人工客服时，告知客服已发送微信服务号二维码，请扫码关注后加入团队长微信群，人工客服会尽快一对一对接，不要编造微信号或电话；"
             "知识库中没有的信息不要编造，引导访客留下姓名和电话，人工客服会尽快跟进。"
         )
         chat = LlmChat(

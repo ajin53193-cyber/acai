@@ -58,13 +58,12 @@ export const ChatWidget = () => {
     setStarted(true);
   };
 
-  const send = async (e) => {
-    e.preventDefault();
-    if (!text.trim() || sending) return;
+  const sendText = async (value) => {
+    if (!value.trim() || sending) return;
     setSending(true);
     try {
       await axios.post(`${API}/chat/start`, { session_id: sid.current, name: name.trim() || "访客" });
-      await axios.post(`${API}/chat/${sid.current}/messages`, { text: text.trim() });
+      await axios.post(`${API}/chat/${sid.current}/messages`, { text: value.trim() });
       setText("");
       load();
     } catch {
@@ -72,6 +71,11 @@ export const ChatWidget = () => {
     } finally {
       setSending(false);
     }
+  };
+
+  const send = (e) => {
+    e.preventDefault();
+    sendText(text);
   };
 
   return (
@@ -127,6 +131,22 @@ export const ChatWidget = () => {
                         <div className="mb-0.5 text-[10px] font-bold text-[#D4AF37]">客服</div>
                         {chat.welcome}
                       </div>
+                    </div>
+                  )}
+                  {messages.length === 0 && chat.questions?.length > 0 && (
+                    <div className="flex flex-wrap gap-2" data-testid="chat-question-cards">
+                      {chat.questions.map((q, i) => (
+                        <button
+                          key={i}
+                          type="button"
+                          data-testid={`chat-question-card-${i}`}
+                          onClick={() => sendText(q)}
+                          disabled={sending}
+                          className="rounded-full border border-amber-500/30 bg-[#0A1228]/80 px-3.5 py-1.5 text-xs text-[#E5C158] transition-colors duration-200 hover:border-[#D4AF37]/70 hover:bg-amber-500/10 active:scale-95 disabled:opacity-50"
+                        >
+                          {q}
+                        </button>
+                      ))}
                     </div>
                   )}
                   {messages.length === 0 && !chat.welcome && (
