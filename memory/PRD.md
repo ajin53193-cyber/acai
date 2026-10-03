@@ -45,6 +45,7 @@
 - 2026-07-03 收益海报配置：用 Canvas 绘制 900×1200 深蓝金「团长收益体系」海报（10人2-3万/20人5-6万热门/50人10万以上 + 每月发布项目·不收费卖点 + 免责声明），上传转 WebP 后配置为「收益怎么样？」问题卡片的配图，访客点击即看到月收入海报；聊天图片展示加宽（w-36 → 气泡全宽）
 - 2026-07-03 问题卡片点击统计：访客消息命中问题卡片即落库（question_clicks 集合），新增 GET /api/admin/chat/question-stats（每问题总点击 + 近7天），后台「在线客服」顶部新增统计条，按点击量排序
 - 2026-07-03 手机端高级感升级：首屏居中排版 + 顶部金色径向光晕（仅手机）、按钮与数据居中；版块标题两侧金色细线手机端可见；全站卡片增加 active:scale-[0.98] 触摸回弹反馈；副标题间距收紧
+- 2026-07-03 国内访问提速：Google Fonts（Noto Sans/Serif SC）全部本地化——202 个 woff2 分片下载到 /public/fonts/ 并按 unicode-range 按需加载，index.html 移除 fonts.googleapis.com/gstatic 外链（该域在国内被墙，是页面加载慢的根因）；团队形象照从 Unsplash 换成本地 WebP（/public/images/team/，数据库 settings.team 与前端默认值同步）；实测页面零外部字体/图库请求。底部标签切页自动回顶部（lenis scrollTo immediate）已确认正常
 - 后端接口：GET /api/projects、GET /api/settings、POST /api/contact、POST /api/admin/login、GET/PATCH /api/admin/inquiries、GET/POST/PUT/DELETE /api/admin/projects、PATCH /api/admin/projects/{id}/publish、PUT /api/admin/settings、POST /api/admin/upload、GET /api/files/{path}
 - 9 个种子项目（绿色能源/科技创新/商业渠道/实体产业）
 - 响应式：375 / 768 / 1366 均验证通过

@@ -10,12 +10,12 @@ export const DEFAULT_SETTINGS = {
     email: "contact@heying.com",
   },
   team: [
-    { role: "项目负责人", person: "陈志远", image: "https://images.unsplash.com/photo-1665224752561-85f4da9a5658?crop=entropy&cs=srgb&fm=jpg&q=85&w=400" },
-    { role: "合作负责人", person: "林嘉豪", image: "https://images.unsplash.com/photo-1665224752136-4dbe2dfc8195?crop=entropy&cs=srgb&fm=jpg&q=85&w=400" },
-    { role: "资源负责人", person: "周明轩", image: "https://images.unsplash.com/photo-1520689728498-7dd1a9814607?crop=entropy&cs=srgb&fm=jpg&q=85&w=400" },
-    { role: "运营负责人", person: "吴国强", image: "https://images.unsplash.com/photo-1665224751641-8ea911ca2267?crop=entropy&cs=srgb&fm=jpg&q=85&w=400" },
-    { role: "客服负责人", person: "许文博", image: "https://images.unsplash.com/photo-1665224752136-4dbe2dfc8195?crop=entropy&cs=srgb&fm=jpg&q=85&w=400" },
-    { role: "品牌负责人", person: "郑立诚", image: "https://images.unsplash.com/photo-1520689728498-7dd1a9814607?crop=entropy&cs=srgb&fm=jpg&q=85&w=400" },
+    { role: "项目负责人", person: "陈志远", image: "/images/team/team-1.webp" },
+    { role: "合作负责人", person: "林嘉豪", image: "/images/team/team-2.webp" },
+    { role: "资源负责人", person: "周明轩", image: "/images/team/team-3.webp" },
+    { role: "运营负责人", person: "吴国强", image: "/images/team/team-4.webp" },
+    { role: "客服负责人", person: "许文博", image: "/images/team/team-2.webp" },
+    { role: "品牌负责人", person: "郑立诚", image: "/images/team/team-3.webp" },
   ],
   stats: [
     { num: "36", suffix: "+", label: "优质项目" },
