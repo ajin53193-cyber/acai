@@ -92,7 +92,7 @@ export default function Projects() {
                   <button
                     onClick={() => setActive(p)}
                     data-testid={`project-card-${p.id}`}
-                    className="glass-card group block w-full overflow-hidden rounded-2xl text-left"
+                    className="glass-card group block w-full overflow-hidden rounded-2xl text-left transition-transform duration-200 active:scale-[0.98]"
                   >
                     <div className="relative h-28 overflow-hidden sm:h-40 md:h-48">
                       <img

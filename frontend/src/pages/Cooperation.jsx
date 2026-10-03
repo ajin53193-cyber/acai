@@ -92,7 +92,7 @@ export default function Cooperation() {
               return (
               <Reveal key={`${t.count}-${i}`} delay={i * 0.12}>
                 <div
-                  className={`glass-card group relative flex h-full flex-col items-center overflow-hidden rounded-3xl px-3 py-6 text-center md:px-8 md:py-10 ${
+                  className={`glass-card group relative flex h-full flex-col items-center overflow-hidden rounded-3xl px-3 py-6 text-center transition-transform duration-200 active:scale-[0.98] md:px-8 md:py-10 ${
                     t.featured ? "border-amber-400/50 shadow-[0_0_50px_-10px_rgba(212,175,55,0.35)]" : ""
                   }`}
                   data-testid={`tier-card-${i}`}
@@ -130,7 +130,7 @@ export default function Cooperation() {
           <div className="grid grid-cols-2 gap-3 sm:gap-5 md:gap-7 lg:grid-cols-3">
             {MODES.map((m, i) => (
               <Reveal key={m.title} delay={i * 0.12}>
-                <div className="glass-card group flex h-full flex-col rounded-3xl p-4 text-center md:p-8" data-testid={`cooperation-mode-card-${i}`}>
+                <div className="glass-card group flex h-full flex-col rounded-3xl p-4 text-center transition-transform duration-200 active:scale-[0.98] md:p-8" data-testid={`cooperation-mode-card-${i}`}>
                   <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-2xl bg-gold-gradient text-[#060B18] shadow-[0_0_28px_rgba(212,175,55,0.4)] transition-transform duration-500 group-hover:rotate-6 group-hover:scale-110 md:h-16 md:w-16">
                     <m.icon size={20} />
                   </div>
@@ -163,7 +163,7 @@ export default function Cooperation() {
           <div className="grid grid-cols-2 gap-3 sm:gap-6 lg:grid-cols-4">
             {ADVANTAGES.map((a, i) => (
               <Reveal key={a.title} delay={i * 0.1}>
-                <div className="glass-card group h-full overflow-hidden rounded-2xl" data-testid={`advantage-card-${i}`}>
+                <div className="glass-card group h-full overflow-hidden rounded-2xl transition-transform duration-200 active:scale-[0.98]" data-testid={`advantage-card-${i}`}>
                   <div className="relative h-24 overflow-hidden sm:h-32 md:h-36">
                     <img
                       src={a.img}

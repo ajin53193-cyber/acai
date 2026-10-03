@@ -42,6 +42,9 @@
 - 2026-07-03 后台上传图片自动压缩转 WebP：/api/admin/upload 用 Pillow 处理（GIF 除外保留原格式），超大图自动缩到 1920px 内、quality=82 转 WebP，防止大图拖慢网站；requirements.txt 补 pillow==12.3.0
 - 2026-07-03 问题卡片支持图文回复：questions 升级为 {text, image} 对象（后端 field_validator 兼容旧字符串格式），后台每个问题卡片可选配图；访客点击带配图的卡片时，后台自动发出该图（如项目海报/收益图）+ AI 文字回答
 - 2026-07-03 手机端全站卡片一排 2 个：首页精选项目、项目中心、新闻列表、合作页（合作模式/收益体系/合作方式/合作优势）、关于页价值观全部由 1 列改为 2 列，并同步做手机端紧凑化（图片高度、角标、字号、内边距响应式缩小），桌面端布局不变
+- 2026-07-03 收益海报配置：用 Canvas 绘制 900×1200 深蓝金「团长收益体系」海报（10人2-3万/20人5-6万热门/50人10万以上 + 每月发布项目·不收费卖点 + 免责声明），上传转 WebP 后配置为「收益怎么样？」问题卡片的配图，访客点击即看到月收入海报；聊天图片展示加宽（w-36 → 气泡全宽）
+- 2026-07-03 问题卡片点击统计：访客消息命中问题卡片即落库（question_clicks 集合），新增 GET /api/admin/chat/question-stats（每问题总点击 + 近7天），后台「在线客服」顶部新增统计条，按点击量排序
+- 2026-07-03 手机端高级感升级：首屏居中排版 + 顶部金色径向光晕（仅手机）、按钮与数据居中；版块标题两侧金色细线手机端可见；全站卡片增加 active:scale-[0.98] 触摸回弹反馈；副标题间距收紧
 - 后端接口：GET /api/projects、GET /api/settings、POST /api/contact、POST /api/admin/login、GET/PATCH /api/admin/inquiries、GET/POST/PUT/DELETE /api/admin/projects、PATCH /api/admin/projects/{id}/publish、PUT /api/admin/settings、POST /api/admin/upload、GET /api/files/{path}
 - 9 个种子项目（绿色能源/科技创新/商业渠道/实体产业）
 - 响应式：375 / 768 / 1366 均验证通过

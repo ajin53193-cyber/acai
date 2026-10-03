@@ -67,9 +67,10 @@ export default function Home() {
       <section className="grid-texture relative overflow-hidden pb-16 pt-32 lg:pt-36">
         <div className="pointer-events-none absolute -left-40 top-20 h-96 w-96 rounded-full bg-[#1E3A8A]/25 blur-[120px]" />
         <div className="pointer-events-none absolute -right-32 bottom-0 h-96 w-96 rounded-full bg-[#D4AF37]/12 blur-[130px]" />
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_12%,rgba(212,175,55,0.14),transparent_65%)] lg:hidden" />
 
         <div className="mx-auto grid max-w-7xl items-center gap-14 px-4 sm:px-8 lg:grid-cols-2 lg:px-16">
-          <div>
+          <div className="text-center lg:text-left">
             <motion.div
               initial={{ opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
@@ -97,7 +98,7 @@ export default function Home() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.8, delay: 0.55 }}
-              className="mt-6 max-w-lg text-base leading-relaxed text-slate-300 sm:text-lg"
+              className="mx-auto mt-6 max-w-lg text-base leading-relaxed text-slate-300 sm:text-lg lg:mx-0"
               data-testid="hero-subtitle"
             >
               招募团队长，平台提供优质稳定项目。专业项目审核、评估、整合，每月新项目微信群内同步分享。
@@ -107,7 +108,7 @@ export default function Home() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.8, delay: 0.75 }}
-              className="mt-9 flex flex-wrap items-center gap-4"
+              className="mt-9 flex flex-wrap items-center justify-center gap-4 lg:justify-start"
             >
               <Link
                 to="/projects"
@@ -129,7 +130,7 @@ export default function Home() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ duration: 1, delay: 1 }}
-              className="mt-12 flex gap-10"
+              className="mt-12 flex justify-center gap-8 sm:gap-10 lg:justify-start"
               data-testid="hero-stats"
             >
               {stats.slice(0, 3).map((s) => (
@@ -172,7 +173,7 @@ export default function Home() {
           <div className="grid grid-cols-2 gap-4 sm:gap-6 lg:grid-cols-4">
             {SERVICES.map((s, i) => (
               <Reveal key={s.tag} delay={i * 0.1}>
-                <div className="glass-card group flex h-full flex-col overflow-hidden rounded-2xl" data-testid={`service-card-${i}`}>
+                <div className="glass-card group flex h-full flex-col overflow-hidden rounded-2xl transition-transform duration-200 active:scale-[0.98]" data-testid={`service-card-${i}`}>
                   <div className="relative h-24 overflow-hidden sm:h-36">
                     <img
                       src={s.img}
@@ -210,7 +211,7 @@ export default function Home() {
           <div className="grid grid-cols-2 gap-3 sm:gap-5 md:gap-7 lg:grid-cols-3">
             {projects.map((p, i) => (
               <Reveal key={p.id} delay={i * 0.08}>
-                <Link to="/projects" data-testid={`featured-project-card-${i}`} className="glass-card group block overflow-hidden rounded-2xl">
+                <Link to="/projects" data-testid={`featured-project-card-${i}`} className="glass-card group block overflow-hidden rounded-2xl transition-transform duration-200 active:scale-[0.98]">
                   <div className="relative h-28 overflow-hidden sm:h-36 md:h-44">
                     <img
                       src={p.image}
@@ -256,7 +257,7 @@ export default function Home() {
           <div className="grid grid-cols-2 gap-4 sm:gap-6 lg:grid-cols-4">
             {edges.map((a, i) => (
               <Reveal key={`${a.title}-${i}`} delay={i * 0.1}>
-                <div className="glass-card group h-full overflow-hidden rounded-2xl" data-testid={`advantage-home-card-${i}`}>
+                <div className="glass-card group h-full overflow-hidden rounded-2xl transition-transform duration-200 active:scale-[0.98]" data-testid={`advantage-home-card-${i}`}>
                   <div className="relative h-28 overflow-hidden sm:h-40">
                     <img
                       src={toFullUrl(a.image)}

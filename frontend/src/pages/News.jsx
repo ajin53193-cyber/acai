@@ -42,7 +42,7 @@ export default function News() {
                     <Link
                       to={`/news/${a.id}`}
                       data-testid={`news-card-${i}`}
-                      className="glass-card group block h-full overflow-hidden rounded-2xl"
+                      className="glass-card group block h-full overflow-hidden rounded-2xl transition-transform duration-200 active:scale-[0.98]"
                     >
                       {a.cover && (
                         <div className="relative h-28 overflow-hidden sm:h-36 md:h-44">

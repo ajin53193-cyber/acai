@@ -169,7 +169,7 @@ export const ChatWidget = () => {
                         )}
                         {m.text}
                         {m.image && (
-                          <img src={toFullUrl(m.image)} alt="微信服务号二维码" className="mt-2 w-36 rounded-xl border border-amber-500/20" data-testid="chat-qr-image" />
+                          <img src={toFullUrl(m.image)} alt="客服图片" className="mt-2 w-full min-w-44 rounded-xl border border-amber-500/20" data-testid="chat-qr-image" />
                         )}
                       </div>
                     </div>

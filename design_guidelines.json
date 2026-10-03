@@ -1,139 +1,115 @@
 {
-  "project_name": "合赢项目社 (HEYING PROJECT CLUB)",
-  "brand_identity": {
-    "chinese_name": "合赢项目社",
-    "english_name": "HEYING PROJECT CLUB",
-    "tagline": "聚力项目，合作共赢",
-    "subtext": "专注优质项目资源对接、社群交流与商业合作，连接项目、资金、渠道与团队伙伴。",
-    "logo_concept": "Gold hexagonal house mark with embedded stylized '合' character + champagne gold typography",
-    "design_archetype": "LUXURY & PERFORMANCE PRO (Deep Midnight Navy + Polished Champagne Gold)",
-    "language": "All Simplified Chinese (全中文)"
-  },
-  "colors": {
-    "background_dark": "#060B18",
-    "background_navy": "#0A1228",
-    "background_card": "rgba(13, 23, 48, 0.75)",
-    "background_card_hover": "rgba(22, 38, 76, 0.85)",
-    "border_gold_subtle": "rgba(212, 175, 55, 0.25)",
-    "border_gold_glow": "rgba(255, 232, 150, 0.6)",
-    "gold_primary": "#E5C158",
-    "gold_secondary": "#D4AF37",
-    "gold_gradient_fill": "linear-gradient(135deg, #FFE896 0%, #D4AF37 50%, #997316 100%)",
-    "gold_gradient_text": "linear-gradient(135deg, #FFF1C5 0%, #E5C158 50%, #B8860B 100%)",
+  "project_name": "HEYING PROJECT CLUB (合赢项目社)",
+  "design_archetype": "LUXURY & HIGH-CONTRAST SWISS FUSION",
+  "target_audience": "High-net-worth investors, venture partners, project leaders, corporate executives",
+  "theme": "Dark Theme (Deep Navy & Champagne Gold)",
+  "color_palette": {
+    "background_primary": "#060B18",
+    "background_secondary": "#0A1228",
+    "card_background": "rgba(13, 23, 48, 0.72)",
+    "card_background_hover": "rgba(17, 29, 60, 0.85)",
+    "gold_primary": "#D4AF37",
+    "gold_accent": "#E5C158",
+    "gold_light": "#FFE896",
+    "gold_dark": "#997316",
+    "border_gold_subtle": "rgba(212, 175, 55, 0.18)",
+    "border_gold_active": "rgba(255, 232, 150, 0.55)",
     "text_primary": "#F8FAFC",
     "text_secondary": "#94A3B8",
-    "text_gold": "#F3E5AB",
-    "accent_blue_glow": "rgba(30, 58, 138, 0.4)",
-    "surface_glass": "backdrop-blur-xl bg-[#0A1228]/80 border border-amber-500/20"
+    "text_muted": "#64748B"
   },
   "typography": {
-    "display_font": "'Noto Serif SC', 'Playfair Display', serif",
-    "body_font": "'Noto Sans SC', system-ui, -apple-system, sans-serif",
-    "font_scale": {
-      "hero_h1": "text-4xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight leading-tight",
-      "section_h2": "text-2xl sm:text-3xl lg:text-4xl font-bold tracking-tight",
-      "card_h3": "text-xl sm:text-2xl font-semibold",
-      "subtitle": "text-base sm:text-lg text-slate-300 leading-relaxed",
-      "body": "text-sm sm:text-base text-slate-300 leading-normal",
-      "small_label": "text-xs sm:text-sm font-medium tracking-wider uppercase"
+    "heading_font": "Noto Serif SC, serif",
+    "body_font": "Noto Sans SC, sans-serif",
+    "heading_classes": "font-display font-bold text-gold-gradient tracking-tight",
+    "font_scales": {
+      "mobile_hero_title": "text-2xl sm:text-3xl font-display font-bold leading-tight",
+      "mobile_section_title": "text-xl sm:text-2xl font-display font-bold leading-snug",
+      "mobile_card_title": "text-xs sm:text-sm font-semibold line-clamp-2 text-slate-100",
+      "mobile_body": "text-xs sm:text-sm text-slate-300 leading-relaxed",
+      "mobile_caption": "text-[11px] sm:text-xs text-slate-400"
     }
   },
-  "layout_and_spacing": {
-    "container_padding": "px-4 sm:px-8 lg:px-16 max-w-7xl mx-auto",
-    "section_gap": "py-16 md:py-24",
-    "card_padding": "p-6 sm:p-8",
-    "grid_modes": {
-      "features": "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6",
-      "projects_catalog": "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8",
-      "stats_podium": "grid grid-cols-2 md:grid-cols-4 gap-6"
-    }
-  },
-  "key_pages_structure": {
-    "header": {
-      "style": "Fixed z-50 backdrop-blur-xl bg-[#0A1228]/85 border-b border-amber-500/20 px-6 py-4 flex items-center justify-between",
-      "logo": "Gold hexagonal SVG icon with '合' glyph + '合赢项目社' gold gradient text",
-      "nav_items": [
-        {"name": "首页", "path": "/"},
-        {"name": "项目中心", "path": "/projects"},
-        {"name": "合作共赢", "path": "/cooperation"},
-        {"name": "关于我们", "path": "/about"},
-        {"name": "联系我们", "path": "/contact"}
-      ],
-      "cta_button": "Gold pill button '联系客服' with gold hover shimmer"
+  "mobile_layout_blueprint": {
+    "viewport_target": "<= 767px Mobile Screens",
+    "spacing_rules": {
+      "section_padding": "py-10 px-4 sm:py-14 sm:px-6",
+      "grid_gap": "gap-3.5 sm:gap-4",
+      "container_max_width": "max-w-md mx-auto px-4",
+      "card_internal_padding": "p-3.5 sm:p-4",
+      "section_divider": "relative my-8 h-px bg-gradient-to-r from-transparent via-amber-500/20 to-transparent"
     },
-    "home_page": [
-      "Hero Section: Split layout with big gold headline '合赢项目社 / 聚力项目，合作共赢', subtitle, CTAs ('浏览项目' gold pill, '加入合作' gold outline pill), and right-side interactive 3D Gold Orbit/Coin stack render with particle sparkles and glowing rings.",
-      "Editorial Ticker Marquee: Slow-moving metallic golden banner displaying key metrics & slogans ('连接资金 • 渠道拓展 • 团长合伙 • 优质项目对接').",
-      "优质项目推荐 Section: 4 luxury glass cards with gold hexagon icons (项目发布, 资源对接, 社群共建, 合作落地), titles, detailed descriptions, and gold '查看详情' buttons.",
-      "精选合作项目 Grid: Filterable showcase (绿色能源 / 科技创新 / 商业渠道 / 农业生态) with real thumbnail images, gold category tags, key metrics, and interest buttons.",
-      "CTA Hero Banner: Glowing gold-bordered banner '准备好加入合作了吗？联系客服获取团长入驻与项目合作详情。' with gold '立即联系客服' action."
-    ],
-    "projects_page": [
-      "Hero Header: '项目中心 / 汇聚优质资源 精准对接合作'",
-      "Filter Bar: Search input + Category tabs (全部 / 绿色能源 / 科技创新 / 商业渠道 / 实体产业)",
-      "Project Cards Grid: Status tags (对接中 / 招募团长 / 资金筹备), title, investment range, project highlight details, and modal detail trigger."
-    ],
-    "cooperation_page": [
-      "Hero: '合作共赢 / 连接项目、资金、渠道与团队伙伴'",
-      "合作模式 Process Flow Diagram: '项目发布 → 资源对接 → 团队共建 → 合作落地' with step numbers, gold icons, animated connecting lines",
-      "3 Cooperation Cards: 团长合作, 项目方合作, 资源方合作 (with gold 3D icons, benefits list, and '申请合作' buttons)",
-      "Right Sidebar / Grid Section: 合作优势 (平台项目资源, 社群协作体系, 客服全程对接, 高效信息匹配)"
-    ],
-    "about_page": [
-      "平台简介 Card: Mission statement and high-end corporate backdrop",
-      "4 Gold Stat Tiles on Glowing 3D Podium: 优质项目 36+ / 合作伙伴 120+ / 行业动态 80+ / 客服响应 30分钟内",
-      "平台价值观 3 Cards: 开放 / 可信 / 共赢",
-      "核心团队 Grid: Circular gold-ringed avatars with role labels (项目负责人, 合作负责人, 资源负责人, 运营负责人, 客服负责人, 品牌负责人)"
-    ],
-    "contact_page": [
-      "Left Card: 联系方式 (客服热线 400-888-6888 / 微信客服 heyingkefu / 工作时间 9:00-21:00 / 邮箱 contact@heying.com) + 在线咨询 button",
-      "Right Form Card: 在线留言 form (姓名, 联系电话, 所在城市, 咨询类型 [项目合作 | 团长合作 | 资源对接 | 其他], 留言内容, 提交咨询 gold button)",
-      "Admin Panel Link: Floating/Footer link to view submitted inquiry list."
-    ]
+    "hero_section": {
+      "mobile_hierarchy": "1. Eyebrow badge -> 2. High-impact serif headline -> 3. Gold subtle gradient subtitle -> 4. Dual CTA action row -> 5. Floating key stats pill",
+      "ambient_lighting": "Absolute positioned radial glow: bg-[radial-gradient(circle_at_50%_20%,rgba(212,175,55,0.15),transparent_70%)]",
+      "vertical_rhythm": "pt-24 pb-12 flex flex-col items-center text-center space-y-4"
+    },
+    "card_grid_system": {
+      "layout": "grid grid-cols-2 gap-3.5 sm:gap-4",
+      "card_style": "glass-card rounded-xl p-3.5 flex flex-col justify-between border border-amber-500/15 relative overflow-hidden active:scale-[0.98] transition-transform duration-150 ease-out",
+      "image_wrapper": "relative aspect-[16/10] w-full overflow-hidden rounded-lg mb-2.5 bg-slate-900/60",
+      "image_style": "w-full h-full object-cover transition-transform duration-500 hover:scale-105",
+      "badge_style": "absolute top-2 left-2 px-2 py-0.5 rounded-full text-[10px] font-medium bg-slate-950/80 text-amber-300 border border-amber-500/30 backdrop-blur-md shadow-sm",
+      "title_style": "text-xs sm:text-sm font-bold text-slate-100 line-clamp-2 leading-snug mb-1.5",
+      "subtitle_style": "text-[11px] text-slate-400 line-clamp-1 mb-2",
+      "meta_row": "mt-auto pt-2 border-t border-slate-800/80 flex items-center justify-between text-[10px] text-amber-400/90"
+    },
+    "navigation_and_floaters": {
+      "mobile_tab_bar": {
+        "position": "fixed bottom-0 left-0 right-0 z-50",
+        "container_style": "bg-[#060B18]/92 backdrop-blur-xl border-t border-amber-500/20 px-2 py-1.5 flex justify-around items-center shadow-2xl pb-safe",
+        "item_style": "flex flex-col items-center justify-center text-[10px] py-1 px-3 rounded-lg text-slate-400 transition-colors active:text-amber-400",
+        "active_item_style": "text-amber-400 font-medium bg-amber-500/10"
+      },
+      "chat_widget": {
+        "position": "fixed bottom-20 right-4 z-40",
+        "style": "bg-gradient-to-r from-amber-500 to-amber-600 text-slate-950 p-3 rounded-full shadow-lg shadow-amber-500/20 active:scale-95 transition-transform border border-amber-300/40"
+      }
+    }
   },
-  "component_styles": {
-    "gold_button_primary": "bg-gradient-to-r from-[#FFE896] via-[#D4AF37] to-[#997316] text-[#060B18] font-bold px-6 py-3 rounded-full shadow-[0_0_20px_rgba(212,175,55,0.3)] hover:shadow-[0_0_30px_rgba(255,232,150,0.5)] transition-all duration-300 hover:scale-105 active:scale-95",
-    "gold_button_outline": "border border-[#D4AF37] text-[#FFE896] hover:bg-[#D4AF37]/10 font-medium px-6 py-3 rounded-full transition-all duration-300",
-    "glass_card": "bg-[#0A1228]/75 backdrop-blur-xl border border-amber-500/20 rounded-2xl p-6 hover:border-amber-400/50 hover:bg-[#111D3C]/80 transition-all duration-300 shadow-xl"
+  "motion_and_animations": {
+    "engine": "Framer Motion + Lightweight CSS Transitions",
+    "mobile_rules": {
+      "stagger_delay": 0.08,
+      "viewport_margin": "-40px",
+      "transition_type": "spring",
+      "stiffness": 260,
+      "damping": 20
+    },
+    "css_classes": {
+      "touch_feedback": "active:scale-[0.98] transition-transform duration-150 ease-out",
+      "glass_hover": "transition-all duration-300 hover:border-amber-400/40 hover:bg-[#0d1730]/90",
+      "gold_glow": "shadow-[0_0_20px_rgba(212,175,55,0.15)]"
+    }
   },
-  "media_assets": {
-    "hero_3d_render": "https://images.unsplash.com/photo-1685521885227-0a8bb5334567?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NDk1NzZ8MHwxfHNlYXJjaHwyfHxnb2xkJTIwYWJzdHJhY3QlMjAzZCUyMHNoYXBlJTIwZmxvYXRpbmclMjByZW5kZXIlMjBuYXZ5JTIwYmFja2dyb3VuZHxlbnwwfHx8fDE3OTA5MzA4NDd8MA&ixlib=rb-4.1.0&q=85",
-    "team_avatars": [
-      "https://images.unsplash.com/photo-1665224752561-85f4da9a5658?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAzNzl8MHwxfHNlYXJjaHw0fHxjaGluZXNlJTIwZXhlY3V0aXZlJTIwcHJvZmVzc2lvbmFsJTIwYnVzaW5lc3MlMjBwb3J0cmFpdCUyMGhlYWRzaG90fGVufDB8fHx8MTc5MDkzMDg0N3ww&ixlib=rb-4.1.0&q=85",
-      "https://images.unsplash.com/photo-1665224752136-4dbe2dfc8195?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAzNzl8MHwxfHNlYXJjaHwxfHxjaGluZXNlJTIwZXhlY3V0aXZlJTIwcHJvZmVzc2lvbmFsJTIwYnVzaW5lc3MlMjBwb3J0cmFpdCUyMGhlYWRzaG90fGVufDB8fHx8MTc5MDkzMDg0N3ww&ixlib=rb-4.1.0&q=85",
-      "https://images.unsplash.com/photo-1520689728498-7dd1a9814607?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAzNzl8MHwxfHNlYXJjaHszfHxjaGluZXNlJTIwZXhlY3V0aXZlJTIwcHJvZmVzc2lvbmFsJTIwYnVzaW5lc3MlMjBwb3J0cmFpdCUyMGhlYWRzaG90fGVufDB8fHx8MTc5MDkzMDg0N3ww&ixlib=rb-4.1.0&q=85",
-      "https://images.unsplash.com/photo-1665224751641-8ea911ca2267?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAzNzl8MHwxfHNlYXJjaHwyfHxjaGluZXNlJTIwZXhlY3V0aXZlJTIwcHJvZmVzc2lvbmFsJTIwYnVzaW5lc3MlMjBwb3J0cmFpdCUyMGhlYWRzaG90fGVufDB8fHx8MTc5MDkzMDg0N3ww&ixlib=rb-4.1.0&q=85"
-    ],
-    "project_thumbnails": [
-      "https://images.unsplash.com/photo-1497435334941-8c899ee9e8e9?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2ODh8MHwxfHNlYXJjaHszfHxtb2Rlcm4lMjBidXNpbmVzcyUyMHByb2plY3QlMjB0ZWNobm9sb2d5JTIwc29sYXIlMjBBSSUyMGdyZWVuJTIwZW5lcmd5fGVufDB8fHx8MTc5MDkzMDg1NHww&ixlib=rb-4.1.0&q=85",
-      "https://images.unsplash.com/photo-1509391366360-2e959784a276?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2ODh8MHwxfHNlYXJjaHw0fHxtb2Rlcm4lMjBidXNpbmVzcyUyMHByb2plY3QlMjB0ZWNobm9sb2d5JTIwc29sYXIlMjBBSSUyMGdyZWVuJTIwZW5lcmd5fGVufDB8fHx8MTc5MDkzMDg1NHww&ixlib=rb-4.1.0&q=85",
-      "https://images.unsplash.com/photo-1508514177221-188b1cf16e9d?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2ODh8MHwxfHNlYXJjaHxfHxtb2Rlcm4lMjBidXNpbmVzcyUyMHByb2plY3QlMjB0ZWNobm9sb2d5JTIwc29sYXIlMjBBSSUyMGdyZWVuJTIwZW5lcmd5fGVufDB8fHx8MTc5MDkzMDg1NHww&ixlib=rb-4.1.0&q=85"
-    ]
+  "page_blueprints": {
+    "home": "Hero section with radial glow + 2x2 Service Cards + 2-Column Project Card Grid + Stat Counter Bar + Partner Marquee",
+    "projects": "Category Filter Horizontal Scrollable Pill Bar (no-scrollbar) + 2-Column Dual Card Grid with status badges & tags + Search Bar",
+    "cooperation": "4-Step Vertical Connected Process Path + Captain Income System 3 Tiers Cards + 3 Business Model Glass Cards",
+    "about": "Key Milestones Vertical Timeline + Data Wall 2x2 Grid + Core Team 2-Column Cards",
+    "contact": "Mobile Form with 16px font inputs (prevents iOS auto-zoom) + Direct One-Touch Phone/WeChat Call Action Buttons"
   },
-  "testing_strategy": {
-    "rule": "Every button, input, navigation link, card, form element, and key stat MUST include a descriptive data-testid attribute in kebab-case format.",
+  "testing_guidelines": {
+    "data_testid_rules": "All interactive elements, forms, navigation tabs, project cards, filter pills, and floating triggers MUST contain explicit data-testid attributes.",
     "sample_testids": [
-      "nav-home-link",
-      "nav-projects-link",
-      "nav-cooperation-link",
-      "nav-about-link",
-      "nav-contact-link",
-      "nav-contact-kefu-btn",
-      "hero-browse-projects-btn",
-      "hero-join-cooperation-btn",
-      "contact-form-name-input",
-      "contact-form-phone-input",
-      "contact-form-city-input",
-      "contact-form-type-select",
-      "contact-form-message-textarea",
-      "contact-form-submit-btn"
+      "app-root",
+      "mobile-tab-bar",
+      "mobile-tab-home",
+      "mobile-tab-projects",
+      "mobile-tab-cooperation",
+      "mobile-tab-contact",
+      "chat-widget-button",
+      "hero-primary-cta",
+      "project-card-item",
+      "category-filter-pill",
+      "contact-form-submit"
     ]
   },
   "instructions_to_main_agent": [
-    "Build a complete responsive multi-page web app matching the dark navy + champagne gold aesthetic from the provided user screenshots.",
-    "Use React Router for page navigation across 首页, 项目中心, 合作共赢, 关于我们, 联系我们, and Admin Message inbox.",
-    "Ensure contact submissions post to backend API /api/contact and persist to database, viewable via the admin inbox panel.",
-    "Add gold glow micro-interactions, particle floating hero background, smooth page transitions with framer-motion, and toast feedback with sonner.",
-    "Ensure all text content is in Simplified Chinese with accurate business language."
+    "Ensure all mobile cards fit within a strict 2-column grid (`grid-cols-2`) on screens <= 767px without text overlap or clipped borders.",
+    "Apply `Noto Serif SC` to section titles using `font-display` utility class and `text-gold-gradient` for high-end luxury feel.",
+    "Keep all form inputs at minimum `16px` font size on mobile to prevent automatic iOS zoom on focus.",
+    "Maintain strict `data-testid` attributes on all buttons, links, inputs, and interactive components.",
+    "Use Lenis scroll instance with lightweight CSS transitions for touch interactions to keep mobile FPS smooth at 60fps."
   ]
 }

@@ -91,7 +91,7 @@ export default function About() {
           <div className="grid grid-cols-2 gap-3 sm:gap-5 md:gap-7 lg:grid-cols-3">
             {VALUES.map((v, i) => (
               <Reveal key={v.title} delay={i * 0.12}>
-                <div className="glass-card group h-full overflow-hidden rounded-3xl" data-testid={`value-card-${i}`}>
+                <div className="glass-card group h-full overflow-hidden rounded-3xl transition-transform duration-200 active:scale-[0.98]" data-testid={`value-card-${i}`}>
                   <div className="relative h-28 overflow-hidden sm:h-36 md:h-40">
                     <img
                       src={v.img}

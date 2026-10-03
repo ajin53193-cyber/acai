@@ -591,6 +591,36 @@ async def chat_send(session_id: str, data: ChatMessageInput):
     settings = await db.settings.find_one({"key": "site"}, {"_id": 0, "chat": 1})
     chat_cfg = (settings or {}).get("chat") or {}
     qr_image = chat_cfg.get("qr_image", "")
+    matched_q = None
+    matched_img = ""
+    for q in chat_cfg.get("questions") or []:
+        q_text = q if isinstance(q, str) else q.get("text", "")
+        if q_text and q_text == data.text:
+            matched_q = q_text
+            matched_img = "" if isinstance(q, str) else q.get("image", "")
+            break
+    if matched_q:
+        await db.question_clicks.insert_one({
+            "id": str(uuid.uuid4()),
+            "question": matched_q,
+            "session_id": session_id,
+            "created_at": now,
+        })
+    if matched_img:
+        card_now = datetime.now(timezone.utc).isoformat()
+        await db.chat_messages.insert_one({
+            "id": str(uuid.uuid4()),
+            "session_id": session_id,
+            "sender": "admin",
+            "via": "ai",
+            "text": "这是相关介绍图，供您参考：",
+            "image": matched_img,
+            "created_at": card_now,
+        })
+        await db.chat_sessions.update_one(
+            {"id": session_id},
+            {"$set": {"last_message_at": card_now, "last_message": "[介绍图片]"}},
+        )
     if qr_image and any(k in data.text for k in QR_KEYWORDS):
         qr_now = datetime.now(timezone.utc).isoformat()
         await db.chat_messages.insert_one({
@@ -606,25 +636,6 @@ async def chat_send(session_id: str, data: ChatMessageInput):
             {"id": session_id},
             {"$set": {"last_message_at": qr_now, "last_message": "[服务号二维码]"}},
         )
-    for q in chat_cfg.get("questions") or []:
-        q_text = q if isinstance(q, str) else q.get("text", "")
-        q_image = "" if isinstance(q, str) else q.get("image", "")
-        if q_image and q_text and q_text == data.text:
-            card_now = datetime.now(timezone.utc).isoformat()
-            await db.chat_messages.insert_one({
-                "id": str(uuid.uuid4()),
-                "session_id": session_id,
-                "sender": "admin",
-                "via": "ai",
-                "text": "这是相关介绍图，供您参考：",
-                "image": q_image,
-                "created_at": card_now,
-            })
-            await db.chat_sessions.update_one(
-                {"id": session_id},
-                {"$set": {"last_message_at": card_now, "last_message": "[介绍图片]"}},
-            )
-            break
     if chat_cfg.get("ai_enabled"):
         asyncio.create_task(generate_ai_reply(session_id))
     doc.pop("_id", None)
@@ -824,6 +835,35 @@ async def delete_article(article_id: str, _: str = Depends(require_admin)):
 async def admin_chat_sessions(_: str = Depends(require_admin)):
     sessions = await db.chat_sessions.find({}, {"_id": 0}).sort("last_message_at", -1).to_list(200)
     return {"sessions": sessions}
+
+
+@api_router.get("/admin/chat/question-stats")
+async def admin_chat_question_stats(_: str = Depends(require_admin)):
+    settings = await db.settings.find_one({"key": "site"}, {"_id": 0, "chat": 1})
+    chat_cfg = (settings or {}).get("chat") or {}
+    questions = [
+        (q if isinstance(q, str) else q.get("text", ""))
+        for q in chat_cfg.get("questions") or []
+    ]
+    questions = [q for q in questions if q]
+    since = (datetime.now(timezone.utc) - timedelta(days=7)).isoformat()
+    clicks = await db.question_clicks.find({}, {"_id": 0, "question": 1, "created_at": 1}).to_list(10000)
+    totals = {}
+    recent = {}
+    for c in clicks:
+        q = c["question"]
+        totals[q] = totals.get(q, 0) + 1
+        if c["created_at"] >= since:
+            recent[q] = recent.get(q, 0) + 1
+    for q in list(totals):
+        if q not in questions:
+            questions.append(q)
+    stats = [
+        {"question": q, "total": totals.get(q, 0), "last7d": recent.get(q, 0)}
+        for q in questions
+    ]
+    stats.sort(key=lambda x: -x["total"])
+    return {"stats": stats}
 
 
 @api_router.get("/admin/chat/{session_id}/messages")

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import axios from "axios";
 import { toast } from "sonner";
-import { MessagesSquare, Send } from "lucide-react";
+import { MessagesSquare, Send, MousePointerClick } from "lucide-react";
 import { API } from "@/lib/api";
 import { toFullUrl } from "@/components/ImageUpload";
 
@@ -10,6 +10,7 @@ export default function ChatAdmin({ token, onUnauthorized }) {
   const [activeId, setActiveId] = useState(null);
   const [messages, setMessages] = useState([]);
   const [text, setText] = useState("");
+  const [qStats, setQStats] = useState([]);
   const listRef = useRef(null);
 
   const headers = { Authorization: `Bearer ${token}` };
@@ -24,6 +25,14 @@ export default function ChatAdmin({ token, onUnauthorized }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token, onUnauthorized]);
 
+  const loadQStats = useCallback(async () => {
+    try {
+      const res = await axios.get(`${API}/admin/chat/question-stats`, { headers });
+      setQStats(res.data.stats);
+    } catch { /* ignore */ }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token]);
+
   const loadMessages = useCallback(async () => {
     if (!activeId) return;
     try {
@@ -37,9 +46,14 @@ export default function ChatAdmin({ token, onUnauthorized }) {
 
   useEffect(() => {
     loadSessions();
+    loadQStats();
     const timer = setInterval(loadSessions, 6000);
-    return () => clearInterval(timer);
-  }, [loadSessions]);
+    const statTimer = setInterval(loadQStats, 15000);
+    return () => {
+      clearInterval(timer);
+      clearInterval(statTimer);
+    };
+  }, [loadSessions, loadQStats]);
 
   useEffect(() => {
     loadMessages();
@@ -67,7 +81,30 @@ export default function ChatAdmin({ token, onUnauthorized }) {
   const active = sessions.find((s) => s.id === activeId);
 
   return (
-    <div className="grid gap-5 lg:grid-cols-3" data-testid="admin-chat">
+    <div data-testid="admin-chat">
+      {qStats.length > 0 && (
+        <div className="glass-card mb-5 rounded-2xl p-5" data-testid="admin-chat-question-stats">
+          <div className="flex items-center gap-2 text-sm font-bold text-slate-100">
+            <MousePointerClick size={16} className="text-[#D4AF37]" />
+            问题卡片点击统计
+            <span className="text-xs font-normal text-slate-500">访客点击欢迎语下方问题卡片的次数</span>
+          </div>
+          <div className="mt-4 flex flex-wrap gap-3">
+            {qStats.map((s, i) => (
+              <div
+                key={s.question}
+                data-testid={`question-stat-${i}`}
+                className="flex items-center gap-3 rounded-xl border border-amber-500/15 bg-[#060B18]/60 px-4 py-3"
+              >
+                <span className="text-sm text-slate-200">{s.question}</span>
+                <span className="font-display text-lg font-black text-gold-gradient">{s.total}</span>
+                <span className="text-[10px] text-slate-500">近7天 {s.last7d}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+      <div className="grid gap-5 lg:grid-cols-3">
       <div className="glass-card h-[560px] overflow-y-auto rounded-2xl p-3" data-testid="admin-chat-sessions">
         {sessions.length === 0 ? (
           <div className="flex h-full flex-col items-center justify-center gap-3 text-sm text-slate-500">
@@ -105,8 +142,7 @@ export default function ChatAdmin({ token, onUnauthorized }) {
             <div className="border-b border-amber-500/15 px-5 py-3.5">
               <span className="font-display font-bold text-slate-100">{active?.name || "访客"}</span>
               <span className="ml-3 text-xs text-slate-500">会话 {activeId.slice(0, 8)}</span>
-            </div>
-            <div ref={listRef} className="flex-1 space-y-3 overflow-y-auto p-5" data-testid="admin-chat-messages">
+            </div>            <div ref={listRef} className="flex-1 space-y-3 overflow-y-auto p-5" data-testid="admin-chat-messages">
               {messages.map((m) => (
                 <div key={m.id} className={`flex ${m.sender === "admin" ? "justify-end" : "justify-start"}`}>
                   <div
@@ -120,7 +156,7 @@ export default function ChatAdmin({ token, onUnauthorized }) {
                     {m.sender === "admin" && m.via === "ai" && <div className="mb-0.5 text-[10px] font-bold text-[#060B18]/70">AI客服</div>}
                     {m.text}
                     {m.image && (
-                      <img src={toFullUrl(m.image)} alt="微信服务号二维码" className="mt-2 w-32 rounded-xl border border-black/10" />
+                      <img src={toFullUrl(m.image)} alt="客服图片" className="mt-2 w-full max-w-[280px] rounded-xl border border-black/10" />
                     )}
                   </div>
                 </div>
@@ -145,6 +181,7 @@ export default function ChatAdmin({ token, onUnauthorized }) {
             </form>
           </>
         )}
+      </div>
       </div>
     </div>
   );
