@@ -66,9 +66,9 @@ export default function Contact() {
                 </ul>
                 {chat.qr_image && (
                   <div className="mt-8 rounded-2xl border border-amber-500/20 bg-[#060B18]/60 p-5 text-center" data-testid="contact-qr-block">
-                    <img src={toFullUrl(chat.qr_image)} alt="微信群二维码" className="mx-auto w-36 rounded-xl border border-amber-500/20" />
-                    <div className="mt-3 text-sm font-medium text-[#E5C158]">微信扫码进群</div>
-                    <div className="mt-1 text-xs text-slate-500">新项目每月在群内分享</div>
+                    <img src={toFullUrl(chat.qr_image)} alt="官方微信服务号二维码" className="mx-auto w-36 rounded-xl border border-amber-500/20" />
+                    <div className="mt-3 text-sm font-medium text-[#E5C158]">官方微信服务号</div>
+                    <div className="mt-1 text-xs text-slate-500">扫码关注，获取最新项目</div>
                   </div>
                 )}
                 <a
