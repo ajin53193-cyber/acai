@@ -18,28 +18,28 @@ const SERVICES = [
     tag: "项目发布",
     title: "绿色能源合作项目",
     desc: "汇聚光伏、储能、充电桩等绿色能源优质项目，严选审核，长期收益清晰可见。",
-    img: "/images/ui/service-publish.png",
+    img: "/images/ui/service-publish.webp",
   },
   {
     icon: Link2,
     tag: "资源对接",
     title: "社群共建项目",
     desc: "为项目方精准匹配资金、渠道与团队伙伴，高效撮合，全程跟进对接进度。",
-    img: "/images/ui/service-link.png",
+    img: "/images/ui/service-link.webp",
   },
   {
     icon: Users,
     tag: "社群共建",
     title: "资源对接平台项目",
     desc: "开放本地社群与团长席位，共建活跃商业社群，共享平台流量与资源红利。",
-    img: "/images/ui/service-community.png",
+    img: "/images/ui/service-community.webp",
   },
   {
     icon: Handshake,
     tag: "合作落地",
     title: "新项目推荐",
     desc: "客服团队全程护航合作落地，从意向对接到签约执行，一站式陪伴成长。",
-    img: "/images/ui/service-deal.png",
+    img: "/images/ui/service-deal.webp",
   },
 ];
 
@@ -282,7 +282,7 @@ export default function Home() {
         <div className="mx-auto max-w-5xl px-4 sm:px-8">
           <Reveal>
             <div className="glass-card relative overflow-hidden rounded-3xl border-amber-400/40 px-8 py-12 text-center shadow-[0_0_60px_-15px_rgba(212,175,55,0.35)] sm:px-14">
-              <img src="/images/ui/cta-banner.png" alt="" className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-45" />
+              <img src="/images/ui/cta-banner.webp" alt="" className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-45" />
               <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-[#0A1228]/70 via-[#0A1228]/30 to-[#0A1228]/75" />
               <div className="pointer-events-none absolute -top-24 left-1/2 h-48 w-[520px] -translate-x-1/2 rounded-full bg-[#D4AF37]/15 blur-[80px]" />
               <div className="relative">

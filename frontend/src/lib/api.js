@@ -35,10 +35,10 @@ export const DEFAULT_SETTINGS = {
     { count: "50人团队", income: "10万以上", featured: false },
   ],
   edges: [
-    { title: "专业项目审核", desc: "每个项目经过资质、模式、现金流三重审核评估，真实可靠才上架。", image: "/images/ui/edge-audit.png" },
-    { title: "稳定项目供给", desc: "团队对接资源项目，专业评估整合，为团队长持续输出稳定项目。", image: "/images/ui/edge-stable.png" },
-    { title: "每月项目分享", desc: "最新项目每月在群内同步分享，团队长第一时间掌握合作机会。", image: "/images/ui/edge-share.png" },
-    { title: "专属客服对接", desc: "一对一客服全程对接，工作时间 30 分钟内响应，合作全程护航。", image: "/images/ui/edge-service.png" },
+    { title: "专业项目审核", desc: "每个项目经过资质、模式、现金流三重审核评估，真实可靠才上架。", image: "/images/ui/edge-audit.webp" },
+    { title: "稳定项目供给", desc: "团队对接资源项目，专业评估整合，为团队长持续输出稳定项目。", image: "/images/ui/edge-stable.webp" },
+    { title: "每月项目分享", desc: "最新项目每月在群内同步分享，团队长第一时间掌握合作机会。", image: "/images/ui/edge-share.webp" },
+    { title: "专属客服对接", desc: "一对一客服全程对接，工作时间 30 分钟内响应，合作全程护航。", image: "/images/ui/edge-service.webp" },
   ],
 };
 

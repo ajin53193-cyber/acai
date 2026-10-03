@@ -6,9 +6,9 @@ import { useSettings } from "@/lib/useSettings";
 const STAT_ICONS = [FolderKanban, Users, Newspaper, Timer];
 
 const VALUES = [
-  { icon: Unlock, title: "开放", desc: "开放项目信息与合作机会，让每一位伙伴都能平等触达优质资源。", img: "/images/ui/value-open.png" },
-  { icon: ShieldCheck, title: "可信", desc: "重视资源真实与对接效率，项目层层审核，信息透明可查。", img: "/images/ui/value-trust.png" },
-  { icon: Handshake, title: "共赢", desc: "推动伙伴共同成长，构建长期稳定、互利共赢的合作生态。", img: "/images/ui/value-win.png" },
+  { icon: Unlock, title: "开放", desc: "开放项目信息与合作机会，让每一位伙伴都能平等触达优质资源。", img: "/images/ui/value-open.webp" },
+  { icon: ShieldCheck, title: "可信", desc: "重视资源真实与对接效率，项目层层审核，信息透明可查。", img: "/images/ui/value-trust.webp" },
+  { icon: Handshake, title: "共赢", desc: "推动伙伴共同成长，构建长期稳定、互利共赢的合作生态。", img: "/images/ui/value-win.webp" },
 ];
 
 const AVATARS_PLACEHOLDER = [];
@@ -34,7 +34,7 @@ export default function About() {
             <div className="glass-card h-full overflow-hidden rounded-3xl">
               <div className="relative h-44 overflow-hidden">
                 <img
-                  src="/images/ui/about-intro.png"
+                  src="/images/ui/about-intro.webp"
                   alt="合赢项目社"
                   loading="lazy"
                   className="h-full w-full object-cover"
