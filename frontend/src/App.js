@@ -60,6 +60,9 @@ function App() {
   useEffect(() => {
     if (initialized.current) return;
     initialized.current = true;
+    // 手机端使用原生滚动，避免 Lenis 的逐帧插值循环造成的卡顿
+    const isTouch = window.matchMedia("(hover: none), (pointer: coarse)").matches;
+    if (isTouch) return;
     const lenis = new Lenis({ lerp: 0.09, smoothWheel: true });
     lenisRef.current = lenis;
     let rafId;

@@ -102,6 +102,18 @@
         box-shadow: 0 12px 48px -12px rgba(212, 175, 55, 0.25);
     }
 
+    /* 手机端性能：毛玻璃模糊与大面积光晕模糊非常耗 GPU，是滑动卡顿的主因，手机端关掉 */
+    @media (max-width: 767px) {
+        .glass-card {
+            backdrop-filter: none;
+            -webkit-backdrop-filter: none;
+            background: rgba(13, 23, 48, 0.92);
+        }
+        [class*="blur-["] {
+            filter: blur(40px);
+        }
+    }
+
     .grid-texture {
         background-image: none;
     }
