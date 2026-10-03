@@ -34,6 +34,12 @@ export const DEFAULT_SETTINGS = {
     { count: "20人团队", income: "5-6万", featured: true },
     { count: "50人团队", income: "10万以上", featured: false },
   ],
+  edges: [
+    { title: "专业项目审核", desc: "每个项目经过资质、模式、现金流三重审核评估，真实可靠才上架。", image: "/images/ui/edge-audit.png" },
+    { title: "稳定项目供给", desc: "团队对接资源项目，专业评估整合，为团队长持续输出稳定项目。", image: "/images/ui/edge-stable.png" },
+    { title: "每月项目分享", desc: "最新项目每月在群内同步分享，团队长第一时间掌握合作机会。", image: "/images/ui/edge-share.png" },
+    { title: "专属客服对接", desc: "一对一客服全程对接，工作时间 30 分钟内响应，合作全程护航。", image: "/images/ui/edge-service.png" },
+  ],
 };
 
 let cache = null;
@@ -51,6 +57,7 @@ export const fetchSettings = () => {
           categories: res.data.categories && res.data.categories.length ? res.data.categories : DEFAULT_SETTINGS.categories,
           chat: { ...DEFAULT_SETTINGS.chat, ...(res.data.chat || {}) },
           tiers: res.data.tiers && res.data.tiers.length ? res.data.tiers : DEFAULT_SETTINGS.tiers,
+          edges: res.data.edges && res.data.edges.length ? res.data.edges : DEFAULT_SETTINGS.edges,
         };
         return cache;
       })

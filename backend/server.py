@@ -170,6 +170,12 @@ class TierItem(BaseModel):
     featured: bool = False
 
 
+class EdgeItem(BaseModel):
+    title: str = Field(min_length=1, max_length=30)
+    desc: str = Field(default="", max_length=200)
+    image: str = ""
+
+
 class ChatConfig(BaseModel):
     welcome: str = "您好，欢迎来到合赢项目社！请描述您想咨询的问题，客服会尽快回复您。"
     ai_enabled: bool = False
@@ -183,6 +189,7 @@ class SiteSettings(BaseModel):
     categories: List[str] = Field(default_factory=list)
     chat: ChatConfig = ChatConfig()
     tiers: List[TierItem] = Field(default_factory=list)
+    edges: List[EdgeItem] = Field(default_factory=list)
 
 
 class ArticleInput(BaseModel):

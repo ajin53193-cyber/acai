@@ -15,6 +15,7 @@ export default function SettingsAdmin({ token, onUnauthorized }) {
   const [categories, setCategories] = useState(DEFAULT_SETTINGS.categories);
   const [chatCfg, setChatCfg] = useState(DEFAULT_SETTINGS.chat);
   const [tiers, setTiers] = useState(DEFAULT_SETTINGS.tiers);
+  const [edges, setEdges] = useState(DEFAULT_SETTINGS.edges);
   const [saving, setSaving] = useState(false);
 
   const headers = { Authorization: `Bearer ${token}` };
@@ -29,6 +30,7 @@ export default function SettingsAdmin({ token, onUnauthorized }) {
         if (res.data.categories && res.data.categories.length) setCategories(res.data.categories);
         setChatCfg({ ...DEFAULT_SETTINGS.chat, ...(res.data.chat || {}) });
         if (res.data.tiers && res.data.tiers.length) setTiers(res.data.tiers);
+        if (res.data.edges && res.data.edges.length) setEdges(res.data.edges);
       })
       .catch(() => {});
   }, []);
@@ -42,11 +44,13 @@ export default function SettingsAdmin({ token, onUnauthorized }) {
     setCategories((prev) => prev.map((c, idx) => (idx === i ? e.target.value : c)));
   const setTier = (i, key) => (e) =>
     setTiers((prev) => prev.map((t, idx) => (idx === i ? { ...t, [key]: e.target.value } : t)));
+  const setEdge = (i, key) => (e) =>
+    setEdges((prev) => prev.map((x, idx) => (idx === i ? { ...x, [key]: e.target.value } : x)));
 
   const save = async () => {
     setSaving(true);
     try {
-      await axios.put(`${API}/admin/settings`, { contact, team, stats, categories: categories.map((c) => c.trim()).filter(Boolean), chat: chatCfg, tiers: tiers.filter((t) => t.count.trim() && t.income.trim()) }, { headers });
+      await axios.put(`${API}/admin/settings`, { contact, team, stats, categories: categories.map((c) => c.trim()).filter(Boolean), chat: chatCfg, tiers: tiers.filter((t) => t.count.trim() && t.income.trim()), edges: edges.filter((x) => x.title.trim()) }, { headers });
       invalidateSettings();
       toast.success("设置已保存，前台页面已同步更新");
     } catch (err) {
@@ -285,6 +289,48 @@ export default function SettingsAdmin({ token, onUnauthorized }) {
               >
                 <Trash2 size={14} />
               </button>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="glass-card rounded-3xl p-7" data-testid="settings-edges-card">
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="font-display text-lg font-bold text-gold-gradient">我们的优势</h3>
+            <p className="mt-1 text-xs text-slate-500">显示在首页「我们的优势」版块，标题、介绍、配图都可修改</p>
+          </div>
+          <button
+            data-testid="settings-edge-add-btn"
+            onClick={() => setEdges([...edges, { title: "", desc: "", image: "" }])}
+            className="flex items-center gap-1.5 rounded-full border border-amber-500/30 px-4 py-2 text-xs text-[#E5C158] transition-colors hover:bg-amber-500/10"
+          >
+            <Plus size={13} /> 添加优势
+          </button>
+        </div>
+        <div className="mt-6 space-y-5">
+          {edges.map((ed, i) => (
+            <div key={i} className="rounded-2xl border border-amber-500/10 bg-[#060B18]/50 p-4" data-testid={`settings-edge-row-${i}`}>
+              <div className="flex flex-wrap items-center gap-4">
+                <ImageUpload
+                  token={token}
+                  value={ed.image}
+                  onChange={(url) => setEdges((prev) => prev.map((x, idx) => (idx === i ? { ...x, image: url } : x)))}
+                  testid={`settings-edge-image-${i}`}
+                />
+                <div className="grid flex-1 gap-3 sm:grid-cols-2">
+                  <input data-testid={`settings-edge-title-${i}`} value={ed.title} onChange={setEdge(i, "title")} placeholder="标题，如：专业项目审核" className={inputCls} />
+                  <input data-testid={`settings-edge-desc-${i}`} value={ed.desc} onChange={setEdge(i, "desc")} placeholder="一句话介绍" className={inputCls} />
+                </div>
+                <button
+                  data-testid={`settings-edge-remove-${i}`}
+                  onClick={() => setEdges(edges.filter((_, idx) => idx !== i))}
+                  className="rounded-full border border-red-500/30 p-2.5 text-red-300 transition-colors hover:bg-red-500/10"
+                  aria-label="删除优势"
+                >
+                  <Trash2 size={14} />
+                </button>
+              </div>
             </div>
           ))}
         </div>
