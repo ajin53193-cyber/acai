@@ -42,6 +42,29 @@ const SERVICES = [
   },
 ];
 
+const ADVANTAGES_HOME = [
+  {
+    title: "专业项目审核",
+    desc: "每个项目经过资质、模式、现金流三重审核评估，真实可靠才上架。",
+    img: "/images/ui/edge-audit.png",
+  },
+  {
+    title: "稳定项目供给",
+    desc: "团队对接资源项目，专业评估整合，为团队长持续输出稳定项目。",
+    img: "/images/ui/edge-stable.png",
+  },
+  {
+    title: "每月项目分享",
+    desc: "最新项目每月在群内同步分享，团队长第一时间掌握合作机会。",
+    img: "/images/ui/edge-share.png",
+  },
+  {
+    title: "专属客服对接",
+    desc: "一对一客服全程对接，工作时间 30 分钟内响应，合作全程护航。",
+    img: "/images/ui/edge-service.png",
+  },
+];
+
 const lineReveal = {
   hidden: { y: "110%" },
   show: (i) => ({
@@ -246,6 +269,34 @@ export default function Home() {
               查看全部项目
             </Link>
           </Reveal>
+        </div>
+      </section>
+
+      <section className="py-14 md:py-24" data-testid="advantages-home-section">
+        <div className="mx-auto max-w-7xl px-4 sm:px-8 lg:px-16">
+          <SectionHeading title="我们的优势" subtitle="专业审核 · 稳定供给 · 每月分享 · 专属对接" />
+          <div className="grid grid-cols-2 gap-4 sm:gap-6 lg:grid-cols-4">
+            {ADVANTAGES_HOME.map((a, i) => (
+              <Reveal key={a.title} delay={i * 0.1}>
+                <div className="glass-card group h-full overflow-hidden rounded-2xl" data-testid={`advantage-home-card-${i}`}>
+                  <div className="relative h-28 overflow-hidden sm:h-40">
+                    <img
+                      src={a.img}
+                      alt={a.title}
+                      loading="lazy"
+                      className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-110"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-[#0D1730] via-[#0A1228]/20 to-transparent" />
+                  </div>
+                  <div className="p-4 sm:p-6">
+                    <h3 className="font-display text-base font-bold text-slate-50 sm:text-lg">{a.title}</h3>
+                    <p className="mt-2 text-xs leading-relaxed text-slate-400 sm:text-sm">{a.desc}</p>
+                    <div className="mt-4 h-0.5 w-7 rounded-full bg-gold-gradient opacity-40 transition-all duration-500 group-hover:w-12 group-hover:opacity-100" />
+                  </div>
+                </div>
+              </Reveal>
+            ))}
+          </div>
         </div>
       </section>
 

@@ -379,7 +379,7 @@ async def startup():
     except Exception as e:
         print(f"Storage init failed: {e}")
     await db.users.create_index("username", unique=True)
-    await db.visits.create_index([("date", 1), ("ip", 1), ("path", 1), ("created_at", -1)])
+    await db.visits.create_index([("date", 1), ("ip", 1)], unique=False)
     username = os.environ.get("ADMIN_USERNAME", "admin")
     password = os.environ.get("ADMIN_PASSWORD", "admin123")
     existing = await db.users.find_one({"username": username})
@@ -793,8 +793,8 @@ async def track_visit(data: TrackInput, request: Request):
         request.client.host if request.client else "unknown"
     )
     now = datetime.now(timezone.utc)
-    dedup_since = (now - timedelta(minutes=30)).isoformat()
-    recent = await db.visits.find_one({"ip": ip, "path": path, "created_at": {"$gte": dedup_since}}, {"_id": 1})
+    date_str = now.astimezone(CN_TZ).strftime("%Y-%m-%d")
+    recent = await db.visits.find_one({"ip": ip, "date": date_str}, {"_id": 1})
     if recent:
         return {"ok": True, "deduped": True}
     region = await asyncio.to_thread(lookup_region, ip)
@@ -808,7 +808,7 @@ async def track_visit(data: TrackInput, request: Request):
         "ua": ua,
         "device": device,
         "browser": browser,
-        "date": now.astimezone(CN_TZ).strftime("%Y-%m-%d"),
+        "date": date_str,
         "created_at": now.isoformat(),
     })
     return {"ok": True}
