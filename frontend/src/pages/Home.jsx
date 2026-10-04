@@ -67,7 +67,6 @@ export default function Home() {
       <section className="grid-texture relative overflow-hidden pb-16 pt-32 lg:pt-36">
         <div className="pointer-events-none absolute -left-40 top-20 h-96 w-96 rounded-full bg-[#1E3A8A]/25 blur-[120px]" />
         <div className="pointer-events-none absolute -right-32 bottom-0 h-96 w-96 rounded-full bg-[#D4AF37]/12 blur-[130px]" />
-        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_12%,rgba(212,175,55,0.14),transparent_65%)] lg:hidden" />
 
         <div className="mx-auto grid max-w-7xl items-center gap-14 px-4 sm:px-8 lg:grid-cols-2 lg:px-16">
           <div className="text-center lg:text-left">
@@ -205,7 +204,7 @@ export default function Home() {
         </div>
       </section>
 
-      <section className="bg-[#080E1F] py-14 md:py-24" data-testid="featured-projects-section">
+      <section className="py-14 md:bg-[#080E1F] md:py-24" data-testid="featured-projects-section">
         <div className="mx-auto max-w-7xl px-4 sm:px-8 lg:px-16">
           <SectionHeading title="精选合作项目" subtitle="严选优质项目，真实可靠，持续更新" />
           <div className="grid grid-cols-2 gap-3 sm:gap-5 md:gap-7 lg:grid-cols-3">

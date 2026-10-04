@@ -85,7 +85,7 @@ export default function About() {
         </div>
       </section>
 
-      <section className="bg-[#080E1F] py-14 md:py-20" data-testid="about-values-section">
+      <section className="py-14 md:bg-[#080E1F] md:py-20" data-testid="about-values-section">
         <div className="mx-auto max-w-7xl px-4 sm:px-8 lg:px-16">
           <SectionHeading title="平台价值观" subtitle="开放 · 可信 · 共赢" />
           <div className="grid grid-cols-2 gap-3 sm:gap-5 md:gap-7 lg:grid-cols-3">

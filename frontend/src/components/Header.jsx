@@ -20,7 +20,7 @@ export const Header = () => {
   return (
     <header
       data-testid="site-header"
-      className="fixed inset-x-0 top-0 z-50 border-b border-amber-500/15 bg-[#0A1228]/85 backdrop-blur-xl"
+      className="fixed inset-x-0 top-0 z-50 border-b border-amber-500/15 bg-[#0A1228]/85 backdrop-blur-xl max-lg:bg-[#0A1228] max-lg:backdrop-blur-none"
     >
       <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3.5 sm:px-8 lg:px-16">
         <Link to="/" aria-label="合赢项目社首页">
@@ -79,7 +79,7 @@ export const Header = () => {
             animate={{ opacity: 1, height: "auto" }}
             exit={{ opacity: 0, height: 0 }}
             transition={{ duration: 0.28 }}
-            className="overflow-hidden border-t border-amber-500/15 bg-[#0A1228]/95 backdrop-blur-xl lg:hidden"
+            className="overflow-hidden border-t border-amber-500/15 bg-[#0A1228] lg:hidden"
           >
             <div className="flex flex-col gap-1 px-6 py-4">
               {NAV_ITEMS.map((item) => (

@@ -124,7 +124,7 @@ export default function Cooperation() {
         </div>
       </section>
 
-      <section className="bg-[#080E1F] py-14 md:py-20" data-testid="cooperation-modes-section">
+      <section className="py-14 md:bg-[#080E1F] md:py-20" data-testid="cooperation-modes-section">
         <div className="mx-auto max-w-7xl px-4 sm:px-8 lg:px-16">
           <SectionHeading title="合作方式" subtitle="三种身份，总有一个适合你" />
           <div className="grid grid-cols-3 gap-2.5 sm:gap-4 md:gap-7">
