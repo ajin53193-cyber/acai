@@ -40,14 +40,15 @@ export const MobileTabBar = () => {
             );
           })}
         </div>
-        <Link
-          to="/contact"
+        <button
+          type="button"
+          onClick={() => window.dispatchEvent(new CustomEvent("hy:open-chat"))}
           data-testid="tab-contact-kefu-btn"
           className="ml-2 flex shrink-0 items-center gap-1.5 self-center rounded-full bg-gold-gradient px-4 py-2.5 text-xs font-bold text-[#060B18] shadow-[0_0_16px_rgba(212,175,55,0.4)] active:scale-95"
         >
           <Headset size={14} />
           {pathname === "/cooperation" ? "合作咨询" : "联系客服"}
-        </Link>
+        </button>
       </div>
     </nav>
   );

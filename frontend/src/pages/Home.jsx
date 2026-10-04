@@ -292,13 +292,14 @@ export default function Home() {
               <p className="mx-auto mt-4 max-w-xl text-sm text-slate-300 sm:text-base">
                 联系客服获取团长入驻与项目合作详情，工作时间 9:00 - 21:00 全程在线。
               </p>
-              <Link
-                to="/contact"
+              <button
+                type="button"
+                onClick={() => window.dispatchEvent(new CustomEvent("hy:open-chat"))}
                 data-testid="cta-contact-kefu-btn"
                 className="mt-8 inline-block rounded-full bg-gold-gradient px-10 py-3.5 text-sm font-bold text-[#060B18] shadow-[0_0_24px_rgba(212,175,55,0.4)] transition-all duration-300 hover:scale-105 hover:shadow-[0_0_36px_rgba(255,232,150,0.6)] active:scale-95"
               >
                 立即联系客服
-              </Link>
+              </button>
               </div>
             </div>
           </Reveal>

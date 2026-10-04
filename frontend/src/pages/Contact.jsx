@@ -71,13 +71,14 @@ export default function Contact() {
                     <div className="mt-1 text-xs text-slate-500">扫码关注，获取最新项目</div>
                   </div>
                 )}
-                <a
-                  href="#message-form"
+                <button
+                  type="button"
+                  onClick={() => window.dispatchEvent(new CustomEvent("hy:open-chat"))}
                   data-testid="contact-online-consult-btn"
                   className="mt-10 flex items-center justify-center gap-2 rounded-full border border-[#D4AF37] py-3.5 text-sm font-medium text-[#FFE896] transition-all duration-300 hover:bg-[#D4AF37]/10 hover:shadow-[0_0_24px_rgba(212,175,55,0.25)]"
                 >
                   <Headset size={16} /> 在线咨询
-                </a>
+                </button>
               </div>
             </Reveal>
 

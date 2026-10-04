@@ -195,13 +195,14 @@ export default function Cooperation() {
                 <h3 className="font-display text-xl font-bold text-slate-50 sm:text-2xl">联系客服加入团长</h3>
                 <p className="mt-2 text-sm text-slate-300">工作时间 {contact.hours} · 邮箱 {contact.email}</p>
               </div>
-              <Link
-                to="/contact"
+              <button
+                type="button"
+                onClick={() => window.dispatchEvent(new CustomEvent("hy:open-chat"))}
                 data-testid="cooperation-consult-btn"
                 className="relative shrink-0 rounded-full bg-gold-gradient px-9 py-3.5 text-sm font-bold text-[#060B18] shadow-[0_0_24px_rgba(212,175,55,0.4)] transition-all duration-300 hover:scale-105 active:scale-95"
               >
                 在线咨询
-              </Link>
+              </button>
             </div>
           </Reveal>
         </div>

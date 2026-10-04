@@ -109,8 +109,10 @@
             -webkit-backdrop-filter: none;
             background: rgba(13, 23, 48, 0.92);
         }
+        /* 光晕降低模糊度后边缘会变硬、像一块补丁，同步降低透明度保持若有若无 */
         [class*="blur-["] {
             filter: blur(40px);
+            opacity: 0.35;
         }
     }
 

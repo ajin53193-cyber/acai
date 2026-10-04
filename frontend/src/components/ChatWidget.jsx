@@ -38,6 +38,12 @@ export const ChatWidget = () => {
   }, [started]);
 
   useEffect(() => {
+    const openHandler = () => setOpen(true);
+    window.addEventListener("hy:open-chat", openHandler);
+    return () => window.removeEventListener("hy:open-chat", openHandler);
+  }, []);
+
+  useEffect(() => {
     if (!open) return;
     load();
     const timer = setInterval(load, 5000);
