@@ -52,6 +52,7 @@
 - 2026-07-07 应用户要求移除「核心团队」版块（示例头像+姓名，真实业务不适用）：关于我们页整节删除；后台「站点设置 → 核心团队」编辑卡片同步删除；前端默认值与本地团队照片（/public/images/team/）清理完毕，后端 settings.team 字段保留但不再使用
 - 2026-07-07 Logo 重设计进行中：AI 生成 4 款候选（/public/images/logo-concepts/logo-1~4.webp：六合徽/双环/元宝/星盾），等用户选定后抠图透明化并替换全站 Logo + favicon
 - 2026-07-07 关于页新增「平台发展历程」时间轴版块（金线+节点圆点+年份徽章，5 个默认节点 2022-2026），后台「站点设置 → 平台发展历程」可增删改（settings.milestones，MilestoneItem: year/title/desc）；用户确认阿里云自部署路径（域名已备案），DEPLOY_ALIYUN.md 已就绪；2026-07-07 已触发 redeploy 上线
+- 2026-07-07 自定义域名 eztyv.com 上线：DNS 在聚名网（julydns，非阿里云），用户已加 4 条 A 记录（@/www → 162.159.142.117/172.66.2.113），平台侧 Domains 绑定完成、SSL 生效，https://eztyv.com 全站正常（项目10/文章14 已同步）；微信服务号物料已交付：头像（/images/logo-concepts/wechat-avatar.png 600×600）、功能介绍文案、被关注回复与关键词回复文案；页脚已挂备案号「桂ICP备2026019806号-2」（链接 beian.miit.gov.cn）
 - 后端接口：GET /api/projects、GET /api/settings、POST /api/contact、POST /api/admin/login、GET/PATCH /api/admin/inquiries、GET/POST/PUT/DELETE /api/admin/projects、PATCH /api/admin/projects/{id}/publish、PUT /api/admin/settings、POST /api/admin/upload、GET /api/files/{path}
 - 9 个种子项目（绿色能源/科技创新/商业渠道/实体产业）
 - 响应式：375 / 768 / 1366 均验证通过
