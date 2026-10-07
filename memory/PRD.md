@@ -76,11 +76,11 @@
 - 响应式：375 / 768 / 1366 均验证通过
 
 ## 待办优先级
-- P0：用户在 Emergent 点击「Save to GitHub」→ 服务器 `cd ~/acai && git pull` → 确认 `backend/.env` 含 DeepSeek 三键（AI_BASE_URL/AI_API_KEY/AI_MODEL）→ `docker compose up -d --build`（上次部署 git pull 显示 Already up to date、构建全缓存，说明代码未推送到 GitHub，服务器跑的还是旧代码——这是线上 AI 不回复+速度慢的根因）
-- P0：部署成功后到 eztyv.com/admin：①站点设置 → 在线客服 → 确认「AI 自动回复」开关打开；②重新上传微信群二维码和团长收益海报（存储已从云对象存储迁到本地磁盘，旧云图链接失效）
+- P0：用户在 Emergent 点击「Save to GitHub」→ 服务器执行 `cd ~/acai && bash deploy.sh`（deploy.sh 已升级为真一键：git pull → 检查 .env 与 DeepSeek 密钥 → docker compose up -d --build → 健康检查，失败会打印日志排查命令）。服务器跑的还是旧代码——这是线上 AI 不回复+速度慢+新功能缺失的根因
+- P0：部署成功后到 eztyv.com/admin：①站点设置 → 在线客服 → 上传真实微信群二维码（自动成为"1群"）并确认「AI 自动回复」开关打开；②收益海报如有缺失重新上传
 - P1：留言邮件/短信通知客服（需集成 Resend / Twilio）
-- P2：若 5M 带宽仍是瓶颈，为 eztyv.com 配置 CDN 加速
-- P2：真实联系电话/邮箱替换占位信息（contact@heying.com 为占位）
+- P2：CDN 加速（指南见 /app/CDN_ALIYUN.md）；百度/Google Search Console 提交 sitemap
+- P2：真实联系电话/邮箱替换占位信息（contact@heying.com 为占位，当前未进 SEO 结构化数据，确认后可补）
 
 ## 下一步
 - 项目管理后台 CRUD
