@@ -310,6 +310,17 @@ ARTICLES_SEED = [
 
 PROJECTS_SEED = [
     {
+        "title": "礼品卡合作项目",
+        "category": "商业渠道",
+        "status": "招募团长",
+        "investment": "灵活投入",
+        "region": "全国",
+        "description": "礼品卡项目，收益稳定，项目合规，平台全程对接支持，团队长带队共享收益。",
+        "highlights": ["收益稳定", "项目合规", "平台全程对接", "团队长直招"],
+        "image": "/images/projects/project-giftcard.webp",
+        "featured": True,
+    },
+    {
         "title": "绿源光伏社区电站",
         "category": "绿色能源",
         "status": "对接中",
@@ -317,7 +328,7 @@ PROJECTS_SEED = [
         "region": "华东大区",
         "description": "分布式光伏电站社区共建项目，与国家电网并网合作，收益稳定，适合长期持有。",
         "highlights": ["并网收益保障", "20年长期回报", "专业运维团队"],
-        "image": "https://images.unsplash.com/photo-1509391366360-2e959784a276?crop=entropy&cs=srgb&fm=jpg&q=85&w=800",
+        "image": "/images/projects/project-1.webp",
     },
     {
         "title": "智链AI数据服务平台",
@@ -327,7 +338,7 @@ PROJECTS_SEED = [
         "region": "深圳",
         "description": "面向中小企业的AI数据标注与模型训练服务平台，已签约多家头部客户。",
         "highlights": ["头部客户背书", "技术团队成熟", "现金流稳定"],
-        "image": "https://images.unsplash.com/photo-1497435334941-8c899ee9e8e9?crop=entropy&cs=srgb&fm=jpg&q=85&w=800",
+        "image": "/images/projects/project-2.webp",
     },
     {
         "title": "云仓优选社区团购",
@@ -337,7 +348,7 @@ PROJECTS_SEED = [
         "region": "全国",
         "description": "供应链直供社区团购项目，开放城市团长席位，提供选品、物流、系统全扶持。",
         "highlights": ["零库存模式", "总部全程扶持", "高频刚需品类"],
-        "image": "https://images.unsplash.com/photo-1508514177221-188b1cf16e9d?crop=entropy&cs=srgb&fm=jpg&q=85&w=800",
+        "image": "/images/projects/project-3.webp",
     },
     {
         "title": "沃野生态农业基地",
@@ -347,7 +358,7 @@ PROJECTS_SEED = [
         "region": "西南大区",
         "description": "千亩生态果蔬种植基地，订单农业模式，与连锁商超签订长期供货协议。",
         "highlights": ["订单农业保障", "绿色认证资质", "基地实地考察"],
-        "image": "https://images.unsplash.com/photo-1500937386664-56d1dfef3854?crop=entropy&cs=srgb&fm=jpg&q=85&w=800",
+        "image": "/images/projects/project-4.webp",
     },
     {
         "title": "峰行新能源充电桩",
@@ -357,7 +368,7 @@ PROJECTS_SEED = [
         "region": "珠三角",
         "description": "城市快充桩网络建设项目，政府补贴支持，点位资源已锁定核心商圈。",
         "highlights": ["政策补贴支持", "核心商圈点位", "智能运营系统"],
-        "image": "https://images.unsplash.com/photo-1593941707882-a5bba14938c7?crop=entropy&cs=srgb&fm=jpg&q=85&w=800",
+        "image": "/images/projects/project-5.webp",
     },
     {
         "title": "星链跨境电商孵化",
@@ -367,7 +378,7 @@ PROJECTS_SEED = [
         "region": "全国",
         "description": "跨境电商供应链孵化项目，提供海外仓、物流、运营一站式解决方案。",
         "highlights": ["海外仓资源", "一站式孵化", "成熟供应链"],
-        "image": "https://images.unsplash.com/photo-1526304640581-d334cdbbf45e?crop=entropy&cs=srgb&fm=jpg&q=85&w=800",
+        "image": "/images/projects/project-6.webp",
     },
     {
         "title": "慧眼智能安防系统",
@@ -377,7 +388,7 @@ PROJECTS_SEED = [
         "region": "京津冀",
         "description": "AI视觉安防整体解决方案，覆盖园区、社区、商超场景，渠道合伙人招募中。",
         "highlights": ["自研AI算法", "多场景落地", "渠道分成模式"],
-        "image": "https://images.unsplash.com/photo-1555255707-c07966088b7b?crop=entropy&cs=srgb&fm=jpg&q=85&w=800",
+        "image": "/images/projects/project-7.webp",
     },
     {
         "title": "康年大健康连锁",
@@ -387,7 +398,7 @@ PROJECTS_SEED = [
         "region": "长三角",
         "description": "社区健康管理连锁品牌，标准化门店模型已验证，开放区域合伙与单店合作。",
         "highlights": ["标准化门店模型", "区域保护政策", "银发经济赛道"],
-        "image": "https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?crop=entropy&cs=srgb&fm=jpg&q=85&w=800",
+        "image": "/images/projects/project-8.webp",
     },
     {
         "title": "牧歌冷链物流网络",
@@ -397,7 +408,7 @@ PROJECTS_SEED = [
         "region": "华中大区",
         "description": "生鲜冷链城配网络，已签约多家生鲜电商与连锁餐饮，干线+城配一体化运营。",
         "highlights": ["长期客户合约", "资产收益清晰", "行业高速增长"],
-        "image": "https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?crop=entropy&cs=srgb&fm=jpg&q=85&w=800",
+        "image": "/images/projects/project-9.webp",
     },
 ]
 
