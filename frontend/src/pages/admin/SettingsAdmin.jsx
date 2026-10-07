@@ -248,7 +248,7 @@ export default function SettingsAdmin({ token, onUnauthorized }) {
             </button>
           </div>
           <div className="rounded-2xl border border-amber-500/10 bg-[#060B18]/50 p-4">
-            <div className="text-sm font-medium text-slate-200">微信服务号二维码</div>
+            <div className="text-sm font-medium text-slate-200">微信群二维码</div>
             <div className="mb-3 mt-0.5 text-xs text-slate-500">访客询问怎么加入/联系方式/人工客服时，聊天窗会自动发送此二维码引导关注；同时显示在联系我们页</div>
             <ImageUpload
               token={token}

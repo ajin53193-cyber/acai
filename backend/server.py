@@ -243,7 +243,7 @@ class ChatMessageInput(BaseModel):
     text: str = Field(min_length=1, max_length=1000)
 
 
-QR_KEYWORDS = ("怎么加入", "如何加入", "联系方式", "人工", "微信", "二维码", "扫码", "进群", "加群")
+QR_KEYWORDS = ("怎么合作", "如何合作", "合作方式", "怎么加入", "如何加入", "怎么参与", "如何参与", "加入", "加盟", "代理", "团长", "联系方式", "人工", "微信", "二维码", "扫码", "进群", "加群")
 
 CN_TZ = ZoneInfo("Asia/Shanghai")
 _geo_cache = {}
@@ -527,7 +527,7 @@ async def generate_ai_reply(session_id: str):
             "访客询问具体项目时，依据上方知识库准确回答其类别、区域、投入区间、合作状态与亮点；"
             "访客询问团长收益时，依据上方收益参考回答，并提醒以正式合作协议为准；"
             "访客询问是否收费时，明确告知平台不收取任何费用；"
-            "访客询问怎么加入、联系方式或人工客服时，告知客服已发送微信服务号二维码，请扫码关注后加入团队长微信群，人工客服会尽快一对一对接，不要编造微信号或电话；"
+            "访客询问怎么合作、怎么加入、联系方式或人工客服时，告知客服已发送微信群二维码，请直接扫码进群，最新项目会在群内第一时间发布，人工客服会尽快一对一对接，不要编造微信号或电话；"
             "知识库中没有的信息不要编造，引导访客留下姓名和电话，人工客服会尽快跟进。"
         )
         ai_base_url = os.environ.get("AI_BASE_URL", "").strip()
@@ -666,20 +666,26 @@ async def chat_send(session_id: str, data: ChatMessageInput):
             {"id": session_id},
             {"$set": {"last_message_at": card_now, "last_message": "[介绍图片]"}},
         )
-    if qr_image and any(k in data.text for k in QR_KEYWORDS):
+    qr_sent_recently = False
+    if qr_image:
+        recent_msgs = await db.chat_messages.find(
+            {"session_id": session_id}, {"_id": 0, "sender": 1, "image": 1}
+        ).sort("created_at", -1).to_list(5)
+        qr_sent_recently = any(m.get("sender") == "admin" and m.get("image") == qr_image for m in recent_msgs)
+    if qr_image and not qr_sent_recently and any(k in data.text for k in QR_KEYWORDS):
         qr_now = datetime.now(timezone.utc).isoformat()
         await db.chat_messages.insert_one({
             "id": str(uuid.uuid4()),
             "session_id": session_id,
             "sender": "admin",
             "via": "ai",
-            "text": "欢迎加入合赢项目社！请扫描下方二维码关注我们的官方微信服务号，最新项目与合作信息第一时间推送，人工客服会尽快与您一对一对接。",
+            "text": "欢迎加入合赢项目社！请长按或扫描下方二维码添加微信群，最新项目与合作信息第一时间在群内分享，进群后客服会尽快与您一对一对接。",
             "image": qr_image,
             "created_at": qr_now,
         })
         await db.chat_sessions.update_one(
             {"id": session_id},
-            {"$set": {"last_message_at": qr_now, "last_message": "[服务号二维码]"}},
+            {"$set": {"last_message_at": qr_now, "last_message": "[微信群二维码]"}},
         )
     if chat_cfg.get("ai_enabled"):
         asyncio.create_task(generate_ai_reply(session_id))

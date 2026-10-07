@@ -59,6 +59,8 @@
 - 2026-07-07 图片加载提速（用户服务器实为 5M 带宽）：①全站 30 张 UI/项目 WebP 由 1408px 降到 1080px q75（cta-banner 1200px q68），总体积 1703KB→881KB（省 49%），路径不变无需改库；②全站 img 补齐 loading="lazy" + decoding="async"（首页/合作页 CTA 背景、聊天图、联系页二维码、后台缩略图等 11 处），新闻详情封面保持 eager + fetchPriority="high"，项目弹窗图 eager + decoding async
 - 2026-07-07 AI 客服修复：预览 backend/.env 补上 DeepSeek 三键（AI_BASE_URL=https://api.deepseek.com / AI_API_KEY=用户sk-a751...f05d / AI_MODEL=deepseek-chat，.env 已被 gitignore 不会泄露）；端到端实测 DeepSeek 3 秒返回基于项目知识库的准确回复 ✅。线上"AI 不回复"根因 = 服务器跑旧代码（git pull 显示 Already up to date，新代码未推送）+ 服务器 backend/.env 可能缺 AI 三键 + 后台 ai_enabled 开关需确认打开
 - 2026-07-07 客服体验提速：ChatWidget 新增"AI客服 正在输入…"三点跳动指示器（发送后立即显示，收到回复自动消失，45s 超时兜底，仅 chat.ai_enabled 时触发）；轮询从固定 5s 改为等待回复时 2s、平时 5s
+- 2026-07-07 微信群二维码主动推送（核心转化目标）：QR_KEYWORDS 扩充至 19 个（怎么合作/如何合作/合作方式/怎么加入/如何加入/怎么参与/如何参与/加入/加盟/代理/团长/联系方式/人工/微信/二维码/扫码/进群/加群），访客命中即秒推群二维码+进群引导文案；防重复：最近 5 条消息内已发过则不再发；文案从「微信服务号」全面改为「微信群」（推送文案、AI 提示词、联系我们页「官方微信群」、后台上传入口标签「微信群二维码」）；预览环境已重新上传测试二维码验证全链路（发「怎么合作」→2 秒内二维码弹出→AI 跟进引导进群）✅；测试脚本沉淀在 backend/tests/test_qr_trigger.py
+- ⚠️ 注意：微信群二维码 7 天过期、满 200 人失效，需在后台定期重新上传（或换用活码工具）
 - 后端接口：GET /api/projects、GET /api/settings、POST /api/contact、POST /api/admin/login、GET/PATCH /api/admin/inquiries、GET/POST/PUT/DELETE /api/admin/projects、PATCH /api/admin/projects/{id}/publish、PUT /api/admin/settings、POST /api/admin/upload、GET /api/files/{path}
 - 9 个种子项目（绿色能源/科技创新/商业渠道/实体产业）
 - 响应式：375 / 768 / 1366 均验证通过
