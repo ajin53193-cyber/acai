@@ -79,15 +79,18 @@ export const ChatWidget = () => {
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
   const [awaitingReply, setAwaitingReply] = useState(false);
+  const [sendError, setSendError] = useState("");
   const listRef = useRef(null);
   const sid = useRef(getSessionId());
+  const sessionReady = useRef(false);
 
   const load = useCallback(async () => {
     if (!started) return;
     try {
       const res = await axios.get(`${API}/chat/${sid.current}/messages`);
       const msgs = res.data.messages || [];
-      setMessages(msgs);
+      // 保留尚未落库的乐观消息，避免轮询时闪烁
+      setMessages((prev) => [...msgs, ...prev.filter((m) => String(m.id).startsWith("temp-"))]);
       if (msgs.length && msgs[msgs.length - 1].sender === "admin") setAwaitingReply(false);
     } catch { /* session not created yet */ }
   }, [started]);
@@ -121,22 +124,34 @@ export const ChatWidget = () => {
     localStorage.setItem(NAME_KEY, name.trim());
     try {
       await axios.post(`${API}/chat/start`, { session_id: sid.current, name: name.trim(), source: getSource() });
+      sessionReady.current = true;
     } catch { /* retry on send */ }
     setStarted(true);
   };
 
   const sendText = async (value) => {
-    if (!value.trim() || sending) return;
+    const content = value.trim();
+    if (!content || sending) return;
     setSending(true);
+    setSendError("");
+    // 乐观更新：先把访客消息显示出来并清空输入框，再请求后端
+    const tempId = `temp-${Date.now()}`;
+    setMessages((prev) => [...prev, { id: tempId, sender: "visitor", text: content, created_at: new Date().toISOString() }]);
+    setText("");
     try {
-      await axios.post(`${API}/chat/start`, { session_id: sid.current, name: name.trim() || "访客", source: getSource() });
-      await axios.post(`${API}/chat/${sid.current}/messages`, { text: value.trim() });
-      setText("");
-      const isCard = (chat.questions || []).some((q) => (typeof q === "string" ? q : q.text) === value.trim());
+      if (!sessionReady.current) {
+        await axios.post(`${API}/chat/start`, { session_id: sid.current, name: name.trim() || "访客", source: getSource() });
+        sessionReady.current = true;
+      }
+      await axios.post(`${API}/chat/${sid.current}/messages`, { text: content });
+      const isCard = (chat.questions || []).some((q) => (typeof q === "string" ? q : q.text) === content);
       if (chat.ai_enabled && !isCard) setAwaitingReply(true);
-      load();
+      await load();
+      setMessages((prev) => prev.filter((m) => m.id !== tempId));
     } catch {
-      /* keep text on failure */
+      setMessages((prev) => prev.filter((m) => m.id !== tempId));
+      setText(content);
+      setSendError("发送失败，请检查网络后重试");
     } finally {
       setSending(false);
     }
@@ -254,6 +269,9 @@ export const ChatWidget = () => {
                     </div>
                   )}
                 </div>
+                {sendError && (
+                  <p className="px-4 pt-2 text-xs text-red-400" data-testid="chat-send-error">{sendError}</p>
+                )}
                 <form onSubmit={send} className="flex items-center gap-2 border-t border-amber-500/15 p-3">
                   <input
                     data-testid="chat-message-input"

@@ -88,6 +88,8 @@
 - 2026-07-07 二维码「保存到相册」按钮（ChatWidget SaveQrButton）：仅在群二维码消息下显示；fetch → canvas 转 PNG → a[download]（兼容微信相册识别），失败回退新窗口打开；微信内置浏览器（MicroMessenger UA）不支持下载，改显示「长按二维码 → 识别图中二维码」提示。已通过 Playwright 验证下载为 330×330 PNG
 - 2026-07-07 线上数据修正：通过 eztyv.com 管理员 API（PUT /api/admin/settings）把生产库欢迎语从「我是AI助手」改为新文案，补齐 4 条常见问题 answer，二维码与其它设置保留
 
+- 2026-07-07 修复「点发送没反应」：ChatWidget 改为乐观更新——点击即在列表显示访客消息并清空输入框，再请求后端；轮询时保留 temp- 消息避免闪烁；chat/start 仅在会话未就绪时调用一次（减少国内访问的往返延迟）；失败时回滚消息、恢复输入并显示 chat-send-error 红字。Playwright 验证：150ms 内消息可见、无重复、AI 回复正常
+
 ## 待办优先级
 - P0：eztyv.com DNS 仍残留阿里云 A 记录 47.115.133.9（约 23% 解析到旧服务器），需在 DNS 服务商删除该记录，只保留 Emergent 自定义域名给的 CNAME/记录
 - P0：Emergent 再次 Re-publish（含欢迎语+二维码合并、保存二维码按钮）；线上二维码已有(1群)，按需替换为真实群码
