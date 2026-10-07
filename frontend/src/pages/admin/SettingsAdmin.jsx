@@ -173,8 +173,23 @@ export default function SettingsAdmin({ token, onUnauthorized }) {
 
       <div className="glass-card rounded-3xl p-7" data-testid="settings-chat-card">
         <h3 className="font-display text-lg font-bold text-gold-gradient">在线客服</h3>
-        <p className="mt-1 text-xs text-slate-500">配置访客打开聊天窗时看到的欢迎语与常见问题自动回复；访客留言未命中规则时自动提示转人工</p>
+        <p className="mt-1 text-xs text-slate-500">访客打开聊天窗即收到欢迎语 + 微信群二维码；点击常见问题卡片回复固定文案；其余留言由 AI 客服自动回答（可关闭），人工可随时在「在线客服」版块接管</p>
         <div className="mt-6 space-y-5">
+          <div className="flex items-center justify-between rounded-2xl border border-amber-500/10 bg-[#060B18]/50 p-4">
+            <div>
+              <div className="text-sm font-medium text-slate-200">AI 自动回复（GPT-5.4-mini）</div>
+              <div className="mt-0.5 text-xs text-slate-500">开启后，访客自由留言会由 AI 根据网站项目、合作方式、收益档位与常见问题答案自动回复；关闭则只提示访客留下联系方式等待人工</div>
+            </div>
+            <button
+              type="button"
+              data-testid="settings-chat-ai-toggle"
+              onClick={() => setChatCfg({ ...chatCfg, ai_enabled: !chatCfg.ai_enabled })}
+              className={`relative h-7 w-12 shrink-0 rounded-full transition-colors duration-300 ${chatCfg.ai_enabled ? "bg-gold-gradient" : "bg-slate-700"}`}
+              aria-label="AI自动回复开关"
+            >
+              <span className={`absolute top-1 h-5 w-5 rounded-full bg-white shadow transition-all duration-300 ${chatCfg.ai_enabled ? "left-6" : "left-1"}`} />
+            </button>
+          </div>
           <div>
             <label className="mb-1.5 block text-xs tracking-widest text-slate-400">欢迎语</label>
             <textarea

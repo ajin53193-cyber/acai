@@ -27,6 +27,7 @@ export const ChatWidget = () => {
   const [messages, setMessages] = useState([]);
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
+  const [awaitingReply, setAwaitingReply] = useState(false);
   const listRef = useRef(null);
   const sid = useRef(getSessionId());
 
@@ -34,7 +35,9 @@ export const ChatWidget = () => {
     if (!started) return;
     try {
       const res = await axios.get(`${API}/chat/${sid.current}/messages`);
-      setMessages(res.data.messages || []);
+      const msgs = res.data.messages || [];
+      setMessages(msgs);
+      if (msgs.length && msgs[msgs.length - 1].sender === "admin") setAwaitingReply(false);
     } catch { /* session not created yet */ }
   }, [started]);
 
@@ -47,13 +50,19 @@ export const ChatWidget = () => {
   useEffect(() => {
     if (!open) return;
     load();
-    const timer = setInterval(load, 3000);
+    const timer = setInterval(load, awaitingReply ? 1500 : 3000);
     return () => clearInterval(timer);
-  }, [open, load]);
+  }, [open, load, awaitingReply]);
+
+  useEffect(() => {
+    if (!awaitingReply) return;
+    const t = setTimeout(() => setAwaitingReply(false), 45000);
+    return () => clearTimeout(t);
+  }, [awaitingReply]);
 
   useEffect(() => {
     listRef.current?.scrollTo({ top: listRef.current.scrollHeight });
-  }, [messages, open]);
+  }, [messages, open, awaitingReply]);
 
   const start = async (e) => {
     e.preventDefault();
@@ -72,6 +81,8 @@ export const ChatWidget = () => {
       await axios.post(`${API}/chat/start`, { session_id: sid.current, name: name.trim() || "访客", source: getSource() });
       await axios.post(`${API}/chat/${sid.current}/messages`, { text: value.trim() });
       setText("");
+      const isCard = (chat.questions || []).some((q) => (typeof q === "string" ? q : q.text) === value.trim());
+      if (chat.ai_enabled && !isCard) setAwaitingReply(true);
       load();
     } catch {
       /* keep text on failure */
@@ -164,7 +175,7 @@ export const ChatWidget = () => {
                         }`}
                       >
                         {m.sender === "admin" && (
-                          <div className="mb-0.5 text-[10px] font-bold text-[#D4AF37]">{m.via === "admin" ? "人工客服" : "客服"}</div>
+                          <div className="mb-0.5 text-[10px] font-bold text-[#D4AF37]">{m.via === "ai" ? "AI客服" : m.via === "admin" ? "人工客服" : "客服"}</div>
                         )}
                         {m.text}
                         {m.image && (
@@ -173,6 +184,21 @@ export const ChatWidget = () => {
                       </div>
                     </div>
                   ))}
+                  {awaitingReply && (
+                    <div className="flex justify-start" data-testid="chat-typing-indicator">
+                      <div className="max-w-[80%] rounded-2xl rounded-bl-sm border border-amber-500/20 bg-[#111D3C] px-4 py-2.5 text-sm leading-relaxed text-slate-200">
+                        <div className="mb-0.5 text-[10px] font-bold text-[#D4AF37]">AI客服</div>
+                        <span className="inline-flex items-center gap-1.5 text-xs text-slate-400">
+                          正在输入
+                          <span className="inline-flex gap-0.5">
+                            <span className="h-1 w-1 animate-bounce rounded-full bg-[#D4AF37]" />
+                            <span className="h-1 w-1 animate-bounce rounded-full bg-[#D4AF37] [animation-delay:150ms]" />
+                            <span className="h-1 w-1 animate-bounce rounded-full bg-[#D4AF37] [animation-delay:300ms]" />
+                          </span>
+                        </span>
+                      </div>
+                    </div>
+                  )}
                 </div>
                 <form onSubmit={send} className="flex items-center gap-2 border-t border-amber-500/15 p-3">
                   <input
