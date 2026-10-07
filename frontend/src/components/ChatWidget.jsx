@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import axios from "axios";
-import { MessageCircle, X, Send } from "lucide-react";
+import { MessageCircle, X, Send, Download } from "lucide-react";
 import { API } from "@/lib/api";
 import { toFullUrl } from "@/components/ImageUpload";
 import { getSource } from "@/lib/source";
@@ -9,6 +9,57 @@ import { useSettings } from "@/lib/useSettings";
 
 const SID_KEY = "hy_chat_sid";
 const NAME_KEY = "hy_chat_name";
+
+const IS_WECHAT = /MicroMessenger/i.test(navigator.userAgent);
+
+const saveImage = async (url) => {
+  const res = await fetch(url);
+  const blob = await res.blob();
+  // 统一转成 PNG，保证微信「相册识别二维码」兼容
+  const bitmap = await createImageBitmap(blob);
+  const canvas = document.createElement("canvas");
+  canvas.width = bitmap.width;
+  canvas.height = bitmap.height;
+  canvas.getContext("2d").drawImage(bitmap, 0, 0);
+  const png = await new Promise((resolve) => canvas.toBlob(resolve, "image/png"));
+  const href = URL.createObjectURL(png || blob);
+  const a = document.createElement("a");
+  a.href = href;
+  a.download = "合赢项目社-微信群二维码.png";
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(href), 2000);
+};
+
+const SaveQrButton = ({ url }) => {
+  const [state, setState] = useState("idle");
+  if (IS_WECHAT) {
+    return <p className="mt-1.5 text-center text-[11px] text-[#E5C158]" data-testid="chat-qr-wechat-hint">长按上方二维码 → 识别图中二维码 即可进群</p>;
+  }
+  const onClick = async () => {
+    setState("saving");
+    try {
+      await saveImage(url);
+      setState("done");
+    } catch {
+      setState("idle");
+      window.open(url, "_blank", "noopener");
+    }
+  };
+  return (
+    <button
+      type="button"
+      data-testid="chat-qr-save-btn"
+      onClick={onClick}
+      disabled={state === "saving"}
+      className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-full border border-amber-500/40 bg-amber-500/10 px-3 py-1.5 text-xs font-medium text-[#E5C158] transition-colors duration-200 hover:bg-amber-500/20 active:scale-95 disabled:opacity-60"
+    >
+      <Download size={13} />
+      {state === "done" ? "已保存，打开微信扫一扫 → 相册 识别进群" : state === "saving" ? "保存中…" : "保存二维码到相册"}
+    </button>
+  );
+};
 
 const getSessionId = () => {
   let sid = localStorage.getItem(SID_KEY);
@@ -160,7 +211,10 @@ export const ChatWidget = () => {
                         )}
                         <span className="whitespace-pre-line">{m.text}</span>
                         {m.image && (
-                          <img src={toFullUrl(m.image)} alt="客服图片" loading="lazy" decoding="async" className="mt-2 w-full min-w-44 rounded-xl border border-amber-500/20" data-testid="chat-qr-image" />
+                          <>
+                            <img src={toFullUrl(m.image)} alt="客服图片" loading="lazy" decoding="async" className="mt-2 w-full min-w-44 rounded-xl border border-amber-500/20" data-testid="chat-qr-image" />
+                            {m.image === chat.qr_image && <SaveQrButton url={toFullUrl(m.image)} />}
+                          </>
                         )}
                       </div>
                     </div>

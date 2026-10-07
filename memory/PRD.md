@@ -85,9 +85,12 @@
 
 - 2026-07-07 欢迎语与微信群二维码合并为一条消息（chat_start 单条 admin/auto 消息：welcome 文本 + 二维码图片；欢迎语未提及二维码时自动追加一句引导）；聊天气泡支持换行（whitespace-pre-line）；问题卡片移到欢迎消息下方。截图验证通过
 
+- 2026-07-07 二维码「保存到相册」按钮（ChatWidget SaveQrButton）：仅在群二维码消息下显示；fetch → canvas 转 PNG → a[download]（兼容微信相册识别），失败回退新窗口打开；微信内置浏览器（MicroMessenger UA）不支持下载，改显示「长按二维码 → 识别图中二维码」提示。已通过 Playwright 验证下载为 330×330 PNG
+- 2026-07-07 线上数据修正：通过 eztyv.com 管理员 API（PUT /api/admin/settings）把生产库欢迎语从「我是AI助手」改为新文案，补齐 4 条常见问题 answer，二维码与其它设置保留
+
 ## 待办优先级
 - P0：eztyv.com DNS 仍残留阿里云 A 记录 47.115.133.9（约 23% 解析到旧服务器），需在 DNS 服务商删除该记录，只保留 Emergent 自定义域名给的 CNAME/记录
-- P0：Emergent 重新部署（Re-publish）让 AI 客服上线；到 /admin → 站点设置 → 在线客服：上传真实微信群二维码、按需修改 4 条常见问题的自动回复文案
+- P0：Emergent 再次 Re-publish（含欢迎语+二维码合并、保存二维码按钮）；线上二维码已有(1群)，按需替换为真实群码
 - P1：Emergent 通用密钥余额不足时 AI 会自动回落为转人工提示，需在 Profile → Manage plan → Universal Key 充值或开自动续费
 - P1：留言邮件/短信通知客服（需集成 Resend / Twilio）
 - P2：百度/Google Search Console 提交 sitemap
