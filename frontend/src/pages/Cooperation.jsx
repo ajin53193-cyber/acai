@@ -60,7 +60,7 @@ export default function Cooperation() {
           <SectionHeading title="合作模式" subtitle="四步闭环，从发布到落地全程护航" />
           <Reveal>
             <div className="glass-card relative overflow-hidden rounded-3xl px-5 py-8 sm:px-12 sm:py-12">
-              <img src="/images/ui/cta-banner.webp" alt="" className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-15" />
+              <img src="/images/ui/cta-banner.webp" alt="" loading="lazy" decoding="async" className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-15" />
               <div className="absolute left-[12%] right-[12%] top-[64px] hidden h-px bg-gradient-to-r from-transparent via-[#D4AF37]/50 to-transparent md:block" />
               <div className="relative grid grid-cols-2 gap-4 md:grid-cols-4 md:gap-10">
                 {STEPS.map((s, i) => (
@@ -189,7 +189,7 @@ export default function Cooperation() {
 
           <Reveal className="mt-16">
             <div className="glass-card relative flex flex-col items-center justify-between gap-6 overflow-hidden rounded-3xl border-amber-400/40 px-8 py-10 text-center shadow-[0_0_60px_-15px_rgba(212,175,55,0.3)] md:flex-row md:text-left">
-              <img src="/images/ui/cta-banner.webp" alt="" className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-40" />
+              <img src="/images/ui/cta-banner.webp" alt="" loading="lazy" decoding="async" className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-40" />
               <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-[#0A1228]/70 via-[#0A1228]/40 to-[#0A1228]/70" />
               <div className="relative">
                 <h3 className="font-display text-xl font-bold text-slate-50 sm:text-2xl">联系客服加入团长</h3>

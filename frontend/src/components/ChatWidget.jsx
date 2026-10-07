@@ -26,6 +26,7 @@ export const ChatWidget = () => {
   const [messages, setMessages] = useState([]);
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
+  const [awaitingReply, setAwaitingReply] = useState(false);
   const listRef = useRef(null);
   const sid = useRef(getSessionId());
 
@@ -33,7 +34,9 @@ export const ChatWidget = () => {
     if (!started) return;
     try {
       const res = await axios.get(`${API}/chat/${sid.current}/messages`);
-      setMessages(res.data.messages);
+      const msgs = res.data.messages || [];
+      setMessages(msgs);
+      if (msgs.length && msgs[msgs.length - 1].sender === "admin") setAwaitingReply(false);
     } catch { /* session not created yet */ }
   }, [started]);
 
@@ -46,13 +49,19 @@ export const ChatWidget = () => {
   useEffect(() => {
     if (!open) return;
     load();
-    const timer = setInterval(load, 5000);
+    const timer = setInterval(load, awaitingReply ? 2000 : 5000);
     return () => clearInterval(timer);
-  }, [open, load]);
+  }, [open, load, awaitingReply]);
+
+  useEffect(() => {
+    if (!awaitingReply) return;
+    const t = setTimeout(() => setAwaitingReply(false), 45000);
+    return () => clearTimeout(t);
+  }, [awaitingReply]);
 
   useEffect(() => {
     listRef.current?.scrollTo({ top: listRef.current.scrollHeight });
-  }, [messages, open]);
+  }, [messages, open, awaitingReply]);
 
   const start = async (e) => {
     e.preventDefault();
@@ -71,6 +80,7 @@ export const ChatWidget = () => {
       await axios.post(`${API}/chat/start`, { session_id: sid.current, name: name.trim() || "访客" });
       await axios.post(`${API}/chat/${sid.current}/messages`, { text: value.trim() });
       setText("");
+      if (chat.ai_enabled) setAwaitingReply(true);
       load();
     } catch {
       /* keep text on failure */
@@ -175,11 +185,26 @@ export const ChatWidget = () => {
                         )}
                         {m.text}
                         {m.image && (
-                          <img src={toFullUrl(m.image)} alt="客服图片" className="mt-2 w-full min-w-44 rounded-xl border border-amber-500/20" data-testid="chat-qr-image" />
+                          <img src={toFullUrl(m.image)} alt="客服图片" loading="lazy" decoding="async" className="mt-2 w-full min-w-44 rounded-xl border border-amber-500/20" data-testid="chat-qr-image" />
                         )}
                       </div>
                     </div>
                   ))}
+                  {awaitingReply && (
+                    <div className="flex justify-start" data-testid="chat-typing-indicator">
+                      <div className="max-w-[80%] rounded-2xl rounded-bl-sm border border-amber-500/20 bg-[#111D3C] px-4 py-2.5 text-sm leading-relaxed text-slate-200">
+                        <div className="mb-0.5 text-[10px] font-bold text-[#D4AF37]">AI客服</div>
+                        <span className="inline-flex items-center gap-1.5 text-xs text-slate-400">
+                          正在输入
+                          <span className="inline-flex gap-0.5">
+                            <span className="h-1 w-1 animate-bounce rounded-full bg-[#D4AF37]" />
+                            <span className="h-1 w-1 animate-bounce rounded-full bg-[#D4AF37] [animation-delay:150ms]" />
+                            <span className="h-1 w-1 animate-bounce rounded-full bg-[#D4AF37] [animation-delay:300ms]" />
+                          </span>
+                        </span>
+                      </div>
+                    </div>
+                  )}
                 </div>
                 <form onSubmit={send} className="flex items-center gap-2 border-t border-amber-500/15 p-3">
                   <input

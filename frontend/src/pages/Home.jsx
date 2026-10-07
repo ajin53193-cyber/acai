@@ -282,7 +282,7 @@ export default function Home() {
         <div className="mx-auto max-w-5xl px-4 sm:px-8">
           <Reveal>
             <div className="glass-card relative overflow-hidden rounded-3xl border-amber-400/40 px-8 py-12 text-center shadow-[0_0_60px_-15px_rgba(212,175,55,0.35)] sm:px-14">
-              <img src="/images/ui/cta-banner.webp" alt="" className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-45" />
+              <img src="/images/ui/cta-banner.webp" alt="" loading="lazy" decoding="async" className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-45" />
               <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-[#0A1228]/70 via-[#0A1228]/30 to-[#0A1228]/75" />
               <div className="pointer-events-none absolute -top-24 left-1/2 h-48 w-[520px] -translate-x-1/2 rounded-full bg-[#D4AF37]/15 blur-[80px]" />
               <div className="relative">

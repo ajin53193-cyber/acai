@@ -153,7 +153,7 @@ export default function Projects() {
               onClick={(e) => e.stopPropagation()}
             >
               <div className="relative h-60">
-                <img src={active.image} alt={active.title} className="h-full w-full object-cover" />
+                <img src={active.image} alt={active.title} decoding="async" className="h-full w-full object-cover" />
                 <div className="absolute inset-0 bg-gradient-to-t from-[#0D1730] via-[#0A1228]/30 to-transparent" />
                 <button
                   data-testid="project-modal-close-btn"

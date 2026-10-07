@@ -174,7 +174,7 @@ export default function ProjectsAdmin({ token, onUnauthorized }) {
             return (
               <div key={p.id} className="glass-card flex flex-wrap items-center gap-4 rounded-2xl p-4" data-testid={`admin-project-row-${i}`}>
                 {p.image ? (
-                  <img src={toFullUrl(p.image)} alt="" className="h-14 w-20 rounded-lg object-cover" />
+                  <img src={toFullUrl(p.image)} alt="" loading="lazy" decoding="async" className="h-14 w-20 rounded-lg object-cover" />
                 ) : (
                   <div className="flex h-14 w-20 items-center justify-center rounded-lg border border-amber-500/15 text-xs text-slate-600">无图</div>
                 )}

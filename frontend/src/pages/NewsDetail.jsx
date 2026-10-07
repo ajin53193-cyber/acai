@@ -56,6 +56,8 @@ export default function NewsDetail() {
             <img
               src={toFullUrl(article.cover)}
               alt={article.title}
+              decoding="async"
+              fetchPriority="high"
               className="mt-8 w-full rounded-2xl border border-amber-500/15 object-cover"
             />
           )}

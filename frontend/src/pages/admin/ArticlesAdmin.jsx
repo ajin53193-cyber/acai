@@ -130,7 +130,7 @@ export default function ArticlesAdmin({ token, onUnauthorized }) {
             return (
               <div key={a.id} className="glass-card flex flex-wrap items-center gap-4 rounded-2xl p-4" data-testid={`admin-article-row-${i}`}>
                 {a.cover ? (
-                  <img src={toFullUrl(a.cover)} alt="" className="h-14 w-20 rounded-lg object-cover" />
+                  <img src={toFullUrl(a.cover)} alt="" loading="lazy" decoding="async" className="h-14 w-20 rounded-lg object-cover" />
                 ) : (
                   <div className="flex h-14 w-20 items-center justify-center rounded-lg border border-amber-500/15 text-xs text-slate-600">无图</div>
                 )}

@@ -40,6 +40,8 @@ export const ImageUpload = ({ token, value, onChange, round = false, testid }) =
         <img
           src={toFullUrl(value)}
           alt="预览"
+          loading="lazy"
+          decoding="async"
           className={`border border-[#D4AF37]/40 object-cover ${round ? "h-14 w-14 rounded-full" : "h-16 w-24 rounded-lg"}`}
         />
       ) : (

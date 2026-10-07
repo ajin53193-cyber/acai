@@ -56,16 +56,19 @@
 - 2026-07-07 用户决定**沿用现有金色六边形「合」SVG Logo**（4 款 AI 候选 logo-1~4.webp 弃用保留在 /public/images/logo-concepts/）
 - 2026-07-07 用户已将代码 Docker 化部署到自有阿里云 ECS（eztyv.com）：AI 客服从 Emergent LLM 迁移至 DeepSeek API 直连（.env AI_API_KEY，绕过 GFW）；图片存储从 Emergent 对象存储迁移至本地磁盘（/api/files/upload → 本地保存，/api/files/{path} 回源，WebP 自动压缩保留）
 - 2026-07-07 阿里云 3M 带宽白屏提速：873KB 的 fonts.css（808 个 @font-face 规则）改为异步加载（rel=preload + media=print onload 切换 + noscript 兜底）；font-display: swap 确认全覆盖（808/808）；nginx 已配 gzip(text/css) + /fonts/ 30 天 immutable 缓存 + /images/ 7 天缓存；测试代理前端验证 100% 通过（首屏无白屏、定制字体生效、15 图零破图、聊天窗/后台登录/移动端 375px 均正常，FCP ~972ms）；注意：修改 public/index.html 后预览环境需 supervisorctl restart frontend 生效，阿里云需重新 yarn build（docker compose up -d --build 自动完成）
+- 2026-07-07 图片加载提速（用户服务器实为 5M 带宽）：①全站 30 张 UI/项目 WebP 由 1408px 降到 1080px q75（cta-banner 1200px q68），总体积 1703KB→881KB（省 49%），路径不变无需改库；②全站 img 补齐 loading="lazy" + decoding="async"（首页/合作页 CTA 背景、聊天图、联系页二维码、后台缩略图等 11 处），新闻详情封面保持 eager + fetchPriority="high"，项目弹窗图 eager + decoding async
+- 2026-07-07 AI 客服修复：预览 backend/.env 补上 DeepSeek 三键（AI_BASE_URL=https://api.deepseek.com / AI_API_KEY=用户sk-a751...f05d / AI_MODEL=deepseek-chat，.env 已被 gitignore 不会泄露）；端到端实测 DeepSeek 3 秒返回基于项目知识库的准确回复 ✅。线上"AI 不回复"根因 = 服务器跑旧代码（git pull 显示 Already up to date，新代码未推送）+ 服务器 backend/.env 可能缺 AI 三键 + 后台 ai_enabled 开关需确认打开
+- 2026-07-07 客服体验提速：ChatWidget 新增"AI客服 正在输入…"三点跳动指示器（发送后立即显示，收到回复自动消失，45s 超时兜底，仅 chat.ai_enabled 时触发）；轮询从固定 5s 改为等待回复时 2s、平时 5s
 - 后端接口：GET /api/projects、GET /api/settings、POST /api/contact、POST /api/admin/login、GET/PATCH /api/admin/inquiries、GET/POST/PUT/DELETE /api/admin/projects、PATCH /api/admin/projects/{id}/publish、PUT /api/admin/settings、POST /api/admin/upload、GET /api/files/{path}
 - 9 个种子项目（绿色能源/科技创新/商业渠道/实体产业）
 - 响应式：375 / 768 / 1366 均验证通过
 
 ## 待办优先级
-- P0：用户在 Emergent 点击「Save to GitHub」→ 服务器 `cd ~/acai && git pull && docker compose up -d --build`（上次部署 git pull 显示 Already up to date、构建全缓存，说明代码未推送到 GitHub，服务器跑的还是旧代码）
-- P0：部署成功后，到 eztyv.com/admin 后台重新上传微信群二维码和团长收益海报（存储已从云对象存储迁到本地磁盘，旧云图链接失效）
+- P0：用户在 Emergent 点击「Save to GitHub」→ 服务器 `cd ~/acai && git pull` → 确认 `backend/.env` 含 DeepSeek 三键（AI_BASE_URL/AI_API_KEY/AI_MODEL）→ `docker compose up -d --build`（上次部署 git pull 显示 Already up to date、构建全缓存，说明代码未推送到 GitHub，服务器跑的还是旧代码——这是线上 AI 不回复+速度慢的根因）
+- P0：部署成功后到 eztyv.com/admin：①站点设置 → 在线客服 → 确认「AI 自动回复」开关打开；②重新上传微信群二维码和团长收益海报（存储已从云对象存储迁到本地磁盘，旧云图链接失效）
 - P1：留言邮件/短信通知客服（需集成 Resend / Twilio）
-- P2：若 3M 带宽仍是图片加载瓶颈，为 eztyv.com 配置 CDN 加速
-- P2：真实团队照片与真实联系电话/邮箱替换占位信息（400-888-6888、contact@heying.com 为占位）
+- P2：若 5M 带宽仍是瓶颈，为 eztyv.com 配置 CDN 加速
+- P2：真实联系电话/邮箱替换占位信息（contact@heying.com 为占位）
 
 ## 下一步
 - 项目管理后台 CRUD
