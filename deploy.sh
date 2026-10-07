@@ -5,13 +5,15 @@ set -e
 
 echo "==> 检查 Docker ..."
 if ! command -v docker >/dev/null 2>&1; then
-  echo "==> 安装 Docker（阿里云镜像源）..."
-  curl -fsSL https://get.docker.com -o /tmp/get-docker.sh
-  bash /tmp/get-docker.sh --mirror Aliyun
-fi
-if ! docker compose version >/dev/null 2>&1; then
-  echo "==> 安装 docker compose 插件 ..."
-  apt-get update && apt-get install -y docker-compose-plugin
+  echo "==> 安装 Docker（阿里云 apt 镜像源）..."
+  apt-get update
+  apt-get install -y ca-certificates curl gnupg
+  install -m 0755 -d /etc/apt/keyrings
+  curl -fsSL https://mirrors.aliyun.com/docker-ce/linux/ubuntu/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+  chmod a+r /etc/apt/keyrings/docker.gpg
+  echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://mirrors.aliyun.com/docker-ce/linux/ubuntu $(. /etc/os-release && echo "$VERSION_CODENAME") stable" > /etc/apt/sources.list.d/docker.list
+  apt-get update
+  apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
 fi
 
 echo "==> 配置 Docker 国内镜像加速 ..."
