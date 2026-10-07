@@ -6,7 +6,8 @@
         <meta name="theme-color" content="#060B18" />
         <meta name="description" content="合赢项目社 - 聚力项目，合作共赢。专注优质项目资源对接、社群交流与商业合作。" />
         <link rel="icon" type="image/svg+xml" href="%PUBLIC_URL%/favicon.svg" />
-        <link rel="stylesheet" href="%PUBLIC_URL%/fonts/fonts.css" />
+        <link rel="preload" as="style" href="%PUBLIC_URL%/fonts/fonts.css" />
+        <link rel="stylesheet" href="%PUBLIC_URL%/fonts/fonts.css" media="print" onload="this.media='all'" />
         <title>合赢项目社 | 聚力项目，合作共赢</title>
         <script>window.addEventListener("error",function(e){if(e.error instanceof DOMException&&e.error.name==="DataCloneError"&&e.message&&e.message.includes("PerformanceServerTiming")){e.stopImmediatePropagation();e.preventDefault()}},true);</script>
         <script src="https://assets.emergent.sh/scripts/emergent-main.js"></script>
