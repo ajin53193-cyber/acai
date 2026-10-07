@@ -1,0 +1,25 @@
+{
+  "summary": "End-to-end verified the new 规则+AI 兜底 chat flow on preview URL. Visitor flow: opening ChatWidget → entering name shows 2 auto welcome messages (greeting + QR image via chat-qr-image) and 4 chat-question-cards; clicking 收益怎么样 card produces the fixed 客服 reply containing '10人团队' with no typing indicator; sending a free-text message immediately shows chat-typing-indicator (AI客服 正在输入), AI reply arrives within ~2s with the 'AI客服' label and the typing indicator disappears. Admin flow: /admin login with admin/Heying@2026, SettingsAdmin → settings-chat-card: AI toggle default ON (bg-gold-gradient), all 4 settings-chat-question-answer-{0..3} textareas are prefilled (74/62/77/65 chars). Toggling OFF → settings-save-btn → page reload persists the OFF state. With AI off, a fresh visitor session (localStorage cleared) sending a free-text message yields a single '已收到您的留言！人工客服会尽快回复…' fallback (no AI客服 label and no typing indicator). Toggle restored to ON and persisted (ai_enabled=true). In ChatAdmin, the test sessions appear in admin-chat-sessions list, the AI reply shows 'AI客服' sub-label and card-triggered fixed reply shows '自动回复' tag per ChatAdmin.jsx line ~203.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "server.py line 660 uses .with_model('openai','gpt-5.4-mini') – ensure this model id is valid for Emergent LLM key; the try/except catches failures and falls back to AI_FALLBACK_TEXT which could hide a persistent misconfiguration from both the admin and the visitor. Consider logging/alerting when auto_fallback is triggered more than N times in a window.",
+    "chat_send inserts the visitor doc then returns doc but doc still has mongodb _id after insert_one (pop happens at end). The pop call is good; but response currently includes 'unread_admin' side-effects applied via update_one. No functional issue.",
+    "generate_ai_reply builds the 'kb' projects context without any size limit – with large project catalogs the system prompt could exceed token budget. Consider truncating to e.g. 20 items.",
+    "ChatWidget awaitingReply has a 45s hard timeout (line 59) which is good, but if network is slow and AI takes >45s the typing indicator vanishes while the AI reply may still arrive later – acceptable but worth noting."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A (verified via UI; curl already green per handoff)", "frontend": "100%"},
+  "test_credentials": "admin / Heying@2026 at /admin — verified working",
+  "seed_data_creation": "Created 3 visitor chat sessions in MongoDB: TEST_访客, TEST_B, TEST_C_offAI (each with messages). Can be left as-is or cleared from chat_sessions/chat_messages collections.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "AI replies via Emergent gpt-5.4-mini return in ~1-5s and are fast enough that polling at 1.5s picks them up on first poll. Use the 'AI客服' label text (set in ChatWidget.jsx line 178) to detect AI replies, but exclude [data-testid=chat-typing-indicator] from the search because the typing indicator itself contains the text 'AI客服 正在输入'. SettingsAdmin AI toggle visual state is class-based: 'bg-gold-gradient' = ON, 'bg-slate-700' = OFF. Site settings persist to Mongo settings collection (key='site') via /api/settings. Save toast text wasn't 'bibl'保存成功' – not verified; relied on reload-persistence check instead. ai_enabled is restored to true at end of testing.",
+  "rca of the issue": "No issues found – everything in the review request works as specified."
+}
