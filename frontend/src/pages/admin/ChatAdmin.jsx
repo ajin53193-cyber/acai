@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import axios from "axios";
 import { toast } from "sonner";
-import { MessagesSquare, Send, MousePointerClick } from "lucide-react";
+import { MessagesSquare, Send, MousePointerClick, QrCode } from "lucide-react";
 import { API } from "@/lib/api";
 import { toFullUrl } from "@/components/ImageUpload";
 
@@ -11,6 +11,7 @@ export default function ChatAdmin({ token, onUnauthorized }) {
   const [messages, setMessages] = useState([]);
   const [text, setText] = useState("");
   const [qStats, setQStats] = useState([]);
+  const [qrStats, setQrStats] = useState(null);
   const listRef = useRef(null);
 
   const headers = { Authorization: `Bearer ${token}` };
@@ -33,6 +34,14 @@ export default function ChatAdmin({ token, onUnauthorized }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
 
+  const loadQrStats = useCallback(async () => {
+    try {
+      const res = await axios.get(`${API}/admin/chat/qr-stats`, { headers });
+      setQrStats(res.data);
+    } catch { /* ignore */ }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token]);
+
   const loadMessages = useCallback(async () => {
     if (!activeId) return;
     try {
@@ -47,13 +56,17 @@ export default function ChatAdmin({ token, onUnauthorized }) {
   useEffect(() => {
     loadSessions();
     loadQStats();
+    loadQrStats();
     const timer = setInterval(loadSessions, 6000);
-    const statTimer = setInterval(loadQStats, 15000);
+    const statTimer = setInterval(() => {
+      loadQStats();
+      loadQrStats();
+    }, 15000);
     return () => {
       clearInterval(timer);
       clearInterval(statTimer);
     };
-  }, [loadSessions, loadQStats]);
+  }, [loadSessions, loadQStats, loadQrStats]);
 
   useEffect(() => {
     loadMessages();
@@ -99,6 +112,32 @@ export default function ChatAdmin({ token, onUnauthorized }) {
                 <span className="text-sm text-slate-200">{s.question}</span>
                 <span className="font-display text-lg font-black text-gold-gradient">{s.total}</span>
                 <span className="text-[10px] text-slate-500">近7天 {s.last7d}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+      {qrStats && qrStats.total > 0 && (
+        <div className="glass-card mb-5 rounded-2xl p-5" data-testid="admin-chat-qr-stats">
+          <div className="flex flex-wrap items-center gap-2 text-sm font-bold text-slate-100">
+            <QrCode size={16} className="text-[#D4AF37]" />
+            进群二维码推送统计
+            <span className="text-xs font-normal text-slate-500">访客触发微信群二维码自动推送的次数</span>
+            <span className="ml-auto flex items-center gap-4 text-xs font-normal text-slate-400">
+              <span>今日 <span className="font-display text-base font-black text-gold-gradient" data-testid="qr-stats-today">{qrStats.today}</span> 次</span>
+              <span>累计 <span className="font-display text-base font-black text-gold-gradient" data-testid="qr-stats-total">{qrStats.total}</span> 次</span>
+            </span>
+          </div>
+          <div className="mt-4 flex h-24 items-end gap-1.5">
+            {qrStats.daily.map((d) => (
+              <div key={d.date} className="group flex flex-1 flex-col items-center gap-1">
+                <div className="text-[9px] text-[#E5C158] opacity-0 transition-opacity group-hover:opacity-100">{d.count}</div>
+                <div
+                  className="w-full rounded-t bg-gradient-to-t from-[#997316]/60 to-[#FFE896] transition-all duration-500 group-hover:shadow-[0_0_12px_rgba(212,175,55,0.5)]"
+                  style={{ height: `${Math.max(2, (d.count / Math.max(1, ...qrStats.daily.map((x) => x.count))) * 72)}px` }}
+                  title={`${d.date}：${d.count} 次推送`}
+                />
+                <div className="text-[8px] text-slate-600">{d.date.slice(5)}</div>
               </div>
             ))}
           </div>

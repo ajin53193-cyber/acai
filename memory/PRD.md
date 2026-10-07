@@ -61,6 +61,9 @@
 - 2026-07-07 客服体验提速：ChatWidget 新增"AI客服 正在输入…"三点跳动指示器（发送后立即显示，收到回复自动消失，45s 超时兜底，仅 chat.ai_enabled 时触发）；轮询从固定 5s 改为等待回复时 2s、平时 5s
 - 2026-07-07 微信群二维码主动推送（核心转化目标）：QR_KEYWORDS 扩充至 19 个（怎么合作/如何合作/合作方式/怎么加入/如何加入/怎么参与/如何参与/加入/加盟/代理/团长/联系方式/人工/微信/二维码/扫码/进群/加群），访客命中即秒推群二维码+进群引导文案；防重复：最近 5 条消息内已发过则不再发；文案从「微信服务号」全面改为「微信群」（推送文案、AI 提示词、联系我们页「官方微信群」、后台上传入口标签「微信群二维码」）；预览环境已重新上传测试二维码验证全链路（发「怎么合作」→2 秒内二维码弹出→AI 跟进引导进群）✅；测试脚本沉淀在 backend/tests/test_qr_trigger.py
 - ⚠️ 注意：微信群二维码 7 天过期、满 200 人失效，需在后台定期重新上传（或换用活码工具）
+- 2026-07-07 二维码防过期提醒：ChatConfig 新增 qr_updated_at 字段，PUT /admin/settings 检测到 qr_image 变更时自动打时间戳（未换码则保留旧时间）；后台「站点设置 → 在线客服 → 微信群二维码」下方显示上传时间与天数，≥5 天琥珀色预警、≥6 天红色警告「请立即换码」
+- 2026-07-07 进群转化统计：每次二维码自动推送落库 qr_pushes 集合；新增 GET /api/admin/chat/qr-stats（今日/累计/近14天分桶，按 UTC+8 中国时间统计）；后台「在线客服」页顶部新增统计卡片（今日+累计数字 + 14 天金色柱状图，复用访问统计样式，15 秒自动刷新）
+- 2026-07-07 CDN 指南：/app/CDN_ALIYUN.md（阿里云 CDN 添加域名→回源HOST→/api/ 不缓存 + /images//fonts/ 30 天缓存→HTTPS→聚名网 DNS 改 CNAME→验证 X-Cache→部署后需刷新缓存）
 - 后端接口：GET /api/projects、GET /api/settings、POST /api/contact、POST /api/admin/login、GET/PATCH /api/admin/inquiries、GET/POST/PUT/DELETE /api/admin/projects、PATCH /api/admin/projects/{id}/publish、PUT /api/admin/settings、POST /api/admin/upload、GET /api/files/{path}
 - 9 个种子项目（绿色能源/科技创新/商业渠道/实体产业）
 - 响应式：375 / 768 / 1366 均验证通过

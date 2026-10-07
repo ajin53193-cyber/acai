@@ -208,6 +208,7 @@ class ChatConfig(BaseModel):
     welcome: str = "您好，欢迎来到合赢项目社！请描述您想咨询的问题，客服会尽快回复您。"
     ai_enabled: bool = False
     qr_image: str = ""
+    qr_updated_at: str = ""
     questions: List[QuestionCard] = Field(default_factory=lambda: [QuestionCard(text=q) for q in DEFAULT_CHAT_QUESTIONS])
 
     @field_validator("questions", mode="before")
@@ -683,6 +684,11 @@ async def chat_send(session_id: str, data: ChatMessageInput):
             "image": qr_image,
             "created_at": qr_now,
         })
+        await db.qr_pushes.insert_one({
+            "id": str(uuid.uuid4()),
+            "session_id": session_id,
+            "created_at": qr_now,
+        })
         await db.chat_sessions.update_one(
             {"id": session_id},
             {"$set": {"last_message_at": qr_now, "last_message": "[微信群二维码]"}},
@@ -778,9 +784,17 @@ async def delete_project(project_id: str, _: str = Depends(require_admin)):
 
 @api_router.put("/admin/settings")
 async def update_settings(data: SiteSettings, _: str = Depends(require_admin)):
+    old = await db.settings.find_one({"key": "site"}, {"_id": 0, "chat": 1})
+    old_chat = (old or {}).get("chat") or {}
+    doc = data.model_dump()
+    new_qr = doc["chat"].get("qr_image", "")
+    if new_qr and new_qr != old_chat.get("qr_image", ""):
+        doc["chat"]["qr_updated_at"] = datetime.now(timezone.utc).isoformat()
+    elif not doc["chat"].get("qr_updated_at"):
+        doc["chat"]["qr_updated_at"] = old_chat.get("qr_updated_at", "")
     await db.settings.update_one(
         {"key": "site"},
-        {"$set": {**data.model_dump(), "key": "site"}},
+        {"$set": {**doc, "key": "site"}},
         upsert=True,
     )
     return {"message": "设置已保存"}
@@ -915,6 +929,35 @@ async def admin_chat_question_stats(_: str = Depends(require_admin)):
     ]
     stats.sort(key=lambda x: -x["total"])
     return {"stats": stats}
+
+
+CN_TZ = timezone(timedelta(hours=8))
+
+
+@api_router.get("/admin/chat/qr-stats")
+async def admin_chat_qr_stats(_: str = Depends(require_admin)):
+    pushes = await db.qr_pushes.find({}, {"_id": 0, "created_at": 1}).to_list(100000)
+    now_cn = datetime.now(CN_TZ)
+    today = now_cn.strftime("%Y-%m-%d")
+    days = [(now_cn - timedelta(days=i)).strftime("%Y-%m-%d") for i in range(13, -1, -1)]
+    buckets = {d: 0 for d in days}
+    total = 0
+    today_count = 0
+    for p in pushes:
+        total += 1
+        try:
+            d = datetime.fromisoformat(p["created_at"]).astimezone(CN_TZ).strftime("%Y-%m-%d")
+        except (ValueError, TypeError):
+            continue
+        if d == today:
+            today_count += 1
+        if d in buckets:
+            buckets[d] += 1
+    return {
+        "total": total,
+        "today": today_count,
+        "daily": [{"date": d, "count": buckets[d]} for d in days],
+    }
 
 
 @api_router.get("/admin/chat/{session_id}/messages")
