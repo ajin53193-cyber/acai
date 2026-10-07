@@ -61,6 +61,15 @@ if ! grep -q "AI_API_KEY=sk-" backend/.env; then
   echo ""
 fi
 
+echo "==> 检查 SSL 证书 ..."
+if [ -f /etc/letsencrypt/live/eztyv.com/fullchain.pem ]; then
+  cp docker-compose.ssl.yml docker-compose.override.yml
+  echo "==> 检测到 eztyv.com 证书，本次启用 HTTPS（HTTP 自动跳转 HTTPS）"
+else
+  rm -f docker-compose.override.yml
+  echo "==> 未检测到 SSL 证书，本次仅启用 HTTP"
+fi
+
 echo "==> 构建并启动（首次约 5-10 分钟，后续约 1-3 分钟）..."
 docker compose up -d --build
 

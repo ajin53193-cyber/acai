@@ -160,9 +160,22 @@ server {
 
 ## 六、HTTPS（微信服务号必须）
 
+HTTPS 已内置到部署流程：`deploy.sh` 每次执行时自动检测 `/etc/letsencrypt/live/eztyv.com/fullchain.pem`，存在则启用 HTTPS（80 端口自动跳转 443），不存在则仅 HTTP。
+
+首次申请证书（需先临时停掉前端容器释放 80 端口）：
+
 ```bash
-sudo apt install certbot python3-certbot-nginx -y
-sudo certbot --nginx -d 你的域名
+sudo apt install certbot -y
+cd ~/acai && docker compose stop frontend
+sudo certbot certonly --standalone -d eztyv.com -d www.eztyv.com
+docker compose start frontend
+```
+
+证书每 90 天到期，设置自动续期（执行一次即可）：
+
+```bash
+sudo certbot renew --pre-hook "cd ~/acai && docker compose stop frontend" --post-hook "cd ~/acai && docker compose start frontend" --dry-run
+echo "0 3 * * * root certbot renew --pre-hook \"cd ~/acai && docker compose stop frontend\" --post-hook \"cd ~/acai && docker compose start frontend\"" | sudo tee /etc/cron.d/certbot-renew
 ```
 
 ## 七、挂到微信服务号

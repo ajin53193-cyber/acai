@@ -1,0 +1,8 @@
+# SSL 覆盖配置：deploy.sh 检测到证书时自动复制为 docker-compose.override.yml 生效
+services:
+  frontend:
+    ports:
+      - "443:443"
+    volumes:
+      - /etc/letsencrypt:/etc/letsencrypt:ro
+      - ./nginx-ssl.conf:/etc/nginx/conf.d/default.conf:ro
