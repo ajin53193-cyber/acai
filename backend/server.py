@@ -196,12 +196,18 @@ class MilestoneItem(BaseModel):
     desc: str = Field(default="", max_length=200)
 
 
-DEFAULT_CHAT_QUESTIONS = ["你们有什么项目？", "怎么合作？", "收益怎么样？", "怎么联系客服？"]
+DEFAULT_CHAT_QUESTIONS = [
+    {"text": "你们有什么项目？", "answer": "平台每月发布安全稳定的优质项目，涵盖绿色能源、科技创新、商业渠道、实体产业等类别。您可以到「项目中心」查看在架项目详情，或扫码进群获取最新项目清单。"},
+    {"text": "怎么合作？", "answer": "合作方式有团长合作、项目方合作、资源方合作。请扫描上方微信群二维码进群，或留下您的姓名和电话，人工客服会尽快与您一对一对接。"},
+    {"text": "收益怎么样？", "answer": "团队收益参考：10人团队月入约2-3万元，20人团队约5-6万元，50人团队10万元以上。收益与团队运营情况相关，不构成收益承诺，具体以正式合作协议为准。"},
+    {"text": "怎么联系客服？", "answer": "您可以直接在本窗口留言（请留下姓名和电话），人工客服会在工作时间 9:00-21:00 内尽快回复；也可以扫描上方二维码进群咨询。"},
+]
 
 
 class QuestionCard(BaseModel):
     text: str = Field(min_length=1, max_length=50)
     image: str = ""
+    answer: str = ""
 
 
 class QrCodeItem(BaseModel):
@@ -213,16 +219,15 @@ class QrCodeItem(BaseModel):
 
 class ChatConfig(BaseModel):
     welcome: str = "您好，欢迎来到合赢项目社！请描述您想咨询的问题，客服会尽快回复您。"
-    ai_enabled: bool = False
     qr_image: str = ""
     qr_updated_at: str = ""
     qr_codes: List[QrCodeItem] = Field(default_factory=list)
-    questions: List[QuestionCard] = Field(default_factory=lambda: [QuestionCard(text=q) for q in DEFAULT_CHAT_QUESTIONS])
+    questions: List[QuestionCard] = Field(default_factory=lambda: [QuestionCard(**q) for q in DEFAULT_CHAT_QUESTIONS])
 
     @field_validator("questions", mode="before")
     @classmethod
     def _coerce_questions(cls, v):
-        return [{"text": q, "image": ""} if isinstance(q, str) else q for q in (v or [])]
+        return [{"text": q, "image": "", "answer": ""} if isinstance(q, str) else q for q in (v or [])]
 
 
 class SiteSettings(BaseModel):
@@ -529,107 +534,6 @@ async def get_settings():
     return doc
 
 
-async def generate_ai_reply(session_id: str):
-    try:
-        from emergentintegrations.llm.chat import LlmChat, UserMessage, TextDelta, StreamDone
-
-        history = await db.chat_messages.find(
-            {"session_id": session_id}, {"_id": 0}
-        ).sort("created_at", -1).to_list(12)
-        history.reverse()
-        transcript = "\n".join(
-            f"{'访客' if m['sender'] == 'visitor' else '客服'}: {m['text']}" for m in history
-        )
-
-        projects = await db.projects.find(
-            {"published": {"$ne": False}},
-            {"_id": 0, "id": 0, "created_at": 0, "published": 0},
-        ).to_list(50)
-        kb = "\n".join(
-            f"· {p['title']}（{p['category']}｜{p['region']}｜投入区间{p.get('investment') or '详询客服'}｜{p['status']}）：{p.get('description', '')}"
-            + (f" 亮点：{'、'.join(p.get('highlights', []))}" if p.get("highlights") else "")
-            for p in projects
-        )
-
-        system = (
-            "你是「合赢项目社」的在线客服助手。平台主要面向全国招募团队长（团长），为团队长提供稳定项目；"
-            "团队通过专业的项目审核、项目评估、项目整合，保障项目稳定可靠；平台每个月都会发布安全、稳定、合法的项目供团队长合作，"
-            "并在微信群内同步分享最新项目；平台不收取任何加盟费、服务费等费用。"
-            "团队发展收益参考：10人团队月入约2-3万元，20人团队约5-6万元，50人团队10万元以上；"
-            "收益与团队运营情况相关，不构成收益承诺，具体以正式合作协议为准。"
-            "合作方式：团长合作、项目方合作、资源方合作。当前主打稳定项目：礼品卡项目（收益稳定、项目合规）。"
-            "工作时间 9:00-21:00，邮箱 contact@heying.com。\n"
-            f"平台当前在架项目（回答项目相关问题时以此知识库为准）：\n{kb}\n"
-            "回答规则：全程使用中文；语气专业热情；回答控制在80字以内；"
-            "访客询问具体项目时，依据上方知识库准确回答其类别、区域、投入区间、合作状态与亮点；"
-            "访客询问团长收益时，依据上方收益参考回答，并提醒以正式合作协议为准；"
-            "访客询问是否收费时，明确告知平台不收取任何费用；"
-            "访客询问怎么合作、怎么加入、联系方式或人工客服时，告知客服已发送微信群二维码，请直接扫码进群，最新项目会在群内第一时间发布，人工客服会尽快一对一对接，不要编造微信号或电话；"
-            "知识库中没有的信息不要编造，引导访客留下姓名和电话，人工客服会尽快跟进。"
-        )
-        ai_base_url = os.environ.get("AI_BASE_URL", "").strip()
-        ai_api_key = os.environ.get("AI_API_KEY", "").strip()
-        user_prompt = f"最近对话记录：\n{transcript}\n\n请回复访客的最后一条消息。"
-        if ai_base_url and ai_api_key:
-            from openai import AsyncOpenAI
-
-            client = AsyncOpenAI(base_url=ai_base_url, api_key=ai_api_key, timeout=45)
-            resp = await client.chat.completions.create(
-                model=os.environ.get("AI_MODEL", "deepseek-chat"),
-                messages=[
-                    {"role": "system", "content": system},
-                    {"role": "user", "content": user_prompt},
-                ],
-            )
-            reply = (resp.choices[0].message.content or "").strip()
-        else:
-            chat = LlmChat(
-                api_key=os.environ["EMERGENT_LLM_KEY"],
-                session_id=f"kefu-{session_id}-{uuid.uuid4()}",
-                system_message=system,
-            ).with_model("openai", "gpt-5.4")
-
-            reply = ""
-            async for event in chat.stream_message(UserMessage(text=user_prompt)):
-                if isinstance(event, TextDelta):
-                    reply += event.content
-                elif isinstance(event, StreamDone):
-                    break
-            reply = reply.strip()
-        if not reply:
-            return
-        now = datetime.now(timezone.utc).isoformat()
-        await db.chat_messages.insert_one({
-            "id": str(uuid.uuid4()),
-            "session_id": session_id,
-            "sender": "admin",
-            "via": "ai",
-            "text": reply,
-            "created_at": now,
-        })
-        await db.chat_sessions.update_one(
-            {"id": session_id},
-            {"$set": {"last_message_at": now, "last_message": reply[:50]}},
-        )
-    except Exception as e:
-        import traceback
-        print(f"AI reply failed for {session_id}: {e}")
-        traceback.print_exc()
-        # 失败兜底：给访客一条人工接管提示，避免访客干等无响应
-        try:
-            await db.chat_messages.insert_one({
-                "id": str(uuid.uuid4()),
-                "session_id": session_id,
-                "sender": "admin",
-                "via": "ai",
-                "text": "AI 客服暂时繁忙，请您留下姓名和联系电话，或回复「怎么合作」获取微信群二维码，人工客服会尽快与您一对一对接。",
-                "image": "",
-                "created_at": datetime.now(timezone.utc).isoformat(),
-            })
-        except Exception:
-            pass
-
-
 @api_router.get("/articles")
 async def list_articles():
     articles = await db.articles.find(
@@ -650,15 +554,55 @@ async def get_article(article_id: str):
 @api_router.post("/chat/start")
 async def chat_start(data: ChatStart):
     now = datetime.now(timezone.utc).isoformat()
-    await db.chat_sessions.update_one(
+    res = await db.chat_sessions.update_one(
         {"id": data.session_id},
         {"$setOnInsert": {"id": data.session_id, "created_at": now, "source": data.source.strip()},
          "$set": {"name": data.name}},
         upsert=True,
     )
     settings = await db.settings.find_one({"key": "site"}, {"_id": 0, "chat": 1})
-    chat_cfg = (settings or {}).get("chat") or ChatConfig().model_dump()
-    return {"session_id": data.session_id, "welcome": chat_cfg.get("welcome", ""), "ai_enabled": chat_cfg.get("ai_enabled", False)}
+    chat_cfg = sync_active_qr(migrate_qr_codes(dict((settings or {}).get("chat") or ChatConfig().model_dump())))
+    if res.upserted_id is not None:
+        # 新会话：自动发送欢迎语 + 微信群二维码
+        batch = []
+        welcome = (chat_cfg.get("welcome") or "").strip()
+        if welcome:
+            batch.append({
+                "id": str(uuid.uuid4()),
+                "session_id": data.session_id,
+                "sender": "admin",
+                "via": "auto",
+                "text": welcome,
+                "image": "",
+                "created_at": datetime.now(timezone.utc).isoformat(),
+            })
+        qr_image = chat_cfg.get("qr_image", "")
+        if qr_image:
+            qr_label = next((q.get("label", "") for q in (chat_cfg.get("qr_codes") or []) if q.get("image") == qr_image), "")
+            qr_now = datetime.now(timezone.utc).isoformat()
+            batch.append({
+                "id": str(uuid.uuid4()),
+                "session_id": data.session_id,
+                "sender": "admin",
+                "via": "auto",
+                "text": "欢迎加入合赢项目社！请长按或扫描下方二维码添加微信群，最新项目与合作信息第一时间在群内分享。",
+                "image": qr_image,
+                "created_at": qr_now,
+            })
+            await db.qr_pushes.insert_one({
+                "id": str(uuid.uuid4()),
+                "session_id": data.session_id,
+                "image": qr_image,
+                "label": qr_label,
+                "created_at": qr_now,
+            })
+        if batch:
+            await db.chat_messages.insert_many(batch)
+            await db.chat_sessions.update_one(
+                {"id": data.session_id},
+                {"$set": {"last_message_at": batch[-1]["created_at"], "last_message": batch[-1]["text"][:50]}},
+            )
+    return {"session_id": data.session_id, "welcome": chat_cfg.get("welcome", "")}
 
 
 @api_router.get("/chat/{session_id}/messages")
@@ -691,12 +635,16 @@ async def chat_send(session_id: str, data: ChatMessageInput):
     qr_label = next((q.get("label", "") for q in (chat_cfg.get("qr_codes") or []) if q.get("image") == qr_image), "")
     matched_q = None
     matched_img = ""
+    matched_answer = ""
     for q in chat_cfg.get("questions") or []:
         q_text = q if isinstance(q, str) else q.get("text", "")
         if q_text and q_text == data.text:
             matched_q = q_text
-            matched_img = "" if isinstance(q, str) else q.get("image", "")
+            if not isinstance(q, str):
+                matched_img = q.get("image", "")
+                matched_answer = q.get("answer", "")
             break
+    answered = False
     if matched_q:
         await db.question_clicks.insert_one({
             "id": str(uuid.uuid4()),
@@ -704,51 +652,81 @@ async def chat_send(session_id: str, data: ChatMessageInput):
             "session_id": session_id,
             "created_at": now,
         })
-    if matched_img:
-        card_now = datetime.now(timezone.utc).isoformat()
-        await db.chat_messages.insert_one({
-            "id": str(uuid.uuid4()),
-            "session_id": session_id,
-            "sender": "admin",
-            "via": "ai",
-            "text": "这是相关介绍图，供您参考：",
-            "image": matched_img,
-            "created_at": card_now,
-        })
-        await db.chat_sessions.update_one(
-            {"id": session_id},
-            {"$set": {"last_message_at": card_now, "last_message": "[介绍图片]"}},
-        )
-    qr_sent_recently = False
-    if qr_image:
+        if matched_answer or matched_img:
+            card_now = datetime.now(timezone.utc).isoformat()
+            await db.chat_messages.insert_one({
+                "id": str(uuid.uuid4()),
+                "session_id": session_id,
+                "sender": "admin",
+                "via": "auto",
+                "text": matched_answer or "这是相关介绍图，供您参考：",
+                "image": matched_img,
+                "created_at": card_now,
+            })
+            await db.chat_sessions.update_one(
+                {"id": session_id},
+                {"$set": {"last_message_at": card_now, "last_message": (matched_answer or "[介绍图片]")[:50]}},
+            )
+            answered = True
+    if qr_image and any(k in data.text for k in QR_KEYWORDS):
         recent_msgs = await db.chat_messages.find(
             {"session_id": session_id}, {"_id": 0, "sender": 1, "image": 1}
         ).sort("created_at", -1).to_list(5)
         qr_sent_recently = any(m.get("sender") == "admin" and m.get("image") == qr_image for m in recent_msgs)
-    if qr_image and not qr_sent_recently and any(k in data.text for k in QR_KEYWORDS):
         qr_now = datetime.now(timezone.utc).isoformat()
-        await db.chat_messages.insert_one({
-            "id": str(uuid.uuid4()),
-            "session_id": session_id,
-            "sender": "admin",
-            "via": "ai",
-            "text": "欢迎加入合赢项目社！请长按或扫描下方二维码添加微信群，最新项目与合作信息第一时间在群内分享，进群后客服会尽快与您一对一对接。",
-            "image": qr_image,
-            "created_at": qr_now,
-        })
-        await db.qr_pushes.insert_one({
-            "id": str(uuid.uuid4()),
-            "session_id": session_id,
-            "image": qr_image,
-            "label": qr_label,
-            "created_at": qr_now,
-        })
+        if qr_sent_recently:
+            # 二维码刚推送过，仅文字提醒，避免刷屏
+            await db.chat_messages.insert_one({
+                "id": str(uuid.uuid4()),
+                "session_id": session_id,
+                "sender": "admin",
+                "via": "auto",
+                "text": "微信群二维码就在上方聊天记录里，长按识别即可进群；需要人工服务请留下姓名和电话，客服会尽快与您对接。",
+                "image": "",
+                "created_at": qr_now,
+            })
+        else:
+            await db.chat_messages.insert_one({
+                "id": str(uuid.uuid4()),
+                "session_id": session_id,
+                "sender": "admin",
+                "via": "auto",
+                "text": "欢迎加入合赢项目社！请长按或扫描下方二维码添加微信群，最新项目与合作信息第一时间在群内分享，进群后客服会尽快与您一对一对接。",
+                "image": qr_image,
+                "created_at": qr_now,
+            })
+            await db.qr_pushes.insert_one({
+                "id": str(uuid.uuid4()),
+                "session_id": session_id,
+                "image": qr_image,
+                "label": qr_label,
+                "created_at": qr_now,
+            })
         await db.chat_sessions.update_one(
             {"id": session_id},
             {"$set": {"last_message_at": qr_now, "last_message": "[微信群二维码]"}},
         )
-    if chat_cfg.get("ai_enabled"):
-        asyncio.create_task(generate_ai_reply(session_id))
+        answered = True
+    if not answered:
+        # 未命中任何规则：转人工提示（每个会话仅发送一次）
+        fallback_exists = await db.chat_messages.find_one(
+            {"session_id": session_id, "via": "auto_fallback"}, {"_id": 1}
+        )
+        if not fallback_exists:
+            fb_now = datetime.now(timezone.utc).isoformat()
+            await db.chat_messages.insert_one({
+                "id": str(uuid.uuid4()),
+                "session_id": session_id,
+                "sender": "admin",
+                "via": "auto_fallback",
+                "text": "已收到您的留言！人工客服会尽快回复（工作时间 9:00-21:00）。为方便联系您，请留下姓名和电话；也可以先扫描上方微信群二维码进群，最新项目群内第一时间分享。",
+                "image": "",
+                "created_at": fb_now,
+            })
+            await db.chat_sessions.update_one(
+                {"id": session_id},
+                {"$set": {"last_message_at": fb_now, "last_message": "已收到留言，人工客服尽快回复"}},
+            )
     doc.pop("_id", None)
     return doc
 

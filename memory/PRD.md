@@ -78,12 +78,15 @@
 - 9 个种子项目（绿色能源/科技创新/商业渠道/实体产业）
 - 响应式：375 / 768 / 1366 均验证通过
 
+- 2026-07-07 客服去 AI 化（用户决定不再接 AI）：server.py 删除 DeepSeek 调用，chat_send 改为纯规则：①新会话自动发欢迎语+微信群二维码 ②访客点击常见问题卡片（文本完全匹配）→ 回复该问题预设 answer（+可选图片）③消息含 QR_KEYWORDS → 推二维码（近 5 条内已推则仅文字提醒）④未命中 → 每会话一次 auto_fallback 转人工提示。SettingsAdmin 每个问题卡片新增「自动回复文案」textarea，删除 AI 开关；ChatWidget 去掉 awaitingReply/打字动画，标签「人工客服/客服」；ChatAdmin 自动回复统一显示"自动回复"。DB 已迁移：welcome 去掉"AI助手"措辞，4 个默认问题补齐 answer。curl + 截图验证通过
+- 2026-07-07 部署目标回到 Emergent 平台（用户放弃阿里云）：已确认 .env 未设 LOCAL_STORAGE=1，上传走 Emergent 对象存储（持久化，无 Pod 重启丢图风险）；阿里云相关文件（deploy.sh/DEPLOY_ALIYUN.md/CDN_ALIYUN.md/docker 配置）暂保留，待用户确认后清理
+
 ## 待办优先级
-- P0：用户在 Emergent 点击「Save to GitHub」→ 服务器执行 `cd ~/acai && bash deploy.sh`（deploy.sh 已升级为真一键：git pull → 检查 .env 与 DeepSeek 密钥 → docker compose up -d --build → 健康检查，失败会打印日志排查命令）。服务器跑的还是旧代码——这是线上 AI 不回复+速度慢+新功能缺失的根因
-- P0：部署成功后到 eztyv.com/admin：①站点设置 → 在线客服 → 上传真实微信群二维码（自动成为"1群"）并确认「AI 自动回复」开关打开；②收益海报如有缺失重新上传
+- P0：eztyv.com DNS 仍残留阿里云 A 记录 47.115.133.9（约 23% 解析到旧服务器），需在 DNS 服务商删除该记录，只保留 Emergent 自定义域名给的 CNAME/记录
+- P0：Emergent 部署成功后到 /admin → 站点设置 → 在线客服：上传真实微信群二维码、按需修改 4 条常见问题的自动回复文案
 - P1：留言邮件/短信通知客服（需集成 Resend / Twilio）
-- P2：CDN 加速（指南见 /app/CDN_ALIYUN.md）；百度/Google Search Console 提交 sitemap
-- P2：真实联系电话/邮箱替换占位信息（contact@heying.com 为占位，当前未进 SEO 结构化数据，确认后可补）
+- P2：清理阿里云部署脚本与文档（用户确认后）；百度/Google Search Console 提交 sitemap
+- P2：真实联系电话/邮箱替换占位信息
 
 ## 下一步
 - 项目管理后台 CRUD

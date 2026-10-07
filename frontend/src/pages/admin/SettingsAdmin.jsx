@@ -28,7 +28,7 @@ export default function SettingsAdmin({ token, onUnauthorized }) {
         if (res.data.stats && res.data.stats.length) setStats(res.data.stats);
         if (res.data.categories && res.data.categories.length) setCategories(res.data.categories);
         const chatMerged = { ...DEFAULT_SETTINGS.chat, ...(res.data.chat || {}) };
-        chatMerged.questions = (chatMerged.questions || []).map((q) => (typeof q === "string" ? { text: q, image: "" } : q));
+        chatMerged.questions = (chatMerged.questions || []).map((q) => (typeof q === "string" ? { text: q, image: "", answer: "" } : { answer: "", ...q }));
         setChatCfg(chatMerged);
         if (res.data.tiers && res.data.tiers.length) setTiers(res.data.tiers);
         if (res.data.edges && res.data.edges.length) setEdges(res.data.edges);
@@ -63,7 +63,7 @@ export default function SettingsAdmin({ token, onUnauthorized }) {
   const save = async () => {
     setSaving(true);
     try {
-      await axios.put(`${API}/admin/settings`, { contact, stats, categories: categories.map((c) => c.trim()).filter(Boolean), chat: { ...chatCfg, questions: (chatCfg.questions || []).map((q) => ({ text: (q.text || "").trim(), image: q.image || "" })).filter((q) => q.text) }, tiers: tiers.filter((t) => t.count.trim() && t.income.trim()), edges: edges.filter((x) => x.title.trim()), milestones: milestones.filter((x) => x.year.trim() && x.title.trim()) }, { headers });
+      await axios.put(`${API}/admin/settings`, { contact, stats, categories: categories.map((c) => c.trim()).filter(Boolean), chat: { ...chatCfg, questions: (chatCfg.questions || []).map((q) => ({ text: (q.text || "").trim(), image: q.image || "", answer: (q.answer || "").trim() })).filter((q) => q.text) }, tiers: tiers.filter((t) => t.count.trim() && t.income.trim()), edges: edges.filter((x) => x.title.trim()), milestones: milestones.filter((x) => x.year.trim() && x.title.trim()) }, { headers });
       invalidateSettings();
       toast.success("设置已保存，前台页面已同步更新");
     } catch (err) {
@@ -173,7 +173,7 @@ export default function SettingsAdmin({ token, onUnauthorized }) {
 
       <div className="glass-card rounded-3xl p-7" data-testid="settings-chat-card">
         <h3 className="font-display text-lg font-bold text-gold-gradient">在线客服</h3>
-        <p className="mt-1 text-xs text-slate-500">配置访客打开聊天窗时看到的欢迎语，以及 AI 自动回复</p>
+        <p className="mt-1 text-xs text-slate-500">配置访客打开聊天窗时看到的欢迎语与常见问题自动回复；访客留言未命中规则时自动提示转人工</p>
         <div className="mt-6 space-y-5">
           <div>
             <label className="mb-1.5 block text-xs tracking-widest text-slate-400">欢迎语</label>
@@ -188,7 +188,7 @@ export default function SettingsAdmin({ token, onUnauthorized }) {
           </div>
           <div>
             <label className="mb-1.5 block text-xs tracking-widest text-slate-400">常见问题卡片</label>
-            <p className="mb-2 text-xs text-slate-600">显示在欢迎语下方，访客点击卡片即可一键提问；配上图片后，点击卡片还会自动发出该图（如项目海报、收益图）</p>
+            <p className="mb-2 text-xs text-slate-600">显示在欢迎语下方，访客点击卡片即可一键提问并收到自动回复；可配回答文案和图片（如项目海报、收益图），都不填则仅记录点击</p>
             <div className="space-y-3">
               {(chatCfg.questions || []).map((q, i) => (
                 <div key={i} className="rounded-2xl border border-amber-500/10 bg-[#060B18]/50 p-3" data-testid={`settings-chat-question-row-${i}`}>
@@ -229,6 +229,14 @@ export default function SettingsAdmin({ token, onUnauthorized }) {
                       </button>
                     )}
                   </div>
+                  <textarea
+                    data-testid={`settings-chat-question-answer-${i}`}
+                    value={q.answer || ""}
+                    onChange={(e) => setChatCfg({ ...chatCfg, questions: chatCfg.questions.map((x, idx) => (idx === i ? { ...x, answer: e.target.value } : x)) })}
+                    placeholder="自动回复文案（可选）：访客点击此问题时自动发送这段文字"
+                    rows={2}
+                    className={`${inputCls} mt-2.5 resize-none`}
+                  />
                 </div>
               ))}
               <button
@@ -240,23 +248,6 @@ export default function SettingsAdmin({ token, onUnauthorized }) {
                 <Plus size={13} /> 添加问题
               </button>
             </div>
-          </div>
-          <div className="flex items-center justify-between rounded-2xl border border-amber-500/10 bg-[#060B18]/50 p-4">
-            <div>
-              <div className="text-sm font-medium text-slate-200">AI 自动回复</div>
-              <div className="mt-0.5 text-xs text-slate-500">开启后，访客消息会先由 AI 客服自动回复，人工客服可随时在「在线客服」版块接管</div>
-            </div>
-            <button
-              type="button"
-              data-testid="settings-chat-ai-toggle"
-              onClick={() => setChatCfg({ ...chatCfg, ai_enabled: !chatCfg.ai_enabled })}
-              className={`relative h-7 w-12 shrink-0 rounded-full transition-colors duration-300 ${chatCfg.ai_enabled ? "bg-gold-gradient" : "bg-slate-700"}`}
-              aria-label="AI自动回复开关"
-            >
-              <span
-                className={`absolute top-1 h-5 w-5 rounded-full bg-white shadow transition-all duration-300 ${chatCfg.ai_enabled ? "left-6" : "left-1"}`}
-              />
-            </button>
           </div>
           <div className="rounded-2xl border border-amber-500/10 bg-[#060B18]/50 p-4">
             <div className="text-sm font-medium text-slate-200">微信群二维码（活码管理）</div>
