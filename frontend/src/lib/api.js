@@ -9,14 +9,7 @@ export const DEFAULT_SETTINGS = {
     hours: "9:00 - 21:00",
     email: "contact@heying.com",
   },
-  team: [
-    { role: "项目负责人", person: "陈志远", image: "/images/team/team-1.webp" },
-    { role: "合作负责人", person: "林嘉豪", image: "/images/team/team-2.webp" },
-    { role: "资源负责人", person: "周明轩", image: "/images/team/team-3.webp" },
-    { role: "运营负责人", person: "吴国强", image: "/images/team/team-4.webp" },
-    { role: "客服负责人", person: "许文博", image: "/images/team/team-2.webp" },
-    { role: "品牌负责人", person: "郑立诚", image: "/images/team/team-3.webp" },
-  ],
+  team: [],
   stats: [
     { num: "36", suffix: "+", label: "优质项目" },
     { num: "120", suffix: "+", label: "合作伙伴" },
@@ -58,7 +51,7 @@ export const fetchSettings = () => {
       .then((res) => {
         cache = {
           contact: { ...DEFAULT_SETTINGS.contact, ...(res.data.contact || {}) },
-          team: res.data.team && res.data.team.length ? res.data.team : DEFAULT_SETTINGS.team,
+          team: [],
           stats: res.data.stats && res.data.stats.length ? res.data.stats : DEFAULT_SETTINGS.stats,
           categories: res.data.categories && res.data.categories.length ? res.data.categories : DEFAULT_SETTINGS.categories,
           chat: { ...DEFAULT_SETTINGS.chat, ...(res.data.chat || {}) },

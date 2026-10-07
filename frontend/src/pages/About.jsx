@@ -14,7 +14,7 @@ const VALUES = [
 const AVATARS_PLACEHOLDER = [];
 
 export default function About() {
-  const { team, stats } = useSettings();
+  const { stats } = useSettings();
 
   return (
     <main className="pt-28" data-testid="about-page">
@@ -108,31 +108,6 @@ export default function About() {
                     <h3 className="font-display text-base font-bold text-gold-gradient md:text-xl">{v.title}</h3>
                     <p className="mt-2 text-xs leading-relaxed text-slate-400 md:mt-3 md:text-sm">{v.desc}</p>
                   </div>
-                </div>
-              </Reveal>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      <section className="py-14 md:py-20" data-testid="about-team-section">
-        <div className="mx-auto max-w-7xl px-4 sm:px-8 lg:px-16">
-          <SectionHeading title="核心团队" subtitle="专业团队，为每一次合作保驾护航" />
-          <div className="grid grid-cols-2 gap-x-6 gap-y-12 sm:grid-cols-3 lg:grid-cols-6">
-            {team.map((t, i) => (
-              <Reveal key={`${t.role}-${i}`} delay={i * 0.08}>
-                <div className="group text-center" data-testid={`team-member-${i}`}>
-                  <div className="relative mx-auto h-28 w-28 sm:h-32 sm:w-32">
-                    <div className="absolute -inset-1.5 rounded-full bg-gold-gradient opacity-80 transition-all duration-500 group-hover:opacity-100 group-hover:shadow-[0_0_30px_rgba(212,175,55,0.5)]" />
-                    <img
-                      src={t.image}
-                      alt={t.person}
-                      loading="lazy"
-                      className="relative h-full w-full rounded-full border-4 border-[#060B18] object-cover transition-transform duration-500 group-hover:scale-105"
-                    />
-                  </div>
-                  <div className="mt-5 font-display text-base font-bold text-slate-50">{t.person}</div>
-                  <div className="mt-1 text-xs tracking-[0.2em] text-[#D4AF37]">{t.role}</div>
                 </div>
               </Reveal>
             ))}

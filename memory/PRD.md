@@ -49,6 +49,8 @@
 - 2026-07-03 手机端滑动卡顿根治：① 手机端关闭全站 glass-card 的 backdrop-filter 毛玻璃（blur 18px × 几十张卡片是 GPU 卡顿主因），改用 92% 不透明度纯色底；② 大面积光晕模糊（blur 120/130px）手机端统一降到 40px；③ 触屏设备不再初始化 Lenis 平滑滚动（移除逐帧插值循环），用原生滚动。合作页「团长收益体系」「合作方式」两个板块按用户要求改为一行 3 个（图标/字号/按钮同步缩小），桌面端不变
 - 2026-07-03 手机端背景统一：三个交替色版块（首页精选项目、合作方式、关于页价值观）的浅藏青底 #080E1F 改为仅桌面端（md:），手机端全页统一 #060B18；移除首页手机端顶部金色径向光晕；手机端顶栏/底部导航/汉堡菜单的毛玻璃一并去掉（纯色 #0A1228，省 GPU）；逐屏取色验证全页背景一致（仅页脚保留深色区分）
 - 2026-07-03 修复：手机端页面标题区出现偏亮蓝色补丁（光晕降模糊后边缘硬化）——手机端光晕统一加 opacity 0.35 保持若有若无；「在线咨询/联系客服/立即联系客服」按钮（合作页 CTA、联系页、底部导航、首页 CTA）统一改为直接弹出在线客服聊天窗（hy:open-chat 全局事件），不再跳转页面
+- 2026-07-07 应用户要求移除「核心团队」版块（示例头像+姓名，真实业务不适用）：关于我们页整节删除；后台「站点设置 → 核心团队」编辑卡片同步删除；前端默认值与本地团队照片（/public/images/team/）清理完毕，后端 settings.team 字段保留但不再使用
+- 2026-07-07 Logo 重设计进行中：AI 生成 4 款候选（/public/images/logo-concepts/logo-1~4.webp：六合徽/双环/元宝/星盾），等用户选定后抠图透明化并替换全站 Logo + favicon
 - 后端接口：GET /api/projects、GET /api/settings、POST /api/contact、POST /api/admin/login、GET/PATCH /api/admin/inquiries、GET/POST/PUT/DELETE /api/admin/projects、PATCH /api/admin/projects/{id}/publish、PUT /api/admin/settings、POST /api/admin/upload、GET /api/files/{path}
 - 9 个种子项目（绿色能源/科技创新/商业渠道/实体产业）
 - 响应式：375 / 768 / 1366 均验证通过

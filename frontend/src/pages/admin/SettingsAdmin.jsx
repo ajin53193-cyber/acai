@@ -10,7 +10,6 @@ const inputCls =
 
 export default function SettingsAdmin({ token, onUnauthorized }) {
   const [contact, setContact] = useState(DEFAULT_SETTINGS.contact);
-  const [team, setTeam] = useState(DEFAULT_SETTINGS.team);
   const [stats, setStats] = useState(DEFAULT_SETTINGS.stats);
   const [categories, setCategories] = useState(DEFAULT_SETTINGS.categories);
   const [chatCfg, setChatCfg] = useState(DEFAULT_SETTINGS.chat);
@@ -25,7 +24,6 @@ export default function SettingsAdmin({ token, onUnauthorized }) {
       .get(`${API}/settings`)
       .then((res) => {
         setContact({ ...DEFAULT_SETTINGS.contact, ...(res.data.contact || {}) });
-        if (res.data.team && res.data.team.length) setTeam(res.data.team);
         if (res.data.stats && res.data.stats.length) setStats(res.data.stats);
         if (res.data.categories && res.data.categories.length) setCategories(res.data.categories);
         const chatMerged = { ...DEFAULT_SETTINGS.chat, ...(res.data.chat || {}) };
@@ -38,8 +36,6 @@ export default function SettingsAdmin({ token, onUnauthorized }) {
   }, []);
 
   const setContactField = (key) => (e) => setContact({ ...contact, [key]: e.target.value });
-  const setMember = (i, key) => (e) =>
-    setTeam((prev) => prev.map((m, idx) => (idx === i ? { ...m, [key]: e.target.value } : m)));
   const setStat = (i, key) => (e) =>
     setStats((prev) => prev.map((s, idx) => (idx === i ? { ...s, [key]: e.target.value } : s)));
   const setCategory = (i) => (e) =>
@@ -52,7 +48,7 @@ export default function SettingsAdmin({ token, onUnauthorized }) {
   const save = async () => {
     setSaving(true);
     try {
-      await axios.put(`${API}/admin/settings`, { contact, team, stats, categories: categories.map((c) => c.trim()).filter(Boolean), chat: { ...chatCfg, questions: (chatCfg.questions || []).map((q) => ({ text: (q.text || "").trim(), image: q.image || "" })).filter((q) => q.text) }, tiers: tiers.filter((t) => t.count.trim() && t.income.trim()), edges: edges.filter((x) => x.title.trim()) }, { headers });
+      await axios.put(`${API}/admin/settings`, { contact, stats, categories: categories.map((c) => c.trim()).filter(Boolean), chat: { ...chatCfg, questions: (chatCfg.questions || []).map((q) => ({ text: (q.text || "").trim(), image: q.image || "" })).filter((q) => q.text) }, tiers: tiers.filter((t) => t.count.trim() && t.income.trim()), edges: edges.filter((x) => x.title.trim()) }, { headers });
       invalidateSettings();
       toast.success("设置已保存，前台页面已同步更新");
     } catch (err) {
@@ -77,49 +73,6 @@ export default function SettingsAdmin({ token, onUnauthorized }) {
             <label className="mb-1.5 block text-xs tracking-widest text-slate-400">邮箱</label>
             <input data-testid="settings-email-input" value={contact.email} onChange={setContactField("email")} className={inputCls} />
           </div>
-        </div>
-      </div>
-
-      <div className="glass-card rounded-3xl p-7" data-testid="settings-team-card">
-        <div className="flex items-center justify-between">
-          <div>
-            <h3 className="font-display text-lg font-bold text-gold-gradient">核心团队</h3>
-            <p className="mt-1 text-xs text-slate-500">显示在「关于我们」页面，点击按钮直接上传形象照</p>
-          </div>
-          <button
-            data-testid="settings-team-add-btn"
-            onClick={() => setTeam([...team, { role: "", person: "", image: "" }])}
-            className="flex items-center gap-1.5 rounded-full border border-amber-500/30 px-4 py-2 text-xs text-[#E5C158] transition-colors hover:bg-amber-500/10"
-          >
-            <Plus size={13} /> 添加成员
-          </button>
-        </div>
-        <div className="mt-6 space-y-5">
-          {team.map((m, i) => (
-            <div key={i} className="rounded-2xl border border-amber-500/10 bg-[#060B18]/50 p-4" data-testid={`settings-team-row-${i}`}>
-              <div className="flex flex-wrap items-center gap-4">
-                <ImageUpload
-                  token={token}
-                  value={m.image}
-                  onChange={(url) => setTeam((prev) => prev.map((x, idx) => (idx === i ? { ...x, image: url } : x)))}
-                  round
-                  testid={`settings-team-image-${i}`}
-                />
-                <div className="grid flex-1 gap-3 sm:grid-cols-2">
-                  <input data-testid={`settings-team-person-${i}`} value={m.person} onChange={setMember(i, "person")} placeholder="姓名，如：陈志远" className={inputCls} />
-                  <input data-testid={`settings-team-role-${i}`} value={m.role} onChange={setMember(i, "role")} placeholder="职务，如：项目负责人" className={inputCls} />
-                </div>
-                <button
-                  data-testid={`settings-team-remove-${i}`}
-                  onClick={() => setTeam(team.filter((_, idx) => idx !== i))}
-                  className="rounded-full border border-red-500/30 p-2.5 text-red-300 transition-colors hover:bg-red-500/10"
-                  aria-label="删除成员"
-                >
-                  <Trash2 size={14} />
-                </button>
-              </div>
-            </div>
-          ))}
         </div>
       </div>
 
