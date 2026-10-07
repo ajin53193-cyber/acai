@@ -34,10 +34,16 @@ MONGO_URL=mongodb://mongo:27017
 DB_NAME=heying
 JWT_SECRET=换成一串随机长字符串
 ADMIN_USERNAME=admin
-ADMIN_PASSWORD=换成你的强密码
-EMERGENT_LLM_KEY=你的Emergent通用密钥（用于AI客服）
-INTEGRATION_PROXY_URL=（对象存储代理地址，用于后台图片上传，可留空则上传功能不可用）
+ADMIN_PASSWORD=换成你的强密码（首次启动会用它创建管理员，务必修改默认值）
+EMERGENT_LLM_KEY=你的Emergent通用密钥（用于AI客服与图片存储，见下方说明）
 ```
+
+### 平台绑定项说明（重要）
+
+- **EMERGENT_LLM_KEY 必须保留**：AI 客服（GPT 对话）和后台图片上传都通过 Emergent 的云端集成服务完成，部署到阿里云后只要这个密钥有效，两个功能照常可用；密钥失效则 AI 客服和图片上传不可用
+- **已上传的图片不受影响**：微信二维码、收益海报等存在 Emergent 对象存储，正式站会继续正常读取
+- **首次启动自动播种**：阿里云上的 MongoDB 是空库，启动后会自动写入 9 个示例项目和 14 篇示例文章，登录后台（/admin）替换成您的真实内容即可
+- **可选清理**：`frontend/public/index.html` 里的 `emergent-main.js` 和 posthog 统计脚本是 Emergent 平台用的，自部署后可删除，不影响功能
 
 ### frontend/.env
 
@@ -45,7 +51,7 @@ INTEGRATION_PROXY_URL=（对象存储代理地址，用于后台图片上传，�
 REACT_APP_BACKEND_URL=
 ```
 
-> 前端为空字符串时，nginx 同源反代 /api 即可。
+> 留空表示前后端同域，由 nginx 反代 /api 到后端。注意：CRA 打包会把该值**写死**进静态文件，所以下面的 Dockerfile.frontend 里已强制置空，防止把预览地址打进正式包。
 
 ## 五、一键启动
 
@@ -109,6 +115,7 @@ WORKDIR /app
 COPY frontend/package.json frontend/yarn.lock ./
 RUN yarn install --frozen-lockfile
 COPY frontend/ .
+ENV REACT_APP_BACKEND_URL=""
 RUN yarn build
 
 FROM nginx:alpine
@@ -123,12 +130,23 @@ server {
     listen 80;
     root /usr/share/nginx/html;
     index index.html;
+    client_max_body_size 10m;
 
     location /api/ {
         proxy_pass http://backend:8001;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    }
+
+    location /fonts/ {
+        expires 30d;
+        add_header Cache-Control "public, immutable";
+    }
+
+    location /images/ {
+        expires 7d;
+        add_header Cache-Control "public";
     }
 
     location / {

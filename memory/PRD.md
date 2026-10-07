@@ -64,3 +64,4 @@
 - 项目管理后台 CRUD
 - 留言实时通知
 - SEO 元信息与分享卡片优化
+- 阿里云自部署：DEPLOY_ALIYUN.md（根目录）已含 docker-compose/Dockerfile×2/nginx 配置与平台绑定项说明（EMERGENT_LLM_KEY 依赖、对象存储延续、种子数据、CRA 构建时置空 REACT_APP_BACKEND_URL），待用户 Save to GitHub 导出代码后按文档执行
