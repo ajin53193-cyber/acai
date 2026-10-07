@@ -53,15 +53,18 @@
 - 2026-07-07 Logo 重设计进行中：AI 生成 4 款候选（/public/images/logo-concepts/logo-1~4.webp：六合徽/双环/元宝/星盾），等用户选定后抠图透明化并替换全站 Logo + favicon
 - 2026-07-07 关于页新增「平台发展历程」时间轴版块（金线+节点圆点+年份徽章，5 个默认节点 2022-2026），后台「站点设置 → 平台发展历程」可增删改（settings.milestones，MilestoneItem: year/title/desc）；用户确认阿里云自部署路径（域名已备案），DEPLOY_ALIYUN.md 已就绪；2026-07-07 已触发 redeploy 上线
 - 2026-07-07 自定义域名 eztyv.com 上线：DNS 在聚名网（julydns，非阿里云），用户已加 4 条 A 记录（@/www → 162.159.142.117/172.66.2.113），平台侧 Domains 绑定完成、SSL 生效，https://eztyv.com 全站正常（项目10/文章14 已同步）；微信服务号物料已交付：头像（/images/logo-concepts/wechat-avatar.png 600×600）、功能介绍文案、被关注回复与关键词回复文案；页脚已挂备案号「桂ICP备2026019806号-2」（链接 beian.miit.gov.cn）
+- 2026-07-07 用户决定**沿用现有金色六边形「合」SVG Logo**（4 款 AI 候选 logo-1~4.webp 弃用保留在 /public/images/logo-concepts/）
+- 2026-07-07 用户已将代码 Docker 化部署到自有阿里云 ECS（eztyv.com）：AI 客服从 Emergent LLM 迁移至 DeepSeek API 直连（.env AI_API_KEY，绕过 GFW）；图片存储从 Emergent 对象存储迁移至本地磁盘（/api/files/upload → 本地保存，/api/files/{path} 回源，WebP 自动压缩保留）
+- 2026-07-07 阿里云 3M 带宽白屏提速：873KB 的 fonts.css（808 个 @font-face 规则）改为异步加载（rel=preload + media=print onload 切换 + noscript 兜底）；font-display: swap 确认全覆盖（808/808）；nginx 已配 gzip(text/css) + /fonts/ 30 天 immutable 缓存 + /images/ 7 天缓存；测试代理前端验证 100% 通过（首屏无白屏、定制字体生效、15 图零破图、聊天窗/后台登录/移动端 375px 均正常，FCP ~972ms）；注意：修改 public/index.html 后预览环境需 supervisorctl restart frontend 生效，阿里云需重新 yarn build（docker compose up -d --build 自动完成）
 - 后端接口：GET /api/projects、GET /api/settings、POST /api/contact、POST /api/admin/login、GET/PATCH /api/admin/inquiries、GET/POST/PUT/DELETE /api/admin/projects、PATCH /api/admin/projects/{id}/publish、PUT /api/admin/settings、POST /api/admin/upload、GET /api/files/{path}
 - 9 个种子项目（绿色能源/科技创新/商业渠道/实体产业）
 - 响应式：375 / 768 / 1366 均验证通过
 
 ## 待办优先级
-- P0：无阻塞项
-- P1：管理员后台增删改项目（当前项目为种子数据，需改库或重新播种）
+- P0：用户在 Emergent 点击「Save to GitHub」→ 服务器 `cd ~/acai && git pull && docker compose up -d --build`（上次部署 git pull 显示 Already up to date、构建全缓存，说明代码未推送到 GitHub，服务器跑的还是旧代码）
+- P0：部署成功后，到 eztyv.com/admin 后台重新上传微信群二维码和团长收益海报（存储已从云对象存储迁到本地磁盘，旧云图链接失效）
 - P1：留言邮件/短信通知客服（需集成 Resend / Twilio）
-- P2：新闻/行业动态列表页（关于页已有「行业动态 80+」统计）
+- P2：若 3M 带宽仍是图片加载瓶颈，为 eztyv.com 配置 CDN 加速
 - P2：真实团队照片与真实联系电话/邮箱替换占位信息（400-888-6888、contact@heying.com 为占位）
 
 ## 下一步

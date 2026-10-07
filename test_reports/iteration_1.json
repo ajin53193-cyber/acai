@@ -1,0 +1,26 @@
+{
+  "summary": "Verified the async fonts.css loading fix in /app/frontend/public/index.html. All critical frontend flows pass: homepage renders fully (nav/hero/stats/orbit/milestones/footer with ICP备案号), fonts.css is non-blocking (preload + stylesheet with media switch via onload), custom fonts (Noto Serif SC / Noto Sans SC) applied correctly, 15 images load with 0 broken, chat widget opens with welcome and question UI, admin login works with admin/Heying@2026, mobile 375px shows 2-col grid with no horizontal overflow.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [],
+  "action_items": [
+    "On first verification run, the preview URL still served the OLD index.html (synchronous <link rel=stylesheet href=/fonts/fonts.css />). After `sudo supervisorctl restart frontend`, the async pattern (preload + media=print+onload) became active. Note for production/aliyun deploy: ensure production build is regenerated (yarn build) after the index.html change; otherwise users will still hit the render-blocking version. In dev with webpack-dev-server, public/index.html changes require a dev-server restart to take effect."
+  ],
+  "critical_code_review_comments": [
+    "Consider also adding a <noscript> fallback <link rel=stylesheet href=/fonts/fonts.css> inside index.html so users with JS disabled still get custom fonts (currently the onload trick requires JS).",
+    "fonts.css is ~873KB (per task description). Consider subsetting the font to only Chinese chars actually used + Latin basic to reduce payload substantially — the biggest win for 3M bandwidth servers.",
+    "Add font-display: swap in @font-face rules inside fonts.css to guarantee no invisible text (FOIT) during font load; otherwise some browsers may still block text paint for up to 3s."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A (skipped)", "frontend": "100%"},
+  "test_credentials": "admin / Heying@2026 at /admin — verified working",
+  "seed_data_creation": "none",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Preview frontend serves /app/frontend/public/index.html via yarn start (webpack-dev-server). After editing public/index.html, run `sudo supervisorctl restart frontend` because dev-server does not always pick up public/index.html template changes. Verified async font loading: curl shows `<link rel=preload as=style href=/fonts/fonts.css />` and `<link rel=stylesheet href=/fonts/fonts.css media=print onload=\"this.media='all'\" />`; browser confirms media switches to 'all' and custom fonts render (Noto Serif SC for headings, Noto Sans SC for body). FCP ~972ms, DCL ~634ms. All data-testid elements found: chat-widget-btn, admin-username-input, admin-password-input, mobile-menu-btn, tab-contact-kefu-btn, cta-contact-kefu-btn.",
+  "rca of the issue": "Original fix in /app/frontend/public/index.html was correct, but the running webpack dev-server was still serving the previously-cached index.html with a synchronous fonts.css link. First render verification showed only one <link rel=stylesheet href=/fonts/fonts.css> served. After restarting the frontend supervisor process, the async pattern (preload + onload media swap) was correctly served and verified via curl and browser DOM inspection. For the Aliyun production environment, the main agent must trigger a production rebuild (yarn build) so the change propagates — otherwise end users will still experience the font-blocking white screen."
+}
