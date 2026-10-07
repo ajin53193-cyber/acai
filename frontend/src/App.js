@@ -20,12 +20,23 @@ import { ChatWidget } from "@/components/ChatWidget";
 
 export const lenisRef = { current: null };
 
+const ROUTE_TITLES = {
+  "/": "合赢项目社 | 聚力项目，合作共赢",
+  "/projects": "项目中心 | 合赢项目社",
+  "/news": "新闻动态 | 合赢项目社",
+  "/cooperation": "合作共赢 | 合赢项目社",
+  "/about": "关于我们 | 合赢项目社",
+  "/contact": "联系我们 | 合赢项目社",
+  "/admin": "管理后台 | 合赢项目社",
+};
+
 const Layout = () => {
   const { pathname } = useLocation();
   const isAdmin = pathname.startsWith("/admin");
 
   useEffect(() => {
     captureSource();
+    document.title = ROUTE_TITLES[pathname] || (pathname.startsWith("/news/") ? "新闻详情 | 合赢项目社" : ROUTE_TITLES["/"]);
     if (lenisRef.current) {
       lenisRef.current.scrollTo(0, { immediate: true });
     } else {

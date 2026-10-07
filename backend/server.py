@@ -1130,6 +1130,44 @@ async def stats_daily(days: int = 14, _: str = Depends(require_admin)):
     return {"days": result}
 
 
+@api_router.get("/admin/stats/funnel")
+async def stats_funnel(days: int = 14, _: str = Depends(require_admin)):
+    days = max(1, min(days, 90))
+    today = datetime.now(CN_TZ)
+    days_list = [(today - timedelta(days=i)).strftime("%Y-%m-%d") for i in range(days - 1, -1, -1)]
+    start = days_list[0]
+    visit_rows = await db.visits.aggregate([
+        {"$match": {"date": {"$gte": start}}},
+        {"$group": {"_id": "$date", "count": {"$sum": 1}}},
+    ]).to_list(90)
+    visits_by_day = {r["_id"]: r["count"] for r in visit_rows}
+    sessions = await db.chat_sessions.find({}, {"_id": 0, "created_at": 1}).to_list(100000)
+    pushes = await db.qr_pushes.find({}, {"_id": 0, "created_at": 1}).to_list(100000)
+
+    def bucket(docs):
+        by_day = {}
+        for d in docs:
+            try:
+                day = datetime.fromisoformat(d["created_at"]).astimezone(CN_TZ).strftime("%Y-%m-%d")
+            except (ValueError, TypeError):
+                continue
+            by_day[day] = by_day.get(day, 0) + 1
+        return by_day
+
+    chats_by_day = bucket(sessions)
+    qr_by_day = bucket(pushes)
+    daily = [
+        {"date": d, "visits": visits_by_day.get(d, 0), "chats": chats_by_day.get(d, 0), "qr": qr_by_day.get(d, 0)}
+        for d in days_list
+    ]
+    totals = {
+        "visits": sum(x["visits"] for x in daily),
+        "chats": sum(x["chats"] for x in daily),
+        "qr": sum(x["qr"] for x in daily),
+    }
+    return {"daily": daily, "totals": totals}
+
+
 @api_router.get("/admin/stats/visits")
 async def stats_visits(date: str, _: str = Depends(require_admin)):
     visits = await db.visits.find({"date": date}, {"_id": 0, "ua": 0}).sort("created_at", -1).to_list(300)

@@ -43,6 +43,7 @@ export default function StatsAdmin({ token, onUnauthorized }) {
   const [overview, setOverview] = useState(null);
   const [daily, setDaily] = useState([]);
   const [visits, setVisits] = useState([]);
+  const [funnel, setFunnel] = useState(null);
   const [loading, setLoading] = useState(false);
 
   const headers = { Authorization: `Bearer ${token}` };
@@ -50,14 +51,16 @@ export default function StatsAdmin({ token, onUnauthorized }) {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [o, d, v] = await Promise.all([
+      const [o, d, v, f] = await Promise.all([
         axios.get(`${API}/admin/stats/overview`, { headers, params: { date } }),
         axios.get(`${API}/admin/stats/daily`, { headers, params: { days: 14 } }),
         axios.get(`${API}/admin/stats/visits`, { headers, params: { date } }),
+        axios.get(`${API}/admin/stats/funnel`, { headers, params: { days: 14 } }),
       ]);
       setOverview(o.data);
       setDaily(d.data.days);
       setVisits(v.data.visits);
+      setFunnel(f.data);
     } catch (err) {
       if (err.response?.status === 401) onUnauthorized();
       else toast.error("加载统计数据失败");
@@ -123,6 +126,63 @@ export default function StatsAdmin({ token, onUnauthorized }) {
           testid="stats-sources-card"
         />
       </div>
+
+      {funnel && (
+        <div className="glass-card rounded-2xl p-6" data-testid="stats-funnel-card">
+          <h3 className="font-display text-base font-bold text-gold-gradient">进群转化漏斗（近 14 天）</h3>
+          {funnel.totals.visits === 0 && funnel.totals.chats === 0 && funnel.totals.qr === 0 ? (
+            <div className="py-8 text-center text-xs text-slate-500">暂无数据</div>
+          ) : (
+            <>
+              <div className="mt-5 space-y-2">
+                {[
+                  { label: "访问网站", value: funnel.totals.visits, rate: null },
+                  { label: "发起咨询", value: funnel.totals.chats, rate: funnel.totals.visits ? Math.round((funnel.totals.chats / funnel.totals.visits) * 100) : 0 },
+                  { label: "收到群二维码", value: funnel.totals.qr, rate: funnel.totals.chats ? Math.round((funnel.totals.qr / funnel.totals.chats) * 100) : 0 },
+                ].map((s, i) => (
+                  <div key={s.label}>
+                    {i > 0 && <div className="mb-1 ml-32 text-[10px] text-slate-500">↓ 上一步转化率 {s.rate}%</div>}
+                    <div className="flex items-center gap-3">
+                      <span className="w-28 shrink-0 text-xs text-slate-400">{s.label}</span>
+                      <div className="h-7 flex-1 overflow-hidden rounded-lg bg-[#060B18]">
+                        <div
+                          className="h-full rounded-lg bg-gradient-to-r from-[#997316] to-[#FFE896] transition-all duration-700"
+                          style={{ width: `${funnel.totals.visits ? Math.max(s.value > 0 ? 6 : 0, (s.value / funnel.totals.visits) * 100) : 0}%` }}
+                        />
+                      </div>
+                      <span className="w-14 shrink-0 text-right font-display text-sm font-black text-gold-gradient" data-testid={`funnel-value-${i}`}>{s.value}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div className="mt-5 overflow-x-auto">
+                <table className="w-full text-xs" data-testid="funnel-daily-table">
+                  <thead>
+                    <tr className="border-b border-amber-500/10 text-left text-slate-500">
+                      <th className="pb-2 pr-3 font-normal">日期</th>
+                      <th className="pb-2 pr-3 font-normal">访问</th>
+                      <th className="pb-2 pr-3 font-normal">发起咨询</th>
+                      <th className="pb-2 pr-3 font-normal">收到二维码</th>
+                      <th className="pb-2 font-normal">访问→咨询</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {funnel.daily.slice().reverse().map((d) => (
+                      <tr key={d.date} className="border-b border-amber-500/5 text-slate-300">
+                        <td className="py-1.5 pr-3 text-slate-500">{d.date.slice(5)}</td>
+                        <td className="py-1.5 pr-3">{d.visits}</td>
+                        <td className="py-1.5 pr-3">{d.chats}</td>
+                        <td className="py-1.5 pr-3">{d.qr}</td>
+                        <td className="py-1.5 text-[#E5C158]">{d.visits ? Math.round((d.chats / d.visits) * 100) : 0}%</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </>
+          )}
+        </div>
+      )}
 
       <div className="glass-card rounded-2xl p-6" data-testid="stats-daily-chart">
         <h3 className="font-display text-base font-bold text-gold-gradient">近 14 天访问趋势</h3>
