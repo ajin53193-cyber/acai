@@ -554,45 +554,34 @@ async def chat_start(data: ChatStart):
     settings = await db.settings.find_one({"key": "site"}, {"_id": 0, "chat": 1})
     chat_cfg = sync_active_qr(migrate_qr_codes(dict((settings or {}).get("chat") or ChatConfig().model_dump())))
     if res.upserted_id is not None:
-        # 新会话：自动发送欢迎语 + 微信群二维码
-        batch = []
-        welcome = (chat_cfg.get("welcome") or "").strip()
-        if welcome:
-            batch.append({
-                "id": str(uuid.uuid4()),
-                "session_id": data.session_id,
-                "sender": "admin",
-                "via": "auto",
-                "text": welcome,
-                "image": "",
-                "created_at": datetime.now(timezone.utc).isoformat(),
-            })
+        # 新会话：一条消息同时带欢迎语 + 微信群二维码
+        welcome = (chat_cfg.get("welcome") or "").strip() or "您好，欢迎来到合赢项目社！"
         qr_image = chat_cfg.get("qr_image", "")
+        if qr_image and not any(k in welcome for k in ("二维码", "扫码", "进群")):
+            welcome += "\n长按识别下方二维码进微信群，最新项目与合作信息第一时间在群内分享。"
+        now_iso = datetime.now(timezone.utc).isoformat()
+        await db.chat_messages.insert_one({
+            "id": str(uuid.uuid4()),
+            "session_id": data.session_id,
+            "sender": "admin",
+            "via": "auto",
+            "text": welcome,
+            "image": qr_image,
+            "created_at": now_iso,
+        })
         if qr_image:
             qr_label = next((q.get("label", "") for q in (chat_cfg.get("qr_codes") or []) if q.get("image") == qr_image), "")
-            qr_now = datetime.now(timezone.utc).isoformat()
-            batch.append({
-                "id": str(uuid.uuid4()),
-                "session_id": data.session_id,
-                "sender": "admin",
-                "via": "auto",
-                "text": "欢迎加入合赢项目社！请长按或扫描下方二维码添加微信群，最新项目与合作信息第一时间在群内分享。",
-                "image": qr_image,
-                "created_at": qr_now,
-            })
             await db.qr_pushes.insert_one({
                 "id": str(uuid.uuid4()),
                 "session_id": data.session_id,
                 "image": qr_image,
                 "label": qr_label,
-                "created_at": qr_now,
+                "created_at": now_iso,
             })
-        if batch:
-            await db.chat_messages.insert_many(batch)
-            await db.chat_sessions.update_one(
-                {"id": data.session_id},
-                {"$set": {"last_message_at": batch[-1]["created_at"], "last_message": batch[-1]["text"][:50]}},
-            )
+        await db.chat_sessions.update_one(
+            {"id": data.session_id},
+            {"$set": {"last_message_at": now_iso, "last_message": welcome[:50]}},
+        )
     return {"session_id": data.session_id, "welcome": chat_cfg.get("welcome", "")}
 
 

@@ -143,6 +143,28 @@ export const ChatWidget = () => {
             ) : (
               <>
                 <div ref={listRef} className="flex-1 space-y-3 overflow-y-auto p-4" data-testid="chat-messages">
+                  {messages.length === 0 && (
+                    <p className="py-10 text-center text-xs text-slate-500">您好 {name}，请描述您想咨询的问题</p>
+                  )}
+                  {messages.map((m) => (
+                    <div key={m.id} className={`flex ${m.sender === "visitor" ? "justify-end" : "justify-start"}`}>
+                      <div
+                        className={`max-w-[80%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed ${
+                          m.sender === "visitor"
+                            ? "rounded-br-sm bg-gold-gradient text-[#060B18]"
+                            : "rounded-bl-sm border border-amber-500/20 bg-[#111D3C] text-slate-200"
+                        }`}
+                      >
+                        {m.sender === "admin" && (
+                          <div className="mb-0.5 text-[10px] font-bold text-[#D4AF37]">{m.via === "ai" ? "AI客服" : m.via === "admin" ? "人工客服" : "客服"}</div>
+                        )}
+                        <span className="whitespace-pre-line">{m.text}</span>
+                        {m.image && (
+                          <img src={toFullUrl(m.image)} alt="客服图片" loading="lazy" decoding="async" className="mt-2 w-full min-w-44 rounded-xl border border-amber-500/20" data-testid="chat-qr-image" />
+                        )}
+                      </div>
+                    </div>
+                  ))}
                   {!messages.some((m) => m.sender === "visitor") && chat.questions?.length > 0 && (
                     <div className="flex flex-wrap gap-2" data-testid="chat-question-cards">
                       {chat.questions.map((q, i) => {
@@ -162,28 +184,6 @@ export const ChatWidget = () => {
                       })}
                     </div>
                   )}
-                  {messages.length === 0 && (
-                    <p className="py-10 text-center text-xs text-slate-500">您好 {name}，请描述您想咨询的问题</p>
-                  )}
-                  {messages.map((m) => (
-                    <div key={m.id} className={`flex ${m.sender === "visitor" ? "justify-end" : "justify-start"}`}>
-                      <div
-                        className={`max-w-[80%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed ${
-                          m.sender === "visitor"
-                            ? "rounded-br-sm bg-gold-gradient text-[#060B18]"
-                            : "rounded-bl-sm border border-amber-500/20 bg-[#111D3C] text-slate-200"
-                        }`}
-                      >
-                        {m.sender === "admin" && (
-                          <div className="mb-0.5 text-[10px] font-bold text-[#D4AF37]">{m.via === "ai" ? "AI客服" : m.via === "admin" ? "人工客服" : "客服"}</div>
-                        )}
-                        {m.text}
-                        {m.image && (
-                          <img src={toFullUrl(m.image)} alt="客服图片" loading="lazy" decoding="async" className="mt-2 w-full min-w-44 rounded-xl border border-amber-500/20" data-testid="chat-qr-image" />
-                        )}
-                      </div>
-                    </div>
-                  ))}
                   {awaitingReply && (
                     <div className="flex justify-start" data-testid="chat-typing-indicator">
                       <div className="max-w-[80%] rounded-2xl rounded-bl-sm border border-amber-500/20 bg-[#111D3C] px-4 py-2.5 text-sm leading-relaxed text-slate-200">

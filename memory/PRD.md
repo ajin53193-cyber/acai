@@ -83,6 +83,8 @@
 
 - 2026-07-07 AI 客服回归（用户选用 Emergent 通用密钥 + GPT-5.4-mini，不再用 DeepSeek）：server.py 新增 generate_ai_reply（emergentintegrations LlmChat，system prompt 含平台介绍/收益档位/常见问题标准答案/在架项目知识库，80 字内中文回复，失败兜底转人工提示）；chat_send 逻辑 = 新会话欢迎语+二维码 → 卡片点击固定回复(via=auto) → 自由留言 AI 回复(via=ai，二维码关键词仅补发图片不重复提醒) → AI 关闭时每会话一次 auto_fallback；ChatConfig.ai_enabled 默认 True；公开 /settings 返回 questions[].answer（修复后台保存会清空回复文案的 bug）。前端：ChatWidget 恢复 awaitingReply 打字指示（1.5s 轮询，45s 超时）与「AI客服」标签；SettingsAdmin 恢复 AI 开关（标注 GPT-5.4-mini）；ChatAdmin 区分「AI客服/自动回复」。测试：iteration_2.json 全部通过
 
+- 2026-07-07 欢迎语与微信群二维码合并为一条消息（chat_start 单条 admin/auto 消息：welcome 文本 + 二维码图片；欢迎语未提及二维码时自动追加一句引导）；聊天气泡支持换行（whitespace-pre-line）；问题卡片移到欢迎消息下方。截图验证通过
+
 ## 待办优先级
 - P0：eztyv.com DNS 仍残留阿里云 A 记录 47.115.133.9（约 23% 解析到旧服务器），需在 DNS 服务商删除该记录，只保留 Emergent 自定义域名给的 CNAME/记录
 - P0：Emergent 重新部署（Re-publish）让 AI 客服上线；到 /admin → 站点设置 → 在线客服：上传真实微信群二维码、按需修改 4 条常见问题的自动回复文案
