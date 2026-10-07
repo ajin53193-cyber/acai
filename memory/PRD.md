@@ -79,17 +79,16 @@
 - 响应式：375 / 768 / 1366 均验证通过
 
 - 2026-07-07 客服去 AI 化（用户决定不再接 AI）：server.py 删除 DeepSeek 调用，chat_send 改为纯规则：①新会话自动发欢迎语+微信群二维码 ②访客点击常见问题卡片（文本完全匹配）→ 回复该问题预设 answer（+可选图片）③消息含 QR_KEYWORDS → 推二维码（近 5 条内已推则仅文字提醒）④未命中 → 每会话一次 auto_fallback 转人工提示。SettingsAdmin 每个问题卡片新增「自动回复文案」textarea，删除 AI 开关；ChatWidget 去掉 awaitingReply/打字动画，标签「人工客服/客服」；ChatAdmin 自动回复统一显示"自动回复"。DB 已迁移：welcome 去掉"AI助手"措辞，4 个默认问题补齐 answer。curl + 截图验证通过
-- 2026-07-07 部署目标回到 Emergent 平台（用户放弃阿里云）：已确认 .env 未设 LOCAL_STORAGE=1，上传走 Emergent 对象存储（持久化，无 Pod 重启丢图风险）；阿里云相关文件（deploy.sh/DEPLOY_ALIYUN.md/CDN_ALIYUN.md/docker 配置）暂保留，待用户确认后清理
+- 2026-07-07 部署目标回到 Emergent 平台（用户放弃阿里云）：已确认 .env 未设 LOCAL_STORAGE=1，上传走 Emergent 对象存储（持久化，无 Pod 重启丢图风险）；阿里云相关文件（deploy.sh/DEPLOY_ALIYUN.md/CDN_ALIYUN.md/Dockerfile×2/docker-compose×2/nginx×2）已于 2026-07-07 全部删除；server.py 删除 LOCAL_STORAGE/UPLOAD_DIR 本地磁盘分支，仅保留 Emergent 对象存储；backend/.env 删除无用的 AI_BASE_URL/AI_API_KEY/AI_MODEL
 
 ## 待办优先级
 - P0：eztyv.com DNS 仍残留阿里云 A 记录 47.115.133.9（约 23% 解析到旧服务器），需在 DNS 服务商删除该记录，只保留 Emergent 自定义域名给的 CNAME/记录
 - P0：Emergent 部署成功后到 /admin → 站点设置 → 在线客服：上传真实微信群二维码、按需修改 4 条常见问题的自动回复文案
 - P1：留言邮件/短信通知客服（需集成 Resend / Twilio）
-- P2：清理阿里云部署脚本与文档（用户确认后）；百度/Google Search Console 提交 sitemap
+- P2：百度/Google Search Console 提交 sitemap
 - P2：真实联系电话/邮箱替换占位信息
 
 ## 下一步
 - 项目管理后台 CRUD
 - 留言实时通知
 - SEO 元信息与分享卡片优化
-- 阿里云自部署：DEPLOY_ALIYUN.md（根目录）已含 docker-compose/Dockerfile×2/nginx 配置与平台绑定项说明（EMERGENT_LLM_KEY 依赖、对象存储延续、种子数据、CRA 构建时置空 REACT_APP_BACKEND_URL），待用户 Save to GitHub 导出代码后按文档执行

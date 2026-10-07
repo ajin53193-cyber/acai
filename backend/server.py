@@ -36,8 +36,6 @@ STORAGE_BASE = (os.environ.get("INTEGRATION_PROXY_URL") or "").strip() or "https
 STORAGE_URL = STORAGE_BASE.rstrip("/") + "/objstore/api/v1/storage"
 APP_NAME = "heying-project-club"
 storage_key = None
-UPLOAD_DIR = Path(os.environ.get("UPLOAD_DIR", "/app/uploads"))
-LOCAL_STORAGE = os.environ.get("LOCAL_STORAGE", "") == "1"
 
 
 def init_storage(force: bool = False):
@@ -55,11 +53,6 @@ def init_storage(force: bool = False):
 
 
 def put_object(path: str, data: bytes, content_type: str) -> dict:
-    if LOCAL_STORAGE:
-        dest = UPLOAD_DIR / path
-        dest.parent.mkdir(parents=True, exist_ok=True)
-        dest.write_bytes(data)
-        return {"path": path, "size": len(data)}
     key = init_storage()
     resp = requests.put(
         f"{STORAGE_URL}/objects/{path}",
@@ -72,11 +65,6 @@ def put_object(path: str, data: bytes, content_type: str) -> dict:
 
 
 def get_object(path: str):
-    if LOCAL_STORAGE:
-        dest = UPLOAD_DIR / path
-        if not dest.exists():
-            raise HTTPException(status_code=404, detail="文件不存在")
-        return dest.read_bytes(), "application/octet-stream"
     key = init_storage()
     resp = requests.get(f"{STORAGE_URL}/objects/{path}", headers={"X-Storage-Key": key}, timeout=60)
     resp.raise_for_status()
