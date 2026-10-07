@@ -44,6 +44,7 @@ export default function StatsAdmin({ token, onUnauthorized }) {
   const [daily, setDaily] = useState([]);
   const [visits, setVisits] = useState([]);
   const [funnel, setFunnel] = useState(null);
+  const [channelFunnel, setChannelFunnel] = useState(null);
   const [loading, setLoading] = useState(false);
 
   const headers = { Authorization: `Bearer ${token}` };
@@ -51,16 +52,18 @@ export default function StatsAdmin({ token, onUnauthorized }) {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [o, d, v, f] = await Promise.all([
+      const [o, d, v, f, cf] = await Promise.all([
         axios.get(`${API}/admin/stats/overview`, { headers, params: { date } }),
         axios.get(`${API}/admin/stats/daily`, { headers, params: { days: 14 } }),
         axios.get(`${API}/admin/stats/visits`, { headers, params: { date } }),
         axios.get(`${API}/admin/stats/funnel`, { headers, params: { days: 14 } }),
+        axios.get(`${API}/admin/stats/channel-funnel`, { headers, params: { days: 30 } }),
       ]);
       setOverview(o.data);
       setDaily(d.data.days);
       setVisits(v.data.visits);
       setFunnel(f.data);
+      setChannelFunnel(cf.data);
     } catch (err) {
       if (err.response?.status === 401) onUnauthorized();
       else toast.error("加载统计数据失败");
@@ -181,6 +184,45 @@ export default function StatsAdmin({ token, onUnauthorized }) {
               </div>
             </>
           )}
+        </div>
+      )}
+
+      {channelFunnel && channelFunnel.channels.length > 0 && (
+        <div className="glass-card rounded-2xl p-6" data-testid="stats-channel-funnel-card">
+          <h3 className="font-display text-base font-bold text-gold-gradient">渠道效果对比（近 30 天）</h3>
+          <p className="mt-1 text-xs text-slate-500">哪个渠道从访问到进群的转化率最高，推广投放一看便知</p>
+          <div className="mt-5 overflow-x-auto">
+            <table className="w-full min-w-[560px] text-xs">
+              <thead>
+                <tr className="border-b border-amber-500/10 text-left text-slate-500">
+                  <th className="pb-2 pr-3 font-normal">渠道</th>
+                  <th className="pb-2 pr-3 font-normal">访问</th>
+                  <th className="pb-2 pr-3 font-normal">发起咨询</th>
+                  <th className="pb-2 pr-3 font-normal">收到二维码</th>
+                  <th className="pb-2 pr-3 font-normal">访问→咨询</th>
+                  <th className="pb-2 font-normal">访问→收码</th>
+                </tr>
+              </thead>
+              <tbody>
+                {channelFunnel.channels.map((c, i) => {
+                  const best = c.full_rate !== null && c.full_rate > 0 && c.full_rate === Math.max(...channelFunnel.channels.map((x) => x.full_rate ?? 0));
+                  return (
+                    <tr key={c.source} className={`border-b border-amber-500/5 ${best ? "text-[#FFE896]" : "text-slate-300"}`} data-testid={`channel-row-${i}`}>
+                      <td className="py-2 pr-3">
+                        <span className="font-medium">{sourceLabel(c.source)}</span>
+                        {best && <span className="ml-2 rounded-full bg-gold-gradient px-1.5 py-0.5 text-[9px] font-bold text-[#060B18]" data-testid="channel-best-badge">最优</span>}
+                      </td>
+                      <td className="py-2 pr-3">{c.visits}</td>
+                      <td className="py-2 pr-3">{c.chats}</td>
+                      <td className="py-2 pr-3">{c.qr}</td>
+                      <td className="py-2 pr-3 text-[#E5C158]">{c.chat_rate === null ? "—" : `${c.chat_rate}%`}</td>
+                      <td className="py-2 font-bold text-[#E5C158]">{c.full_rate === null ? "—" : `${c.full_rate}%`}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
 

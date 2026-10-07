@@ -1168,6 +1168,57 @@ async def stats_funnel(days: int = 14, _: str = Depends(require_admin)):
     return {"daily": daily, "totals": totals}
 
 
+@api_router.get("/admin/stats/channel-funnel")
+async def stats_channel_funnel(days: int = 30, _: str = Depends(require_admin)):
+    days = max(1, min(days, 90))
+    today = datetime.now(CN_TZ)
+    start = (today - timedelta(days=days - 1)).strftime("%Y-%m-%d")
+    visit_rows = await db.visits.aggregate([
+        {"$match": {"date": {"$gte": start}}},
+        {"$group": {"_id": {"$ifNull": ["$source", ""]}, "count": {"$sum": 1}}},
+    ]).to_list(100)
+    visits_by_src = {r["_id"] or "": r["count"] for r in visit_rows}
+    sessions = await db.chat_sessions.find({}, {"_id": 0, "id": 1, "source": 1, "created_at": 1}).to_list(100000)
+    session_src = {}
+    chats_by_src = {}
+    for s in sessions:
+        session_src[s["id"]] = s.get("source", "") or ""
+        try:
+            day = datetime.fromisoformat(s["created_at"]).astimezone(CN_TZ).strftime("%Y-%m-%d")
+        except (ValueError, TypeError):
+            continue
+        if day >= start:
+            src = s.get("source", "") or ""
+            chats_by_src[src] = chats_by_src.get(src, 0) + 1
+    pushes = await db.qr_pushes.find({}, {"_id": 0, "session_id": 1, "created_at": 1}).to_list(100000)
+    qr_by_src = {}
+    for p in pushes:
+        try:
+            day = datetime.fromisoformat(p["created_at"]).astimezone(CN_TZ).strftime("%Y-%m-%d")
+        except (ValueError, TypeError):
+            continue
+        if day < start:
+            continue
+        src = session_src.get(p.get("session_id"), "")
+        qr_by_src[src] = qr_by_src.get(src, 0) + 1
+    channels = []
+    for src in set(visits_by_src) | set(chats_by_src) | set(qr_by_src):
+        v = visits_by_src.get(src, 0)
+        c = chats_by_src.get(src, 0)
+        q = qr_by_src.get(src, 0)
+        channels.append({
+            "source": src or "直接访问",
+            "visits": v,
+            "chats": c,
+            "qr": q,
+            "chat_rate": round(c / v * 100) if v else None,
+            "qr_rate": round(q / c * 100) if c else None,
+            "full_rate": round(q / v * 100) if v else None,
+        })
+    channels.sort(key=lambda x: (-x["visits"], -x["chats"]))
+    return {"channels": channels, "days": days}
+
+
 @api_router.get("/admin/stats/visits")
 async def stats_visits(date: str, _: str = Depends(require_admin)):
     visits = await db.visits.find({"date": date}, {"_id": 0, "ua": 0}).sort("created_at", -1).to_list(300)
