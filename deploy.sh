@@ -5,12 +5,22 @@ set -e
 
 echo "==> 检查 Docker ..."
 if ! command -v docker >/dev/null 2>&1; then
-  echo "==> 安装 Docker ..."
-  curl -fsSL https://get.docker.com | bash
+  echo "==> 安装 Docker（阿里云镜像源）..."
+  curl -fsSL https://get.docker.com -o /tmp/get-docker.sh
+  bash /tmp/get-docker.sh --mirror Aliyun
 fi
 if ! docker compose version >/dev/null 2>&1; then
   echo "==> 安装 docker compose 插件 ..."
   apt-get update && apt-get install -y docker-compose-plugin
+fi
+
+echo "==> 配置 Docker 国内镜像加速 ..."
+if [ ! -f /etc/docker/daemon.json ]; then
+  mkdir -p /etc/docker
+  cat > /etc/docker/daemon.json << 'EOF'
+{"registry-mirrors": ["https://docker.m.daocloud.io"]}
+EOF
+  systemctl restart docker || true
 fi
 
 echo "==> 检查环境变量 backend/.env ..."
