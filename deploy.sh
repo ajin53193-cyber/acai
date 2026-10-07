@@ -27,7 +27,7 @@ fi
 
 echo "==> 检查环境变量 backend/.env ..."
 if [ ! -f backend/.env ]; then
-  cp backend/.env.example backend/.env
+  cp backend/env.example backend/.env
   echo ""
   echo "================================================"
   echo "  已生成 backend/.env，请先编辑填写："
