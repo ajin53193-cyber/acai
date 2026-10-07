@@ -1,5 +1,8 @@
 # 阿里云部署指南（合赢项目社官网）
 
+> **最快路径**：代码拉到服务器后 → `nano backend/.env` 填好密钥 → `bash deploy.sh` 一键完成。
+> 项目根目录已自带：`deploy.sh`（一键脚本）、`docker-compose.yml`、`Dockerfile.backend`、`Dockerfile.frontend`、`nginx.conf`、`backend/.env.example`。
+
 本项目 = React 前端（构建后为静态文件）+ FastAPI 后端（8001 端口）+ MongoDB。
 推荐使用 **Docker Compose** 在阿里云轻量应用服务器上一键起服务。
 
