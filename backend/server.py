@@ -178,6 +178,12 @@ class EdgeItem(BaseModel):
     image: str = ""
 
 
+class MilestoneItem(BaseModel):
+    year: str = Field(min_length=1, max_length=10)
+    title: str = Field(min_length=1, max_length=30)
+    desc: str = Field(default="", max_length=200)
+
+
 DEFAULT_CHAT_QUESTIONS = ["你们有什么项目？", "怎么合作？", "收益怎么样？", "怎么联系客服？"]
 
 
@@ -206,6 +212,7 @@ class SiteSettings(BaseModel):
     chat: ChatConfig = ChatConfig()
     tiers: List[TierItem] = Field(default_factory=list)
     edges: List[EdgeItem] = Field(default_factory=list)
+    milestones: List[MilestoneItem] = Field(default_factory=list)
 
 
 class ArticleInput(BaseModel):

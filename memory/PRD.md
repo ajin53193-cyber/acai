@@ -51,6 +51,7 @@
 - 2026-07-03 修复：手机端页面标题区出现偏亮蓝色补丁（光晕降模糊后边缘硬化）——手机端光晕统一加 opacity 0.35 保持若有若无；「在线咨询/联系客服/立即联系客服」按钮（合作页 CTA、联系页、底部导航、首页 CTA）统一改为直接弹出在线客服聊天窗（hy:open-chat 全局事件），不再跳转页面
 - 2026-07-07 应用户要求移除「核心团队」版块（示例头像+姓名，真实业务不适用）：关于我们页整节删除；后台「站点设置 → 核心团队」编辑卡片同步删除；前端默认值与本地团队照片（/public/images/team/）清理完毕，后端 settings.team 字段保留但不再使用
 - 2026-07-07 Logo 重设计进行中：AI 生成 4 款候选（/public/images/logo-concepts/logo-1~4.webp：六合徽/双环/元宝/星盾），等用户选定后抠图透明化并替换全站 Logo + favicon
+- 2026-07-07 关于页新增「平台发展历程」时间轴版块（金线+节点圆点+年份徽章，5 个默认节点 2022-2026），后台「站点设置 → 平台发展历程」可增删改（settings.milestones，MilestoneItem: year/title/desc）；用户确认阿里云自部署路径（域名已备案），DEPLOY_ALIYUN.md 已就绪；2026-07-07 已触发 redeploy 上线
 - 后端接口：GET /api/projects、GET /api/settings、POST /api/contact、POST /api/admin/login、GET/PATCH /api/admin/inquiries、GET/POST/PUT/DELETE /api/admin/projects、PATCH /api/admin/projects/{id}/publish、PUT /api/admin/settings、POST /api/admin/upload、GET /api/files/{path}
 - 9 个种子项目（绿色能源/科技创新/商业渠道/实体产业）
 - 响应式：375 / 768 / 1366 均验证通过

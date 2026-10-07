@@ -33,6 +33,13 @@ export const DEFAULT_SETTINGS = {
     { count: "20人团队", income: "5-6万", featured: true },
     { count: "50人团队", income: "10万以上", featured: false },
   ],
+  milestones: [
+    { year: "2022", title: "平台创立", desc: "合赢项目社正式成立，确立“专业审核、稳定供给”的项目标准。" },
+    { year: "2023", title: "团长体系上线", desc: "面向全国招募团队长，跑通项目审核、评估、整合全流程。" },
+    { year: "2024", title: "项目库扩容", desc: "在架优质项目突破 30 个，覆盖绿色能源、科技创新、商业渠道、实体产业。" },
+    { year: "2025", title: "服务升级", desc: "专属客服一对一护航机制上线，合作伙伴突破 100 家。" },
+    { year: "2026", title: "全新升级", desc: "官网与 AI 在线客服系统全新上线，每月新项目在微信群内同步分享。" },
+  ],
   edges: [
     { title: "专业项目审核", desc: "每个项目经过资质、模式、现金流三重审核评估，真实可靠才上架。", image: "/images/ui/edge-audit.webp" },
     { title: "稳定项目供给", desc: "团队对接资源项目，专业评估整合，为团队长持续输出稳定项目。", image: "/images/ui/edge-stable.webp" },
@@ -57,6 +64,7 @@ export const fetchSettings = () => {
           chat: { ...DEFAULT_SETTINGS.chat, ...(res.data.chat || {}) },
           tiers: res.data.tiers && res.data.tiers.length ? res.data.tiers : DEFAULT_SETTINGS.tiers,
           edges: res.data.edges && res.data.edges.length ? res.data.edges : DEFAULT_SETTINGS.edges,
+          milestones: res.data.milestones && res.data.milestones.length ? res.data.milestones : DEFAULT_SETTINGS.milestones,
         };
         return cache;
       })

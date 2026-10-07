@@ -14,7 +14,7 @@ const VALUES = [
 const AVATARS_PLACEHOLDER = [];
 
 export default function About() {
-  const { stats } = useSettings();
+  const { stats, milestones } = useSettings();
 
   return (
     <main className="pt-28" data-testid="about-page">
@@ -108,6 +108,24 @@ export default function About() {
                     <h3 className="font-display text-base font-bold text-gold-gradient md:text-xl">{v.title}</h3>
                     <p className="mt-2 text-xs leading-relaxed text-slate-400 md:mt-3 md:text-sm">{v.desc}</p>
                   </div>
+                </div>
+              </Reveal>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section className="py-14 md:py-20" data-testid="about-milestones-section">
+        <div className="mx-auto max-w-4xl px-4 sm:px-8">
+          <SectionHeading title="平台发展历程" subtitle="一步一个脚印，与合作伙伴共同成长" />
+          <div className="relative ml-2 border-l border-amber-500/25 pl-8">
+            {milestones.map((m, i) => (
+              <Reveal key={`${m.year}-${i}`} delay={i * 0.08}>
+                <div className="relative pb-8 last:pb-0 md:pb-10" data-testid={`milestone-item-${i}`}>
+                  <span className="absolute -left-[39.5px] top-1 h-3.5 w-3.5 rounded-full bg-gold-gradient shadow-[0_0_12px_rgba(212,175,55,0.7)]" />
+                  <div className="inline-block rounded-full border border-amber-500/30 bg-amber-500/5 px-3 py-0.5 font-display text-xs font-bold tracking-[0.2em] text-[#E5C158] md:text-sm">{m.year}</div>
+                  <h3 className="mt-2.5 font-display text-base font-bold text-slate-50 md:text-xl">{m.title}</h3>
+                  <p className="mt-1.5 text-xs leading-relaxed text-slate-400 md:text-sm">{m.desc}</p>
                 </div>
               </Reveal>
             ))}

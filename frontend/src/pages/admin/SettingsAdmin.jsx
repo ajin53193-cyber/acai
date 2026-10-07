@@ -15,6 +15,7 @@ export default function SettingsAdmin({ token, onUnauthorized }) {
   const [chatCfg, setChatCfg] = useState(DEFAULT_SETTINGS.chat);
   const [tiers, setTiers] = useState(DEFAULT_SETTINGS.tiers);
   const [edges, setEdges] = useState(DEFAULT_SETTINGS.edges);
+  const [milestones, setMilestones] = useState(DEFAULT_SETTINGS.milestones);
   const [saving, setSaving] = useState(false);
 
   const headers = { Authorization: `Bearer ${token}` };
@@ -31,6 +32,7 @@ export default function SettingsAdmin({ token, onUnauthorized }) {
         setChatCfg(chatMerged);
         if (res.data.tiers && res.data.tiers.length) setTiers(res.data.tiers);
         if (res.data.edges && res.data.edges.length) setEdges(res.data.edges);
+        if (res.data.milestones && res.data.milestones.length) setMilestones(res.data.milestones);
       })
       .catch(() => {});
   }, []);
@@ -44,11 +46,13 @@ export default function SettingsAdmin({ token, onUnauthorized }) {
     setTiers((prev) => prev.map((t, idx) => (idx === i ? { ...t, [key]: e.target.value } : t)));
   const setEdge = (i, key) => (e) =>
     setEdges((prev) => prev.map((x, idx) => (idx === i ? { ...x, [key]: e.target.value } : x)));
+  const setMilestone = (i, key) => (e) =>
+    setMilestones((prev) => prev.map((x, idx) => (idx === i ? { ...x, [key]: e.target.value } : x)));
 
   const save = async () => {
     setSaving(true);
     try {
-      await axios.put(`${API}/admin/settings`, { contact, stats, categories: categories.map((c) => c.trim()).filter(Boolean), chat: { ...chatCfg, questions: (chatCfg.questions || []).map((q) => ({ text: (q.text || "").trim(), image: q.image || "" })).filter((q) => q.text) }, tiers: tiers.filter((t) => t.count.trim() && t.income.trim()), edges: edges.filter((x) => x.title.trim()) }, { headers });
+      await axios.put(`${API}/admin/settings`, { contact, stats, categories: categories.map((c) => c.trim()).filter(Boolean), chat: { ...chatCfg, questions: (chatCfg.questions || []).map((q) => ({ text: (q.text || "").trim(), image: q.image || "" })).filter((q) => q.text) }, tiers: tiers.filter((t) => t.count.trim() && t.income.trim()), edges: edges.filter((x) => x.title.trim()), milestones: milestones.filter((x) => x.year.trim() && x.title.trim()) }, { headers });
       invalidateSettings();
       toast.success("设置已保存，前台页面已同步更新");
     } catch (err) {
@@ -337,6 +341,43 @@ export default function SettingsAdmin({ token, onUnauthorized }) {
                   onClick={() => setEdges(edges.filter((_, idx) => idx !== i))}
                   className="rounded-full border border-red-500/30 p-2.5 text-red-300 transition-colors hover:bg-red-500/10"
                   aria-label="删除优势"
+                >
+                  <Trash2 size={14} />
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="glass-card rounded-3xl p-7" data-testid="settings-milestones-card">
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="font-display text-lg font-bold text-gold-gradient">平台发展历程</h3>
+            <p className="mt-1 text-xs text-slate-500">显示在「关于我们」页面的发展历程时间轴，按年份排列</p>
+          </div>
+          <button
+            data-testid="settings-milestone-add-btn"
+            onClick={() => setMilestones([...milestones, { year: "", title: "", desc: "" }])}
+            className="flex items-center gap-1.5 rounded-full border border-amber-500/30 px-4 py-2 text-xs text-[#E5C158] transition-colors hover:bg-amber-500/10"
+          >
+            <Plus size={13} /> 添加节点
+          </button>
+        </div>
+        <div className="mt-6 space-y-5">
+          {milestones.map((m, i) => (
+            <div key={i} className="rounded-2xl border border-amber-500/10 bg-[#060B18]/50 p-4" data-testid={`settings-milestone-row-${i}`}>
+              <div className="flex flex-wrap items-center gap-4">
+                <div className="grid flex-1 gap-3 sm:grid-cols-[110px_1fr_1.4fr]">
+                  <input data-testid={`settings-milestone-year-${i}`} value={m.year} onChange={setMilestone(i, "year")} placeholder="年份，如：2024" className={inputCls} />
+                  <input data-testid={`settings-milestone-title-${i}`} value={m.title} onChange={setMilestone(i, "title")} placeholder="节点标题，如：平台创立" className={inputCls} />
+                  <input data-testid={`settings-milestone-desc-${i}`} value={m.desc} onChange={setMilestone(i, "desc")} placeholder="一句话介绍" className={inputCls} />
+                </div>
+                <button
+                  data-testid={`settings-milestone-remove-${i}`}
+                  onClick={() => setMilestones(milestones.filter((_, idx) => idx !== i))}
+                  className="rounded-full border border-red-500/30 p-2.5 text-red-300 transition-colors hover:bg-red-500/10"
+                  aria-label="删除节点"
                 >
                   <Trash2 size={14} />
                 </button>
