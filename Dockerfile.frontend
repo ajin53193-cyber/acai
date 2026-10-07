@@ -1,7 +1,7 @@
 FROM node:20-alpine AS build
 WORKDIR /app
-COPY frontend/package.json frontend/yarn.lock ./
-RUN yarn install --frozen-lockfile
+COPY frontend/package.json ./
+RUN yarn install --registry https://registry.npmmirror.com
 COPY frontend/ .
 ENV REACT_APP_BACKEND_URL=""
 ENV NODE_OPTIONS="--max-old-space-size=1536"
