@@ -36,6 +36,8 @@ STORAGE_BASE = (os.environ.get("INTEGRATION_PROXY_URL") or "").strip() or "https
 STORAGE_URL = STORAGE_BASE.rstrip("/") + "/objstore/api/v1/storage"
 APP_NAME = "heying-project-club"
 storage_key = None
+UPLOAD_DIR = Path(os.environ.get("UPLOAD_DIR", "/app/uploads"))
+LOCAL_STORAGE = os.environ.get("LOCAL_STORAGE", "") == "1"
 
 
 def init_storage(force: bool = False):
@@ -53,6 +55,11 @@ def init_storage(force: bool = False):
 
 
 def put_object(path: str, data: bytes, content_type: str) -> dict:
+    if LOCAL_STORAGE:
+        dest = UPLOAD_DIR / path
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        dest.write_bytes(data)
+        return {"path": path, "size": len(data)}
     key = init_storage()
     resp = requests.put(
         f"{STORAGE_URL}/objects/{path}",
@@ -65,6 +72,11 @@ def put_object(path: str, data: bytes, content_type: str) -> dict:
 
 
 def get_object(path: str):
+    if LOCAL_STORAGE:
+        dest = UPLOAD_DIR / path
+        if not dest.exists():
+            raise HTTPException(status_code=404, detail="文件不存在")
+        return dest.read_bytes(), "application/octet-stream"
     key = init_storage()
     resp = requests.get(f"{STORAGE_URL}/objects/{path}", headers={"X-Storage-Key": key}, timeout=60)
     resp.raise_for_status()
@@ -518,20 +530,35 @@ async def generate_ai_reply(session_id: str):
             "访客询问怎么加入、联系方式或人工客服时，告知客服已发送微信服务号二维码，请扫码关注后加入团队长微信群，人工客服会尽快一对一对接，不要编造微信号或电话；"
             "知识库中没有的信息不要编造，引导访客留下姓名和电话，人工客服会尽快跟进。"
         )
-        chat = LlmChat(
-            api_key=os.environ["EMERGENT_LLM_KEY"],
-            session_id=f"kefu-{session_id}-{uuid.uuid4()}",
-            system_message=system,
-        ).with_model("openai", "gpt-5.4")
+        ai_base_url = os.environ.get("AI_BASE_URL", "").strip()
+        ai_api_key = os.environ.get("AI_API_KEY", "").strip()
+        user_prompt = f"最近对话记录：\n{transcript}\n\n请回复访客的最后一条消息。"
+        if ai_base_url and ai_api_key:
+            from openai import AsyncOpenAI
 
-        reply = ""
-        async for event in chat.stream_message(UserMessage(text=f"最近对话记录：\n{transcript}\n\n请回复访客的最后一条消息。")):
-            if isinstance(event, TextDelta):
-                reply += event.content
-            elif isinstance(event, StreamDone):
-                break
+            client = AsyncOpenAI(base_url=ai_base_url, api_key=ai_api_key, timeout=45)
+            resp = await client.chat.completions.create(
+                model=os.environ.get("AI_MODEL", "deepseek-chat"),
+                messages=[
+                    {"role": "system", "content": system},
+                    {"role": "user", "content": user_prompt},
+                ],
+            )
+            reply = (resp.choices[0].message.content or "").strip()
+        else:
+            chat = LlmChat(
+                api_key=os.environ["EMERGENT_LLM_KEY"],
+                session_id=f"kefu-{session_id}-{uuid.uuid4()}",
+                system_message=system,
+            ).with_model("openai", "gpt-5.4")
 
-        reply = reply.strip()
+            reply = ""
+            async for event in chat.stream_message(UserMessage(text=user_prompt)):
+                if isinstance(event, TextDelta):
+                    reply += event.content
+                elif isinstance(event, StreamDone):
+                    break
+            reply = reply.strip()
         if not reply:
             return
         now = datetime.now(timezone.utc).isoformat()

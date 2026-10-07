@@ -11,6 +11,8 @@ services:
       dockerfile: Dockerfile.backend
     restart: always
     env_file: backend/.env
+    volumes:
+      - ./uploads:/app/uploads
     depends_on:
       - mongo
 
