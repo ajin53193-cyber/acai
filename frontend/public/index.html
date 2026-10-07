@@ -39,7 +39,12 @@
         <noscript><link rel="stylesheet" href="%PUBLIC_URL%/fonts/fonts.css" /></noscript>
         <title>合赢项目社 | 聚力项目，合作共赢</title>
         <script>window.addEventListener("error",function(e){if(e.error instanceof DOMException&&e.error.name==="DataCloneError"&&e.message&&e.message.includes("PerformanceServerTiming")){e.stopImmediatePropagation();e.preventDefault()}},true);</script>
-        <script src="https://assets.emergent.sh/scripts/emergent-main.js"></script>
+        <script>
+            // Emergent 平台脚本仅在预览域名下加载，正式站（自有域名）不加载境外脚本，避免国内访问阻塞
+            if (location.hostname.endsWith("emergentagent.com")) {
+                document.write('<script src="https://assets.emergent.sh/scripts/emergent-main.js"><\/script>');
+            }
+        </script>
     </head>
     <body>
         <noscript>
@@ -49,6 +54,8 @@
         </noscript>
         <div id="root"></div>
         <script>
+            // PostHog 统计仅在 Emergent 预览域名下启用，正式站不上报境外分析服务
+            if (location.hostname.endsWith("emergentagent.com")) {
             !(function (t, e) {
                 var o, n, p, r;
                 e.__SV ||
@@ -118,6 +125,7 @@
                     capturePerformance: false,
                 },
             });
+            }
         </script>
     </body>
 </html>
