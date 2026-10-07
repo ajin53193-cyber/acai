@@ -612,7 +612,22 @@ async def generate_ai_reply(session_id: str):
             {"$set": {"last_message_at": now, "last_message": reply[:50]}},
         )
     except Exception as e:
+        import traceback
         print(f"AI reply failed for {session_id}: {e}")
+        traceback.print_exc()
+        # 失败兜底：给访客一条人工接管提示，避免访客干等无响应
+        try:
+            await db.chat_messages.insert_one({
+                "id": str(uuid.uuid4()),
+                "session_id": session_id,
+                "sender": "admin",
+                "via": "ai",
+                "text": "AI 客服暂时繁忙，请您留下姓名和联系电话，或回复「怎么合作」获取微信群二维码，人工客服会尽快与您一对一对接。",
+                "image": "",
+                "created_at": datetime.now(timezone.utc).isoformat(),
+            })
+        except Exception:
+            pass
 
 
 @api_router.get("/articles")
