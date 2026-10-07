@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import { MessagesSquare, Send, MousePointerClick, QrCode } from "lucide-react";
 import { API } from "@/lib/api";
 import { toFullUrl } from "@/components/ImageUpload";
+import { sourceLabel } from "@/lib/source";
 
 export default function ChatAdmin({ token, onUnauthorized }) {
   const [sessions, setSessions] = useState([]);
@@ -161,7 +162,14 @@ export default function ChatAdmin({ token, onUnauthorized }) {
               }`}
             >
               <div className="flex items-center justify-between">
-                <span className="text-sm font-bold text-slate-100">{s.name}</span>
+                <span className="flex items-center gap-1.5 text-sm font-bold text-slate-100">
+                  {s.name}
+                  {s.source && (
+                    <span className="rounded-full border border-amber-500/30 bg-amber-500/10 px-1.5 py-0.5 text-[9px] font-normal text-[#E5C158]" data-testid={`chat-session-source-${i}`}>
+                      {sourceLabel(s.source)}
+                    </span>
+                  )}
+                </span>
                 {s.unread_admin && <span className="h-2 w-2 rounded-full bg-[#E5C158] shadow-[0_0_8px_rgba(229,193,88,0.9)]" />}
               </div>
               <div className="mt-1 truncate text-xs text-slate-500">{s.last_message || "…"}</div>

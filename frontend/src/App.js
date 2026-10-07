@@ -4,6 +4,7 @@ import Lenis from "lenis";
 import axios from "axios";
 import { Toaster } from "sonner";
 import { API } from "@/lib/api";
+import { captureSource, getSource } from "@/lib/source";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 import { MobileTabBar } from "@/components/MobileTabBar";
@@ -24,13 +25,14 @@ const Layout = () => {
   const isAdmin = pathname.startsWith("/admin");
 
   useEffect(() => {
+    captureSource();
     if (lenisRef.current) {
       lenisRef.current.scrollTo(0, { immediate: true });
     } else {
       window.scrollTo(0, 0);
     }
     if (!pathname.startsWith("/admin")) {
-      axios.post(`${API}/track`, { path: pathname }).catch(() => {});
+      axios.post(`${API}/track`, { path: pathname, source: getSource() }).catch(() => {});
     }
   }, [pathname]);
 

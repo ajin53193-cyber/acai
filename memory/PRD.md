@@ -64,6 +64,8 @@
 - 2026-07-07 二维码防过期提醒：ChatConfig 新增 qr_updated_at 字段，PUT /admin/settings 检测到 qr_image 变更时自动打时间戳（未换码则保留旧时间）；后台「站点设置 → 在线客服 → 微信群二维码」下方显示上传时间与天数，≥5 天琥珀色预警、≥6 天红色警告「请立即换码」
 - 2026-07-07 进群转化统计：每次二维码自动推送落库 qr_pushes 集合；新增 GET /api/admin/chat/qr-stats（今日/累计/近14天分桶，按 UTC+8 中国时间统计）；后台「在线客服」页顶部新增统计卡片（今日+累计数字 + 14 天金色柱状图，复用访问统计样式，15 秒自动刷新）
 - 2026-07-07 CDN 指南：/app/CDN_ALIYUN.md（阿里云 CDN 添加域名→回源HOST→/api/ 不缓存 + /images//fonts/ 30 天缓存→HTTPS→聚名网 DNS 改 CNAME→验证 X-Cache→部署后需刷新缓存）
+- 2026-07-07 活码管理（多群二维码）：ChatConfig 新增 qr_codes: List[QrCodeItem{image,label,uploaded_at,active}]；migrate_qr_codes/sync_active_qr 两个辅助函数保证旧单码数据自动迁移、qr_image 始终同步为当前启用码（全部停用则自动停止推送）；PUT settings 按 image 对比为新图打上传时间戳；后台「站点设置 → 在线客服」改为多码列表编辑器（每行：换图/群序号标签/启用开关/过期提醒/已推送次数，推送 ≥150 次琥珀色预警满员、≥180 次红色警告换群）；qr_pushes 记录 image+label，qr-stats 新增 by_image 分群统计
+- 2026-07-07 访客来源追踪：新增 /frontend/src/lib/source.js（captureSource 从 URL ?from=/utm_source=/channel= 捕获到 sessionStorage 会话内持续携带，sourceLabel 映射 pyq→朋友圈/gzh→公众号/haibao→海报/xhs→小红书/dy→抖音等）；TrackInput/ChatStart 新增 source 字段；visits 与 chat_sessions 落库来源；stats overview 新增 sources 聚合（空值归入"直接访问"）；访问统计页新增「来源渠道占比」卡片（三列网格与设备/浏览器并列）；客服会话列表访客名旁显示来源标签（如"公众号"金色小标）
 - 后端接口：GET /api/projects、GET /api/settings、POST /api/contact、POST /api/admin/login、GET/PATCH /api/admin/inquiries、GET/POST/PUT/DELETE /api/admin/projects、PATCH /api/admin/projects/{id}/publish、PUT /api/admin/settings、POST /api/admin/upload、GET /api/files/{path}
 - 9 个种子项目（绿色能源/科技创新/商业渠道/实体产业）
 - 响应式：375 / 768 / 1366 均验证通过

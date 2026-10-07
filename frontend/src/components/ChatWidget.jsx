@@ -4,6 +4,7 @@ import axios from "axios";
 import { MessageCircle, X, Send } from "lucide-react";
 import { API } from "@/lib/api";
 import { toFullUrl } from "@/components/ImageUpload";
+import { getSource } from "@/lib/source";
 import { useSettings } from "@/lib/useSettings";
 
 const SID_KEY = "hy_chat_sid";
@@ -68,7 +69,7 @@ export const ChatWidget = () => {
     if (!name.trim()) return;
     localStorage.setItem(NAME_KEY, name.trim());
     try {
-      await axios.post(`${API}/chat/start`, { session_id: sid.current, name: name.trim() });
+      await axios.post(`${API}/chat/start`, { session_id: sid.current, name: name.trim(), source: getSource() });
     } catch { /* retry on send */ }
     setStarted(true);
   };
@@ -77,7 +78,7 @@ export const ChatWidget = () => {
     if (!value.trim() || sending) return;
     setSending(true);
     try {
-      await axios.post(`${API}/chat/start`, { session_id: sid.current, name: name.trim() || "访客" });
+      await axios.post(`${API}/chat/start`, { session_id: sid.current, name: name.trim() || "访客", source: getSource() });
       await axios.post(`${API}/chat/${sid.current}/messages`, { text: value.trim() });
       setText("");
       if (chat.ai_enabled) setAwaitingReply(true);

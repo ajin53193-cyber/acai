@@ -3,6 +3,7 @@ import axios from "axios";
 import { toast } from "sonner";
 import { BarChart3, Eye, Users, Globe, Search } from "lucide-react";
 import { API } from "@/lib/api";
+import { sourceLabel } from "@/lib/source";
 
 const todayStr = () => {
   const d = new Date();
@@ -112,9 +113,15 @@ export default function StatsAdmin({ token, onUnauthorized }) {
         ))}
       </div>
 
-      <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
+      <div className="grid grid-cols-1 gap-5 md:grid-cols-3">
         <ShareCard title={`设备类型占比（${date}）`} items={overview?.devices || []} total={overview?.visits || 0} testid="stats-devices-card" />
         <ShareCard title={`浏览器占比（${date}）`} items={overview?.browsers || []} total={overview?.visits || 0} testid="stats-browsers-card" />
+        <ShareCard
+          title={`来源渠道占比（${date}）`}
+          items={(overview?.sources || []).map((s) => ({ ...s, name: sourceLabel(s.name) }))}
+          total={overview?.visits || 0}
+          testid="stats-sources-card"
+        />
       </div>
 
       <div className="glass-card rounded-2xl p-6" data-testid="stats-daily-chart">

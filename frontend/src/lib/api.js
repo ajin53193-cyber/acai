@@ -21,6 +21,7 @@ export const DEFAULT_SETTINGS = {
     welcome: "您好，欢迎来到合赢项目社！请描述您想咨询的问题，客服会尽快回复您。",
     ai_enabled: false,
     qr_image: "",
+    qr_codes: [],
     questions: [
       { text: "你们有什么项目？", image: "" },
       { text: "怎么合作？", image: "" },

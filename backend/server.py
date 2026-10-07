@@ -204,11 +204,19 @@ class QuestionCard(BaseModel):
     image: str = ""
 
 
+class QrCodeItem(BaseModel):
+    image: str = ""
+    label: str = ""
+    uploaded_at: str = ""
+    active: bool = True
+
+
 class ChatConfig(BaseModel):
     welcome: str = "您好，欢迎来到合赢项目社！请描述您想咨询的问题，客服会尽快回复您。"
     ai_enabled: bool = False
     qr_image: str = ""
     qr_updated_at: str = ""
+    qr_codes: List[QrCodeItem] = Field(default_factory=list)
     questions: List[QuestionCard] = Field(default_factory=lambda: [QuestionCard(text=q) for q in DEFAULT_CHAT_QUESTIONS])
 
     @field_validator("questions", mode="before")
@@ -238,6 +246,7 @@ class ArticleInput(BaseModel):
 class ChatStart(BaseModel):
     session_id: str = Field(min_length=8, max_length=64)
     name: str = Field(default="访客", max_length=30)
+    source: str = Field(default="", max_length=50)
 
 
 class ChatMessageInput(BaseModel):
@@ -274,6 +283,7 @@ def lookup_region(ip: str) -> str:
 
 class TrackInput(BaseModel):
     path: str = Field(min_length=1, max_length=200)
+    source: str = Field(default="", max_length=50)
 
 
 def parse_ua(ua: str):
@@ -477,6 +487,31 @@ async def list_projects(category: Optional[str] = None):
     return {"projects": projects}
 
 
+def migrate_qr_codes(cfg: dict) -> dict:
+    """旧的单二维码字段迁移为多码列表（活码管理）。"""
+    if not cfg.get("qr_codes") and cfg.get("qr_image"):
+        cfg["qr_codes"] = [{
+            "image": cfg["qr_image"],
+            "label": "1群",
+            "uploaded_at": cfg.get("qr_updated_at") or datetime.now(timezone.utc).isoformat(),
+            "active": True,
+        }]
+    return cfg
+
+
+def sync_active_qr(cfg: dict) -> dict:
+    """qr_image/qr_updated_at 始终同步为当前启用的群二维码，供聊天推送与联系页直接使用。"""
+    codes = cfg.get("qr_codes") or []
+    active = next((q for q in codes if q.get("active") and q.get("image")), None)
+    if active:
+        cfg["qr_image"] = active["image"]
+        cfg["qr_updated_at"] = active.get("uploaded_at", "")
+    elif codes:
+        cfg["qr_image"] = ""
+        cfg["qr_updated_at"] = ""
+    return cfg
+
+
 @api_router.get("/settings")
 async def get_settings():
     doc = await db.settings.find_one({"key": "site"}, {"_id": 0, "key": 0})
@@ -490,6 +525,7 @@ async def get_settings():
             {"text": q, "image": ""} if isinstance(q, str) else {"text": q.get("text", ""), "image": q.get("image", "")}
             for q in doc["chat"]["questions"]
         ]
+    doc["chat"] = sync_active_qr(migrate_qr_codes(doc["chat"]))
     return doc
 
 
@@ -601,7 +637,7 @@ async def chat_start(data: ChatStart):
     now = datetime.now(timezone.utc).isoformat()
     await db.chat_sessions.update_one(
         {"id": data.session_id},
-        {"$setOnInsert": {"id": data.session_id, "created_at": now},
+        {"$setOnInsert": {"id": data.session_id, "created_at": now, "source": data.source.strip()},
          "$set": {"name": data.name}},
         upsert=True,
     )
@@ -635,8 +671,9 @@ async def chat_send(session_id: str, data: ChatMessageInput):
         {"$set": {"last_message_at": now, "last_message": data.text[:50], "unread_admin": True}},
     )
     settings = await db.settings.find_one({"key": "site"}, {"_id": 0, "chat": 1})
-    chat_cfg = (settings or {}).get("chat") or {}
+    chat_cfg = sync_active_qr(migrate_qr_codes(dict((settings or {}).get("chat") or {})))
     qr_image = chat_cfg.get("qr_image", "")
+    qr_label = next((q.get("label", "") for q in (chat_cfg.get("qr_codes") or []) if q.get("image") == qr_image), "")
     matched_q = None
     matched_img = ""
     for q in chat_cfg.get("questions") or []:
@@ -687,6 +724,8 @@ async def chat_send(session_id: str, data: ChatMessageInput):
         await db.qr_pushes.insert_one({
             "id": str(uuid.uuid4()),
             "session_id": session_id,
+            "image": qr_image,
+            "label": qr_label,
             "created_at": qr_now,
         })
         await db.chat_sessions.update_one(
@@ -785,13 +824,17 @@ async def delete_project(project_id: str, _: str = Depends(require_admin)):
 @api_router.put("/admin/settings")
 async def update_settings(data: SiteSettings, _: str = Depends(require_admin)):
     old = await db.settings.find_one({"key": "site"}, {"_id": 0, "chat": 1})
-    old_chat = (old or {}).get("chat") or {}
+    old_chat = migrate_qr_codes(dict((old or {}).get("chat") or {}))
+    old_images = {q.get("image"): q.get("uploaded_at", "") for q in (old_chat.get("qr_codes") or [])}
     doc = data.model_dump()
-    new_qr = doc["chat"].get("qr_image", "")
-    if new_qr and new_qr != old_chat.get("qr_image", ""):
-        doc["chat"]["qr_updated_at"] = datetime.now(timezone.utc).isoformat()
-    elif not doc["chat"].get("qr_updated_at"):
-        doc["chat"]["qr_updated_at"] = old_chat.get("qr_updated_at", "")
+    chat = migrate_qr_codes(doc["chat"])
+    now_iso = datetime.now(timezone.utc).isoformat()
+    for item in chat.get("qr_codes") or []:
+        if not item.get("image"):
+            continue
+        # 新上传的图片打上当前时间戳；未换图的保留原上传时间
+        item["uploaded_at"] = old_images.get(item["image"]) or now_iso
+    doc["chat"] = sync_active_qr(chat)
     await db.settings.update_one(
         {"key": "site"},
         {"$set": {**doc, "key": "site"}},
@@ -936,15 +979,22 @@ CN_TZ = timezone(timedelta(hours=8))
 
 @api_router.get("/admin/chat/qr-stats")
 async def admin_chat_qr_stats(_: str = Depends(require_admin)):
-    pushes = await db.qr_pushes.find({}, {"_id": 0, "created_at": 1}).to_list(100000)
+    pushes = await db.qr_pushes.find({}, {"_id": 0, "created_at": 1, "image": 1, "label": 1}).to_list(100000)
     now_cn = datetime.now(CN_TZ)
     today = now_cn.strftime("%Y-%m-%d")
     days = [(now_cn - timedelta(days=i)).strftime("%Y-%m-%d") for i in range(13, -1, -1)]
     buckets = {d: 0 for d in days}
+    by_image = {}
     total = 0
     today_count = 0
     for p in pushes:
         total += 1
+        img = p.get("image") or ""
+        if img:
+            slot = by_image.setdefault(img, {"image": img, "label": p.get("label", ""), "count": 0})
+            slot["count"] += 1
+            if p.get("label"):
+                slot["label"] = p["label"]
         try:
             d = datetime.fromisoformat(p["created_at"]).astimezone(CN_TZ).strftime("%Y-%m-%d")
         except (ValueError, TypeError):
@@ -957,6 +1007,7 @@ async def admin_chat_qr_stats(_: str = Depends(require_admin)):
         "total": total,
         "today": today_count,
         "daily": [{"date": d, "count": buckets[d]} for d in days],
+        "by_image": sorted(by_image.values(), key=lambda x: -x["count"]),
     }
 
 
@@ -1010,6 +1061,7 @@ async def track_visit(data: TrackInput, request: Request):
         "ip": ip,
         "region": region,
         "path": path,
+        "source": data.source.strip(),
         "ua": ua,
         "device": device,
         "browser": browser,
@@ -1047,6 +1099,10 @@ async def stats_overview(date: str, _: str = Depends(require_admin)):
         "top_pages": [{"path": p["_id"], "count": p["count"]} for p in pages],
         "devices": await agg_field("device"),
         "browsers": await agg_field("browser"),
+        "sources": [
+            {"name": ("直接访问" if s["name"] in ("未知", "") else s["name"]), "count": s["count"]}
+            for s in await agg_field("source")
+        ],
     }
 
 

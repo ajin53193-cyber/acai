@@ -37,6 +37,17 @@ export default function SettingsAdmin({ token, onUnauthorized }) {
       .catch(() => {});
   }, []);
 
+  const [qrPushStats, setQrPushStats] = useState([]);
+  useEffect(() => {
+    if (!token) return;
+    axios
+      .get(`${API}/admin/chat/qr-stats`, { headers })
+      .then((res) => setQrPushStats(res.data.by_image || []))
+      .catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token]);
+  const pushCountOf = (img) => qrPushStats.find((p) => p.image === img)?.count || 0;
+
   const setContactField = (key) => (e) => setContact({ ...contact, [key]: e.target.value });
   const setStat = (i, key) => (e) =>
     setStats((prev) => prev.map((s, idx) => (idx === i ? { ...s, [key]: e.target.value } : s)));
@@ -248,15 +259,59 @@ export default function SettingsAdmin({ token, onUnauthorized }) {
             </button>
           </div>
           <div className="rounded-2xl border border-amber-500/10 bg-[#060B18]/50 p-4">
-            <div className="text-sm font-medium text-slate-200">微信群二维码</div>
-            <div className="mb-3 mt-0.5 text-xs text-slate-500">访客询问怎么合作/怎么加入/联系方式/人工客服时，聊天窗会自动发送此二维码引导进群；同时显示在联系我们页</div>
-            <ImageUpload
-              token={token}
-              value={chatCfg.qr_image}
-              onChange={(url) => setChatCfg({ ...chatCfg, qr_image: url })}
-              testid="settings-chat-qr-upload"
-            />
-            {chatCfg.qr_image && <QrExpiryNotice updatedAt={chatCfg.qr_updated_at} />}
+            <div className="text-sm font-medium text-slate-200">微信群二维码（活码管理）</div>
+            <div className="mb-3 mt-0.5 text-xs text-slate-500">可上传多个群二维码，访客询问怎么合作/怎么加入/联系方式/人工客服时，自动发送当前启用的群二维码引导进群，同时显示在联系我们页；群快满 200 人或码快过期时会标红提醒换群</div>
+            <div className="space-y-3">
+              {(chatCfg.qr_codes || []).map((q, i) => (
+                <div key={i} className="rounded-xl border border-amber-500/10 bg-[#060B18]/40 p-3" data-testid={`qr-code-row-${i}`}>
+                  <div className="flex flex-wrap items-start gap-3">
+                    <ImageUpload
+                      token={token}
+                      value={q.image}
+                      onChange={(url) => setChatCfg({ ...chatCfg, qr_codes: chatCfg.qr_codes.map((x, idx) => (idx === i ? { ...x, image: url } : x)) })}
+                      testid={`qr-code-upload-${i}`}
+                    />
+                    <div className="min-w-[160px] flex-1 space-y-2">
+                      <input
+                        value={q.label}
+                        onChange={(e) => setChatCfg({ ...chatCfg, qr_codes: chatCfg.qr_codes.map((x, idx) => (idx === i ? { ...x, label: e.target.value } : x)) })}
+                        placeholder="群序号，如：3群"
+                        className={inputCls}
+                        data-testid={`qr-code-label-${i}`}
+                      />
+                      <label className="flex items-center gap-2 text-xs text-slate-400">
+                        <input
+                          type="checkbox"
+                          checked={!!q.active}
+                          onChange={(e) => setChatCfg({ ...chatCfg, qr_codes: chatCfg.qr_codes.map((x, idx) => (idx === i ? { ...x, active: e.target.checked } : x)) })}
+                          data-testid={`qr-code-active-${i}`}
+                          className="h-3.5 w-3.5 accent-[#D4AF37]"
+                        />
+                        启用此群（访客将收到该群二维码）
+                      </label>
+                      {q.image && <QrExpiryNotice updatedAt={q.uploaded_at} pushCount={pushCountOf(q.image)} />}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setChatCfg({ ...chatCfg, qr_codes: chatCfg.qr_codes.filter((_, idx) => idx !== i) })}
+                      data-testid={`qr-code-del-${i}`}
+                      className="rounded-lg border border-red-500/30 p-2 text-red-400 transition-colors hover:bg-red-500/10"
+                      aria-label="删除该群二维码"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <button
+              type="button"
+              onClick={() => setChatCfg({ ...chatCfg, qr_codes: [...(chatCfg.qr_codes || []), { image: "", label: `${(chatCfg.qr_codes || []).length + 1}群`, uploaded_at: "", active: true }] })}
+              data-testid="qr-code-add-btn"
+              className="mt-3 flex items-center gap-1.5 rounded-full border border-amber-500/30 px-4 py-2 text-xs text-[#E5C158] transition-colors hover:bg-amber-500/10"
+            >
+              <Plus size={13} /> 添加群二维码
+            </button>
           </div>
         </div>
       </div>
@@ -400,33 +455,32 @@ export default function SettingsAdmin({ token, onUnauthorized }) {
   );
 }
 
-const QrExpiryNotice = ({ updatedAt }) => {
-  if (!updatedAt) {
-    return (
-      <div className="mt-2 rounded-lg border border-amber-500/20 bg-amber-500/5 px-3 py-2 text-[11px] text-slate-500" data-testid="qr-upload-time">
-        上传时间未知（历史二维码），建议重新上传一次以开启防过期提醒
-      </div>
-    );
+const QrExpiryNotice = ({ updatedAt, pushCount = 0 }) => {
+  const items = [];
+  if (updatedAt) {
+    const days = Math.floor((Date.now() - new Date(updatedAt).getTime()) / 86400000);
+    const timeText = new Date(updatedAt).toLocaleString("zh-CN", { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" });
+    if (days >= 6) items.push({ level: "red", text: `已上传 ${days} 天 · 微信群二维码 7 天过期，请立即重新上传换码！` });
+    else if (days >= 5) items.push({ level: "amber", text: `上传于 ${timeText}（第 ${days + 1} 天）· 即将过期，建议尽快换码` });
+    else items.push({ level: "normal", text: `上传于 ${timeText}（第 ${days + 1} 天）· 7 天有效，到期前此处会标红提醒` });
+  } else {
+    items.push({ level: "normal", text: "上传时间未知（历史二维码），建议重新上传一次以开启防过期提醒" });
   }
-  const days = Math.floor((Date.now() - new Date(updatedAt).getTime()) / 86400000);
-  const timeText = new Date(updatedAt).toLocaleString("zh-CN", { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" });
-  if (days >= 6) {
-    return (
-      <div className="mt-2 rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-2 text-[11px] font-bold text-red-400" data-testid="qr-expiry-warning">
-        已上传 {days} 天 · 微信群二维码 7 天过期，请立即重新上传换码！
-      </div>
-    );
-  }
-  if (days >= 5) {
-    return (
-      <div className="mt-2 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-[11px] text-amber-400" data-testid="qr-expiry-warning">
-        上传于 {timeText}（第 {days + 1} 天）· 即将过期，建议尽快换码
-      </div>
-    );
-  }
+  if (pushCount >= 180) items.push({ level: "red", text: `已推送 ${pushCount} 次 · 群满 200 人后扫码失效，请立即新建群并换码！` });
+  else if (pushCount >= 150) items.push({ level: "amber", text: `已推送 ${pushCount} 次 · 接近 200 人满群，请提前准备新群二维码` });
+  else if (pushCount > 0) items.push({ level: "normal", text: `已推送 ${pushCount} 次 · 群满 200 人后需换群` });
+  const cls = {
+    red: "border-red-500/40 bg-red-500/10 font-bold text-red-400",
+    amber: "border-amber-500/40 bg-amber-500/10 text-amber-400",
+    normal: "border-amber-500/15 bg-amber-500/5 text-slate-500",
+  };
   return (
-    <div className="mt-2 text-[11px] text-slate-500" data-testid="qr-upload-time">
-      上传于 {timeText}（第 {days + 1} 天）· 微信群二维码 7 天有效，到期前此处会标红提醒
+    <div className="space-y-1.5">
+      {items.map((it, i) => (
+        <div key={i} className={`rounded-lg border px-3 py-1.5 text-[11px] ${cls[it.level]}`} data-testid={it.level === "normal" ? "qr-upload-time" : "qr-expiry-warning"}>
+          {it.text}
+        </div>
+      ))}
     </div>
   );
 };
