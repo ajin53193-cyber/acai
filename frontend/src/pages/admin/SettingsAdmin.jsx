@@ -173,7 +173,7 @@ export default function SettingsAdmin({ token, onUnauthorized }) {
 
       <div className="glass-card rounded-3xl p-7" data-testid="settings-chat-card">
         <h3 className="font-display text-lg font-bold text-gold-gradient">在线客服</h3>
-        <p className="mt-1 text-xs text-slate-500">访客打开聊天窗即收到欢迎语 + 微信群二维码；点击常见问题卡片回复固定文案；其余留言由 AI 客服自动回答（可关闭），人工可随时在「在线客服」版块接管</p>
+        <p className="mt-1 text-xs text-slate-500">访客打开聊天窗即收到欢迎语 + 海鸥官方群二维码；点击常见问题卡片回复固定文案；其余留言由 AI 客服自动回答（可关闭），人工可随时在「在线客服」版块接管</p>
         <div className="mt-6 space-y-5">
           <div className="flex items-center justify-between rounded-2xl border border-amber-500/10 bg-[#060B18]/50 p-4">
             <div>
@@ -200,7 +200,7 @@ export default function SettingsAdmin({ token, onUnauthorized }) {
               placeholder="您好，欢迎来到合赢项目社！…"
               className={`${inputCls} resize-none`}
             />
-            <p className="mb-2 mt-3 text-xs text-slate-600">欢迎语下方显示两个按钮：「查看教程」跳转到指定页面，「加入微信群」点击后发送当前群二维码</p>
+            <p className="mb-2 mt-3 text-xs text-slate-600">欢迎语下方显示两个按钮：「查看教程」跳转到指定页面，「加入海鸥官方群」点击后发送当前群二维码</p>
             <div className="grid gap-3 sm:grid-cols-[1fr_1fr_160px]">
               <input
                 data-testid="settings-chat-welcome-tutorial-label"
@@ -296,7 +296,7 @@ export default function SettingsAdmin({ token, onUnauthorized }) {
             </div>
           </div>
           <div className="rounded-2xl border border-amber-500/10 bg-[#060B18]/50 p-4">
-            <div className="text-sm font-medium text-slate-200">微信群二维码（活码管理）</div>
+            <div className="text-sm font-medium text-slate-200">海鸥官方群二维码（活码管理）</div>
             <div className="mb-3 mt-0.5 text-xs text-slate-500">可上传多个群二维码，访客询问怎么合作/怎么加入/联系方式/人工客服时，自动发送当前启用的群二维码引导进群，同时显示在联系我们页；群快满 200 人或码快过期时会标红提醒换群</div>
             <div className="space-y-3">
               {(chatCfg.qr_codes || []).map((q, i) => (
@@ -497,7 +497,7 @@ const QrExpiryNotice = ({ updatedAt, pushCount = 0 }) => {
   if (updatedAt) {
     const days = Math.floor((Date.now() - new Date(updatedAt).getTime()) / 86400000);
     const timeText = new Date(updatedAt).toLocaleString("zh-CN", { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" });
-    if (days >= 6) items.push({ level: "red", text: `已上传 ${days} 天 · 微信群二维码 7 天过期，请立即重新上传换码！` });
+    if (days >= 6) items.push({ level: "red", text: `已上传 ${days} 天 · 群二维码 7 天过期，请立即重新上传换码！` });
     else if (days >= 5) items.push({ level: "amber", text: `上传于 ${timeText}（第 ${days + 1} 天）· 即将过期，建议尽快换码` });
     else items.push({ level: "normal", text: `上传于 ${timeText}（第 ${days + 1} 天）· 7 天有效，到期前此处会标红提醒` });
   } else {

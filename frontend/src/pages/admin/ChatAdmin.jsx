@@ -123,7 +123,7 @@ export default function ChatAdmin({ token, onUnauthorized }) {
           <div className="flex flex-wrap items-center gap-2 text-sm font-bold text-slate-100">
             <QrCode size={16} className="text-[#D4AF37]" />
             进群二维码推送统计
-            <span className="text-xs font-normal text-slate-500">访客触发微信群二维码自动推送的次数</span>
+            <span className="text-xs font-normal text-slate-500">访客触发海鸥官方群二维码自动推送的次数</span>
             <span className="ml-auto flex items-center gap-4 text-xs font-normal text-slate-400">
               <span>今日 <span className="font-display text-base font-black text-gold-gradient" data-testid="qr-stats-today">{qrStats.today}</span> 次</span>
               <span>累计 <span className="font-display text-base font-black text-gold-gradient" data-testid="qr-stats-total">{qrStats.total}</span> 次</span>

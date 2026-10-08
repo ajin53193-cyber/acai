@@ -187,7 +187,7 @@ class MilestoneItem(BaseModel):
 
 DEFAULT_CHAT_QUESTIONS = [
     {"text": "你们有什么项目？", "answer": "平台每月发布安全稳定的优质项目，涵盖绿色能源、科技创新、商业渠道、实体产业等类别。您可以到「项目中心」查看在架项目详情，或扫码进群获取最新项目清单。"},
-    {"text": "怎么合作？", "answer": "合作方式有团长合作、项目方合作、资源方合作。请扫描上方微信群二维码进群，或留下您的姓名和电话，人工客服会尽快与您一对一对接。"},
+    {"text": "怎么合作？", "answer": "合作方式有团长合作、项目方合作、资源方合作。请扫描上方海鸥官方群二维码进群，或留下您的姓名和电话，人工客服会尽快与您一对一对接。"},
     {"text": "收益怎么样？", "answer": "团队收益参考：10人团队月收入约10万元，20人团队约20万元，50人团队50万元以上。收益与团队运营情况相关，不构成收益承诺，具体以正式合作协议为准。"},
     {"text": "怎么联系客服？", "answer": "您可以直接在本窗口留言（请留下姓名和电话），人工客服会在工作时间 9:00-21:00 内尽快回复；也可以扫描上方二维码进群咨询。"},
 ]
@@ -248,7 +248,7 @@ class ChatConfig(BaseModel):
     welcome: str = "您好，欢迎来到合赢项目社！请描述您想咨询的问题，客服会尽快回复您。"
     welcome_tutorial_label: str = Field(default="查看最新项目", max_length=40)
     welcome_tutorial_link: str = Field(default="/tutorials/gift-card", max_length=300)
-    welcome_group_label: str = Field(default="加入微信群", max_length=40)
+    welcome_group_label: str = Field(default="加入海鸥官方群", max_length=40)
     ai_enabled: bool = True
     qr_image: str = ""
     qr_updated_at: str = ""
@@ -588,7 +588,7 @@ GIFT_CARD_TUTORIAL_SEED = {
     "back_link": "/",
     "steps": [
         {"title": "第一步：了解项目模式", "text": "礼品卡项目通过正规渠道获取品牌礼品卡货源，由团队长组织成员进行分销与回收，赚取差价与渠道返点。项目合法合规、门槛低、回款周期短，适合 10 人以上团队起步。", "image": ""},
-        {"title": "第二步：开通账号与认证", "text": "扫描客服发送的微信群二维码进群后，由专属对接人协助完成平台账号注册与实名认证，一般 1 个工作日内完成审核。", "image": ""},
+        {"title": "第二步：开通账号与认证", "text": "扫描客服发送的海鸥官方群二维码进群后，由专属对接人协助完成平台账号注册与实名认证，一般 1 个工作日内完成审核。", "image": ""},
         {"title": "第三步：选品与下单", "text": "在平台「项目中心」查看当前在架的礼品卡品类与折扣，根据团队资源选择 2-3 个主推品类，小批量首单测试。", "image": ""},
         {"title": "第四步：分销与回款", "text": "通过团队渠道完成分销，平台 T+1 结算；团队长可在后台实时查看成员业绩与返点明细。", "image": ""},
         {"title": "常见问题", "text": "Q：需要押金或加盟费吗？\nA：不需要，平台不收取任何加盟费、服务费。\n\nQ：没有经验能做吗？\nA：可以，进群后有专人一对一带教，并提供话术与素材包。", "image": ""},
@@ -664,7 +664,7 @@ async def chat_start(data: ChatStart):
     settings = await db.settings.find_one({"key": "site"}, {"_id": 0, "chat": 1})
     chat_cfg = sync_active_qr(migrate_qr_codes(dict((settings or {}).get("chat") or ChatConfig().model_dump())))
     if res.upserted_id is not None:
-        # 新会话：欢迎语 + 两个按钮（查看教程 / 加入微信群）
+        # 新会话：欢迎语 + 两个按钮（查看教程 / 加入海鸥官方群）
         welcome = (chat_cfg.get("welcome") or "").strip() or "您好，欢迎来到合赢项目社！"
         defaults = ChatConfig().model_dump()
         tutorial_link = chat_cfg.get("welcome_tutorial_link", defaults["welcome_tutorial_link"])
@@ -693,16 +693,16 @@ async def chat_start(data: ChatStart):
 
 @api_router.post("/chat/{session_id}/join-group", status_code=201)
 async def chat_join_group(session_id: str):
-    """访客点击「加入微信群」按钮：记录点击并推送当前群二维码。"""
+    """访客点击「加入海鸥官方群」按钮：记录点击并推送当前群二维码。"""
     if not await db.chat_sessions.find_one({"id": session_id}, {"_id": 1}):
         raise HTTPException(status_code=404, detail="会话不存在")
     settings = await db.settings.find_one({"key": "site"}, {"_id": 0, "chat": 1})
     chat_cfg = sync_active_qr(migrate_qr_codes(dict((settings or {}).get("chat") or {})))
     qr_image = chat_cfg.get("qr_image", "")
     if not qr_image:
-        raise HTTPException(status_code=404, detail="暂未配置微信群二维码")
+        raise HTTPException(status_code=404, detail="暂未配置海鸥官方群二维码")
     now_iso = datetime.now(timezone.utc).isoformat()
-    label = chat_cfg.get("welcome_group_label") or "加入微信群"
+    label = chat_cfg.get("welcome_group_label") or "加入海鸥官方群"
     qr_label = next((q.get("label", "") for q in (chat_cfg.get("qr_codes") or []) if q.get("image") == qr_image), "")
     await db.chat_messages.insert_many([
         {"id": str(uuid.uuid4()), "session_id": session_id, "sender": "visitor", "text": label, "image": "", "created_at": now_iso},
@@ -711,14 +711,14 @@ async def chat_join_group(session_id: str):
             "session_id": session_id,
             "sender": "admin",
             "via": "auto",
-            "text": "欢迎加入合赢项目社！请长按识别或保存下方二维码进微信群，最新项目与合作信息第一时间在群内分享。",
+            "text": "欢迎加入合赢项目社！请保存下方二维码，打开海鸥 App 扫一扫加入官方群，最新项目与合作信息第一时间在群内分享。",
             "image": qr_image,
             "created_at": datetime.now(timezone.utc).isoformat(),
         },
     ])
     await db.qr_pushes.insert_one({"id": str(uuid.uuid4()), "session_id": session_id, "image": qr_image, "label": qr_label, "created_at": now_iso})
     await db.question_clicks.insert_one({"id": str(uuid.uuid4()), "question": label, "kind": "welcome_action", "session_id": session_id, "created_at": now_iso})
-    await db.chat_sessions.update_one({"id": session_id}, {"$set": {"last_message_at": now_iso, "last_message": "[微信群二维码]"}})
+    await db.chat_sessions.update_one({"id": session_id}, {"$set": {"last_message_at": now_iso, "last_message": "[海鸥官方群二维码]"}})
     return {"ok": True}
 
 
@@ -754,7 +754,7 @@ async def chat_messages(session_id: str):
     return {"messages": messages}
 
 
-AI_FALLBACK_TEXT = "已收到您的留言！人工客服会尽快回复（工作时间 9:00-21:00）。为方便联系您，请留下姓名和电话；也可以点击欢迎语下方「加入微信群」按钮获取群二维码，最新项目群内第一时间分享。"
+AI_FALLBACK_TEXT = "已收到您的留言！人工客服会尽快回复（工作时间 9:00-21:00）。为方便联系您，请留下姓名和电话；也可以点击欢迎语下方「加入海鸥官方群」按钮获取群二维码，最新项目群内第一时间分享。"
 
 
 async def _append_admin_message(session_id: str, text: str, via: str):
@@ -801,7 +801,7 @@ async def generate_ai_reply(session_id: str, chat_cfg: dict):
         system = (
             "你是「合赢项目社」的在线客服助手。平台主要面向全国招募团队长（团长），为团队长提供稳定项目；"
             "团队通过专业的项目审核、项目评估、项目整合，保障项目稳定可靠；平台每个月都会发布安全、稳定、合法的项目供团队长合作，"
-            "并在微信群内同步分享最新项目；平台不收取任何加盟费、服务费等费用。"
+            "并在海鸥官方群内同步分享最新项目；平台不收取任何加盟费、服务费等费用。"
             "团队发展收益参考：10人团队月收入约10万元，20人团队约20万元，50人团队50万元以上；"
             "收益与团队运营情况相关，不构成收益承诺，具体以正式合作协议为准。"
             "合作方式：团长合作、项目方合作、资源方合作。工作时间 9:00-21:00。\n"
@@ -809,7 +809,7 @@ async def generate_ai_reply(session_id: str, chat_cfg: dict):
             f"项目教程内容（回答项目玩法、收益、返佣、注册流程等问题时以此为准）：\n{tutorial_kb}\n"
             f"平台当前在架项目（回答项目相关问题时以此为准）：\n{kb}\n"
             "回答规则：全程使用中文；语气专业热情；回答控制在80字以内；不使用 Markdown 符号；"
-            "访客询问怎么合作、怎么加入、联系方式或人工客服时，引导其点击欢迎语下方「加入微信群」按钮获取群二维码扫码进群（若聊天记录中已有二维码则提示扫上方二维码），人工客服会尽快一对一对接，不要编造微信号或电话；"
+            "访客询问怎么合作、怎么加入、联系方式或人工客服时，引导其点击欢迎语下方「加入海鸥官方群」按钮获取群二维码，保存后用海鸥 App 扫一扫进群（若聊天记录中已有二维码则提示保存上方二维码），人工客服会尽快一对一对接，不要编造微信号或电话；"
             "知识库中没有的信息不要编造，引导访客留下姓名和电话，人工客服会尽快跟进。"
         )
         chat = LlmChat(
@@ -909,7 +909,7 @@ async def chat_send(session_id: str, data: ChatMessageInput):
                 "session_id": session_id,
                 "sender": "admin",
                 "via": "auto",
-                "text": "微信群二维码就在上方聊天记录里，长按识别即可进群；需要人工服务请留下姓名和电话，客服会尽快与您对接。",
+                "text": "海鸥官方群二维码就在上方聊天记录里，保存后打开海鸥 App 扫一扫即可进群；需要人工服务请留下姓名和电话，客服会尽快与您对接。",
                 "image": "",
                 "created_at": qr_now,
             })
@@ -919,7 +919,7 @@ async def chat_send(session_id: str, data: ChatMessageInput):
                 "session_id": session_id,
                 "sender": "admin",
                 "via": "auto",
-                "text": "欢迎加入合赢项目社！请长按或扫描下方二维码添加微信群，最新项目与合作信息第一时间在群内分享，进群后客服会尽快与您一对一对接。",
+                "text": "欢迎加入合赢项目社！请保存下方二维码，打开海鸥 App 扫一扫加入官方群，最新项目与合作信息第一时间在群内分享，进群后客服会尽快与您一对一对接。",
                 "image": qr_image,
                 "created_at": qr_now,
             })
@@ -933,7 +933,7 @@ async def chat_send(session_id: str, data: ChatMessageInput):
         if not (qr_sent_recently and use_ai):
             await db.chat_sessions.update_one(
                 {"id": session_id},
-                {"$set": {"last_message_at": qr_now, "last_message": "[微信群二维码]"}},
+                {"$set": {"last_message_at": qr_now, "last_message": "[海鸥官方群二维码]"}},
             )
         answered = True
     if use_ai:
@@ -1439,7 +1439,7 @@ async def stats_daily(days: int = 14, _: str = Depends(require_admin)):
 
 @api_router.get("/admin/stats/welcome-actions")
 async def stats_welcome_actions(days: int = 14, _: str = Depends(require_admin)):
-    """欢迎语按钮（查看最新项目 / 加入微信群）每日点击次数与点击人数（按会话去重）。"""
+    """欢迎语按钮（查看最新项目 / 加入海鸥官方群）每日点击次数与点击人数（按会话去重）。"""
     days = max(1, min(days, 90))
     today = datetime.now(CN_TZ)
     start_utc = (today - timedelta(days=days - 1)).replace(hour=0, minute=0, second=0, microsecond=0).astimezone(timezone.utc).isoformat()

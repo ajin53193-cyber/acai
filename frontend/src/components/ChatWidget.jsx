@@ -18,7 +18,7 @@ const IS_WECHAT = /MicroMessenger/i.test(navigator.userAgent);
 const saveImage = async (url) => {
   const res = await fetch(url);
   const blob = await res.blob();
-  // 统一转成 PNG，保证微信「相册识别二维码」兼容
+  // 统一转成 PNG，保证各类 App「相册识别二维码」兼容
   const bitmap = await createImageBitmap(blob);
   const canvas = document.createElement("canvas");
   canvas.width = bitmap.width;
@@ -28,7 +28,7 @@ const saveImage = async (url) => {
   const href = URL.createObjectURL(png || blob);
   const a = document.createElement("a");
   a.href = href;
-  a.download = "合赢项目社-微信群二维码.png";
+  a.download = "合赢项目社-海鸥官方群二维码.png";
   document.body.appendChild(a);
   a.click();
   a.remove();
@@ -38,7 +38,7 @@ const saveImage = async (url) => {
 const SaveQrButton = ({ url }) => {
   const [state, setState] = useState("idle");
   if (IS_WECHAT) {
-    return <p className="mt-1.5 text-center text-[11px] text-[#E5C158]" data-testid="chat-qr-wechat-hint">长按上方二维码 → 识别图中二维码 即可进群</p>;
+    return <p className="mt-1.5 text-center text-[11px] text-[#E5C158]" data-testid="chat-qr-wechat-hint">长按上方二维码保存到相册 → 打开海鸥 App 扫一扫进群</p>;
   }
   const onClick = async () => {
     setState("saving");
@@ -59,7 +59,7 @@ const SaveQrButton = ({ url }) => {
       className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-full border border-amber-500/40 bg-amber-500/10 px-3 py-1.5 text-xs font-medium text-[#E5C158] transition-colors duration-200 hover:bg-amber-500/20 active:scale-95 disabled:opacity-60"
     >
       <Download size={13} />
-      {state === "done" ? "已保存，打开微信扫一扫 → 相册 识别进群" : state === "saving" ? "保存中…" : "保存二维码到相册"}
+      {state === "done" ? "已保存，打开海鸥 App 扫一扫 → 相册 识别进群" : state === "saving" ? "保存中…" : "保存二维码到相册"}
     </button>
   );
 };

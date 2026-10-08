@@ -100,7 +100,7 @@ export default function Home() {
               className="mx-auto mt-6 max-w-lg text-base leading-relaxed text-slate-300 sm:text-lg lg:mx-0"
               data-testid="hero-subtitle"
             >
-              招募团队长，平台提供优质稳定项目。专业项目审核、评估、整合，每月新项目微信群内同步分享。
+              招募团队长，平台提供优质稳定项目。专业项目审核、评估、整合，每月新项目海鸥官方群内同步分享。
             </motion.p>
 
             <motion.div
