@@ -103,6 +103,8 @@
 
 - 2026-07-08 会话自动结束：关闭客服时记 hy_chat_closed_at；再次打开若已超 2 分钟 → 调 POST /api/chat/{old}/end（会话打 ended_at，ChatAdmin 显示「已结束」）、清本地 sid 与消息、生成新会话并自动 chat/start（称呼复用，无需再填）→ 立即收到欢迎语+按钮；2 分钟内重开则继续原会话。打开窗口时若会话未就绪也会自动 chat/start。Playwright 验证通过
 
+- 2026-07-08 欢迎语按钮点击统计：POST /api/chat/{sid}/action-click 记录「查看最新项目」点击（question_clicks, kind=welcome_action）；join-group 同样打 kind；GET /api/admin/stats/welcome-actions?days=14 返回 labels/每日 clicks+visitors(按会话去重)/totals；StatsAdmin 新增「客服按钮点击（近 14 天）」卡片（汇总 + 日表）。curl + 截图验证
+
 ## 待办优先级
 - P0：eztyv.com DNS 仍残留阿里云 A 记录 47.115.133.9（约 23% 解析到旧服务器），需在 DNS 服务商删除该记录，只保留 Emergent 自定义域名给的 CNAME/记录
 - P0：Emergent 再次 Re-publish（含欢迎语+二维码合并、保存二维码按钮、发送乐观更新、礼品卡教程）；发布后补生产 link 字段；用户在后台「教程管理」替换礼品卡教程真实图文与视频

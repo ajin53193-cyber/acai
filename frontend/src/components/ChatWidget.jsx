@@ -325,7 +325,11 @@ export const ChatWidget = () => {
                                 key={ai}
                                 type="button"
                                 data-testid={`chat-welcome-action-${a.type}`}
-                                onClick={() => (a.type === "qr" ? joinGroup() : goLink(a.link))}
+                                onClick={() => {
+                                  if (a.type === "qr") return joinGroup();
+                                  axios.post(`${API}/chat/${sid.current}/action-click`, { label: a.label, link: a.link || "" }).catch(() => {});
+                                  goLink(a.link);
+                                }}
                                 className={`flex w-full items-center justify-center gap-1.5 rounded-full px-3 py-2 text-xs font-bold transition-transform hover:scale-[1.02] active:scale-95 ${
                                   a.type === "qr"
                                     ? "border border-amber-500/50 bg-amber-500/10 text-[#E5C158]"

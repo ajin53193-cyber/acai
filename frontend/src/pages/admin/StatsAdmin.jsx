@@ -45,6 +45,7 @@ export default function StatsAdmin({ token, onUnauthorized }) {
   const [visits, setVisits] = useState([]);
   const [funnel, setFunnel] = useState(null);
   const [channelFunnel, setChannelFunnel] = useState(null);
+  const [welcomeActions, setWelcomeActions] = useState(null);
   const [loading, setLoading] = useState(false);
 
   const headers = { Authorization: `Bearer ${token}` };
@@ -52,13 +53,15 @@ export default function StatsAdmin({ token, onUnauthorized }) {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [o, d, v, f, cf] = await Promise.all([
+      const [o, d, v, f, cf, wa] = await Promise.all([
         axios.get(`${API}/admin/stats/overview`, { headers, params: { date } }),
         axios.get(`${API}/admin/stats/daily`, { headers, params: { days: 14 } }),
         axios.get(`${API}/admin/stats/visits`, { headers, params: { date } }),
         axios.get(`${API}/admin/stats/funnel`, { headers, params: { days: 14 } }),
         axios.get(`${API}/admin/stats/channel-funnel`, { headers, params: { days: 30 } }),
+        axios.get(`${API}/admin/stats/welcome-actions`, { headers, params: { days: 14 } }),
       ]);
+      setWelcomeActions(wa.data);
       setOverview(o.data);
       setDaily(d.data.days);
       setVisits(v.data.visits);
@@ -242,6 +245,52 @@ export default function StatsAdmin({ token, onUnauthorized }) {
           ))}
         </div>
       </div>
+
+      {welcomeActions && (
+        <div className="glass-card rounded-2xl p-6" data-testid="stats-welcome-actions-card">
+          <h3 className="font-display text-base font-bold text-gold-gradient">客服按钮点击（近 14 天）</h3>
+          <p className="mt-1 text-xs text-slate-500">欢迎语下方「{welcomeActions.labels.join("」「")}」按钮的每日点击次数 / 点击人数（按会话去重）</p>
+          <div className="mt-4 grid gap-3 sm:grid-cols-2">
+            {welcomeActions.labels.map((lb, i) => (
+              <div key={lb} className="rounded-xl border border-amber-500/15 bg-[#060B18]/50 p-4" data-testid={`stats-welcome-action-total-${i}`}>
+                <div className="text-xs text-slate-400">{lb}</div>
+                <div className="mt-1 flex items-baseline gap-2">
+                  <span className="font-display text-2xl font-black text-[#FFE896]">{welcomeActions.totals[lb]?.clicks ?? 0}</span>
+                  <span className="text-xs text-slate-500">次点击 · {welcomeActions.totals[lb]?.visitors ?? 0} 人</span>
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="mt-5 overflow-x-auto">
+            <table className="w-full text-xs" data-testid="stats-welcome-actions-table">
+              <thead>
+                <tr className="text-left text-slate-500">
+                  <th className="pb-2 pr-3 font-normal">日期</th>
+                  {welcomeActions.labels.map((lb) => (
+                    <th key={lb} className="pb-2 pr-3 font-normal">{lb}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {[...welcomeActions.days].reverse().map((row) => (
+                  <tr key={row.date} className="border-t border-amber-500/10 text-slate-300">
+                    <td className="py-2 pr-3 text-slate-400">{row.date.slice(5)}</td>
+                    {welcomeActions.labels.map((lb) => (
+                      <td key={lb} className="py-2 pr-3">
+                        {row[lb]?.clicks ? (
+                          <span><span className="text-[#E5C158]">{row[lb].clicks}</span> 次 · {row[lb].visitors} 人</span>
+                        ) : (
+                          <span className="text-slate-600">—</span>
+                        )}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
 
       {overview && overview.top_pages.length > 0 && (
         <div className="glass-card rounded-2xl p-6" data-testid="stats-top-pages">

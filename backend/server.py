@@ -666,8 +666,27 @@ async def chat_join_group(session_id: str):
         },
     ])
     await db.qr_pushes.insert_one({"id": str(uuid.uuid4()), "session_id": session_id, "image": qr_image, "label": qr_label, "created_at": now_iso})
-    await db.question_clicks.insert_one({"id": str(uuid.uuid4()), "question": label, "session_id": session_id, "created_at": now_iso})
+    await db.question_clicks.insert_one({"id": str(uuid.uuid4()), "question": label, "kind": "welcome_action", "session_id": session_id, "created_at": now_iso})
     await db.chat_sessions.update_one({"id": session_id}, {"$set": {"last_message_at": now_iso, "last_message": "[微信群二维码]"}})
+    return {"ok": True}
+
+
+class ActionClickInput(BaseModel):
+    label: str = Field(min_length=1, max_length=40)
+    link: str = Field(default="", max_length=300)
+
+
+@api_router.post("/chat/{session_id}/action-click", status_code=201)
+async def chat_action_click(session_id: str, data: ActionClickInput):
+    """记录访客点击欢迎语下方按钮（如「查看最新项目」）。"""
+    await db.question_clicks.insert_one({
+        "id": str(uuid.uuid4()),
+        "question": data.label.strip(),
+        "kind": "welcome_action",
+        "link": data.link,
+        "session_id": session_id,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    })
     return {"ok": True}
 
 
@@ -1358,6 +1377,46 @@ async def stats_daily(days: int = 14, _: str = Depends(require_admin)):
             "unique_ips": len(row["ips"]) if row else 0,
         })
     return {"days": result}
+
+
+@api_router.get("/admin/stats/welcome-actions")
+async def stats_welcome_actions(days: int = 14, _: str = Depends(require_admin)):
+    """欢迎语按钮（查看最新项目 / 加入微信群）每日点击次数与点击人数（按会话去重）。"""
+    days = max(1, min(days, 90))
+    today = datetime.now(CN_TZ)
+    start_utc = (today - timedelta(days=days - 1)).replace(hour=0, minute=0, second=0, microsecond=0).astimezone(timezone.utc).isoformat()
+    settings = await db.settings.find_one({"key": "site"}, {"_id": 0, "chat": 1})
+    chat_cfg = (settings or {}).get("chat") or {}
+    defaults = ChatConfig().model_dump()
+    labels = [
+        chat_cfg.get("welcome_tutorial_label") or defaults["welcome_tutorial_label"],
+        chat_cfg.get("welcome_group_label") or defaults["welcome_group_label"],
+    ]
+    clicks = await db.question_clicks.find(
+        {"kind": "welcome_action", "created_at": {"$gte": start_utc}},
+        {"_id": 0, "question": 1, "session_id": 1, "created_at": 1},
+    ).to_list(50000)
+    for c in clicks:
+        if c["question"] not in labels:
+            labels.append(c["question"])
+    by_day = {}
+    sessions = {}
+    for c in clicks:
+        d = datetime.fromisoformat(c["created_at"]).astimezone(CN_TZ).strftime("%Y-%m-%d")
+        by_day.setdefault(d, {}).setdefault(c["question"], {"clicks": 0, "sessions": set()})
+        by_day[d][c["question"]]["clicks"] += 1
+        by_day[d][c["question"]]["sessions"].add(c.get("session_id"))
+        sessions.setdefault(c["question"], set()).add(c.get("session_id"))
+    result = []
+    for i in range(days):
+        d = (today - timedelta(days=days - 1 - i)).strftime("%Y-%m-%d")
+        row = {"date": d}
+        for lb in labels:
+            cell = by_day.get(d, {}).get(lb)
+            row[lb] = {"clicks": cell["clicks"] if cell else 0, "visitors": len(cell["sessions"]) if cell else 0}
+        result.append(row)
+    totals = {lb: {"clicks": sum(r[lb]["clicks"] for r in result), "visitors": len(sessions.get(lb, set()))} for lb in labels}
+    return {"labels": labels, "days": result, "totals": totals}
 
 
 @api_router.get("/admin/stats/funnel")
