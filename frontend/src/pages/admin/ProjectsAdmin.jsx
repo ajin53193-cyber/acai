@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import axios from "axios";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
-import { Plus, Pencil, Trash2, X, Eye, EyeOff, Crown } from "lucide-react";
+import { Plus, Pencil, Trash2, X, Eye, EyeOff, Crown, PlayCircle } from "lucide-react";
 import { API, formatDetail } from "@/lib/api";
 import { ImageUpload, toFullUrl } from "@/components/ImageUpload";
 import { useSettings } from "@/lib/useSettings";
@@ -18,6 +18,7 @@ const EMPTY_FORM = {
   description: "",
   highlightsText: "",
   image: "",
+  tutorial_link: "",
 };
 
 const inputCls =
@@ -31,8 +32,13 @@ export default function ProjectsAdmin({ token, onUnauthorized }) {
   const [editing, setEditing] = useState(null);
   const [form, setForm] = useState(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
+  const [tutorials, setTutorials] = useState([]);
 
   const headers = { Authorization: `Bearer ${token}` };
+
+  useEffect(() => {
+    axios.get(`${API}/tutorials`).then((res) => setTutorials(res.data.tutorials || [])).catch(() => {});
+  }, []);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -75,6 +81,7 @@ export default function ProjectsAdmin({ token, onUnauthorized }) {
       description: p.description,
       highlightsText: (p.highlights || []).join("\n"),
       image: p.image,
+      tutorial_link: p.tutorial_link || "",
     });
     setModalOpen(true);
   };
@@ -97,6 +104,7 @@ export default function ProjectsAdmin({ token, onUnauthorized }) {
       description: form.description.trim(),
       highlights: form.highlightsText.split("\n").map((s) => s.trim()).filter(Boolean).slice(0, 6),
       image: form.image.trim(),
+      tutorial_link: form.tutorial_link.trim(),
     };
     try {
       if (editing) {
@@ -185,6 +193,11 @@ export default function ProjectsAdmin({ token, onUnauthorized }) {
                     {p.featured && (
                       <span className="flex items-center gap-1 rounded-full bg-gold-gradient px-2.5 py-0.5 text-xs font-bold text-[#060B18]">
                         <Crown size={10} /> 主打
+                      </span>
+                    )}
+                    {p.tutorial_link && (
+                      <span className="flex items-center gap-1 rounded-full border border-sky-500/30 px-2.5 py-0.5 text-xs text-sky-300" data-testid={`admin-project-tutorial-tag-${i}`}>
+                        <PlayCircle size={10} /> 已配教程
                       </span>
                     )}
                     <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${live ? "bg-emerald-500/10 text-emerald-300" : "bg-slate-500/15 text-slate-400"}`}>
@@ -299,6 +312,23 @@ export default function ProjectsAdmin({ token, onUnauthorized }) {
                 <div className="sm:col-span-2">
                   <label className="mb-1.5 block text-xs tracking-widest text-slate-400">项目亮点（每行一条，最多6条）</label>
                   <textarea data-testid="project-form-highlights-textarea" value={form.highlightsText} onChange={set("highlightsText")} rows={3} placeholder={"并网收益保障\n专业运维团队"} className={`${inputCls} resize-none`} />
+                </div>
+                <div className="sm:col-span-2">
+                  <label className="mb-1.5 block text-xs tracking-widest text-slate-400">项目教程链接（选填，填写后项目卡片与详情显示「查看教程」按钮）</label>
+                  <div className="grid gap-2 sm:grid-cols-[200px_1fr]">
+                    <select
+                      data-testid="project-form-tutorial-select"
+                      value={tutorials.some((t) => `/tutorials/${t.slug}` === form.tutorial_link) ? form.tutorial_link : ""}
+                      onChange={(e) => setForm({ ...form, tutorial_link: e.target.value })}
+                      className={`${inputCls} appearance-none`}
+                    >
+                      <option value="" className="bg-[#0A1228]">选择站内教程…</option>
+                      {tutorials.map((t) => (
+                        <option key={t.id} value={`/tutorials/${t.slug}`} className="bg-[#0A1228]">{t.title}</option>
+                      ))}
+                    </select>
+                    <input data-testid="project-form-tutorial-input" value={form.tutorial_link} onChange={set("tutorial_link")} placeholder="或直接填写链接，如 /tutorials/gift-card 或 https://…" className={inputCls} />
+                  </div>
                 </div>
               </div>
               <button

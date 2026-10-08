@@ -138,6 +138,7 @@ class ProjectInput(BaseModel):
     description: str = Field(default="", max_length=2000)
     highlights: List[str] = Field(default_factory=list)
     image: str = Field(default="")
+    tutorial_link: str = Field(default="", max_length=300)  # 项目教程链接（站内 /tutorials/slug 或外链）
 
 
 class PublishUpdate(BaseModel):

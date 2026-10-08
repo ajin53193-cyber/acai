@@ -2,12 +2,30 @@ import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import axios from "axios";
-import { Search, X, MapPin, BadgeCheck, ArrowRight, Crown } from "lucide-react";
+import { Search, X, MapPin, BadgeCheck, ArrowRight, Crown, PlayCircle } from "lucide-react";
 import { Reveal, SectionHeading } from "@/components/Reveal";
 import { API } from "@/lib/api";
 import { useSettings } from "@/lib/useSettings";
 
 const ALL_TAB = "全部";
+
+const isExternal = (link) => /^https?:\/\//i.test(link);
+
+function TutorialLink({ link, className, testid, children }) {
+  const stop = (e) => e.stopPropagation();
+  if (isExternal(link)) {
+    return (
+      <a href={link} target="_blank" rel="noopener noreferrer" onClick={stop} data-testid={testid} className={className}>
+        {children}
+      </a>
+    );
+  }
+  return (
+    <Link to={link} onClick={stop} data-testid={testid} className={className}>
+      {children}
+    </Link>
+  );
+}
 
 export default function Projects() {
   const { categories } = useSettings();
@@ -89,10 +107,13 @@ export default function Projects() {
             <div className="grid grid-cols-2 gap-3 sm:gap-5 md:gap-7 lg:grid-cols-3" data-testid="projects-grid">
               {filtered.map((p, i) => (
                 <Reveal key={p.id} delay={(i % 3) * 0.08}>
-                  <button
+                  <div
+                    role="button"
+                    tabIndex={0}
                     onClick={() => setActive(p)}
+                    onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setActive(p); } }}
                     data-testid={`project-card-${p.id}`}
-                    className="glass-card group block w-full overflow-hidden rounded-2xl text-left transition-transform duration-200 active:scale-[0.98]"
+                    className="glass-card group block w-full cursor-pointer overflow-hidden rounded-2xl text-left transition-transform duration-200 active:scale-[0.98]"
                   >
                     <div className="relative h-28 overflow-hidden sm:h-40 md:h-48">
                       <img
@@ -125,8 +146,17 @@ export default function Projects() {
                         </span>
                         <span className="text-slate-300">投入 <span className="font-bold text-[#E5C158]">{p.investment}</span></span>
                       </div>
+                      {p.tutorial_link && (
+                        <TutorialLink
+                          link={p.tutorial_link}
+                          testid={`project-card-tutorial-${p.id}`}
+                          className="mt-2.5 flex items-center justify-center gap-1 rounded-full border border-amber-500/40 bg-amber-500/10 py-1.5 text-[11px] font-bold text-[#E5C158] transition-colors hover:bg-amber-500/20 md:mt-3 md:py-2 md:text-xs"
+                        >
+                          <PlayCircle size={13} /> 查看项目教程
+                        </TutorialLink>
+                      )}
                     </div>
-                  </button>
+                  </div>
                 </Reveal>
               ))}
             </div>
@@ -189,13 +219,24 @@ export default function Projects() {
                     </div>
                   ))}
                 </div>
-                <Link
-                  to="/contact"
-                  data-testid="project-modal-apply-btn"
-                  className="mt-8 flex items-center justify-center gap-2 rounded-full bg-gold-gradient py-3.5 text-sm font-bold text-[#060B18] shadow-[0_0_24px_rgba(212,175,55,0.4)] transition-all duration-300 hover:shadow-[0_0_36px_rgba(255,232,150,0.6)]"
-                >
-                  申请合作 <ArrowRight size={16} />
-                </Link>
+                <div className={`mt-8 grid gap-3 ${active.tutorial_link ? "sm:grid-cols-2" : ""}`}>
+                  {active.tutorial_link && (
+                    <TutorialLink
+                      link={active.tutorial_link}
+                      testid="project-modal-tutorial-btn"
+                      className="flex items-center justify-center gap-2 rounded-full border border-amber-500/50 bg-amber-500/10 py-3.5 text-sm font-bold text-[#E5C158] transition-colors hover:bg-amber-500/20"
+                    >
+                      <PlayCircle size={16} /> 查看项目教程
+                    </TutorialLink>
+                  )}
+                  <Link
+                    to="/contact"
+                    data-testid="project-modal-apply-btn"
+                    className="flex items-center justify-center gap-2 rounded-full bg-gold-gradient py-3.5 text-sm font-bold text-[#060B18] shadow-[0_0_24px_rgba(212,175,55,0.4)] transition-all duration-300 hover:shadow-[0_0_36px_rgba(255,232,150,0.6)]"
+                  >
+                    申请合作 <ArrowRight size={16} />
+                  </Link>
+                </div>
               </div>
             </motion.div>
           </motion.div>

@@ -122,7 +122,10 @@
 
 - 2026-07-08 客服「加入海鸥官方群」→ 独立教程页：TutorialStep 新增 copy_label/copy_text（Tutorial.jsx 渲染 CopyField 一键复制框，填了 copy_text 才显示）；TutorialsAdmin 每步新增「可复制文本」区块；SettingsAdmin 客服配置可编辑 welcome_group_link；ChatWidget group-link 动作改为路由跳转 /tutorials/join-group（启动时自动种子三步教程：下载 App → 注册登录 → 扫码/群 ID 进群）。Playwright 验证：教程页复制框渲染、客服按钮点击跳转成功。群二维码（第三步图片）、群 ID、下载链接需用户在后台「教程管理」填写
 
+- 2026-07-08 项目教程链接：ProjectInput 新增 tutorial_link（站内 /tutorials/slug 或外链）；ProjectsAdmin 表单新增「项目教程链接」（下拉选站内教程 + 可手填），列表显示「已配教程」标签；Projects.jsx 卡片底部与详情弹窗显示「查看项目教程」按钮（卡片改为 div role=button 避免嵌套交互元素，外链新窗口）。客服快捷问题移除「礼品卡项目教程」chip（预览库 + 生产库 eztyv.com 已通过 admin API 删除）。预览库礼品卡项目已配 /tutorials/gift-card。Playwright 验证通过。生产需部署新代码后在后台给礼品卡项目配置教程链接
+
 ## 待办优先级
+- P0：部署新代码（Save to GitHub → 服务器 deploy.sh）后，在生产后台「项目管理 → 礼品卡合作项目 → 编辑」选择教程链接
 - P0：用户在后台「教程管理 → 加入海鸥官方群教程」填写：第一步下载链接、第三步群二维码图片 + 官方群 ID；随后 Re-publish 上线
 - P0：eztyv.com DNS 仍残留阿里云 A 记录 47.115.133.9（约 23% 解析到旧服务器），需在 DNS 服务商删除该记录，只保留 Emergent 自定义域名给的 CNAME/记录
 - P0：Emergent 再次 Re-publish（含欢迎语+二维码合并、保存二维码按钮、发送乐观更新、礼品卡教程）；发布后补生产 link 字段；用户在后台「教程管理」替换礼品卡教程真实图文与视频
