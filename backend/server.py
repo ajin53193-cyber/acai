@@ -212,6 +212,8 @@ class TutorialStep(BaseModel):
     text: str = Field(default="", max_length=3000)
     image: str = ""
     video_url: str = Field(default="", max_length=500)
+    copy_label: str = Field(default="", max_length=40)  # 可复制信息的名称，如「官方群 ID」
+    copy_text: str = Field(default="", max_length=200)   # 可复制的内容，如群 ID
     buttons: List[StepButton] = Field(default_factory=list)
     # 兼容旧字段：单个按钮
     button_label: str = Field(default="", max_length=40)
@@ -251,6 +253,7 @@ class ChatConfig(BaseModel):
     welcome_tutorial_label: str = Field(default="查看最新项目", max_length=40)
     welcome_tutorial_link: str = Field(default="/tutorials/gift-card", max_length=300)
     welcome_group_label: str = Field(default="加入海鸥官方群", max_length=40)
+    welcome_group_link: str = Field(default="/tutorials/join-group", max_length=300)
     ai_enabled: bool = True
     qr_image: str = ""
     qr_updated_at: str = ""
@@ -507,6 +510,14 @@ async def startup():
             "created_at": datetime.now(timezone.utc).isoformat(),
         })
 
+    if not await db.tutorials.find_one({"slug": "join-group"}):
+        await db.tutorials.insert_one({
+            "id": str(uuid.uuid4()),
+            **JOIN_GROUP_TUTORIAL_SEED,
+            "published": True,
+            "created_at": datetime.now(timezone.utc).isoformat(),
+        })
+
     if await db.articles.count_documents({}) == 0:
         docs = []
         for a in ARTICLES_SEED:
@@ -565,7 +576,7 @@ async def get_settings():
         return {"contact": ContactInfo().model_dump(), "team": [], "chat": ChatConfig().model_dump()}
     doc.setdefault("chat", ChatConfig().model_dump())
     doc["chat"].setdefault("ai_enabled", True)
-    for k in ("welcome_tutorial_label", "welcome_tutorial_link", "welcome_group_label"):
+    for k in ("welcome_tutorial_label", "welcome_tutorial_link", "welcome_group_label", "welcome_group_link"):
         doc["chat"].setdefault(k, ChatConfig.model_fields[k].default)
     if "questions" not in doc["chat"]:
         doc["chat"]["questions"] = ChatConfig().model_dump()["questions"]
@@ -594,6 +605,48 @@ GIFT_CARD_TUTORIAL_SEED = {
         {"title": "第三步：选品与下单", "text": "在平台「项目中心」查看当前在架的礼品卡品类与折扣，根据团队资源选择 2-3 个主推品类，小批量首单测试。", "image": ""},
         {"title": "第四步：分销与回款", "text": "通过团队渠道完成分销，平台 T+1 结算；团队长可在后台实时查看成员业绩与返点明细。", "image": ""},
         {"title": "常见问题", "text": "Q：需要押金或加盟费吗？\nA：不需要，平台不收取任何加盟费、服务费。\n\nQ：没有经验能做吗？\nA：可以，进群后有专人一对一带教，并提供话术与素材包。", "image": ""},
+    ],
+}
+
+
+JOIN_GROUP_TUTORIAL_SEED = {
+    "title": "加入海鸥官方群教程",
+    "slug": "join-group",
+    "summary": "三步加入海鸥官方群，最新项目与合作资料第一时间群内同步。",
+    "cover": "",
+    "video_url": "",
+    "cta_label": "",
+    "cta_link": "",
+    "back_label": "返回首页",
+    "back_link": "/",
+    "steps": [
+        {
+            "title": "第一步：下载海鸥 App",
+            "text": "海鸥官方群需在海鸥 App 内加入。请先点击下方按钮下载并安装海鸥 App（iOS / 安卓均支持）。",
+            "image": "",
+            "video_url": "",
+            "copy_label": "",
+            "copy_text": "",
+            "buttons": [{"label": "下载海鸥 App", "link": "https://www.haiou.com/download"}],
+        },
+        {
+            "title": "第二步：注册并登录",
+            "text": "打开海鸥 App，使用手机号注册并登录账号，完成后即可加入群聊。",
+            "image": "",
+            "video_url": "",
+            "copy_label": "",
+            "copy_text": "",
+            "buttons": [],
+        },
+        {
+            "title": "第三步：扫码或搜索群 ID 进群",
+            "text": "方式一：长按保存下方群二维码，在海鸥 App「扫一扫 → 相册」识别进群。\n方式二：复制下方官方群 ID，在海鸥 App 搜索群 ID 加入。",
+            "image": "",
+            "video_url": "",
+            "copy_label": "官方群 ID",
+            "copy_text": "",
+            "buttons": [],
+        },
     ],
 }
 
@@ -670,10 +723,14 @@ async def chat_start(data: ChatStart):
         welcome = (chat_cfg.get("welcome") or "").strip() or "您好，欢迎来到合赢项目社！"
         defaults = ChatConfig().model_dump()
         tutorial_link = chat_cfg.get("welcome_tutorial_link", defaults["welcome_tutorial_link"])
+        group_link = chat_cfg.get("welcome_group_link", defaults["welcome_group_link"])
         actions = []
         if tutorial_link:
             actions.append({"type": "link", "label": chat_cfg.get("welcome_tutorial_label") or defaults["welcome_tutorial_label"], "link": tutorial_link})
-        if chat_cfg.get("qr_image"):
+        # 「加入官方群」优先跳转进群教程页（可在后台配置）；未配置时回退为直接推送群二维码
+        if group_link:
+            actions.append({"type": "group-link", "label": chat_cfg.get("welcome_group_label") or defaults["welcome_group_label"], "link": group_link})
+        elif chat_cfg.get("qr_image"):
             actions.append({"type": "qr", "label": chat_cfg.get("welcome_group_label") or defaults["welcome_group_label"]})
         now_iso = datetime.now(timezone.utc).isoformat()
         await db.chat_messages.insert_one({

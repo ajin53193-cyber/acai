@@ -7,7 +7,7 @@ import { API, formatDetail } from "@/lib/api";
 import { ImageUpload, toFullUrl } from "@/components/ImageUpload";
 import { VideoUpload } from "@/components/VideoUpload";
 
-const EMPTY_STEP = { title: "", text: "", image: "", video_url: "", buttons: [] };
+const EMPTY_STEP = { title: "", text: "", image: "", video_url: "", copy_label: "", copy_text: "", buttons: [] };
 const normalizeStep = (st) => {
   const buttons = [...(st.buttons || [])];
   if (st.button_link && !buttons.some((b) => b.link === st.button_link)) buttons.unshift({ label: st.button_label || "", link: st.button_link });
@@ -97,9 +97,11 @@ export default function TutorialsAdmin({ token, onUnauthorized }) {
           text: s.text.trim(),
           image: s.image || "",
           video_url: (s.video_url || "").trim(),
+          copy_label: (s.copy_label || "").trim(),
+          copy_text: (s.copy_text || "").trim(),
           buttons: (s.buttons || []).map((b) => ({ label: (b.label || "").trim(), link: (b.link || "").trim() })).filter((b) => b.link),
         }))
-        .filter((s) => s.title || s.text || s.image || s.video_url || s.buttons.length),
+        .filter((s) => s.title || s.text || s.image || s.video_url || s.copy_text || s.buttons.length),
       cta_label: form.cta_label.trim(),
       cta_link: form.cta_link.trim(),
       back_label: form.back_label.trim() || "返回首页",
@@ -291,6 +293,13 @@ export default function TutorialsAdmin({ token, onUnauthorized }) {
                         <div className="mt-3">
                           <div className="mb-1 text-[11px] tracking-widest text-slate-500">本步骤视频（可选）</div>
                           <VideoUpload token={token} value={s.video_url || ""} onChange={(url) => setStep(i, { video_url: url })} testid={`tutorial-step-video-${i}`} />
+                        </div>
+                        <div className="mt-3">
+                          <div className="mb-1 text-[11px] tracking-widest text-slate-500">可复制信息（可选，如群 ID；填了内容才显示）</div>
+                          <div className="grid gap-2 sm:grid-cols-[1fr_1.4fr]">
+                            <input data-testid={`tutorial-step-copy-label-${i}`} value={s.copy_label || ""} onChange={(e) => setStep(i, { copy_label: e.target.value })} placeholder="名称，如：官方群 ID" className={inputCls} />
+                            <input data-testid={`tutorial-step-copy-text-${i}`} value={s.copy_text || ""} onChange={(e) => setStep(i, { copy_text: e.target.value })} placeholder="可复制内容，如：HY888888" className={inputCls} />
+                          </div>
                         </div>
                         <div className="mt-3">
                           <div className="mb-1 flex items-center justify-between">

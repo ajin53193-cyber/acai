@@ -120,7 +120,10 @@
 
 - 2026-07-08 联系页二维码改为「官方微信服务号」：ContactInfo 新增 mp_qr_image / mp_name；SettingsAdmin 联系方式卡片新增服务号二维码上传 + 显示名称；Contact.jsx 改用 contact.mp_qr_image（不再用群二维码），文案「微信扫码关注，获取最新项目」，未上传则不显示。预览已验证（占位白图）；需发布 + 用户在后台上传真实服务号二维码
 
+- 2026-07-08 客服「加入海鸥官方群」→ 独立教程页：TutorialStep 新增 copy_label/copy_text（Tutorial.jsx 渲染 CopyField 一键复制框，填了 copy_text 才显示）；TutorialsAdmin 每步新增「可复制文本」区块；SettingsAdmin 客服配置可编辑 welcome_group_link；ChatWidget group-link 动作改为路由跳转 /tutorials/join-group（启动时自动种子三步教程：下载 App → 注册登录 → 扫码/群 ID 进群）。Playwright 验证：教程页复制框渲染、客服按钮点击跳转成功。群二维码（第三步图片）、群 ID、下载链接需用户在后台「教程管理」填写
+
 ## 待办优先级
+- P0：用户在后台「教程管理 → 加入海鸥官方群教程」填写：第一步下载链接、第三步群二维码图片 + 官方群 ID；随后 Re-publish 上线
 - P0：eztyv.com DNS 仍残留阿里云 A 记录 47.115.133.9（约 23% 解析到旧服务器），需在 DNS 服务商删除该记录，只保留 Emergent 自定义域名给的 CNAME/记录
 - P0：Emergent 再次 Re-publish（含欢迎语+二维码合并、保存二维码按钮、发送乐观更新、礼品卡教程）；发布后补生产 link 字段；用户在后台「教程管理」替换礼品卡教程真实图文与视频
 - P1：Emergent 通用密钥余额不足时 AI 会自动回落为转人工提示，需在 Profile → Manage plan → Universal Key 充值或开自动续费

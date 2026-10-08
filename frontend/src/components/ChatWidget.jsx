@@ -370,12 +370,12 @@ export const ChatWidget = () => {
                                   goLink(a.link);
                                 }}
                                 className={`flex w-full items-center justify-center gap-1.5 rounded-full px-3 py-2 text-xs font-bold transition-transform hover:scale-[1.02] active:scale-95 ${
-                                  a.type === "qr"
+                                  a.type === "qr" || a.type === "group-link"
                                     ? "border border-amber-500/50 bg-amber-500/10 text-[#E5C158]"
                                     : "bg-gold-gradient text-[#060B18]"
                                 }`}
                               >
-                                {a.type === "qr" ? <QrCode size={13} /> : <PlayCircle size={13} />}
+                                {a.type === "qr" || a.type === "group-link" ? <QrCode size={13} /> : <PlayCircle size={13} />}
                                 {a.label}
                               </button>
                             ))}

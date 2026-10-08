@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import axios from "axios";
-import { ArrowLeft, PlayCircle, MessageCircle, ArrowRight } from "lucide-react";
+import { ArrowLeft, PlayCircle, MessageCircle, ArrowRight, Copy, Check } from "lucide-react";
 import { motion } from "framer-motion";
 import { API } from "@/lib/api";
 import { toFullUrl } from "@/components/ImageUpload";
@@ -9,6 +9,40 @@ import { getVisitorId } from "@/lib/source";
 
 const trackTutorial = (slug, type) =>
   axios.post(`${API}/tutorials/${slug}/events`, { type, visitor_id: getVisitorId() }).catch(() => {});
+
+const CopyField = ({ label, text, testid }) => {
+  const [copied, setCopied] = useState(false);
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch {
+      const ta = document.createElement("textarea");
+      ta.value = text;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand("copy");
+      ta.remove();
+    }
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1800);
+  };
+  return (
+    <div className="mt-4 flex flex-wrap items-center gap-3 rounded-xl border border-amber-500/20 bg-[#060B18]/60 px-4 py-3" data-testid={testid}>
+      <div className="min-w-0 flex-1">
+        {label && <div className="text-[11px] tracking-widest text-slate-500">{label}</div>}
+        <div className="mt-0.5 truncate font-mono text-sm font-bold text-[#E5C158]">{text}</div>
+      </div>
+      <button
+        type="button"
+        onClick={copy}
+        data-testid={`${testid}-copy-btn`}
+        className="flex shrink-0 items-center gap-1.5 rounded-full border border-amber-500/40 bg-amber-500/10 px-4 py-1.5 text-xs font-medium text-[#E5C158] transition-colors hover:bg-amber-500/20 active:scale-95"
+      >
+        {copied ? <><Check size={13} /> 已复制</> : <><Copy size={13} /> 复制</>}
+      </button>
+    </div>
+  );
+};
 
 const isDirectVideo = (url) => /\.(mp4|webm|mov|m4v)(\?.*)?$/i.test(url) || url.startsWith("/api/") || url.includes("/api/files/");
 
@@ -132,6 +166,9 @@ export default function Tutorial() {
                     )}
                     {step.video_url && (
                       <div className="mt-4" data-testid={`tutorial-step-video-${i}`}><TutorialVideo url={step.video_url} title={step.title || `步骤 ${i + 1}`} /></div>
+                    )}
+                    {step.copy_text && (
+                      <CopyField label={step.copy_label} text={step.copy_text} testid={`tutorial-step-copy-${i}`} />
                     )}
                     {(step.buttons?.length > 0 || step.button_link) && (
                       <div className="flex flex-wrap gap-2">
