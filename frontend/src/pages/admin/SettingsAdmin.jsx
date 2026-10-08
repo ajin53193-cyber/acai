@@ -63,7 +63,7 @@ export default function SettingsAdmin({ token, onUnauthorized }) {
   const save = async () => {
     setSaving(true);
     try {
-      await axios.put(`${API}/admin/settings`, { contact, stats, categories: categories.map((c) => c.trim()).filter(Boolean), chat: { ...chatCfg, questions: (chatCfg.questions || []).map((q) => ({ text: (q.text || "").trim(), image: q.image || "", answer: (q.answer || "").trim(), link: (q.link || "").trim() })).filter((q) => q.text) }, tiers: tiers.filter((t) => t.count.trim() && t.income.trim()), edges: edges.filter((x) => x.title.trim()), milestones: milestones.filter((x) => x.year.trim() && x.title.trim()) }, { headers });
+      await axios.put(`${API}/admin/settings`, { contact, stats, categories: categories.map((c) => c.trim()).filter(Boolean), chat: { ...chatCfg, welcome_tutorial_label: (chatCfg.welcome_tutorial_label || "").trim(), welcome_tutorial_link: (chatCfg.welcome_tutorial_link || "").trim(), welcome_group_label: (chatCfg.welcome_group_label || "").trim(), questions: (chatCfg.questions || []).map((q) => ({ text: (q.text || "").trim(), image: q.image || "", answer: (q.answer || "").trim(), link: (q.link || "").trim() })).filter((q) => q.text) }, tiers: tiers.filter((t) => t.count.trim() && t.income.trim()), edges: edges.filter((x) => x.title.trim()), milestones: milestones.filter((x) => x.year.trim() && x.title.trim()) }, { headers });
       invalidateSettings();
       toast.success("设置已保存，前台页面已同步更新");
     } catch (err) {
@@ -200,6 +200,30 @@ export default function SettingsAdmin({ token, onUnauthorized }) {
               placeholder="您好，欢迎来到合赢项目社！…"
               className={`${inputCls} resize-none`}
             />
+            <p className="mb-2 mt-3 text-xs text-slate-600">欢迎语下方显示两个按钮：「查看教程」跳转到指定页面，「加入微信群」点击后发送当前群二维码</p>
+            <div className="grid gap-3 sm:grid-cols-[1fr_1fr_160px]">
+              <input
+                data-testid="settings-chat-welcome-tutorial-label"
+                value={chatCfg.welcome_tutorial_label || ""}
+                onChange={(e) => setChatCfg({ ...chatCfg, welcome_tutorial_label: e.target.value })}
+                placeholder="教程按钮文字，如：了解最新项目 · 点击查看教程"
+                className={inputCls}
+              />
+              <input
+                data-testid="settings-chat-welcome-tutorial-link"
+                value={chatCfg.welcome_tutorial_link || ""}
+                onChange={(e) => setChatCfg({ ...chatCfg, welcome_tutorial_link: e.target.value })}
+                placeholder="教程按钮链接，如 /tutorials/gift-card（留空则不显示）"
+                className={inputCls}
+              />
+              <input
+                data-testid="settings-chat-welcome-group-label"
+                value={chatCfg.welcome_group_label || ""}
+                onChange={(e) => setChatCfg({ ...chatCfg, welcome_group_label: e.target.value })}
+                placeholder="群按钮文字"
+                className={inputCls}
+              />
+            </div>
           </div>
           <div>
             <label className="mb-1.5 block text-xs tracking-widest text-slate-400">常见问题卡片</label>

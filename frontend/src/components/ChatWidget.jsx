@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
-import { MessageCircle, X, Send, Download, PlayCircle } from "lucide-react";
+import { MessageCircle, X, Send, Download, PlayCircle, QrCode } from "lucide-react";
 import { API } from "@/lib/api";
 import { toFullUrl } from "@/components/ImageUpload";
 import { getSource } from "@/lib/source";
@@ -82,6 +82,8 @@ export const ChatWidget = () => {
   const [awaitingReply, setAwaitingReply] = useState(false);
   const [sendError, setSendError] = useState("");
   const listRef = useRef(null);
+  const nearBottom = useRef(true);
+  const lastMsgKey = useRef("");
   const sid = useRef(getSessionId());
   const sessionReady = useRef(false);
   const navigate = useNavigate();
@@ -107,8 +109,13 @@ export const ChatWidget = () => {
     try {
       const res = await axios.get(`${API}/chat/${sid.current}/messages`);
       const msgs = res.data.messages || [];
-      // 保留尚未落库的乐观消息，避免轮询时闪烁
-      setMessages((prev) => [...msgs, ...prev.filter((m) => String(m.id).startsWith("temp-"))]);
+      // 保留尚未落库的乐观消息，避免轮询时闪烁；内容未变化时不触发重渲染
+      setMessages((prev) => {
+        const temps = prev.filter((m) => String(m.id).startsWith("temp-"));
+        const next = [...msgs, ...temps];
+        const same = prev.length === next.length && prev.every((m, i) => m.id === next[i].id);
+        return same ? prev : next;
+      });
       if (msgs.length && msgs[msgs.length - 1].sender === "admin") setAwaitingReply(false);
     } catch { /* session not created yet */ }
   }, [started]);
@@ -132,10 +139,41 @@ export const ChatWidget = () => {
     return () => clearTimeout(t);
   }, [awaitingReply]);
 
+  // 仅在打开窗口、或有新消息且用户本就在底部附近（或是自己刚发的消息）时滚到底部，避免访客上滑看记录时被拉回
   useEffect(() => {
+    if (!open) return;
+    const last = messages[messages.length - 1];
+    const key = last ? `${last.id}` : "";
+    const isNew = key !== lastMsgKey.current;
+    lastMsgKey.current = key;
+    const ownMessage = isNew && last?.sender === "visitor";
+    if (!(isNew || awaitingReply) || (!nearBottom.current && !ownMessage)) return;
     const t = setTimeout(() => listRef.current?.scrollTo({ top: listRef.current.scrollHeight }), 50);
     return () => clearTimeout(t);
   }, [messages, open, awaitingReply]);
+
+  useEffect(() => {
+    if (!open) return;
+    nearBottom.current = true;
+    const t = setTimeout(() => listRef.current?.scrollTo({ top: listRef.current.scrollHeight }), 120);
+    return () => clearTimeout(t);
+  }, [open, started]);
+
+  const onListScroll = () => {
+    const el = listRef.current;
+    if (!el) return;
+    nearBottom.current = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
+  };
+
+  const joinGroup = async () => {
+    try {
+      await axios.post(`${API}/chat/${sid.current}/join-group`);
+      nearBottom.current = true;
+      await load();
+    } catch {
+      setSendError("二维码获取失败，请稍后重试");
+    }
+  };
 
   const start = async (e) => {
     e.preventDefault();
@@ -227,7 +265,7 @@ export const ChatWidget = () => {
               </form>
             ) : (
               <>
-                <div ref={listRef} className="flex-1 space-y-3 overflow-y-auto p-4" data-testid="chat-messages">
+                <div ref={listRef} onScroll={onListScroll} className="flex-1 space-y-3 overflow-y-auto p-4" data-testid="chat-messages">
                   {messages.length === 0 && (
                     <p className="py-10 text-center text-xs text-slate-500">您好 {name}，请描述您想咨询的问题</p>
                   )}
@@ -244,6 +282,26 @@ export const ChatWidget = () => {
                           <div className="mb-0.5 text-[10px] font-bold text-[#D4AF37]">{m.via === "ai" ? "AI客服" : m.via === "admin" ? "人工客服" : "客服"}</div>
                         )}
                         <span className="whitespace-pre-line">{m.text}</span>
+                        {m.actions?.length > 0 && (
+                          <div className="mt-2.5 flex flex-col gap-2" data-testid="chat-welcome-actions">
+                            {m.actions.map((a, ai) => (
+                              <button
+                                key={ai}
+                                type="button"
+                                data-testid={`chat-welcome-action-${a.type}`}
+                                onClick={() => (a.type === "qr" ? joinGroup() : goLink(a.link))}
+                                className={`flex w-full items-center justify-center gap-1.5 rounded-full px-3 py-2 text-xs font-bold transition-transform hover:scale-[1.02] active:scale-95 ${
+                                  a.type === "qr"
+                                    ? "border border-amber-500/50 bg-amber-500/10 text-[#E5C158]"
+                                    : "bg-gold-gradient text-[#060B18]"
+                                }`}
+                              >
+                                {a.type === "qr" ? <QrCode size={13} /> : <PlayCircle size={13} />}
+                                {a.label}
+                              </button>
+                            ))}
+                          </div>
+                        )}
                         {m.link && (
                           <button
                             type="button"

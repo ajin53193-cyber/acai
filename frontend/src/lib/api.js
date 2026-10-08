@@ -19,6 +19,9 @@ export const DEFAULT_SETTINGS = {
   categories: ["绿色能源", "科技创新", "商业渠道", "实体产业"],
   chat: {
     welcome: "您好，欢迎来到合赢项目社！请描述您想咨询的问题，客服会尽快回复您。",
+    welcome_tutorial_label: "了解最新项目 · 点击查看教程",
+    welcome_tutorial_link: "/tutorials/gift-card",
+    welcome_group_label: "加入微信群",
     ai_enabled: true,
     qr_image: "",
     qr_codes: [],

@@ -98,6 +98,9 @@
   - 数据：预览库与生产库(eztyv.com 通过 admin API)均已加「礼品卡项目教程」卡片置顶。注意：生产旧代码会丢弃 link 字段，**重新发布后需再执行一次 PUT /api/admin/settings 或在后台填上 /tutorials/gift-card**（scripts/add_tutorial_card.py 幂等可修 link）
   - 测试：iteration_3.json 后端 14/14 + 前端全流程通过
 
+- 2026-07-08 客服欢迎语改为「文字 + 两个按钮」：chat_start 欢迎消息带 actions=[{type:link,label,link}（教程，默认 /tutorials/gift-card）,{type:qr,label}（加入微信群）]，二维码不再内嵌；新增 POST /api/chat/{sid}/join-group（记录访客点击、推送当前群二维码 + 保存按钮、写 qr_pushes/question_clicks）；ChatConfig 新增 welcome_tutorial_label / welcome_tutorial_link / welcome_group_label，SettingsAdmin 可配；AI 兜底与 system prompt 改为引导点「加入微信群」按钮
+- 2026-07-08 修复「上滑看记录被拉回底部」：load() 消息 id 序列未变时不 setState；滚动到底只在打开窗口 / 新消息且用户在底部附近 / 自己刚发消息时触发（onScroll 维护 nearBottom）。Playwright 验证：滚到顶后轮询 7s scrollTop 仍为 0
+
 ## 待办优先级
 - P0：eztyv.com DNS 仍残留阿里云 A 记录 47.115.133.9（约 23% 解析到旧服务器），需在 DNS 服务商删除该记录，只保留 Emergent 自定义域名给的 CNAME/记录
 - P0：Emergent 再次 Re-publish（含欢迎语+二维码合并、保存二维码按钮、发送乐观更新、礼品卡教程）；发布后补生产 link 字段；用户在后台「教程管理」替换礼品卡教程真实图文与视频

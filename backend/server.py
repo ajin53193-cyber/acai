@@ -224,6 +224,9 @@ class QrCodeItem(BaseModel):
 
 class ChatConfig(BaseModel):
     welcome: str = "您好，欢迎来到合赢项目社！请描述您想咨询的问题，客服会尽快回复您。"
+    welcome_tutorial_label: str = Field(default="了解最新项目 · 点击查看教程", max_length=40)
+    welcome_tutorial_link: str = Field(default="/tutorials/gift-card", max_length=300)
+    welcome_group_label: str = Field(default="加入微信群", max_length=40)
     ai_enabled: bool = True
     qr_image: str = ""
     qr_updated_at: str = ""
@@ -538,6 +541,8 @@ async def get_settings():
         return {"contact": ContactInfo().model_dump(), "team": [], "chat": ChatConfig().model_dump()}
     doc.setdefault("chat", ChatConfig().model_dump())
     doc["chat"].setdefault("ai_enabled", True)
+    for k in ("welcome_tutorial_label", "welcome_tutorial_link", "welcome_group_label"):
+        doc["chat"].setdefault(k, ChatConfig.model_fields[k].default)
     if "questions" not in doc["chat"]:
         doc["chat"]["questions"] = ChatConfig().model_dump()["questions"]
     else:
@@ -608,11 +613,15 @@ async def chat_start(data: ChatStart):
     settings = await db.settings.find_one({"key": "site"}, {"_id": 0, "chat": 1})
     chat_cfg = sync_active_qr(migrate_qr_codes(dict((settings or {}).get("chat") or ChatConfig().model_dump())))
     if res.upserted_id is not None:
-        # 新会话：一条消息同时带欢迎语 + 微信群二维码
+        # 新会话：欢迎语 + 两个按钮（查看教程 / 加入微信群）
         welcome = (chat_cfg.get("welcome") or "").strip() or "您好，欢迎来到合赢项目社！"
-        qr_image = chat_cfg.get("qr_image", "")
-        if qr_image and not any(k in welcome for k in ("二维码", "扫码", "进群")):
-            welcome += "\n长按识别下方二维码进微信群，最新项目与合作信息第一时间在群内分享。"
+        defaults = ChatConfig().model_dump()
+        tutorial_link = chat_cfg.get("welcome_tutorial_link", defaults["welcome_tutorial_link"])
+        actions = []
+        if tutorial_link:
+            actions.append({"type": "link", "label": chat_cfg.get("welcome_tutorial_label") or defaults["welcome_tutorial_label"], "link": tutorial_link})
+        if chat_cfg.get("qr_image"):
+            actions.append({"type": "qr", "label": chat_cfg.get("welcome_group_label") or defaults["welcome_group_label"]})
         now_iso = datetime.now(timezone.utc).isoformat()
         await db.chat_messages.insert_one({
             "id": str(uuid.uuid4()),
@@ -620,23 +629,46 @@ async def chat_start(data: ChatStart):
             "sender": "admin",
             "via": "auto",
             "text": welcome,
-            "image": qr_image,
+            "image": "",
+            "actions": actions,
             "created_at": now_iso,
         })
-        if qr_image:
-            qr_label = next((q.get("label", "") for q in (chat_cfg.get("qr_codes") or []) if q.get("image") == qr_image), "")
-            await db.qr_pushes.insert_one({
-                "id": str(uuid.uuid4()),
-                "session_id": data.session_id,
-                "image": qr_image,
-                "label": qr_label,
-                "created_at": now_iso,
-            })
         await db.chat_sessions.update_one(
             {"id": data.session_id},
             {"$set": {"last_message_at": now_iso, "last_message": welcome[:50]}},
         )
     return {"session_id": data.session_id, "welcome": chat_cfg.get("welcome", "")}
+
+
+@api_router.post("/chat/{session_id}/join-group", status_code=201)
+async def chat_join_group(session_id: str):
+    """访客点击「加入微信群」按钮：记录点击并推送当前群二维码。"""
+    if not await db.chat_sessions.find_one({"id": session_id}, {"_id": 1}):
+        raise HTTPException(status_code=404, detail="会话不存在")
+    settings = await db.settings.find_one({"key": "site"}, {"_id": 0, "chat": 1})
+    chat_cfg = sync_active_qr(migrate_qr_codes(dict((settings or {}).get("chat") or {})))
+    qr_image = chat_cfg.get("qr_image", "")
+    if not qr_image:
+        raise HTTPException(status_code=404, detail="暂未配置微信群二维码")
+    now_iso = datetime.now(timezone.utc).isoformat()
+    label = chat_cfg.get("welcome_group_label") or "加入微信群"
+    qr_label = next((q.get("label", "") for q in (chat_cfg.get("qr_codes") or []) if q.get("image") == qr_image), "")
+    await db.chat_messages.insert_many([
+        {"id": str(uuid.uuid4()), "session_id": session_id, "sender": "visitor", "text": label, "image": "", "created_at": now_iso},
+        {
+            "id": str(uuid.uuid4()),
+            "session_id": session_id,
+            "sender": "admin",
+            "via": "auto",
+            "text": "欢迎加入合赢项目社！请长按识别或保存下方二维码进微信群，最新项目与合作信息第一时间在群内分享。",
+            "image": qr_image,
+            "created_at": datetime.now(timezone.utc).isoformat(),
+        },
+    ])
+    await db.qr_pushes.insert_one({"id": str(uuid.uuid4()), "session_id": session_id, "image": qr_image, "label": qr_label, "created_at": now_iso})
+    await db.question_clicks.insert_one({"id": str(uuid.uuid4()), "question": label, "session_id": session_id, "created_at": now_iso})
+    await db.chat_sessions.update_one({"id": session_id}, {"$set": {"last_message_at": now_iso, "last_message": "[微信群二维码]"}})
+    return {"ok": True}
 
 
 @api_router.get("/chat/{session_id}/messages")
@@ -645,7 +677,7 @@ async def chat_messages(session_id: str):
     return {"messages": messages}
 
 
-AI_FALLBACK_TEXT = "已收到您的留言！人工客服会尽快回复（工作时间 9:00-21:00）。为方便联系您，请留下姓名和电话；也可以先扫描上方微信群二维码进群，最新项目群内第一时间分享。"
+AI_FALLBACK_TEXT = "已收到您的留言！人工客服会尽快回复（工作时间 9:00-21:00）。为方便联系您，请留下姓名和电话；也可以点击欢迎语下方「加入微信群」按钮获取群二维码，最新项目群内第一时间分享。"
 
 
 async def _append_admin_message(session_id: str, text: str, via: str):
@@ -693,7 +725,7 @@ async def generate_ai_reply(session_id: str, chat_cfg: dict):
             f"常见问题标准答案（优先参考）：\n{faq}\n"
             f"平台当前在架项目（回答项目相关问题时以此为准）：\n{kb}\n"
             "回答规则：全程使用中文；语气专业热情；回答控制在80字以内；不使用 Markdown 符号；"
-            "访客询问怎么合作、怎么加入、联系方式或人工客服时，告知微信群二维码已在上方聊天记录中，请扫码进群，人工客服会尽快一对一对接，不要编造微信号或电话；"
+            "访客询问怎么合作、怎么加入、联系方式或人工客服时，引导其点击欢迎语下方「加入微信群」按钮获取群二维码扫码进群（若聊天记录中已有二维码则提示扫上方二维码），人工客服会尽快一对一对接，不要编造微信号或电话；"
             "知识库中没有的信息不要编造，引导访客留下姓名和电话，人工客服会尽快跟进。"
         )
         chat = LlmChat(
