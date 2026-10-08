@@ -46,6 +46,7 @@ export default function StatsAdmin({ token, onUnauthorized }) {
   const [funnel, setFunnel] = useState(null);
   const [channelFunnel, setChannelFunnel] = useState(null);
   const [welcomeActions, setWelcomeActions] = useState(null);
+  const [tutorialStats, setTutorialStats] = useState(null);
   const [loading, setLoading] = useState(false);
 
   const headers = { Authorization: `Bearer ${token}` };
@@ -53,15 +54,17 @@ export default function StatsAdmin({ token, onUnauthorized }) {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [o, d, v, f, cf, wa] = await Promise.all([
+      const [o, d, v, f, cf, wa, ts] = await Promise.all([
         axios.get(`${API}/admin/stats/overview`, { headers, params: { date } }),
         axios.get(`${API}/admin/stats/daily`, { headers, params: { days: 14 } }),
         axios.get(`${API}/admin/stats/visits`, { headers, params: { date } }),
         axios.get(`${API}/admin/stats/funnel`, { headers, params: { days: 14 } }),
         axios.get(`${API}/admin/stats/channel-funnel`, { headers, params: { days: 30 } }),
         axios.get(`${API}/admin/stats/welcome-actions`, { headers, params: { days: 14 } }),
+        axios.get(`${API}/admin/stats/tutorials`, { headers, params: { days: 14 } }),
       ]);
       setWelcomeActions(wa.data);
+      setTutorialStats(ts.data);
       setOverview(o.data);
       setDaily(d.data.days);
       setVisits(v.data.visits);
@@ -284,6 +287,44 @@ export default function StatsAdmin({ token, onUnauthorized }) {
                         )}
                       </td>
                     ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {tutorialStats && tutorialStats.tutorials.length > 0 && (
+        <div className="glass-card rounded-2xl p-6" data-testid="stats-tutorials-card">
+          <h3 className="font-display text-base font-bold text-gold-gradient">教程观看统计（近 14 天）</h3>
+          <p className="mt-1 text-xs text-slate-500">每个教程页的浏览次数 / 浏览人数，以及看完后点击底部跳转按钮的人数与转化率</p>
+          <div className="mt-4 overflow-x-auto">
+            <table className="w-full text-xs" data-testid="stats-tutorials-table">
+              <thead>
+                <tr className="text-left text-slate-500">
+                  <th className="pb-2 pr-3 font-normal">教程</th>
+                  <th className="pb-2 pr-3 font-normal">浏览次数</th>
+                  <th className="pb-2 pr-3 font-normal">浏览人数</th>
+                  <th className="pb-2 pr-3 font-normal">跳转按钮点击</th>
+                  <th className="pb-2 pr-3 font-normal">点击人数</th>
+                  <th className="pb-2 font-normal">转化率</th>
+                </tr>
+              </thead>
+              <tbody>
+                {tutorialStats.tutorials.map((t, i) => (
+                  <tr key={t.slug} className="border-t border-amber-500/10 text-slate-300" data-testid={`stats-tutorial-row-${i}`}>
+                    <td className="py-2.5 pr-3">
+                      <div className="font-medium text-slate-100">{t.title}</div>
+                      <div className="text-[10px] text-slate-500">/tutorials/{t.slug}{t.cta_label ? ` · 按钮「${t.cta_label}」` : " · 未设跳转按钮"}</div>
+                    </td>
+                    <td className="py-2.5 pr-3 text-[#E5C158]">{t.views}</td>
+                    <td className="py-2.5 pr-3">{t.view_visitors}</td>
+                    <td className="py-2.5 pr-3 text-[#E5C158]">{t.cta_clicks}</td>
+                    <td className="py-2.5 pr-3">{t.cta_visitors}</td>
+                    <td className="py-2.5">
+                      <span className={`rounded-full px-2 py-0.5 ${t.cta_rate > 0 ? "bg-emerald-500/10 text-emerald-300" : "bg-slate-500/15 text-slate-500"}`}>{t.cta_rate}%</span>
+                    </td>
                   </tr>
                 ))}
               </tbody>

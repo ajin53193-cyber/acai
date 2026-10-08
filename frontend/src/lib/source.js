@@ -28,3 +28,19 @@ export const getSource = () => {
 };
 
 export const sourceLabel = (s) => SOURCE_LABELS[s] || s || "直接访问";
+
+const VISITOR_KEY = "hy_visitor_id";
+
+// 浏览器级访客 ID（localStorage 持久化），用于教程浏览/点击按人去重
+export const getVisitorId = () => {
+  try {
+    let v = localStorage.getItem(VISITOR_KEY);
+    if (!v) {
+      v = crypto.randomUUID();
+      localStorage.setItem(VISITOR_KEY, v);
+    }
+    return v;
+  } catch {
+    return "anonymous";
+  }
+};

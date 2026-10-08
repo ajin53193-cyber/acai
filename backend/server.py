@@ -584,6 +584,31 @@ async def list_tutorials():
     return {"tutorials": docs}
 
 
+class TutorialEventInput(BaseModel):
+    type: str = Field(pattern=r"^(view|cta)$")
+    visitor_id: str = Field(min_length=4, max_length=64)
+
+
+@api_router.post("/tutorials/{slug}/events", status_code=201)
+async def tutorial_event(slug: str, data: TutorialEventInput):
+    """教程页浏览 / 跳转按钮点击埋点。同一访客 30 秒内重复浏览同一教程只记一次（防刷新/重复触发）。"""
+    if data.type == "view":
+        since = (datetime.now(timezone.utc) - timedelta(seconds=30)).isoformat()
+        dup = await db.tutorial_events.find_one(
+            {"slug": slug, "type": "view", "visitor_id": data.visitor_id, "created_at": {"$gte": since}}, {"_id": 1}
+        )
+        if dup:
+            return {"ok": True, "deduped": True}
+    await db.tutorial_events.insert_one({
+        "id": str(uuid.uuid4()),
+        "slug": slug,
+        "type": data.type,
+        "visitor_id": data.visitor_id,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    })
+    return {"ok": True}
+
+
 @api_router.get("/tutorials/{slug}")
 async def get_tutorial(slug: str):
     doc = await db.tutorials.find_one({"slug": slug, "published": {"$ne": False}}, {"_id": 0})
@@ -1425,6 +1450,45 @@ async def stats_welcome_actions(days: int = 14, _: str = Depends(require_admin))
         result.append(row)
     totals = {lb: {"clicks": sum(r[lb]["clicks"] for r in result), "visitors": len(sessions.get(lb, set()))} for lb in labels}
     return {"labels": labels, "days": result, "totals": totals}
+
+
+@api_router.get("/admin/stats/tutorials")
+async def stats_tutorials(days: int = 14, _: str = Depends(require_admin)):
+    """每个教程：浏览次数 / 浏览人数 / 跳转按钮点击次数 / 点击人数 / 转化率（近 N 天）。"""
+    days = max(1, min(days, 90))
+    today = datetime.now(CN_TZ)
+    start_utc = (today - timedelta(days=days - 1)).replace(hour=0, minute=0, second=0, microsecond=0).astimezone(timezone.utc).isoformat()
+    tutorials = await db.tutorials.find({}, {"_id": 0, "slug": 1, "title": 1, "cta_label": 1, "published": 1}).to_list(100)
+    events = await db.tutorial_events.find({"created_at": {"$gte": start_utc}}, {"_id": 0, "slug": 1, "type": 1, "visitor_id": 1}).to_list(100000)
+    agg = {}
+    for e in events:
+        a = agg.setdefault(e["slug"], {"views": 0, "view_visitors": set(), "cta": 0, "cta_visitors": set()})
+        if e["type"] == "view":
+            a["views"] += 1
+            a["view_visitors"].add(e["visitor_id"])
+        else:
+            a["cta"] += 1
+            a["cta_visitors"].add(e["visitor_id"])
+    titles = {t["slug"]: t for t in tutorials}
+    rows = []
+    for slug in list(titles) + [s for s in agg if s not in titles]:
+        a = agg.get(slug, {"views": 0, "view_visitors": set(), "cta": 0, "cta_visitors": set()})
+        vv = len(a["view_visitors"])
+        cv = len(a["cta_visitors"])
+        t = titles.get(slug, {})
+        rows.append({
+            "slug": slug,
+            "title": t.get("title", slug),
+            "cta_label": t.get("cta_label", ""),
+            "published": t.get("published", True),
+            "views": a["views"],
+            "view_visitors": vv,
+            "cta_clicks": a["cta"],
+            "cta_visitors": cv,
+            "cta_rate": round(cv / vv * 100, 1) if vv else 0,
+        })
+    rows.sort(key=lambda r: r["views"], reverse=True)
+    return {"days": days, "tutorials": rows}
 
 
 @api_router.get("/admin/stats/funnel")

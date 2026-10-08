@@ -5,6 +5,10 @@ import { ArrowLeft, PlayCircle, MessageCircle, ArrowRight } from "lucide-react";
 import { motion } from "framer-motion";
 import { API } from "@/lib/api";
 import { toFullUrl } from "@/components/ImageUpload";
+import { getVisitorId } from "@/lib/source";
+
+const trackTutorial = (slug, type) =>
+  axios.post(`${API}/tutorials/${slug}/events`, { type, visitor_id: getVisitorId() }).catch(() => {});
 
 const isDirectVideo = (url) => /\.(mp4|webm|mov|m4v)(\?.*)?$/i.test(url) || url.startsWith("/api/") || url.includes("/api/files/");
 
@@ -36,17 +40,17 @@ export const TutorialVideo = ({ url, title }) => {
   );
 };
 
-const CtaLink = ({ link, label }) => {
+const CtaLink = ({ link, label, onClick }) => {
   const cls = "flex items-center gap-2 rounded-full bg-gold-gradient px-8 py-3 text-sm font-bold text-[#060B18] shadow-[0_0_20px_rgba(212,175,55,0.35)] transition-transform hover:scale-105 active:scale-95";
   if (/^https?:\/\//i.test(link)) {
     return (
-      <a href={link} target="_blank" rel="noreferrer" data-testid="tutorial-cta-btn" className={cls}>
+      <a href={link} target="_blank" rel="noreferrer" onClick={onClick} data-testid="tutorial-cta-btn" className={cls}>
         {label} <ArrowRight size={16} />
       </a>
     );
   }
   return (
-    <Link to={link} data-testid="tutorial-cta-btn" className={cls}>
+    <Link to={link} onClick={onClick} data-testid="tutorial-cta-btn" className={cls}>
       {label} <ArrowRight size={16} />
     </Link>
   );
@@ -61,7 +65,10 @@ export default function Tutorial() {
     window.scrollTo(0, 0);
     axios
       .get(`${API}/tutorials/${slug}`)
-      .then((res) => setTutorial(res.data))
+      .then((res) => {
+        setTutorial(res.data);
+        trackTutorial(slug, "view");
+      })
       .catch(() => setNotFound(true));
   }, [slug]);
 
@@ -134,7 +141,7 @@ export default function Tutorial() {
             </div>
             <div className="flex shrink-0 flex-wrap items-center justify-center gap-3">
               {tutorial.cta_link && (
-                <CtaLink link={tutorial.cta_link} label={tutorial.cta_label || "立即前往"} />
+                <CtaLink link={tutorial.cta_link} label={tutorial.cta_label || "立即前往"} onClick={() => trackTutorial(slug, "cta")} />
               )}
               <button
                 type="button"
