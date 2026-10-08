@@ -146,9 +146,9 @@ export default function PosterAdmin() {
       ctx.fillText("团长收益体系", 450, 250);
       drawDivider(ctx, 282);
       const rows = (tiers.length ? tiers : [
-        { count: "10人团队", income: "2-3万", featured: false },
-        { count: "20人团队", income: "5-6万", featured: true },
-        { count: "50人团队", income: "10万以上", featured: false },
+        { count: "10人团队", income: "10万", featured: false },
+        { count: "20人团队", income: "20万", featured: true },
+        { count: "50人团队", income: "50万以上", featured: false },
       ]).slice(0, 3);
       rows.forEach((t, i) => {
         const y = 322 + i * 128;
