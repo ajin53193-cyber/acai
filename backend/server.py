@@ -250,7 +250,7 @@ class QrCodeItem(BaseModel):
 
 
 class ChatConfig(BaseModel):
-    welcome: str = "您好，欢迎来到合赢项目社！请描述您想咨询的问题，客服会尽快回复您。"
+    welcome: str = "您好，欢迎来到合赢项目社！最新优质项目与合作资料都会第一时间在海鸥官方群内发布，点击下方按钮加入官方群抢先获取；有任何问题也可直接留言，客服会尽快回复您。"
     welcome_tutorial_label: str = Field(default="查看最新项目", max_length=40)
     welcome_tutorial_link: str = Field(default="/tutorials/gift-card", max_length=300)
     welcome_group_label: str = Field(default="加入海鸥官方群", max_length=40)
