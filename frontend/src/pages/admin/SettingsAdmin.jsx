@@ -89,6 +89,17 @@ export default function SettingsAdmin({ token, onUnauthorized }) {
             <input data-testid="settings-email-input" value={contact.email} onChange={setContactField("email")} className={inputCls} />
           </div>
         </div>
+        <div className="mt-6 rounded-2xl border border-amber-500/10 bg-[#060B18]/50 p-4">
+          <div className="text-sm font-medium text-slate-200">官方微信服务号二维码</div>
+          <div className="mb-3 mt-0.5 text-xs text-slate-500">显示在「联系我们」页面右侧卡片，访客微信扫码关注服务号；不上传则不显示</div>
+          <div className="flex flex-wrap items-start gap-4">
+            <ImageUpload token={token} value={contact.mp_qr_image || ""} onChange={(url) => setContact({ ...contact, mp_qr_image: url })} testid="settings-mp-qr-upload" />
+            <div className="min-w-[200px] flex-1">
+              <label className="mb-1.5 block text-xs tracking-widest text-slate-400">显示名称</label>
+              <input data-testid="settings-mp-name-input" value={contact.mp_name || ""} onChange={setContactField("mp_name")} placeholder="官方微信服务号" className={inputCls} />
+            </div>
+          </div>
+        </div>
       </div>
 
       <div className="glass-card rounded-3xl p-7" data-testid="settings-stats-card">

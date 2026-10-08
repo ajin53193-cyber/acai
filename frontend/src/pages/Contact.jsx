@@ -10,7 +10,7 @@ import { toFullUrl } from "@/components/ImageUpload";
 const TYPES = ["项目合作", "团长合作", "资源对接", "其他"];
 
 export default function Contact() {
-  const { contact, chat } = useSettings();
+  const { contact } = useSettings();
   const [form, setForm] = useState({ name: "", phone: "", city: "", inquiry_type: "项目合作", message: "" });
   const [submitting, setSubmitting] = useState(false);
 
@@ -64,11 +64,11 @@ export default function Contact() {
                     <div><div className="text-slate-400">邮箱</div><div className="mt-0.5 font-bold text-slate-100">{contact.email}</div></div>
                   </li>
                 </ul>
-                {chat.qr_image && (
+                {contact.mp_qr_image && (
                   <div className="mt-8 rounded-2xl border border-amber-500/20 bg-[#060B18]/60 p-5 text-center" data-testid="contact-qr-block">
-                    <img src={toFullUrl(chat.qr_image)} alt="海鸥官方群二维码" loading="lazy" decoding="async" className="mx-auto w-36 rounded-xl border border-amber-500/20" />
-                    <div className="mt-3 text-sm font-medium text-[#E5C158]">海鸥官方群</div>
-                    <div className="mt-1 text-xs text-slate-500">扫码进群，获取最新项目</div>
+                    <img src={toFullUrl(contact.mp_qr_image)} alt={contact.mp_name || "官方微信服务号"} loading="lazy" decoding="async" className="mx-auto w-36 rounded-xl border border-amber-500/20" />
+                    <div className="mt-3 text-sm font-medium text-[#E5C158]">{contact.mp_name || "官方微信服务号"}</div>
+                    <div className="mt-1 text-xs text-slate-500">微信扫码关注，获取最新项目</div>
                   </div>
                 )}
                 <button

@@ -8,6 +8,8 @@ export const DEFAULT_SETTINGS = {
     wechat: "heyingkefu",
     hours: "9:00 - 21:00",
     email: "contact@heying.com",
+    mp_qr_image: "",
+    mp_name: "官方微信服务号",
   },
   team: [],
   stats: [

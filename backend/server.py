@@ -153,6 +153,8 @@ class ContactInfo(BaseModel):
     wechat: str = "heyingkefu"
     hours: str = "9:00 - 21:00"
     email: str = "contact@heying.com"
+    mp_qr_image: str = ""  # 官方微信服务号二维码
+    mp_name: str = Field(default="官方微信服务号", max_length=40)
 
 
 class TeamMember(BaseModel):
