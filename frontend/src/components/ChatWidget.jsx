@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import axios from "axios";
-import { MessageCircle, X, Send, Download } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { MessageCircle, X, Send, Download, PlayCircle } from "lucide-react";
 import { API } from "@/lib/api";
 import { toFullUrl } from "@/components/ImageUpload";
 import { getSource } from "@/lib/source";
@@ -83,6 +84,23 @@ export const ChatWidget = () => {
   const listRef = useRef(null);
   const sid = useRef(getSessionId());
   const sessionReady = useRef(false);
+  const navigate = useNavigate();
+
+  const goLink = (link) => {
+    if (/^https?:\/\//i.test(link)) {
+      window.open(link, "_blank", "noopener");
+      return;
+    }
+    setOpen(false);
+    navigate(link);
+  };
+
+  const onCardClick = (q) => {
+    const qText = typeof q === "string" ? q : q.text;
+    const link = typeof q === "string" ? "" : q.link;
+    sendText(qText);
+    if (link) goLink(link);
+  };
 
   const load = useCallback(async () => {
     if (!started) return;
@@ -115,7 +133,8 @@ export const ChatWidget = () => {
   }, [awaitingReply]);
 
   useEffect(() => {
-    listRef.current?.scrollTo({ top: listRef.current.scrollHeight });
+    const t = setTimeout(() => listRef.current?.scrollTo({ top: listRef.current.scrollHeight }), 50);
+    return () => clearTimeout(t);
   }, [messages, open, awaitingReply]);
 
   const start = async (e) => {
@@ -225,6 +244,16 @@ export const ChatWidget = () => {
                           <div className="mb-0.5 text-[10px] font-bold text-[#D4AF37]">{m.via === "ai" ? "AI客服" : m.via === "admin" ? "人工客服" : "客服"}</div>
                         )}
                         <span className="whitespace-pre-line">{m.text}</span>
+                        {m.link && (
+                          <button
+                            type="button"
+                            data-testid="chat-link-btn"
+                            onClick={() => goLink(m.link)}
+                            className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-full bg-gold-gradient px-3 py-1.5 text-xs font-bold text-[#060B18] transition-transform hover:scale-[1.02] active:scale-95"
+                          >
+                            <PlayCircle size={13} /> 查看图文视频教程
+                          </button>
+                        )}
                         {m.image && (
                           <>
                             <img src={toFullUrl(m.image)} alt="客服图片" loading="lazy" decoding="async" className="mt-2 w-full min-w-44 rounded-xl border border-amber-500/20" data-testid="chat-qr-image" />
@@ -243,10 +272,11 @@ export const ChatWidget = () => {
                             key={i}
                             type="button"
                             data-testid={`chat-question-card-${i}`}
-                            onClick={() => sendText(qText)}
+                            onClick={() => onCardClick(q)}
                             disabled={sending}
-                            className="rounded-full border border-amber-500/30 bg-[#0A1228]/80 px-3.5 py-1.5 text-xs text-[#E5C158] transition-colors duration-200 hover:border-[#D4AF37]/70 hover:bg-amber-500/10 active:scale-95 disabled:opacity-50"
+                            className="inline-flex items-center gap-1 rounded-full border border-amber-500/30 bg-[#0A1228]/80 px-3.5 py-1.5 text-xs text-[#E5C158] transition-colors duration-200 hover:border-[#D4AF37]/70 hover:bg-amber-500/10 active:scale-95 disabled:opacity-50"
                           >
+                            {q.link && <PlayCircle size={12} />}
                             {qText}
                           </button>
                         );

@@ -15,6 +15,7 @@ import NewsDetail from "@/pages/NewsDetail";
 import Cooperation from "@/pages/Cooperation";
 import About from "@/pages/About";
 import Contact from "@/pages/Contact";
+import Tutorial from "@/pages/Tutorial";
 import Admin from "@/pages/Admin";
 import { ChatWidget } from "@/components/ChatWidget";
 
@@ -58,6 +59,7 @@ const Layout = () => {
         <Route path="/cooperation" element={<Cooperation />} />
         <Route path="/about" element={<About />} />
         <Route path="/contact" element={<Contact />} />
+        <Route path="/tutorials/:slug" element={<Tutorial />} />
         <Route path="/admin" element={<Admin />} />
       </Routes>
       {!isAdmin && <Footer />}

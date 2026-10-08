@@ -28,7 +28,7 @@ export default function SettingsAdmin({ token, onUnauthorized }) {
         if (res.data.stats && res.data.stats.length) setStats(res.data.stats);
         if (res.data.categories && res.data.categories.length) setCategories(res.data.categories);
         const chatMerged = { ...DEFAULT_SETTINGS.chat, ...(res.data.chat || {}) };
-        chatMerged.questions = (chatMerged.questions || []).map((q) => (typeof q === "string" ? { text: q, image: "", answer: "" } : { answer: "", ...q }));
+        chatMerged.questions = (chatMerged.questions || []).map((q) => (typeof q === "string" ? { text: q, image: "", answer: "", link: "" } : { answer: "", link: "", ...q }));
         setChatCfg(chatMerged);
         if (res.data.tiers && res.data.tiers.length) setTiers(res.data.tiers);
         if (res.data.edges && res.data.edges.length) setEdges(res.data.edges);
@@ -63,7 +63,7 @@ export default function SettingsAdmin({ token, onUnauthorized }) {
   const save = async () => {
     setSaving(true);
     try {
-      await axios.put(`${API}/admin/settings`, { contact, stats, categories: categories.map((c) => c.trim()).filter(Boolean), chat: { ...chatCfg, questions: (chatCfg.questions || []).map((q) => ({ text: (q.text || "").trim(), image: q.image || "", answer: (q.answer || "").trim() })).filter((q) => q.text) }, tiers: tiers.filter((t) => t.count.trim() && t.income.trim()), edges: edges.filter((x) => x.title.trim()), milestones: milestones.filter((x) => x.year.trim() && x.title.trim()) }, { headers });
+      await axios.put(`${API}/admin/settings`, { contact, stats, categories: categories.map((c) => c.trim()).filter(Boolean), chat: { ...chatCfg, questions: (chatCfg.questions || []).map((q) => ({ text: (q.text || "").trim(), image: q.image || "", answer: (q.answer || "").trim(), link: (q.link || "").trim() })).filter((q) => q.text) }, tiers: tiers.filter((t) => t.count.trim() && t.income.trim()), edges: edges.filter((x) => x.title.trim()), milestones: milestones.filter((x) => x.year.trim() && x.title.trim()) }, { headers });
       invalidateSettings();
       toast.success("设置已保存，前台页面已同步更新");
     } catch (err) {
@@ -252,12 +252,19 @@ export default function SettingsAdmin({ token, onUnauthorized }) {
                     rows={2}
                     className={`${inputCls} mt-2.5 resize-none`}
                   />
+                  <input
+                    data-testid={`settings-chat-question-link-${i}`}
+                    value={q.link || ""}
+                    onChange={(e) => setChatCfg({ ...chatCfg, questions: chatCfg.questions.map((x, idx) => (idx === i ? { ...x, link: e.target.value } : x)) })}
+                    placeholder="跳转链接（可选）：如 /tutorials/gift-card，访客点击此问题后自动打开该页面"
+                    className={`${inputCls} mt-2.5`}
+                  />
                 </div>
               ))}
               <button
                 type="button"
                 data-testid="settings-chat-question-add-btn"
-                onClick={() => setChatCfg({ ...chatCfg, questions: [...(chatCfg.questions || []), { text: "", image: "" }] })}
+                onClick={() => setChatCfg({ ...chatCfg, questions: [...(chatCfg.questions || []), { text: "", image: "", answer: "", link: "" }] })}
                 className="flex items-center gap-1.5 rounded-full border border-amber-500/30 px-4 py-2 text-xs text-[#E5C158] transition-colors hover:bg-amber-500/10"
               >
                 <Plus size={13} /> 添加问题

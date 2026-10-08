@@ -197,6 +197,22 @@ class QuestionCard(BaseModel):
     text: str = Field(min_length=1, max_length=50)
     image: str = ""
     answer: str = ""
+    link: str = Field(default="", max_length=300)
+
+
+class TutorialStep(BaseModel):
+    title: str = Field(default="", max_length=80)
+    text: str = Field(default="", max_length=3000)
+    image: str = ""
+
+
+class TutorialInput(BaseModel):
+    title: str = Field(min_length=1, max_length=120)
+    slug: str = Field(min_length=1, max_length=60, pattern=r"^[a-z0-9-]+$")
+    summary: str = Field(default="", max_length=300)
+    cover: str = ""
+    video_url: str = Field(default="", max_length=500)
+    steps: List[TutorialStep] = Field(default_factory=list)
 
 
 class QrCodeItem(BaseModel):
@@ -456,6 +472,14 @@ async def startup():
             docs.append({"id": str(uuid.uuid4()), **p, "created_at": datetime.now(timezone.utc).isoformat()})
         await db.projects.insert_many(docs)
 
+    if await db.tutorials.count_documents({}) == 0:
+        await db.tutorials.insert_one({
+            "id": str(uuid.uuid4()),
+            **GIFT_CARD_TUTORIAL_SEED,
+            "published": True,
+            "created_at": datetime.now(timezone.utc).isoformat(),
+        })
+
     if await db.articles.count_documents({}) == 0:
         docs = []
         for a in ARTICLES_SEED:
@@ -518,10 +542,40 @@ async def get_settings():
         doc["chat"]["questions"] = ChatConfig().model_dump()["questions"]
     else:
         doc["chat"]["questions"] = [
-            {"text": q, "image": "", "answer": ""} if isinstance(q, str) else {"text": q.get("text", ""), "image": q.get("image", ""), "answer": q.get("answer", "")}
+            {"text": q, "image": "", "answer": "", "link": ""} if isinstance(q, str) else {"text": q.get("text", ""), "image": q.get("image", ""), "answer": q.get("answer", ""), "link": q.get("link", "")}
             for q in doc["chat"]["questions"]
         ]
     doc["chat"] = sync_active_qr(migrate_qr_codes(doc["chat"]))
+    return doc
+
+
+GIFT_CARD_TUTORIAL_SEED = {
+    "title": "礼品卡项目教程",
+    "slug": "gift-card",
+    "summary": "从开通账号到首单成交，图文 + 视频手把手带你跑通礼品卡项目全流程。",
+    "cover": "",
+    "video_url": "",
+    "steps": [
+        {"title": "第一步：了解项目模式", "text": "礼品卡项目通过正规渠道获取品牌礼品卡货源，由团队长组织成员进行分销与回收，赚取差价与渠道返点。项目合法合规、门槛低、回款周期短，适合 10 人以上团队起步。", "image": ""},
+        {"title": "第二步：开通账号与认证", "text": "扫描客服发送的微信群二维码进群后，由专属对接人协助完成平台账号注册与实名认证，一般 1 个工作日内完成审核。", "image": ""},
+        {"title": "第三步：选品与下单", "text": "在平台「项目中心」查看当前在架的礼品卡品类与折扣，根据团队资源选择 2-3 个主推品类，小批量首单测试。", "image": ""},
+        {"title": "第四步：分销与回款", "text": "通过团队渠道完成分销，平台 T+1 结算；团队长可在后台实时查看成员业绩与返点明细。", "image": ""},
+        {"title": "常见问题", "text": "Q：需要押金或加盟费吗？\nA：不需要，平台不收取任何加盟费、服务费。\n\nQ：没有经验能做吗？\nA：可以，进群后有专人一对一带教，并提供话术与素材包。", "image": ""},
+    ],
+}
+
+
+@api_router.get("/tutorials")
+async def list_tutorials():
+    docs = await db.tutorials.find({"published": {"$ne": False}}, {"_id": 0, "steps": 0}).sort("created_at", -1).to_list(50)
+    return {"tutorials": docs}
+
+
+@api_router.get("/tutorials/{slug}")
+async def get_tutorial(slug: str):
+    doc = await db.tutorials.find_one({"slug": slug, "published": {"$ne": False}}, {"_id": 0})
+    if not doc:
+        raise HTTPException(status_code=404, detail="教程不存在或已下架")
     return doc
 
 
@@ -687,6 +741,7 @@ async def chat_send(session_id: str, data: ChatMessageInput):
     matched_q = None
     matched_img = ""
     matched_answer = ""
+    matched_link = ""
     for q in chat_cfg.get("questions") or []:
         q_text = q if isinstance(q, str) else q.get("text", "")
         if q_text and q_text == data.text:
@@ -694,6 +749,7 @@ async def chat_send(session_id: str, data: ChatMessageInput):
             if not isinstance(q, str):
                 matched_img = q.get("image", "")
                 matched_answer = q.get("answer", "")
+                matched_link = q.get("link", "")
             break
     answered = False
     if matched_q:
@@ -703,15 +759,16 @@ async def chat_send(session_id: str, data: ChatMessageInput):
             "session_id": session_id,
             "created_at": now,
         })
-        if matched_answer or matched_img:
+        if matched_answer or matched_img or matched_link:
             card_now = datetime.now(timezone.utc).isoformat()
             await db.chat_messages.insert_one({
                 "id": str(uuid.uuid4()),
                 "session_id": session_id,
                 "sender": "admin",
                 "via": "auto",
-                "text": matched_answer or "这是相关介绍图，供您参考：",
+                "text": matched_answer or ("点击下方按钮查看图文视频教程：" if matched_link else "这是相关介绍图，供您参考："),
                 "image": matched_img,
+                "link": matched_link,
                 "created_at": card_now,
             })
             await db.chat_sessions.update_one(
@@ -928,12 +985,107 @@ async def admin_upload(file: UploadFile = File(...), _: str = Depends(require_ad
 
 
 @api_router.get("/files/{path:path}")
-async def serve_file(path: str):
+async def serve_file(path: str, request: Request):
     record = await db.files.find_one({"storage_path": path, "is_deleted": False})
     if not record:
         raise HTTPException(status_code=404, detail="文件不存在")
     data, content_type = await asyncio.to_thread(get_object, path)
-    return Response(content=data, media_type=record.get("content_type", content_type))
+    media_type = record.get("content_type", content_type)
+    total = len(data)
+    range_header = request.headers.get("range")
+    if range_header and media_type.startswith("video/"):
+        # iOS Safari 等播放视频必须支持 Range（206）
+        try:
+            start_s, end_s = range_header.replace("bytes=", "").split("-")
+            start = int(start_s) if start_s else 0
+            end = int(end_s) if end_s else total - 1
+        except ValueError:
+            raise HTTPException(status_code=416, detail="Range 不合法")
+        end = min(end, total - 1)
+        if start > end:
+            raise HTTPException(status_code=416, detail="Range 不合法")
+        return Response(
+            content=data[start:end + 1],
+            status_code=206,
+            media_type=media_type,
+            headers={
+                "Content-Range": f"bytes {start}-{end}/{total}",
+                "Accept-Ranges": "bytes",
+                "Content-Length": str(end - start + 1),
+            },
+        )
+    return Response(content=data, media_type=media_type, headers={"Accept-Ranges": "bytes"} if media_type.startswith("video/") else None)
+
+
+ALLOWED_VIDEO_TYPES = {"video/mp4", "video/webm", "video/quicktime"}
+
+
+@api_router.post("/admin/upload-video", status_code=201)
+async def admin_upload_video(file: UploadFile = File(...), _: str = Depends(require_admin)):
+    if file.content_type not in ALLOWED_VIDEO_TYPES:
+        raise HTTPException(status_code=400, detail="仅支持 MP4 / WEBM / MOV 视频")
+    data = await file.read()
+    if len(data) > 60 * 1024 * 1024:
+        raise HTTPException(status_code=400, detail="视频大小不能超过 60MB，建议先压缩或粘贴外部视频链接")
+    ext = {"video/mp4": "mp4", "video/webm": "webm", "video/quicktime": "mov"}[file.content_type]
+    path = f"{APP_NAME}/videos/{uuid.uuid4()}.{ext}"
+    result = await asyncio.to_thread(put_object, path, data, file.content_type)
+    await db.files.insert_one({
+        "id": str(uuid.uuid4()),
+        "storage_path": result["path"],
+        "original_filename": file.filename,
+        "content_type": file.content_type,
+        "size": result["size"],
+        "is_deleted": False,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    })
+    return {"url": f"/api/files/{result['path']}", "path": result["path"]}
+
+
+@api_router.get("/admin/tutorials")
+async def admin_list_tutorials(_: str = Depends(require_admin)):
+    docs = await db.tutorials.find({}, {"_id": 0}).sort("created_at", -1).to_list(100)
+    return {"tutorials": docs}
+
+
+@api_router.post("/admin/tutorials", status_code=201)
+async def create_tutorial(data: TutorialInput, _: str = Depends(require_admin)):
+    if await db.tutorials.find_one({"slug": data.slug}):
+        raise HTTPException(status_code=400, detail="该链接标识已被使用，请换一个")
+    doc = {
+        "id": str(uuid.uuid4()),
+        **data.model_dump(),
+        "published": True,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    }
+    await db.tutorials.insert_one(doc)
+    return {"message": "教程已发布", "id": doc["id"]}
+
+
+@api_router.put("/admin/tutorials/{tutorial_id}")
+async def update_tutorial(tutorial_id: str, data: TutorialInput, _: str = Depends(require_admin)):
+    if await db.tutorials.find_one({"slug": data.slug, "id": {"$ne": tutorial_id}}):
+        raise HTTPException(status_code=400, detail="该链接标识已被使用，请换一个")
+    result = await db.tutorials.update_one({"id": tutorial_id}, {"$set": data.model_dump()})
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="教程不存在")
+    return {"message": "教程已更新"}
+
+
+@api_router.patch("/admin/tutorials/{tutorial_id}/publish")
+async def publish_tutorial(tutorial_id: str, data: PublishUpdate, _: str = Depends(require_admin)):
+    result = await db.tutorials.update_one({"id": tutorial_id}, {"$set": {"published": data.published}})
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="教程不存在")
+    return {"message": "已上架" if data.published else "已下架"}
+
+
+@api_router.delete("/admin/tutorials/{tutorial_id}")
+async def delete_tutorial(tutorial_id: str, _: str = Depends(require_admin)):
+    result = await db.tutorials.delete_one({"id": tutorial_id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="教程不存在")
+    return {"message": "教程已删除"}
 
 
 @api_router.get("/admin/articles")
