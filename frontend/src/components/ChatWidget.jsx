@@ -10,8 +10,8 @@ import { useSettings } from "@/lib/useSettings";
 
 const SID_KEY = "hy_chat_sid";
 const NAME_KEY = "hy_chat_name";
-const CLOSED_KEY = "hy_chat_closed_at";
-const SESSION_RESET_MS = 2 * 60 * 1000; // 关闭客服 2 分钟后自动结束会话
+const ACTIVE_KEY = "hy_chat_active_at"; // 客服窗口最近一次处于打开状态的时间
+const SESSION_RESET_MS = 2 * 60 * 1000; // 关闭客服（含关页面/切走）超过 2 分钟后自动结束会话
 
 const IS_WECHAT = /MicroMessenger/i.test(navigator.userAgent);
 
@@ -136,16 +136,47 @@ export const ChatWidget = () => {
   }, []);
 
   const openChat = useCallback(() => {
-    const closedAt = Number(localStorage.getItem(CLOSED_KEY) || 0);
-    if (closedAt && Date.now() - closedAt > SESSION_RESET_MS) resetSession();
-    localStorage.removeItem(CLOSED_KEY);
+    const activeAt = Number(localStorage.getItem(ACTIVE_KEY) || 0);
+    if (activeAt && Date.now() - activeAt > SESSION_RESET_MS) resetSession();
+    localStorage.setItem(ACTIVE_KEY, String(Date.now()));
     setOpen(true);
   }, [resetSession]);
 
   const closeChat = () => {
-    localStorage.setItem(CLOSED_KEY, String(Date.now()));
+    localStorage.setItem(ACTIVE_KEY, String(Date.now()));
     setOpen(false);
   };
+
+  const ensureSession = useCallback(async () => {
+    if (sessionReady.current) return;
+    try {
+      await axios.post(`${API}/chat/start`, { session_id: sid.current, name: name.trim() || "访客", source: getSource() });
+      sessionReady.current = true;
+      await load();
+    } catch { /* 下次发送时重试 */ }
+  }, [name, load]);
+
+  // 访客手动结束会话：清空记录并重新开始（立即收到欢迎语）
+  const endSession = () => {
+    resetSession();
+    localStorage.setItem(ACTIVE_KEY, String(Date.now()));
+    nearBottom.current = true;
+    ensureSession();
+  };
+
+  // 窗口打开期间持续刷新活跃时间；关闭页面 / 切后台也以最后活跃时间为准
+  useEffect(() => {
+    if (!open) return;
+    const tick = () => localStorage.setItem(ACTIVE_KEY, String(Date.now()));
+    tick();
+    const timer = setInterval(tick, 15000);
+    window.addEventListener("pagehide", tick);
+    return () => {
+      clearInterval(timer);
+      window.removeEventListener("pagehide", tick);
+      tick();
+    };
+  }, [open]);
 
   useEffect(() => {
     window.addEventListener("hy:open-chat", openChat);
@@ -154,11 +185,7 @@ export const ChatWidget = () => {
 
   // 打开窗口且已有称呼时确保会话已创建（新会话会自动收到欢迎语）
   useEffect(() => {
-    if (!open || !started || sessionReady.current) return;
-    axios
-      .post(`${API}/chat/start`, { session_id: sid.current, name: name.trim() || "访客", source: getSource() })
-      .then(() => { sessionReady.current = true; load(); })
-      .catch(() => {});
+    if (open && started) ensureSession();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, started]);
 
@@ -276,9 +303,21 @@ export const ChatWidget = () => {
             transition={{ duration: 0.25 }}
             className="glass-card fixed bottom-40 right-4 z-50 flex h-[440px] w-[calc(100vw-2rem)] max-w-sm flex-col overflow-hidden rounded-3xl lg:bottom-24 lg:right-8"
           >
-            <div className="border-b border-amber-500/15 bg-[#0A1228]/90 px-5 py-4">
-              <div className="font-display font-bold text-gold-gradient">在线客服</div>
-              <div className="mt-0.5 text-xs text-slate-500">工作时间 9:00 - 21:00，留言后客服会尽快回复</div>
+            <div className="flex items-start justify-between gap-3 border-b border-amber-500/15 bg-[#0A1228]/90 px-5 py-4">
+              <div>
+                <div className="font-display font-bold text-gold-gradient">在线客服</div>
+                <div className="mt-0.5 text-xs text-slate-500">工作时间 9:00 - 21:00，留言后客服会尽快回复</div>
+              </div>
+              {started && messages.some((m) => m.sender === "visitor") && (
+                <button
+                  type="button"
+                  data-testid="chat-end-session-btn"
+                  onClick={endSession}
+                  className="shrink-0 rounded-full border border-amber-500/25 px-3 py-1 text-[11px] text-slate-400 transition-colors hover:border-[#D4AF37]/60 hover:text-[#E5C158]"
+                >
+                  结束会话
+                </button>
+              )}
             </div>
 
             {!started ? (

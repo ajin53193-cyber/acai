@@ -109,6 +109,8 @@
 
 - 2026-07-08 教程观看统计：POST /api/tutorials/{slug}/events {type:view|cta, visitor_id}（view 同访客 30s 去重）；visitor_id 由 lib/source.js getVisitorId() localStorage 持久化；GET /api/admin/stats/tutorials?days=14 → 每教程 views/view_visitors/cta_clicks/cta_visitors/cta_rate；StatsAdmin 新增「教程观看统计」表。截图验证。随后再次触发发布（第二次，第一次未上线）
 
+- 2026-07-08 会话结束机制加固：改用 hy_chat_active_at「最后活跃时间」（窗口打开期间每 15s 刷新 + pagehide/关闭时写入），打开客服时距最后活跃 >2 分钟即结束旧会话并新建（覆盖关页面/切后台/点 X/跳转教程等所有离开方式）；新增聊天头部「结束会话」按钮（有访客消息时显示）→ 立即清空并重新收到欢迎语；ensureSession 抽取复用。Playwright 验证：离开 3 分钟回来 → 新会话；手动结束 → 新会话+欢迎语
+
 ## 待办优先级
 - P0：eztyv.com DNS 仍残留阿里云 A 记录 47.115.133.9（约 23% 解析到旧服务器），需在 DNS 服务商删除该记录，只保留 Emergent 自定义域名给的 CNAME/记录
 - P0：Emergent 再次 Re-publish（含欢迎语+二维码合并、保存二维码按钮、发送乐观更新、礼品卡教程）；发布后补生产 link 字段；用户在后台「教程管理」替换礼品卡教程真实图文与视频
