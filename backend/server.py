@@ -204,6 +204,9 @@ class TutorialStep(BaseModel):
     title: str = Field(default="", max_length=80)
     text: str = Field(default="", max_length=3000)
     image: str = ""
+    video_url: str = Field(default="", max_length=500)
+    button_label: str = Field(default="", max_length=40)
+    button_link: str = Field(default="", max_length=500)
 
 
 class TutorialInput(BaseModel):

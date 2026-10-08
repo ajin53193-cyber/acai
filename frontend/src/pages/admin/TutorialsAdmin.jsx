@@ -7,7 +7,7 @@ import { API, formatDetail } from "@/lib/api";
 import { ImageUpload, toFullUrl } from "@/components/ImageUpload";
 import { VideoUpload } from "@/components/VideoUpload";
 
-const EMPTY_STEP = { title: "", text: "", image: "" };
+const EMPTY_STEP = { title: "", text: "", image: "", video_url: "", button_label: "", button_link: "" };
 const EMPTY_FORM = { title: "", slug: "", summary: "", cover: "", video_url: "", steps: [{ ...EMPTY_STEP }], cta_label: "", cta_link: "", back_label: "返回首页", back_link: "/" };
 
 const inputCls =
@@ -56,7 +56,7 @@ export default function TutorialsAdmin({ token, onUnauthorized }) {
       summary: t.summary || "",
       cover: t.cover || "",
       video_url: t.video_url || "",
-      steps: t.steps?.length ? t.steps : [{ ...EMPTY_STEP }],
+      steps: t.steps?.length ? t.steps.map((st) => ({ ...EMPTY_STEP, ...st })) : [{ ...EMPTY_STEP }],
       cta_label: t.cta_label || "",
       cta_link: t.cta_link || "",
       back_label: t.back_label || "返回首页",
@@ -86,7 +86,16 @@ export default function TutorialsAdmin({ token, onUnauthorized }) {
       summary: form.summary.trim(),
       cover: form.cover,
       video_url: form.video_url.trim(),
-      steps: form.steps.map((s) => ({ title: s.title.trim(), text: s.text.trim(), image: s.image || "" })).filter((s) => s.title || s.text || s.image),
+      steps: form.steps
+        .map((s) => ({
+          title: s.title.trim(),
+          text: s.text.trim(),
+          image: s.image || "",
+          video_url: (s.video_url || "").trim(),
+          button_label: (s.button_label || "").trim(),
+          button_link: (s.button_link || "").trim(),
+        }))
+        .filter((s) => s.title || s.text || s.image || s.video_url || s.button_link),
       cta_label: form.cta_label.trim(),
       cta_link: form.cta_link.trim(),
       back_label: form.back_label.trim() || "返回首页",
@@ -274,6 +283,17 @@ export default function TutorialsAdmin({ token, onUnauthorized }) {
                         <textarea data-testid={`tutorial-step-text-${i}`} value={s.text} onChange={(e) => setStep(i, { text: e.target.value })} rows={3} placeholder="步骤说明文字，支持换行" className={`${inputCls} resize-y`} />
                         <div className="mt-2">
                           <ImageUpload token={token} value={s.image} onChange={(url) => setStep(i, { image: url })} testid={`tutorial-step-image-${i}`} />
+                        </div>
+                        <div className="mt-3">
+                          <div className="mb-1 text-[11px] tracking-widest text-slate-500">本步骤视频（可选）</div>
+                          <VideoUpload token={token} value={s.video_url || ""} onChange={(url) => setStep(i, { video_url: url })} testid={`tutorial-step-video-${i}`} />
+                        </div>
+                        <div className="mt-3">
+                          <div className="mb-1 text-[11px] tracking-widest text-slate-500">本步骤按钮（可选，填了链接才显示）</div>
+                          <div className="grid gap-2 sm:grid-cols-2">
+                            <input data-testid={`tutorial-step-button-label-${i}`} value={s.button_label || ""} onChange={(e) => setStep(i, { button_label: e.target.value })} placeholder="按钮名称，如：立即注册" className={inputCls} />
+                            <input data-testid={`tutorial-step-button-link-${i}`} value={s.button_link || ""} onChange={(e) => setStep(i, { button_link: e.target.value })} placeholder="跳转链接，如 https://... 或 /cooperation" className={inputCls} />
+                          </div>
                         </div>
                       </div>
                     ))}

@@ -40,18 +40,20 @@ export const TutorialVideo = ({ url, title }) => {
   );
 };
 
-const CtaLink = ({ link, label, onClick }) => {
-  const cls = "flex items-center gap-2 rounded-full bg-gold-gradient px-8 py-3 text-sm font-bold text-[#060B18] shadow-[0_0_20px_rgba(212,175,55,0.35)] transition-transform hover:scale-105 active:scale-95";
+const CtaLink = ({ link, label, onClick, small = false, testid = "tutorial-cta-btn" }) => {
+  const cls = small
+    ? "mt-4 inline-flex items-center gap-1.5 rounded-full bg-gold-gradient px-5 py-2 text-xs font-bold text-[#060B18] transition-transform hover:scale-105 active:scale-95"
+    : "flex items-center gap-2 rounded-full bg-gold-gradient px-8 py-3 text-sm font-bold text-[#060B18] shadow-[0_0_20px_rgba(212,175,55,0.35)] transition-transform hover:scale-105 active:scale-95";
   if (/^https?:\/\//i.test(link)) {
     return (
-      <a href={link} target="_blank" rel="noreferrer" onClick={onClick} data-testid="tutorial-cta-btn" className={cls}>
-        {label} <ArrowRight size={16} />
+      <a href={link} target="_blank" rel="noreferrer" onClick={onClick} data-testid={testid} className={cls}>
+        {label} <ArrowRight size={small ? 13 : 16} />
       </a>
     );
   }
   return (
-    <Link to={link} onClick={onClick} data-testid="tutorial-cta-btn" className={cls}>
-      {label} <ArrowRight size={16} />
+    <Link to={link} onClick={onClick} data-testid={testid} className={cls}>
+      {label} <ArrowRight size={small ? 13 : 16} />
     </Link>
   );
 };
@@ -127,6 +129,12 @@ export default function Tutorial() {
                     {step.text && <p className="mt-2 whitespace-pre-line text-sm leading-loose text-slate-300">{step.text}</p>}
                     {step.image && (
                       <img src={toFullUrl(step.image)} alt={step.title || `步骤 ${i + 1}`} loading="lazy" decoding="async" className="mt-4 w-full rounded-xl border border-amber-500/15 object-cover" />
+                    )}
+                    {step.video_url && (
+                      <div className="mt-4" data-testid={`tutorial-step-video-${i}`}><TutorialVideo url={step.video_url} title={step.title || `步骤 ${i + 1}`} /></div>
+                    )}
+                    {step.button_link && (
+                      <CtaLink link={step.button_link} label={step.button_label || "点击前往"} small testid={`tutorial-step-btn-${i}`} onClick={() => trackTutorial(slug, "cta")} />
                     )}
                   </div>
                 </div>
