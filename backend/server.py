@@ -671,6 +671,13 @@ async def chat_join_group(session_id: str):
     return {"ok": True}
 
 
+@api_router.post("/chat/{session_id}/end")
+async def chat_end(session_id: str):
+    """访客关闭客服超过 2 分钟后前端自动结束会话；标记后管理端显示「已结束」。"""
+    await db.chat_sessions.update_one({"id": session_id}, {"$set": {"ended_at": datetime.now(timezone.utc).isoformat()}})
+    return {"ok": True}
+
+
 @api_router.get("/chat/{session_id}/messages")
 async def chat_messages(session_id: str):
     messages = await db.chat_messages.find({"session_id": session_id}, {"_id": 0}).sort("created_at", 1).to_list(500)

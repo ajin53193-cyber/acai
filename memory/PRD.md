@@ -101,6 +101,8 @@
 - 2026-07-08 客服欢迎语改为「文字 + 两个按钮」：chat_start 欢迎消息带 actions=[{type:link,label,link}（教程，默认 /tutorials/gift-card）,{type:qr,label}（加入微信群）]，二维码不再内嵌；新增 POST /api/chat/{sid}/join-group（记录访客点击、推送当前群二维码 + 保存按钮、写 qr_pushes/question_clicks）；ChatConfig 新增 welcome_tutorial_label / welcome_tutorial_link / welcome_group_label，SettingsAdmin 可配；AI 兜底与 system prompt 改为引导点「加入微信群」按钮
 - 2026-07-08 修复「上滑看记录被拉回底部」：load() 消息 id 序列未变时不 setState；滚动到底只在打开窗口 / 新消息且用户在底部附近 / 自己刚发消息时触发（onScroll 维护 nearBottom）。Playwright 验证：滚到顶后轮询 7s scrollTop 仍为 0
 
+- 2026-07-08 会话自动结束：关闭客服时记 hy_chat_closed_at；再次打开若已超 2 分钟 → 调 POST /api/chat/{old}/end（会话打 ended_at，ChatAdmin 显示「已结束」）、清本地 sid 与消息、生成新会话并自动 chat/start（称呼复用，无需再填）→ 立即收到欢迎语+按钮；2 分钟内重开则继续原会话。打开窗口时若会话未就绪也会自动 chat/start。Playwright 验证通过
+
 ## 待办优先级
 - P0：eztyv.com DNS 仍残留阿里云 A 记录 47.115.133.9（约 23% 解析到旧服务器），需在 DNS 服务商删除该记录，只保留 Emergent 自定义域名给的 CNAME/记录
 - P0：Emergent 再次 Re-publish（含欢迎语+二维码合并、保存二维码按钮、发送乐观更新、礼品卡教程）；发布后补生产 link 字段；用户在后台「教程管理」替换礼品卡教程真实图文与视频

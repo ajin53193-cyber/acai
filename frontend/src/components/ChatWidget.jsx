@@ -10,6 +10,8 @@ import { useSettings } from "@/lib/useSettings";
 
 const SID_KEY = "hy_chat_sid";
 const NAME_KEY = "hy_chat_name";
+const CLOSED_KEY = "hy_chat_closed_at";
+const SESSION_RESET_MS = 2 * 60 * 1000; // 关闭客服 2 分钟后自动结束会话
 
 const IS_WECHAT = /MicroMessenger/i.test(navigator.userAgent);
 
@@ -120,11 +122,45 @@ export const ChatWidget = () => {
     } catch { /* session not created yet */ }
   }, [started]);
 
-  useEffect(() => {
-    const openHandler = () => setOpen(true);
-    window.addEventListener("hy:open-chat", openHandler);
-    return () => window.removeEventListener("hy:open-chat", openHandler);
+  const resetSession = useCallback(() => {
+    const oldSid = sid.current;
+    axios.post(`${API}/chat/${oldSid}/end`).catch(() => {});
+    localStorage.removeItem(SID_KEY);
+    sid.current = getSessionId();
+    sessionReady.current = false;
+    lastMsgKey.current = "";
+    setMessages([]);
+    setText("");
+    setSendError("");
+    setAwaitingReply(false);
   }, []);
+
+  const openChat = useCallback(() => {
+    const closedAt = Number(localStorage.getItem(CLOSED_KEY) || 0);
+    if (closedAt && Date.now() - closedAt > SESSION_RESET_MS) resetSession();
+    localStorage.removeItem(CLOSED_KEY);
+    setOpen(true);
+  }, [resetSession]);
+
+  const closeChat = () => {
+    localStorage.setItem(CLOSED_KEY, String(Date.now()));
+    setOpen(false);
+  };
+
+  useEffect(() => {
+    window.addEventListener("hy:open-chat", openChat);
+    return () => window.removeEventListener("hy:open-chat", openChat);
+  }, [openChat]);
+
+  // 打开窗口且已有称呼时确保会话已创建（新会话会自动收到欢迎语）
+  useEffect(() => {
+    if (!open || !started || sessionReady.current) return;
+    axios
+      .post(`${API}/chat/start`, { session_id: sid.current, name: name.trim() || "访客", source: getSource() })
+      .then(() => { sessionReady.current = true; load(); })
+      .catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, started]);
 
   useEffect(() => {
     if (!open) return;
@@ -223,7 +259,7 @@ export const ChatWidget = () => {
     <>
       <button
         data-testid="chat-widget-btn"
-        onClick={() => setOpen(!open)}
+        onClick={() => (open ? closeChat() : openChat())}
         aria-label="在线客服"
         className="fixed bottom-24 right-4 z-50 flex h-13 w-13 items-center justify-center rounded-full bg-gold-gradient p-3.5 text-[#060B18] shadow-[0_0_24px_rgba(212,175,55,0.5)] transition-transform duration-300 hover:scale-110 active:scale-95 lg:bottom-8 lg:right-8"
       >

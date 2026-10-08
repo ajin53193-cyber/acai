@@ -164,6 +164,9 @@ export default function ChatAdmin({ token, onUnauthorized }) {
               <div className="flex items-center justify-between">
                 <span className="flex items-center gap-1.5 text-sm font-bold text-slate-100">
                   {s.name}
+                  {s.ended_at && (
+                    <span className="rounded-full border border-slate-500/40 px-1.5 py-0.5 text-[9px] font-normal text-slate-400" data-testid={`chat-session-ended-${i}`}>已结束</span>
+                  )}
                   {s.source && (
                     <span className="rounded-full border border-amber-500/30 bg-amber-500/10 px-1.5 py-0.5 text-[9px] font-normal text-[#E5C158]" data-testid={`chat-session-source-${i}`}>
                       {sourceLabel(s.source)}
