@@ -777,6 +777,12 @@ async def generate_ai_reply(session_id: str, chat_cfg: dict):
         faq = "\n".join(
             f"Q：{q.get('text')}\nA：{q.get('answer')}" for q in (chat_cfg.get("questions") or []) if isinstance(q, dict) and q.get("answer")
         )
+        tutorials = await db.tutorials.find({"published": {"$ne": False}}, {"_id": 0, "title": 1, "slug": 1, "summary": 1, "steps": 1}).to_list(20)
+        tutorial_kb = "\n".join(
+            f"【{t['title']}】（教程页 /tutorials/{t['slug']}）{t.get('summary', '')}\n"
+            + "\n".join(f"- {st.get('title', '')}：{(st.get('text') or '')[:300]}" for st in (t.get("steps") or []))
+            for t in tutorials
+        )
         system = (
             "你是「合赢项目社」的在线客服助手。平台主要面向全国招募团队长（团长），为团队长提供稳定项目；"
             "团队通过专业的项目审核、项目评估、项目整合，保障项目稳定可靠；平台每个月都会发布安全、稳定、合法的项目供团队长合作，"
@@ -785,6 +791,7 @@ async def generate_ai_reply(session_id: str, chat_cfg: dict):
             "收益与团队运营情况相关，不构成收益承诺，具体以正式合作协议为准。"
             "合作方式：团长合作、项目方合作、资源方合作。工作时间 9:00-21:00。\n"
             f"常见问题标准答案（优先参考）：\n{faq}\n"
+            f"项目教程内容（回答项目玩法、收益、返佣、注册流程等问题时以此为准）：\n{tutorial_kb}\n"
             f"平台当前在架项目（回答项目相关问题时以此为准）：\n{kb}\n"
             "回答规则：全程使用中文；语气专业热情；回答控制在80字以内；不使用 Markdown 符号；"
             "访客询问怎么合作、怎么加入、联系方式或人工客服时，引导其点击欢迎语下方「加入微信群」按钮获取群二维码扫码进群（若聊天记录中已有二维码则提示扫上方二维码），人工客服会尽快一对一对接，不要编造微信号或电话；"
