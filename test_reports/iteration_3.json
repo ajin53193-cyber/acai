@@ -1,0 +1,25 @@
+{
+  "summary": "Verified the new 教程 (tutorials) feature end-to-end: 14/14 backend pytest cases pass (public list without steps, GET gift-card with 5 steps, 404 for missing slug, admin login, create with slug pattern validation, duplicate-slug 400, PUT update, PATCH publish=false hides from public but kept in admin list, DELETE, video upload rejects non-video, mp4 upload returns /api/files URL, Range: bytes=0-99 returns 206 with correct Content-Range, chat_send with text '礼品卡项目教程' returns last admin message via=auto with link=/tutorials/gift-card). Frontend verified on preview URL: ChatWidget → first question card is '礼品卡项目教程' with play-icon SVG; clicking navigates to /tutorials/gift-card where tutorial-title='礼品卡项目教程' and tutorial-steps has 5 children; tutorial-contact-btn reopens ChatWidget showing chat-link-btn '查看图文视频教程'. Admin → admin-tab-tutorials → admin-tutorial-row-0 present with admin-tutorial-link-0 href=/tutorials/gift-card; created test-abc-ui via admin-tutorial-create-btn with 2 steps + external mp4 URL, submit toast success, list shows new row with '含视频' tag; public /tutorials/test-abc-ui renders <video data-testid=tutorial-video> and 2 tutorial-step-* items; edited title via edit button, unpublished → public page shows '教程不存在或已下架'; deleted test tutorial (cleanup done, '教程已删除' toast). Site settings → settings-chat-question-link-0 persists as '/tutorials/gift-card'. Gift-card tutorial remains published; no residual test data.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_tutorials.py",
+    "/app/test_reports/pytest/tutorials.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "server.py has grown to ~1430 lines mixing models, seeds, routes and stats. Should be split into modules (models/, routes/, seeds/, auth) once it exceeds 700 lines per guideline.",
+    "GIFT_CARD_TUTORIAL_SEED is declared on line 552, AFTER the startup() handler that references it on line 478. Python resolves names at call-time so it works, but it is fragile and confusing — move the SEED constant above startup() alongside PROJECTS_SEED/ARTICLES_SEED.",
+    "generate_ai_reply still uses model id 'gpt-5.4-mini' (line 703). Previous iteration flagged this — if the Emergent LLM key does not know this model the fallback 'auto_fallback' message is logged silently. Add an admin-visible alert when the fallback rate spikes.",
+    "serve_file loads the full object into memory on every request (line 992) even for Range reads — fine for small clips, but a 50MB video request will balloon memory under load. Consider streaming or range-aware storage fetch.",
+    "Settings PUT (/admin/settings) does a full-doc replace of the chat sub-object. If a future field is added to ChatConfig and an older client submits without it, the field will be lost. Consider using $set with explicit sub-paths or a merge strategy."
+  ],
+  "updated_files": ["/app/backend/tests/test_tutorials.py"],
+  "success_rate": {"backend": "100% (14/14)", "frontend": "100%"},
+  "test_credentials": "admin / Heying@2026 (/admin) — verified",
+  "seed_data_creation": "Created & cleaned up tutorial 'test-abc-ui' via admin UI. Backend pytest cases create and delete their own tutorials with random slugs (test-abc-<hex>). A few TEST_ chat sessions remain from the chat-link test case (session ids prefixed TEST-).",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Backend test file at /app/backend/tests/test_tutorials.py covers public tutorials, admin CRUD, slug uniqueness, video upload + Range 206, and chat auto-reply link. Admin UI uses data-testid admin-tutorial-row-{i}, admin-tutorial-link-{i}, admin-tutorial-create-btn, admin-tutorial-edit-{i}, admin-tutorial-publish-{i}, admin-tutorial-delete-{i}; form uses tutorial-{title,slug,summary,video-upload-url}-input, tutorial-add-step-btn, tutorial-step-{title,text}-{i}, tutorial-form-submit-btn. Delete uses a native confirm dialog — Playwright must register a dialog accept handler before click. Public tutorial page: tutorial-title, tutorial-steps, tutorial-step-*, tutorial-video, tutorial-contact-btn. Settings link field: settings-chat-question-link-{i}.",
+  "rca of the issue": "No issues found — all specified behavior works. Only a minor code-structure nit: GIFT_CARD_TUTORIAL_SEED is declared below startup() that uses it, which is legal in Python but should be moved up alongside the other SEED constants for clarity."
+}

@@ -90,9 +90,17 @@
 
 - 2026-07-07 修复「点发送没反应」：ChatWidget 改为乐观更新——点击即在列表显示访客消息并清空输入框，再请求后端；轮询时保留 temp- 消息避免闪烁；chat/start 仅在会话未就绪时调用一次（减少国内访问的往返延迟）；失败时回滚消息、恢复输入并显示 chat-send-error 红字。Playwright 验证：150ms 内消息可见、无重复、AI 回复正常
 
+- 2026-07-08 礼品卡项目教程（图文+视频）：
+  - 后端 tutorials 集合 + TutorialInput{title,slug,summary,cover,video_url,steps[{title,text,image}]}；公开 GET /api/tutorials、/api/tutorials/{slug}；后台 CRUD /api/admin/tutorials(+/publish, DELETE)；启动时 seed「礼品卡项目教程」slug=gift-card（5 步占位文案，待用户替换）
+  - 视频：POST /api/admin/upload-video（mp4/webm/mov ≤60MB，实测 25MB 过 ingress）；serve_file 对 video/* 支持 Range→206（iOS Safari 必需）；也可粘贴外链（mp4 直链用 <video>，腾讯/B站播放器地址用 iframe）
+  - 客服：QuestionCard 新增 link；点卡片 → 发送消息 + 前端 navigate(link)（外链新窗口）；自动回复消息带 link → 聊天内显示「查看图文视频教程」按钮；SettingsAdmin 每个问题新增「跳转链接」输入框
+  - 前端：/tutorials/:slug 页面 Tutorial.jsx（视频/封面、编号步骤卡片、底部「联系客服」触发 hy:open-chat）；后台新 Tab「教程管理」TutorialsAdmin.jsx（步骤增删排序、封面/步骤图上传、VideoUpload 组件带进度）；sitemap 加 /tutorials/gift-card
+  - 数据：预览库与生产库(eztyv.com 通过 admin API)均已加「礼品卡项目教程」卡片置顶。注意：生产旧代码会丢弃 link 字段，**重新发布后需再执行一次 PUT /api/admin/settings 或在后台填上 /tutorials/gift-card**（scripts/add_tutorial_card.py 幂等可修 link）
+  - 测试：iteration_3.json 后端 14/14 + 前端全流程通过
+
 ## 待办优先级
 - P0：eztyv.com DNS 仍残留阿里云 A 记录 47.115.133.9（约 23% 解析到旧服务器），需在 DNS 服务商删除该记录，只保留 Emergent 自定义域名给的 CNAME/记录
-- P0：Emergent 再次 Re-publish（含欢迎语+二维码合并、保存二维码按钮）；线上二维码已有(1群)，按需替换为真实群码
+- P0：Emergent 再次 Re-publish（含欢迎语+二维码合并、保存二维码按钮、发送乐观更新、礼品卡教程）；发布后补生产 link 字段；用户在后台「教程管理」替换礼品卡教程真实图文与视频
 - P1：Emergent 通用密钥余额不足时 AI 会自动回落为转人工提示，需在 Profile → Manage plan → Universal Key 充值或开自动续费
 - P1：留言邮件/短信通知客服（需集成 Resend / Twilio）
 - P2：百度/Google Search Console 提交 sitemap

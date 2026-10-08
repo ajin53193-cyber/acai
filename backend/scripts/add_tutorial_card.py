@@ -20,9 +20,12 @@ async def main():
     db = AsyncIOMotorClient(os.environ["MONGO_URL"])[os.environ["DB_NAME"]]
     s = await db.settings.find_one({"key": "site"})
     qs = (s or {}).get("chat", {}).get("questions", [])
-    if not any((q.get("text") if isinstance(q, dict) else q) == CARD["text"] for q in qs):
+    idx = next((i for i, q in enumerate(qs) if (q.get("text") if isinstance(q, dict) else q) == CARD["text"]), None)
+    if idx is None:
         qs.insert(0, CARD)
-        await db.settings.update_one({"key": "site"}, {"$set": {"chat.questions": qs}})
+    elif not (isinstance(qs[idx], dict) and qs[idx].get("link")):
+        qs[idx] = {**(qs[idx] if isinstance(qs[idx], dict) else {"text": qs[idx]}), "link": CARD["link"], "answer": (qs[idx].get("answer") if isinstance(qs[idx], dict) else "") or CARD["answer"]}
+    await db.settings.update_one({"key": "site"}, {"$set": {"chat.questions": qs}})
     print([q.get("text") if isinstance(q, dict) else q for q in qs])
 
 
