@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import axios from "axios";
-import { ArrowLeft, PlayCircle, MessageCircle } from "lucide-react";
+import { ArrowLeft, PlayCircle, MessageCircle, ArrowRight } from "lucide-react";
 import { motion } from "framer-motion";
 import { API } from "@/lib/api";
 import { toFullUrl } from "@/components/ImageUpload";
@@ -33,6 +33,22 @@ export const TutorialVideo = ({ url, title }) => {
       className="aspect-video w-full rounded-2xl border border-amber-500/20 bg-black"
       data-testid="tutorial-video-iframe"
     />
+  );
+};
+
+const CtaLink = ({ link, label }) => {
+  const cls = "flex items-center gap-2 rounded-full bg-gold-gradient px-8 py-3 text-sm font-bold text-[#060B18] shadow-[0_0_20px_rgba(212,175,55,0.35)] transition-transform hover:scale-105 active:scale-95";
+  if (/^https?:\/\//i.test(link)) {
+    return (
+      <a href={link} target="_blank" rel="noreferrer" data-testid="tutorial-cta-btn" className={cls}>
+        {label} <ArrowRight size={16} />
+      </a>
+    );
+  }
+  return (
+    <Link to={link} data-testid="tutorial-cta-btn" className={cls}>
+      {label} <ArrowRight size={16} />
+    </Link>
   );
 };
 
@@ -68,8 +84,8 @@ export default function Tutorial() {
     <main className="pt-28" data-testid="tutorial-page">
       <article className="mx-auto max-w-3xl px-4 pb-24 sm:px-8">
         <motion.div initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7 }}>
-          <Link to="/projects" data-testid="tutorial-back-link" className="inline-flex items-center gap-1.5 text-sm text-slate-400 transition-colors hover:text-[#FFE896]">
-            <ArrowLeft size={15} /> 返回项目中心
+          <Link to={tutorial.back_link || "/"} data-testid="tutorial-back-link" className="inline-flex items-center gap-1.5 text-sm text-slate-400 transition-colors hover:text-[#FFE896]">
+            <ArrowLeft size={15} /> {tutorial.back_label || "返回首页"}
           </Link>
           <div className="mt-6 inline-flex items-center gap-1.5 rounded-full border border-amber-500/30 px-3 py-1 text-[11px] tracking-widest text-[#E5C158]">
             <PlayCircle size={12} /> 图文视频教程
@@ -116,14 +132,23 @@ export default function Tutorial() {
               <div className="font-display text-lg font-bold text-slate-50">看完教程还有疑问？</div>
               <div className="mt-1 text-sm text-slate-400">点击联系客服，扫码进群领取最新项目资料</div>
             </div>
-            <button
-              type="button"
-              onClick={openChat}
-              data-testid="tutorial-contact-btn"
-              className="flex shrink-0 items-center gap-2 rounded-full bg-gold-gradient px-8 py-3 text-sm font-bold text-[#060B18] shadow-[0_0_20px_rgba(212,175,55,0.35)] transition-transform hover:scale-105 active:scale-95"
-            >
-              <MessageCircle size={16} /> 联系客服
-            </button>
+            <div className="flex shrink-0 flex-wrap items-center justify-center gap-3">
+              {tutorial.cta_link && (
+                <CtaLink link={tutorial.cta_link} label={tutorial.cta_label || "立即前往"} />
+              )}
+              <button
+                type="button"
+                onClick={openChat}
+                data-testid="tutorial-contact-btn"
+                className={`flex items-center gap-2 rounded-full px-8 py-3 text-sm font-bold transition-transform hover:scale-105 active:scale-95 ${
+                  tutorial.cta_link
+                    ? "border border-amber-500/50 text-[#E5C158] hover:bg-amber-500/10"
+                    : "bg-gold-gradient text-[#060B18] shadow-[0_0_20px_rgba(212,175,55,0.35)]"
+                }`}
+              >
+                <MessageCircle size={16} /> 联系客服
+              </button>
+            </div>
           </div>
         </motion.div>
       </article>

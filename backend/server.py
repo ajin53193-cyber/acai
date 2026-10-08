@@ -213,6 +213,10 @@ class TutorialInput(BaseModel):
     cover: str = ""
     video_url: str = Field(default="", max_length=500)
     steps: List[TutorialStep] = Field(default_factory=list)
+    cta_label: str = Field(default="", max_length=40)
+    cta_link: str = Field(default="", max_length=500)
+    back_label: str = Field(default="返回首页", max_length=40)
+    back_link: str = Field(default="/", max_length=300)
 
 
 class QrCodeItem(BaseModel):
@@ -560,6 +564,10 @@ GIFT_CARD_TUTORIAL_SEED = {
     "summary": "从开通账号到首单成交，图文 + 视频手把手带你跑通礼品卡项目全流程。",
     "cover": "",
     "video_url": "",
+    "cta_label": "",
+    "cta_link": "",
+    "back_label": "返回首页",
+    "back_link": "/",
     "steps": [
         {"title": "第一步：了解项目模式", "text": "礼品卡项目通过正规渠道获取品牌礼品卡货源，由团队长组织成员进行分销与回收，赚取差价与渠道返点。项目合法合规、门槛低、回款周期短，适合 10 人以上团队起步。", "image": ""},
         {"title": "第二步：开通账号与认证", "text": "扫描客服发送的微信群二维码进群后，由专属对接人协助完成平台账号注册与实名认证，一般 1 个工作日内完成审核。", "image": ""},

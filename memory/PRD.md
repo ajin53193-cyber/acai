@@ -105,6 +105,8 @@
 
 - 2026-07-08 欢迎语按钮点击统计：POST /api/chat/{sid}/action-click 记录「查看最新项目」点击（question_clicks, kind=welcome_action）；join-group 同样打 kind；GET /api/admin/stats/welcome-actions?days=14 返回 labels/每日 clicks+visitors(按会话去重)/totals；StatsAdmin 新增「客服按钮点击（近 14 天）」卡片（汇总 + 日表）。curl + 截图验证
 
+- 2026-07-08 教程页按钮可配：TutorialInput 新增 cta_label/cta_link（底部金色跳转按钮，填链接才显示，外链新窗口）、back_label/back_link（左上角返回，默认 返回首页 → /）；TutorialsAdmin 编辑器新增「页面按钮」区块；gift-card 示例已设为「立即加入合作 → /cooperation」「返回项目中心 → /projects」。截图验证
+
 ## 待办优先级
 - P0：eztyv.com DNS 仍残留阿里云 A 记录 47.115.133.9（约 23% 解析到旧服务器），需在 DNS 服务商删除该记录，只保留 Emergent 自定义域名给的 CNAME/记录
 - P0：Emergent 再次 Re-publish（含欢迎语+二维码合并、保存二维码按钮、发送乐观更新、礼品卡教程）；发布后补生产 link 字段；用户在后台「教程管理」替换礼品卡教程真实图文与视频

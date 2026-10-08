@@ -8,7 +8,7 @@ import { ImageUpload, toFullUrl } from "@/components/ImageUpload";
 import { VideoUpload } from "@/components/VideoUpload";
 
 const EMPTY_STEP = { title: "", text: "", image: "" };
-const EMPTY_FORM = { title: "", slug: "", summary: "", cover: "", video_url: "", steps: [{ ...EMPTY_STEP }] };
+const EMPTY_FORM = { title: "", slug: "", summary: "", cover: "", video_url: "", steps: [{ ...EMPTY_STEP }], cta_label: "", cta_link: "", back_label: "返回首页", back_link: "/" };
 
 const inputCls =
   "w-full rounded-xl border border-amber-500/15 bg-[#060B18]/70 px-4 py-2.5 text-sm text-slate-200 outline-none transition-colors placeholder:text-slate-500 focus:border-[#D4AF37]/60";
@@ -50,7 +50,18 @@ export default function TutorialsAdmin({ token, onUnauthorized }) {
 
   const openEdit = (t) => {
     setEditing(t);
-    setForm({ title: t.title, slug: t.slug, summary: t.summary || "", cover: t.cover || "", video_url: t.video_url || "", steps: t.steps?.length ? t.steps : [{ ...EMPTY_STEP }] });
+    setForm({
+      title: t.title,
+      slug: t.slug,
+      summary: t.summary || "",
+      cover: t.cover || "",
+      video_url: t.video_url || "",
+      steps: t.steps?.length ? t.steps : [{ ...EMPTY_STEP }],
+      cta_label: t.cta_label || "",
+      cta_link: t.cta_link || "",
+      back_label: t.back_label || "返回首页",
+      back_link: t.back_link || "/",
+    });
     setModalOpen(true);
   };
 
@@ -76,6 +87,10 @@ export default function TutorialsAdmin({ token, onUnauthorized }) {
       cover: form.cover,
       video_url: form.video_url.trim(),
       steps: form.steps.map((s) => ({ title: s.title.trim(), text: s.text.trim(), image: s.image || "" })).filter((s) => s.title || s.text || s.image),
+      cta_label: form.cta_label.trim(),
+      cta_link: form.cta_link.trim(),
+      back_label: form.back_label.trim() || "返回首页",
+      back_link: form.back_link.trim() || "/",
     };
     try {
       if (editing) {
@@ -226,6 +241,17 @@ export default function TutorialsAdmin({ token, onUnauthorized }) {
                 <div>
                   <label className={labelCls}>封面图（无视频时显示在顶部）</label>
                   <ImageUpload token={token} value={form.cover} onChange={(url) => setForm({ ...form, cover: url })} testid="tutorial-cover-upload" />
+                </div>
+
+                <div className="rounded-2xl border border-amber-500/10 bg-[#060B18]/50 p-4">
+                  <label className={labelCls}>页面按钮</label>
+                  <p className="mb-3 text-[11px] text-slate-500">「跳转按钮」显示在教程底部（如：立即报名 → 报名表单链接，填了链接才显示）；「返回按钮」显示在页面左上角</p>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <input data-testid="tutorial-cta-label-input" value={form.cta_label} onChange={set("cta_label")} placeholder="跳转按钮名称，如：立即加入" className={inputCls} />
+                    <input data-testid="tutorial-cta-link-input" value={form.cta_link} onChange={set("cta_link")} placeholder="跳转链接，如 /cooperation 或 https://..." className={inputCls} />
+                    <input data-testid="tutorial-back-label-input" value={form.back_label} onChange={set("back_label")} placeholder="返回按钮名称，如：返回首页" className={inputCls} />
+                    <input data-testid="tutorial-back-link-input" value={form.back_link} onChange={set("back_link")} placeholder="返回链接，如 / 或 /projects" className={inputCls} />
+                  </div>
                 </div>
 
                 <div>
