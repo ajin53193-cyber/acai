@@ -189,10 +189,10 @@ class MilestoneItem(BaseModel):
 
 
 DEFAULT_CHAT_QUESTIONS = [
-    {"text": "你们有什么项目？", "answer": "平台每月发布安全稳定的优质项目，涵盖绿色能源、科技创新、商业渠道、实体产业等类别。您可以到「项目中心」查看在架项目详情，或扫码进群获取最新项目清单。"},
-    {"text": "怎么合作？", "answer": "合作方式有团长合作、项目方合作、资源方合作。请扫描上方海鸥官方群二维码进群，或留下您的姓名和电话，人工客服会尽快与您一对一对接。"},
+    {"text": "你们有什么项目？", "answer": "平台每月发布安全稳定的优质项目，涵盖绿色能源、科技创新、商业渠道、实体产业等类别。您可以到「项目中心」查看在架项目详情，或点击上方「加入海鸥官方群」按钮进群获取最新项目清单。"},
+    {"text": "怎么合作？", "answer": "合作方式有团长合作、项目方合作、资源方合作。请点击上方「加入海鸥官方群」按钮按教程进群，或留下您的姓名和电话，人工客服会尽快与您一对一对接。"},
     {"text": "收益怎么样？", "answer": "团队收益参考：10人团队月收入约10万元，20人团队约20万元，50人团队50万元以上。收益与团队运营情况相关，不构成收益承诺，具体以正式合作协议为准。"},
-    {"text": "怎么联系客服？", "answer": "您可以直接在本窗口留言（请留下姓名和电话），人工客服会在工作时间 9:00-21:00 内尽快回复；也可以扫描上方二维码进群咨询。"},
+    {"text": "怎么联系客服？", "answer": "您可以直接在本窗口留言（请留下姓名和电话），人工客服会在工作时间 9:00-21:00 内尽快回复；也可以点击上方「加入海鸥官方群」按钮进群咨询。"},
 ]
 
 
@@ -814,7 +814,7 @@ async def chat_messages(session_id: str):
     return {"messages": messages}
 
 
-AI_FALLBACK_TEXT = "已收到您的留言！人工客服会尽快回复（工作时间 9:00-21:00）。为方便联系您，请留下姓名和电话；也可以点击欢迎语下方「加入海鸥官方群」按钮获取群二维码，最新项目群内第一时间分享。"
+AI_FALLBACK_TEXT = "已收到您的留言！人工客服会尽快回复（工作时间 9:00-21:00）。为方便联系您，请留下姓名和电话；也可以点击欢迎语下方「加入海鸥官方群」按钮查看进群教程，最新项目群内第一时间分享。"
 
 
 async def _append_admin_message(session_id: str, text: str, via: str):
@@ -869,7 +869,7 @@ async def generate_ai_reply(session_id: str, chat_cfg: dict):
             f"项目教程内容（回答项目玩法、收益、返佣、注册流程等问题时以此为准）：\n{tutorial_kb}\n"
             f"平台当前在架项目（回答项目相关问题时以此为准）：\n{kb}\n"
             "回答规则：全程使用中文；语气专业热情；回答控制在80字以内；不使用 Markdown 符号；"
-            "访客询问怎么合作、怎么加入、联系方式或人工客服时，引导其点击欢迎语下方「加入海鸥官方群」按钮获取群二维码，保存后用海鸥 App 扫一扫进群（若聊天记录中已有二维码则提示保存上方二维码），人工客服会尽快一对一对接，不要编造微信号或电话；"
+            "访客询问怎么合作、怎么加入、联系方式或人工客服时，引导其点击聊天中的「加入海鸥官方群」按钮查看进群教程（下载海鸥 App → 注册 → 扫码或搜索群 ID 进群），人工客服会尽快一对一对接，不要编造微信号或电话；"
             "知识库中没有的信息不要编造，引导访客留下姓名和电话，人工客服会尽快跟进。"
         )
         chat = LlmChat(
@@ -952,25 +952,41 @@ async def chat_send(session_id: str, data: ChatMessageInput):
                 {"$set": {"last_message_at": card_now, "last_message": (matched_answer or "[介绍图片]")[:50]}},
             )
             answered = True
-    # 自由留言（非卡片点击）且 AI 开启：由 AI 作答；二维码规则仅负责补发二维码图片
+    # 自由留言（非卡片点击）且 AI 开启：由 AI 作答；进群规则负责补发「加入海鸥官方群」按钮（未配教程链接时回退为二维码）
     use_ai = bool(chat_cfg.get("ai_enabled", True)) and not matched_q
-    if qr_image and any(k in data.text for k in QR_KEYWORDS):
+    group_link = chat_cfg.get("welcome_group_link", "")
+    group_label = chat_cfg.get("welcome_group_label") or "加入海鸥官方群"
+    if (group_link or qr_image) and any(k in data.text for k in QR_KEYWORDS):
         recent_msgs = await db.chat_messages.find(
-            {"session_id": session_id}, {"_id": 0, "sender": 1, "image": 1}
+            {"session_id": session_id}, {"_id": 0, "sender": 1, "image": 1, "actions": 1}
         ).sort("created_at", -1).to_list(5)
-        qr_sent_recently = any(m.get("sender") == "admin" and m.get("image") == qr_image for m in recent_msgs)
+        qr_sent_recently = any(
+            m.get("sender") == "admin" and ((qr_image and m.get("image") == qr_image) or any(a.get("type") == "group-link" for a in (m.get("actions") or [])))
+            for m in recent_msgs
+        )
         qr_now = datetime.now(timezone.utc).isoformat()
         if qr_sent_recently and use_ai:
-            pass  # AI 会在回复中引导扫上方二维码，不再重复发提醒
+            pass  # AI 会在回复中引导点击上方按钮，不再重复发提醒
         elif qr_sent_recently:
-            # 二维码刚推送过，仅文字提醒，避免刷屏
+            # 刚推送过，仅文字提醒，避免刷屏
             await db.chat_messages.insert_one({
                 "id": str(uuid.uuid4()),
                 "session_id": session_id,
                 "sender": "admin",
                 "via": "auto",
-                "text": "海鸥官方群二维码就在上方聊天记录里，保存后打开海鸥 App 扫一扫即可进群；需要人工服务请留下姓名和电话，客服会尽快与您对接。",
+                "text": "「加入海鸥官方群」按钮就在上方聊天记录里，点击即可查看进群教程；需要人工服务请留下姓名和电话，客服会尽快与您对接。" if group_link else "海鸥官方群二维码就在上方聊天记录里，保存后打开海鸥 App 扫一扫即可进群；需要人工服务请留下姓名和电话，客服会尽快与您对接。",
                 "image": "",
+                "created_at": qr_now,
+            })
+        elif group_link:
+            await db.chat_messages.insert_one({
+                "id": str(uuid.uuid4()),
+                "session_id": session_id,
+                "sender": "admin",
+                "via": "auto",
+                "text": "欢迎加入合赢项目社！点击下方按钮查看进群教程，加入海鸥官方群后，最新项目与合作信息第一时间在群内分享，客服也会尽快与您一对一对接。",
+                "image": "",
+                "actions": [{"type": "group-link", "label": group_label, "link": group_link}],
                 "created_at": qr_now,
             })
         else:
@@ -993,7 +1009,7 @@ async def chat_send(session_id: str, data: ChatMessageInput):
         if not (qr_sent_recently and use_ai):
             await db.chat_sessions.update_one(
                 {"id": session_id},
-                {"$set": {"last_message_at": qr_now, "last_message": "[海鸥官方群二维码]"}},
+                {"$set": {"last_message_at": qr_now, "last_message": "[加入海鸥官方群]" if group_link else "[海鸥官方群二维码]"}},
             )
         answered = True
     if use_ai:

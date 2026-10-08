@@ -90,3 +90,4 @@ credentials.json
 *.key
 .credentials
 docker-compose.override.yml
+frontend/node_modules/.cache/default-development/0.pack
