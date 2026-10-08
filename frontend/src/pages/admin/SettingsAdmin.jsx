@@ -206,7 +206,7 @@ export default function SettingsAdmin({ token, onUnauthorized }) {
                 data-testid="settings-chat-welcome-tutorial-label"
                 value={chatCfg.welcome_tutorial_label || ""}
                 onChange={(e) => setChatCfg({ ...chatCfg, welcome_tutorial_label: e.target.value })}
-                placeholder="教程按钮文字，如：了解最新项目 · 点击查看教程"
+                placeholder="教程按钮文字，如：查看最新项目"
                 className={inputCls}
               />
               <input

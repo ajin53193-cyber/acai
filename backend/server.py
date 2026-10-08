@@ -224,7 +224,7 @@ class QrCodeItem(BaseModel):
 
 class ChatConfig(BaseModel):
     welcome: str = "您好，欢迎来到合赢项目社！请描述您想咨询的问题，客服会尽快回复您。"
-    welcome_tutorial_label: str = Field(default="了解最新项目 · 点击查看教程", max_length=40)
+    welcome_tutorial_label: str = Field(default="查看最新项目", max_length=40)
     welcome_tutorial_link: str = Field(default="/tutorials/gift-card", max_length=300)
     welcome_group_label: str = Field(default="加入微信群", max_length=40)
     ai_enabled: bool = True
