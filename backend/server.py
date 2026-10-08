@@ -16,7 +16,7 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from starlette.middleware.cors import CORSMiddleware
 from starlette.responses import Response
 from motor.motor_asyncio import AsyncIOMotorClient
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, model_validator, field_validator
 from PIL import Image
 from zoneinfo import ZoneInfo
 import asyncio
@@ -200,13 +200,28 @@ class QuestionCard(BaseModel):
     link: str = Field(default="", max_length=300)
 
 
+class StepButton(BaseModel):
+    label: str = Field(default="", max_length=40)
+    link: str = Field(default="", max_length=500)
+
+
 class TutorialStep(BaseModel):
     title: str = Field(default="", max_length=80)
     text: str = Field(default="", max_length=3000)
     image: str = ""
     video_url: str = Field(default="", max_length=500)
+    buttons: List[StepButton] = Field(default_factory=list)
+    # 兼容旧字段：单个按钮
     button_label: str = Field(default="", max_length=40)
     button_link: str = Field(default="", max_length=500)
+
+    @model_validator(mode="after")
+    def _merge_legacy_button(self):
+        if self.button_link and not any(b.link == self.button_link for b in self.buttons):
+            self.buttons.insert(0, StepButton(label=self.button_label, link=self.button_link))
+        self.button_label = ""
+        self.button_link = ""
+        return self
 
 
 class TutorialInput(BaseModel):

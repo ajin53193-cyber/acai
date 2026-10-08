@@ -133,8 +133,14 @@ export default function Tutorial() {
                     {step.video_url && (
                       <div className="mt-4" data-testid={`tutorial-step-video-${i}`}><TutorialVideo url={step.video_url} title={step.title || `步骤 ${i + 1}`} /></div>
                     )}
-                    {step.button_link && (
-                      <CtaLink link={step.button_link} label={step.button_label || "点击前往"} small testid={`tutorial-step-btn-${i}`} onClick={() => trackTutorial(slug, "cta")} />
+                    {(step.buttons?.length > 0 || step.button_link) && (
+                      <div className="flex flex-wrap gap-2">
+                        {[...(step.buttons || []), ...(step.button_link && !(step.buttons || []).some((b) => b.link === step.button_link) ? [{ label: step.button_label, link: step.button_link }] : [])]
+                          .filter((b) => b.link)
+                          .map((b, bi) => (
+                            <CtaLink key={bi} link={b.link} label={b.label || "点击前往"} small testid={`tutorial-step-btn-${i}-${bi}`} onClick={() => trackTutorial(slug, "cta")} />
+                          ))}
+                      </div>
                     )}
                   </div>
                 </div>

@@ -7,7 +7,12 @@ import { API, formatDetail } from "@/lib/api";
 import { ImageUpload, toFullUrl } from "@/components/ImageUpload";
 import { VideoUpload } from "@/components/VideoUpload";
 
-const EMPTY_STEP = { title: "", text: "", image: "", video_url: "", button_label: "", button_link: "" };
+const EMPTY_STEP = { title: "", text: "", image: "", video_url: "", buttons: [] };
+const normalizeStep = (st) => {
+  const buttons = [...(st.buttons || [])];
+  if (st.button_link && !buttons.some((b) => b.link === st.button_link)) buttons.unshift({ label: st.button_label || "", link: st.button_link });
+  return { ...EMPTY_STEP, ...st, buttons, button_label: undefined, button_link: undefined };
+};
 const EMPTY_FORM = { title: "", slug: "", summary: "", cover: "", video_url: "", steps: [{ ...EMPTY_STEP }], cta_label: "", cta_link: "", back_label: "返回首页", back_link: "/" };
 
 const inputCls =
@@ -56,7 +61,7 @@ export default function TutorialsAdmin({ token, onUnauthorized }) {
       summary: t.summary || "",
       cover: t.cover || "",
       video_url: t.video_url || "",
-      steps: t.steps?.length ? t.steps.map((st) => ({ ...EMPTY_STEP, ...st })) : [{ ...EMPTY_STEP }],
+      steps: t.steps?.length ? t.steps.map(normalizeStep) : [{ ...EMPTY_STEP }],
       cta_label: t.cta_label || "",
       cta_link: t.cta_link || "",
       back_label: t.back_label || "返回首页",
@@ -92,10 +97,9 @@ export default function TutorialsAdmin({ token, onUnauthorized }) {
           text: s.text.trim(),
           image: s.image || "",
           video_url: (s.video_url || "").trim(),
-          button_label: (s.button_label || "").trim(),
-          button_link: (s.button_link || "").trim(),
+          buttons: (s.buttons || []).map((b) => ({ label: (b.label || "").trim(), link: (b.link || "").trim() })).filter((b) => b.link),
         }))
-        .filter((s) => s.title || s.text || s.image || s.video_url || s.button_link),
+        .filter((s) => s.title || s.text || s.image || s.video_url || s.buttons.length),
       cta_label: form.cta_label.trim(),
       cta_link: form.cta_link.trim(),
       back_label: form.back_label.trim() || "返回首页",
@@ -289,10 +293,20 @@ export default function TutorialsAdmin({ token, onUnauthorized }) {
                           <VideoUpload token={token} value={s.video_url || ""} onChange={(url) => setStep(i, { video_url: url })} testid={`tutorial-step-video-${i}`} />
                         </div>
                         <div className="mt-3">
-                          <div className="mb-1 text-[11px] tracking-widest text-slate-500">本步骤按钮（可选，填了链接才显示）</div>
-                          <div className="grid gap-2 sm:grid-cols-2">
-                            <input data-testid={`tutorial-step-button-label-${i}`} value={s.button_label || ""} onChange={(e) => setStep(i, { button_label: e.target.value })} placeholder="按钮名称，如：立即注册" className={inputCls} />
-                            <input data-testid={`tutorial-step-button-link-${i}`} value={s.button_link || ""} onChange={(e) => setStep(i, { button_link: e.target.value })} placeholder="跳转链接，如 https://... 或 /cooperation" className={inputCls} />
+                          <div className="mb-1 flex items-center justify-between">
+                            <span className="text-[11px] tracking-widest text-slate-500">本步骤按钮（可选，可加多个，填了链接才显示）</span>
+                            <button type="button" data-testid={`tutorial-step-add-button-${i}`} onClick={() => setStep(i, { buttons: [...(s.buttons || []), { label: "", link: "" }] })} className="flex items-center gap-1 rounded-full border border-amber-500/30 px-2.5 py-1 text-[11px] text-[#E5C158] hover:bg-amber-500/10">
+                              <Plus size={11} /> 添加按钮
+                            </button>
+                          </div>
+                          <div className="space-y-2">
+                            {(s.buttons || []).map((b, bi) => (
+                              <div key={bi} className="grid gap-2 sm:grid-cols-[1fr_1.4fr_auto]" data-testid={`tutorial-step-button-${i}-${bi}`}>
+                                <input data-testid={`tutorial-step-button-label-${i}-${bi}`} value={b.label} onChange={(e) => setStep(i, { buttons: s.buttons.map((x, idx) => (idx === bi ? { ...x, label: e.target.value } : x)) })} placeholder="按钮名称，如：注册商城账户" className={inputCls} />
+                                <input data-testid={`tutorial-step-button-link-${i}-${bi}`} value={b.link} onChange={(e) => setStep(i, { buttons: s.buttons.map((x, idx) => (idx === bi ? { ...x, link: e.target.value } : x)) })} placeholder="跳转链接，如 https://www.lpk-888.com 或 /tutorials/okx-usdt" className={inputCls} />
+                                <button type="button" data-testid={`tutorial-step-remove-button-${i}-${bi}`} onClick={() => setStep(i, { buttons: s.buttons.filter((_, idx) => idx !== bi) })} className="rounded-full border border-red-500/30 px-3 text-red-300 hover:bg-red-500/10" aria-label="删除按钮"><Trash2 size={13} /></button>
+                              </div>
+                            ))}
                           </div>
                         </div>
                       </div>

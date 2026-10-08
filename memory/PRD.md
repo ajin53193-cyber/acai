@@ -113,6 +113,9 @@
 
 - 2026-07-08 教程步骤增强：TutorialStep 新增 video_url（上传/外链，复用 VideoUpload+TutorialVideo）、button_label/button_link（步骤内小号金色按钮，填链接才显示，点击计入 cta 统计）；TutorialsAdmin 每个步骤编辑器新增「本步骤视频」「本步骤按钮」区块。截图验证
 
+- 2026-07-08 教程内容运营：礼品卡教程正式文案（Giftray 9折购卡 → 闲礼汇馆 95折回收，每日限购1张，邀请返佣一级0.7%/二级0.3%，20人解锁VIP群，USDT/信用卡/Google Pay 推荐USDT；文案源 backend/scripts/gift_card_copy.json）；新增教程「欧意（OKX）购买 USDT 教程」slug=okx-usdt（backend/scripts/okx_usdt_copy.json）；收益口径全站改为 10人10万/20人20万/50人50万+（settings.tiers、常见问题答案、AI prompt、海报默认、教程第六步）。均已通过 admin API 写入预览库 + 生产库
+- 2026-07-08 步骤多按钮：TutorialStep.buttons[{label,link}]（model_validator 自动把旧 button_label/link 合并进 buttons）；TutorialsAdmin 每步「添加按钮」可加多个；Tutorial.jsx 横向渲染。礼品卡第三步按钮：「注册 Giftray 商城账户 → https://www.lpk-888.com」「查看欧意购买 USDT 教程 → /tutorials/okx-usdt」。已发布上线并写入生产数据
+
 ## 待办优先级
 - P0：eztyv.com DNS 仍残留阿里云 A 记录 47.115.133.9（约 23% 解析到旧服务器），需在 DNS 服务商删除该记录，只保留 Emergent 自定义域名给的 CNAME/记录
 - P0：Emergent 再次 Re-publish（含欢迎语+二维码合并、保存二维码按钮、发送乐观更新、礼品卡教程）；发布后补生产 link 字段；用户在后台「教程管理」替换礼品卡教程真实图文与视频
