@@ -78,13 +78,20 @@ where node >nul 2>&1 || (
 )
 for /f "delims=" %%v in ('node -v') do echo Node %%v
 cd /d "%FRONTEND_DIR%"
-where yarn >nul 2>&1 || call npm install -g yarn --registry %NPM_REGISTRY%
+rem ensure yarn is available; if not, install via npm and use its full path (npm global dir is often not on PATH)
+set "YARN=yarn"
+where yarn >nul 2>&1 || (
+  echo Installing yarn via npm...
+  call npm install -g yarn --registry %NPM_REGISTRY%
+  for /f "delims=" %%i in ('npm config get prefix 2^>nul') do set "YARN=%%i\yarn.cmd"
+)
+echo Using yarn: !YARN!
 node -e "const fs=require('fs');const p=JSON.parse(fs.readFileSync('package.json','utf8'));for(const k of Object.keys(p.devDependencies||{}))if(k.startsWith('@emergentbase/'))delete p.devDependencies[k];fs.writeFileSync('package.json',JSON.stringify(p,null,2));"
-call yarn install --registry %NPM_REGISTRY% --network-timeout 600000 --ignore-engines || (echo [ERROR] frontend deps install failed & pause & exit /b 1)
+call "!YARN!" install --registry %NPM_REGISTRY% --network-timeout 600000 --ignore-engines || (echo [ERROR] frontend deps install failed & pause & exit /b 1)
 > .env.production.local echo REACT_APP_BACKEND_URL=
 set "GENERATE_SOURCEMAP=false"
 set "NODE_OPTIONS=--max-old-space-size=2048"
-call yarn build
+call "!YARN!" build
 set "BUILD_RC=%ERRORLEVEL%"
 del /q .env.production.local >nul 2>&1
 cd /d "%APP_DIR%"
