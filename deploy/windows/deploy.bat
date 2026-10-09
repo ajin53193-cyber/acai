@@ -47,9 +47,13 @@ if not exist "%BACKEND_DIR%\.env" (
 rem ---------- 2. Python venv ----------
 echo ===== Preparing Python env ^(need 3.10+^)
 set "PY="
-for %%c in ("py -3.12" "py -3.11" "py -3.10" "python") do (
-  if not defined PY (
-    %%~c -c "import sys; sys.exit(0 if sys.version_info >= (3,10) else 1)" >nul 2>&1 && set "PY=%%~c"
+rem prefer python passed from setup.bat (full exe path)
+if defined HEYING_PY if exist "%HEYING_PY%" set PY="%HEYING_PY%"
+if not defined PY (
+  for %%c in ("py -3.12" "py -3.11" "py -3.10" "python") do (
+    if not defined PY (
+      %%~c -c "import sys; sys.exit(0 if sys.version_info >= (3,10) else 1)" >nul 2>&1 && set "PY=%%~c"
+    )
   )
 )
 if not defined PY (
