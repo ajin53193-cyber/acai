@@ -1,6 +1,7 @@
 import os
 import io
 import uuid
+import mimetypes
 import bcrypt
 import jwt
 from datetime import datetime, timezone, timedelta
@@ -9,7 +10,8 @@ from typing import List, Optional
 
 from dotenv import load_dotenv
 
-load_dotenv(Path(__file__).parent / ".env")
+ROOT_DIR = Path(__file__).parent
+load_dotenv(ROOT_DIR / ".env")
 
 from fastapi import FastAPI, APIRouter, HTTPException, Depends, UploadFile, File, Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
@@ -37,6 +39,9 @@ STORAGE_BASE = (os.environ.get("INTEGRATION_PROXY_URL") or "").strip() or "https
 STORAGE_URL = STORAGE_BASE.rstrip("/") + "/objstore/api/v1/storage"
 APP_NAME = "heying-project-club"
 storage_key = None
+# 自托管（宝塔/ECS）模式：LOCAL_STORAGE=1 时文件存本地磁盘 UPLOAD_DIR，不依赖 Emergent 对象存储
+LOCAL_STORAGE = os.environ.get("LOCAL_STORAGE", "") == "1"
+UPLOAD_DIR = Path(os.environ.get("UPLOAD_DIR", str(ROOT_DIR / "uploads")))
 
 
 def init_storage(force: bool = False):
@@ -54,6 +59,11 @@ def init_storage(force: bool = False):
 
 
 def put_object(path: str, data: bytes, content_type: str) -> dict:
+    if LOCAL_STORAGE:
+        dest = UPLOAD_DIR / path
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        dest.write_bytes(data)
+        return {"path": path, "size": len(data)}
     key = init_storage()
     resp = requests.put(
         f"{STORAGE_URL}/objects/{path}",
@@ -66,6 +76,11 @@ def put_object(path: str, data: bytes, content_type: str) -> dict:
 
 
 def get_object(path: str):
+    if LOCAL_STORAGE:
+        dest = UPLOAD_DIR / path
+        if not dest.is_file():
+            raise HTTPException(status_code=404, detail="文件不存在")
+        return dest.read_bytes(), mimetypes.guess_type(dest.name)[0] or "application/octet-stream"
     key = init_storage()
     resp = requests.get(f"{STORAGE_URL}/objects/{path}", headers={"X-Storage-Key": key}, timeout=60)
     resp.raise_for_status()
@@ -480,10 +495,13 @@ PROJECTS_SEED = [
 
 @app.on_event("startup")
 async def startup():
-    try:
-        await asyncio.to_thread(init_storage)
-    except Exception as e:
-        print(f"Storage init failed: {e}")
+    if LOCAL_STORAGE:
+        UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+    else:
+        try:
+            await asyncio.to_thread(init_storage)
+        except Exception as e:
+            print(f"Storage init failed: {e}")
     await db.users.create_index("username", unique=True)
     await db.visits.create_index([("date", 1), ("ip", 1)], unique=False)
     username = os.environ.get("ADMIN_USERNAME", "admin")
@@ -834,11 +852,40 @@ async def _append_admin_message(session_id: str, text: str, via: str):
     )
 
 
-async def generate_ai_reply(session_id: str, chat_cfg: dict):
-    """访客自由留言未命中规则时，由 AI（Emergent 通用密钥，GPT-5.4-mini）生成回复。"""
-    try:
-        from emergentintegrations.llm.chat import LlmChat, UserMessage, TextDelta, StreamDone
+async def _ai_complete(system: str, user_text: str, session_id: str) -> str:
+    """AI 供应商切换：配置了 AI_API_KEY 时走 OpenAI 兼容接口（DeepSeek/通义千问等，自托管用），否则走 Emergent 通用密钥。"""
+    ai_key = os.environ.get("AI_API_KEY", "").strip()
+    if ai_key:
+        from openai import AsyncOpenAI
 
+        client_ai = AsyncOpenAI(api_key=ai_key, base_url=os.environ.get("AI_BASE_URL", "https://api.deepseek.com").strip() or None)
+        resp = await client_ai.chat.completions.create(
+            model=os.environ.get("AI_MODEL", "deepseek-chat").strip() or "deepseek-chat",
+            messages=[{"role": "system", "content": system}, {"role": "user", "content": user_text}],
+            max_tokens=300,
+            temperature=0.5,
+        )
+        return (resp.choices[0].message.content or "").strip()
+
+    from emergentintegrations.llm.chat import LlmChat, UserMessage, TextDelta, StreamDone
+
+    chat = LlmChat(
+        api_key=os.environ["EMERGENT_LLM_KEY"],
+        session_id=f"kefu-{session_id}-{uuid.uuid4()}",
+        system_message=system,
+    ).with_model("openai", "gpt-5.4-mini")
+    reply = ""
+    async for event in chat.stream_message(UserMessage(text=user_text)):
+        if isinstance(event, TextDelta):
+            reply += event.content
+        elif isinstance(event, StreamDone):
+            break
+    return reply.strip()
+
+
+async def generate_ai_reply(session_id: str, chat_cfg: dict):
+    """访客自由留言未命中规则时，由 AI 生成回复（Emergent 通用密钥 GPT-5.4-mini，或自托管 OpenAI 兼容模型）。"""
+    try:
         history = await db.chat_messages.find({"session_id": session_id}, {"_id": 0}).sort("created_at", -1).to_list(12)
         history.reverse()
         transcript = "\n".join(f"{'访客' if m['sender'] == 'visitor' else '客服'}: {m['text']}" for m in history if m.get("text"))
@@ -872,18 +919,7 @@ async def generate_ai_reply(session_id: str, chat_cfg: dict):
             "访客询问怎么合作、怎么加入、联系方式或人工客服时，引导其点击聊天中的「加入海鸥官方群」按钮查看进群教程（下载海鸥 App → 注册 → 扫码或搜索群 ID 进群），人工客服会尽快一对一对接，不要编造微信号或电话；"
             "知识库中没有的信息不要编造，引导访客留下姓名和电话，人工客服会尽快跟进。"
         )
-        chat = LlmChat(
-            api_key=os.environ["EMERGENT_LLM_KEY"],
-            session_id=f"kefu-{session_id}-{uuid.uuid4()}",
-            system_message=system,
-        ).with_model("openai", "gpt-5.4-mini")
-        reply = ""
-        async for event in chat.stream_message(UserMessage(text=f"最近对话记录：\n{transcript}\n\n请回复访客的最后一条消息。")):
-            if isinstance(event, TextDelta):
-                reply += event.content
-            elif isinstance(event, StreamDone):
-                break
-        reply = reply.strip()
+        reply = await _ai_complete(system, f"最近对话记录：\n{transcript}\n\n请回复访客的最后一条消息。", session_id)
         if not reply:
             raise RuntimeError("empty AI reply")
         await _append_admin_message(session_id, reply, "ai")

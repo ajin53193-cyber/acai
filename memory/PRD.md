@@ -128,7 +128,10 @@
 
 - 2026-07-08 关键词进群推送改为按钮：chat_send 的 QR_KEYWORDS 规则在配置了 welcome_group_link 时推送带 actions:[group-link] 的消息（「加入海鸥官方群」按钮 → 进群教程页），不再发二维码图片；最近 5 条内已有按钮/二维码则不重复推送（AI 开启时由 AI 引导点按钮）；仅在未配教程链接时回退二维码。AI prompt、AI_FALLBACK_TEXT、默认常见问题答案同步改为「点击按钮」口径；预览库 + 生产库常见问题 answer 已通过 admin API 更新。curl 验证：关键词触发推送 actions 消息、无 image。代码需重新发布
 
+- 2026-07-08 宝塔自托管部署包 `deploy/baota/`（用户因 Cloudflare 国内可达性差决定迁回国内服务器）：README_BAOTA.md（七步指南）、deploy.sh（git pull → venv+阿里云 pip 镜像 → 剔除 @emergentbase devDeps 后 npmmirror yarn build，REACT_APP_BACKEND_URL="" 走相对 /api → systemd heying-backend 127.0.0.1:8001 → 健康检查）、nginx-site.conf（/api 反代、SPA fallback、100m 上传、静态缓存）、heying-backend.service、backend.env.example、import_from_live.py（登录线上后台拉 settings/projects/articles/tutorials 并下载 /api/files 引用文件到 UPLOAD_DIR、写 files 记录；已在预览验证 10 项目/14 文章/3 教程/3 文件）；backend/requirements-selfhost.txt（不含 emergentintegrations）。server.py 恢复 LOCAL_STORAGE=1/UPLOAD_DIR 本地存储分支（put/get_object，startup 跳过对象存储初始化；已验证上传+访问）、新增 `_ai_complete`：AI_API_KEY 存在时走 openai SDK OpenAI 兼容接口（AI_BASE_URL 默认 DeepSeek、AI_MODEL 默认 deepseek-chat，未实测需真实密钥），否则走 Emergent 通用密钥。Emergent 部署行为不变
+
 ## 待办优先级
+- P0：用户按 deploy/baota/README_BAOTA.md 在宝塔搭建；Save to GitHub → 服务器 clone → deploy.sh → Nginx 配置 → import_from_live.py → 切 DNS
 - P0：部署新代码（Save to GitHub → 服务器 deploy.sh）后，在生产后台「项目管理 → 礼品卡合作项目 → 编辑」选择教程链接
 - P0：用户在后台「教程管理 → 加入海鸥官方群教程」填写：第一步下载链接、第三步群二维码图片 + 官方群 ID；随后 Re-publish 上线
 - P0：eztyv.com DNS 仍残留阿里云 A 记录 47.115.133.9（约 23% 解析到旧服务器），需在 DNS 服务商删除该记录，只保留 Emergent 自定义域名给的 CNAME/记录
