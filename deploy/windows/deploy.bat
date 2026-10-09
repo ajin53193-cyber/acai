@@ -111,7 +111,7 @@ schtasks /query /tn %TASK_NAME% >nul 2>&1 || (
   schtasks /create /tn %TASK_NAME% /tr "\"%APP_DIR%\deploy\windows\run-backend.bat\"" /sc onstart /ru SYSTEM /rl HIGHEST /f >nul || (echo [ERROR] create scheduled task failed, run as Administrator & pause & exit /b 1)
 )
 schtasks /run /tn %TASK_NAME% >nul
-timeout /t 6 /nobreak >nul
+ping -n 7 127.0.0.1 >nul
 
 rem ---------- 5. health check ----------
 echo ===== Health check

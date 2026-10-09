@@ -8,5 +8,5 @@ if not exist "..\logs" mkdir "..\logs"
 echo [%date% %time%] starting uvicorn >> "..\logs\backend.log"
 ".venv\Scripts\python.exe" -m uvicorn server:app --host 127.0.0.1 --port 8001 --proxy-headers --forwarded-allow-ips=127.0.0.1 >> "..\logs\backend.log" 2>&1
 echo [%date% %time%] uvicorn exited, restart in 5s >> "..\logs\backend.log"
-timeout /t 5 /nobreak >nul
+ping -n 6 127.0.0.1 >nul
 goto loop
