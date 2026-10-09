@@ -37,8 +37,10 @@ if exist "%APP_DIR%\backend\server.py" (
   echo     Extracting...
   if exist "%TMP%\unzip" rmdir /s /q "%TMP%\unzip"
   powershell -NoProfile -Command "Expand-Archive -Force '!ZIP!' '%TMP%\unzip'"
-  if exist "%APP_DIR%" rmdir /s /q "%APP_DIR%"
-  move "%TMP%\unzip\acai-main" "%APP_DIR%" >nul || ( echo [ERROR] Extract result not found & pause & exit /b 1 )
+  if not exist "%TMP%\unzip\acai-main\backend\server.py" ( echo [ERROR] extract failed & pause & exit /b 1 )
+  if not exist "%APP_DIR%" mkdir "%APP_DIR%"
+  robocopy "%TMP%\unzip\acai-main" "%APP_DIR%" /E /IS /IT /R:1 /W:1 /NFL /NDL /NJH /NJS /nc /ns /np >nul
+  if not exist "%APP_DIR%\backend\server.py" ( echo [ERROR] copy to app dir failed & pause & exit /b 1 )
   echo     Code ready: %APP_DIR%
 )
 
