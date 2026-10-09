@@ -17,7 +17,7 @@ const SERVICES = [
     icon: FilePlus2,
     tag: "项目发布",
     title: "绿色能源合作项目",
-    desc: "汇聚光伏、储能、充电桩等绿色能源优质项目，严选审核，长期收益清晰可见。",
+    desc: "汇聚光伏、储能、充电桩等绿色能源优质项目，严选审核，长期价值清晰可见。",
     img: "/images/ui/service-publish.webp",
   },
   {

@@ -11,7 +11,7 @@ const PRESETS = ["pyq", "gzh", "haibao", "xhs", "dy"];
 
 const TEMPLATES = [
   { key: "brand", name: "品牌邀请" },
-  { key: "income", name: "团长收益" },
+  { key: "income", name: "团队激励" },
   { key: "project", name: "项目推广" },
 ];
 
@@ -137,18 +137,18 @@ export default function PosterAdmin() {
     await drawBase(ctx);
 
     if (template === "income") {
-      // ---- 团长收益模板 ----
+      // ---- 团队协作激励模板 ----
       ctx.fillStyle = "#FFE896";
       ctx.font = '700 34px "Noto Serif SC", serif';
       ctx.fillText("合赢项目社", 450, 168);
       ctx.font = '700 44px "Noto Serif SC", serif';
       ctx.fillStyle = "#F5E7C1";
-      ctx.fillText("团长收益体系", 450, 250);
+      ctx.fillText("团队协作激励", 450, 250);
       drawDivider(ctx, 282);
       const rows = (tiers.length ? tiers : [
-        { count: "10人团队", income: "10万", featured: false },
-        { count: "20人团队", income: "20万", featured: true },
-        { count: "50人团队", income: "50万以上", featured: false },
+        { count: "10人团队", income: "基础激励", featured: false },
+        { count: "20人团队", income: "进阶激励", featured: true },
+        { count: "50人团队", income: "合伙激励", featured: false },
       ]).slice(0, 3);
       rows.forEach((t, i) => {
         const y = 322 + i * 128;
@@ -176,12 +176,12 @@ export default function PosterAdmin() {
         ctx.textAlign = "right";
         ctx.font = '700 28px "Noto Serif SC", serif';
         ctx.fillStyle = "#FFE896";
-        ctx.fillText(`月入 ${t.income}`, 730, y + 60);
+        ctx.fillText(t.income, 730, y + 60);
         ctx.textAlign = "center";
       });
       ctx.font = '400 15px "Noto Sans SC", sans-serif';
       ctx.fillStyle = "#55617A";
-      ctx.fillText("收益与团队运营情况相关，不构成收益承诺，具体以正式合作协议为准", 450, 736);
+      ctx.fillText("团队协作激励与团队规模、运营情况相关，不构成任何收益承诺，具体以正式合作协议为准", 450, 736);
       await drawQR(ctx, trackedUrl, 310, 776, 280);
       ctx.font = '700 22px "Noto Sans SC", sans-serif';
       ctx.fillStyle = "#E5C158";
@@ -260,7 +260,7 @@ export default function PosterAdmin() {
     ctx.fillText("聚力项目 · 合作共赢", 450, 398);
     ctx.font = '400 21px "Noto Sans SC", sans-serif';
     ctx.fillStyle = "#94A3B8";
-    ctx.fillText("每月发布优质稳定项目 · 平台不收取任何费用", 450, 444);
+    ctx.fillText("每月发布优质合规项目 · 平台不收取任何费用", 450, 444);
     await drawQR(ctx, trackedUrl, 250, 496, 400);
     ctx.font = '700 24px "Noto Sans SC", sans-serif';
     ctx.fillStyle = "#E5C158";
@@ -332,7 +332,7 @@ export default function PosterAdmin() {
             </select>
           )}
           {template === "income" && (
-            <p className="mt-3 text-[11px] text-slate-600">收益档位取自「站点设置 → 团长收益体系」，改档位后海报自动同步</p>
+            <p className="mt-3 text-[11px] text-slate-600">激励层级取自「站点设置 → 团队协作激励」，改档位后海报自动同步</p>
           )}
         </div>
 

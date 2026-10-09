@@ -16,8 +16,8 @@ const MODES = [
   {
     icon: Crown,
     title: "团长合作",
-    desc: "招募团队长，平台提供稳定项目，共建团队持续收益",
-    points: ["专属城市团长席位", "平台稳定项目直供", "团队发展收益分成", "新项目每月群内分享"],
+    desc: "招募团队长，平台提供优质项目，共建团队协作成长",
+    points: ["专属城市团长席位", "平台优质项目直供", "团队协作激励机制", "新项目每月群内分享"],
   },
   {
     icon: Package,
@@ -51,7 +51,7 @@ export default function Cooperation() {
           <h1 className="font-display text-3xl font-black tracking-tight text-gold-gradient sm:text-4xl lg:text-5xl">
             合作共赢
           </h1>
-          <p className="mt-4 text-base text-slate-400 sm:text-lg">招募团队长 · 平台提供稳定项目 · 每月新项目群内分享</p>
+          <p className="mt-4 text-base text-slate-400 sm:text-lg">招募团队长 · 平台提供优质项目 · 每月新项目群内分享</p>
         </Reveal>
       </section>
 
@@ -85,7 +85,7 @@ export default function Cooperation() {
 
       <section className="py-14 md:py-20" data-testid="cooperation-tiers-section">
         <div className="mx-auto max-w-7xl px-4 sm:px-8 lg:px-16">
-          <SectionHeading title="团长收益体系" subtitle="团队发展收益参考 · 具体以正式合作协议为准" />
+          <SectionHeading title="团队协作激励" subtitle="团队协作成长 · 多劳多得 · 具体以正式合作协议为准" />
           <div className="grid grid-cols-3 items-stretch gap-2.5 sm:gap-4 md:gap-6">
             {tiers.map((t, i) => {
               const TierIcon = TIER_ICONS[i % TIER_ICONS.length];
@@ -109,7 +109,7 @@ export default function Cooperation() {
                   </div>
                   <div className="mt-2 text-[9px] tracking-[0.1em] text-slate-400 md:mt-5 md:text-sm md:tracking-[0.25em]">{t.count}</div>
                   <div className="mt-1 font-display text-lg font-black leading-tight text-gold-gradient sm:text-2xl md:mt-3 lg:text-5xl">{t.income}</div>
-                  <div className="mt-1 text-[8px] tracking-[0.05em] text-[#D4AF37] md:mt-2 md:text-xs md:tracking-[0.2em]">月入参考 / 月</div>
+                  <div className="mt-1 text-[8px] tracking-[0.05em] text-[#D4AF37] md:mt-2 md:text-xs md:tracking-[0.2em]">协作激励层级</div>
                   <div className="mt-2 h-0.5 w-6 rounded-full bg-gold-gradient opacity-40 transition-all duration-500 group-hover:w-16 group-hover:opacity-100 md:mt-6 md:w-8" />
                 </div>
               </Reveal>
@@ -118,7 +118,7 @@ export default function Cooperation() {
           </div>
           <Reveal className="mt-8 text-center">
             <p className="mx-auto max-w-2xl text-xs leading-relaxed text-slate-500" data-testid="tier-disclaimer">
-              以上收益为团队发展规模的参考区间，实际收益与团队运营情况相关，不构成收益承诺，具体以正式合作协议为准。
+              团队协作激励与团队规模、运营情况相关，多劳多得，不构成任何收益承诺，具体权益以正式合作协议为准。
             </p>
           </Reveal>
         </div>

@@ -189,7 +189,7 @@ export default function SettingsAdmin({ token, onUnauthorized }) {
           <div className="flex items-center justify-between rounded-2xl border border-amber-500/10 bg-[#060B18]/50 p-4">
             <div>
               <div className="text-sm font-medium text-slate-200">AI 自动回复（GPT-5.4-mini）</div>
-              <div className="mt-0.5 text-xs text-slate-500">开启后，访客自由留言会由 AI 根据网站项目、合作方式、收益档位与常见问题答案自动回复；关闭则只提示访客留下联系方式等待人工</div>
+              <div className="mt-0.5 text-xs text-slate-500">开启后，访客自由留言会由 AI 根据网站项目、合作方式、协作激励与常见问题答案自动回复；关闭则只提示访客留下联系方式等待人工</div>
             </div>
             <button
               type="button"
@@ -374,8 +374,8 @@ export default function SettingsAdmin({ token, onUnauthorized }) {
       <div className="glass-card rounded-3xl p-7" data-testid="settings-tiers-card">
         <div className="flex items-center justify-between">
           <div>
-            <h3 className="font-display text-lg font-bold text-gold-gradient">团长收益体系</h3>
-            <p className="mt-1 text-xs text-slate-500">显示在「合作共赢」页的收益卡片，可设置一档为热门</p>
+            <h3 className="font-display text-lg font-bold text-gold-gradient">团队协作激励</h3>
+            <p className="mt-1 text-xs text-slate-500">显示在「合作共赢」页的激励卡片，可设置一档为热门。请勿填写具体金额或收益承诺</p>
           </div>
           <button
             data-testid="settings-tier-add-btn"
@@ -393,8 +393,8 @@ export default function SettingsAdmin({ token, onUnauthorized }) {
                 <input data-testid={`settings-tier-count-${i}`} value={t.count} onChange={setTier(i, "count")} placeholder="10人团队" className={inputCls} />
               </div>
               <div className="flex-1 min-w-[120px]">
-                <label className="mb-1 block text-[10px] tracking-widest text-slate-500">月入参考</label>
-                <input data-testid={`settings-tier-income-${i}`} value={t.income} onChange={setTier(i, "income")} placeholder="2-3万" className={inputCls} />
+                <label className="mb-1 block text-[10px] tracking-widest text-slate-500">激励层级</label>
+                <input data-testid={`settings-tier-income-${i}`} value={t.income} onChange={setTier(i, "income")} placeholder="基础激励" className={inputCls} />
               </div>
               <label className="flex cursor-pointer items-center gap-2 pb-2.5 text-xs text-slate-300">
                 <input

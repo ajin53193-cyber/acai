@@ -206,7 +206,7 @@ class MilestoneItem(BaseModel):
 DEFAULT_CHAT_QUESTIONS = [
     {"text": "你们有什么项目？", "answer": "平台每月发布安全稳定的优质项目，涵盖绿色能源、科技创新、商业渠道、实体产业等类别。您可以到「项目中心」查看在架项目详情，或点击上方「加入海鸥官方群」按钮进群获取最新项目清单。"},
     {"text": "怎么合作？", "answer": "合作方式有团长合作、项目方合作、资源方合作。请点击上方「加入海鸥官方群」按钮按教程进群，或留下您的姓名和电话，人工客服会尽快与您一对一对接。"},
-    {"text": "收益怎么样？", "answer": "团队收益参考：10人团队月收入约10万元，20人团队约20万元，50人团队50万元以上。收益与团队运营情况相关，不构成收益承诺，具体以正式合作协议为准。"},
+    {"text": "合作模式是怎样的？", "answer": "平台采用团队协作激励机制，多劳多得——团队规模越大、运营越用心，可获得的协作激励层级越高（基础 / 进阶 / 合伙）。平台不设任何收益承诺，具体权益以正式合作协议为准，欢迎点击上方「加入海鸥官方群」按钮进群详细了解。"},
     {"text": "怎么联系客服？", "answer": "您可以直接在本窗口留言（请留下姓名和电话），人工客服会在工作时间 9:00-21:00 内尽快回复；也可以点击上方「加入海鸥官方群」按钮进群咨询。"},
 ]
 
@@ -395,8 +395,8 @@ PROJECTS_SEED = [
         "status": "招募团长",
         "investment": "灵活投入",
         "region": "全国",
-        "description": "礼品卡项目，收益稳定，项目合规，平台全程对接支持，团队长带队共享收益。",
-        "highlights": ["收益稳定", "项目合规", "平台全程对接", "团队长直招"],
+        "description": "礼品卡项目，项目合规，平台全程对接支持，团队长带队协作共进。",
+        "highlights": ["项目合规", "平台全程对接", "灵活参与", "团队长直招"],
         "image": "/images/projects/project-giftcard.webp",
         "featured": True,
     },
@@ -406,8 +406,8 @@ PROJECTS_SEED = [
         "status": "对接中",
         "investment": "50-200万",
         "region": "华东大区",
-        "description": "分布式光伏电站社区共建项目，与国家电网并网合作，收益稳定，适合长期持有。",
-        "highlights": ["并网收益保障", "20年长期回报", "专业运维团队"],
+        "description": "分布式光伏电站社区共建项目，与国家电网并网合作，合规运营，适合长期参与。",
+        "highlights": ["并网合作模式", "长期运营项目", "专业运维团队"],
         "image": "/images/projects/project-1.webp",
     },
     {
@@ -417,7 +417,7 @@ PROJECTS_SEED = [
         "investment": "100-500万",
         "region": "深圳",
         "description": "面向中小企业的AI数据标注与模型训练服务平台，已签约多家头部客户。",
-        "highlights": ["头部客户背书", "技术团队成熟", "现金流稳定"],
+        "highlights": ["头部客户背书", "技术团队成熟", "经营稳健"],
         "image": "/images/projects/project-2.webp",
     },
     {
@@ -570,6 +570,46 @@ async def startup():
             if changed:
                 await db.tutorials.update_one({"slug": "join-group"}, {"$set": {"steps": steps}})
         await db.migrations.insert_one({"key": "join_group_clear_step_images", "at": datetime.now(timezone.utc).isoformat()})
+
+    # 合规整改（一次性）：去除公开数据中的「月入X万 / 高收益 / 稳定收益」等表述，改为团队协作激励口径，避免微信外链内容风控拦截
+    if not await db.migrations.find_one({"key": "income_compliance_v1"}):
+        site = await db.settings.find_one({"key": "site"}, {"_id": 0, "tiers": 1, "chat": 1})
+        if site:
+            tiers = site.get("tiers") or []
+            if any(isinstance(t, dict) and "万" in str(t.get("income", "")) for t in tiers):
+                await db.settings.update_one({"key": "site"}, {"$set": {"tiers": [
+                    {"count": "10人团队", "income": "基础激励", "featured": False},
+                    {"count": "20人团队", "income": "进阶激励", "featured": True},
+                    {"count": "50人团队", "income": "合伙激励", "featured": False},
+                ]}})
+            questions = (site.get("chat") or {}).get("questions") or []
+            changed_q = False
+            for q in questions:
+                if isinstance(q, dict) and any(k in (q.get("answer") or "") for k in ("月收入", "月入", "10万", "20万", "50万")):
+                    q["text"] = "合作模式是怎样的？"
+                    q["answer"] = "平台采用团队协作激励机制，多劳多得——团队规模越大、运营越用心，可获得的协作激励层级越高（基础 / 进阶 / 合伙）。平台不设任何收益承诺，具体权益以正式合作协议为准，欢迎进群详细了解。"
+                    changed_q = True
+            if changed_q:
+                await db.settings.update_one({"key": "site"}, {"$set": {"chat.questions": questions}})
+        repl = {
+            "收益稳定": "合规运营", "稳定收益": "合规运营", "共享收益": "协作共进",
+            "20年长期回报": "长期运营项目", "并网收益保障": "并网合作模式",
+            "现金流稳定": "经营稳健", "持续收益": "协作成长", "高收益": "多劳多得",
+        }
+        async for p in db.projects.find({}):
+            desc = p.get("description") or ""
+            hls = p.get("highlights") or []
+            new_desc = desc
+            for a, b in repl.items():
+                new_desc = new_desc.replace(a, b)
+            new_hls = [h for h in hls]
+            for idx, h in enumerate(new_hls):
+                if isinstance(h, str):
+                    for a, b in repl.items():
+                        new_hls[idx] = new_hls[idx].replace(a, b)
+            if new_desc != desc or new_hls != hls:
+                await db.projects.update_one({"id": p.get("id")}, {"$set": {"description": new_desc, "highlights": new_hls}})
+        await db.migrations.insert_one({"key": "income_compliance_v1", "at": datetime.now(timezone.utc).isoformat()})
 
 
 @api_router.get("/")
@@ -944,8 +984,8 @@ async def generate_ai_reply(session_id: str, chat_cfg: dict):
             "你是「合赢项目社」的在线客服助手。平台主要面向全国招募团队长（团长），为团队长提供稳定项目；"
             "团队通过专业的项目审核、项目评估、项目整合，保障项目稳定可靠；平台每个月都会发布安全、稳定、合法的项目供团队长合作，"
             "并在海鸥官方群内同步分享最新项目；平台不收取任何加盟费、服务费等费用。"
-            "团队发展收益参考：10人团队月收入约10万元，20人团队约20万元，50人团队50万元以上；"
-            "收益与团队运营情况相关，不构成收益承诺，具体以正式合作协议为准。"
+            "平台采用团队协作激励机制，团队规模越大、运营越用心，可获得的协作激励层级越高（基础 / 进阶 / 合伙），多劳多得；"
+            "平台不设任何收益承诺，具体权益以正式合作协议为准。"
             "合作方式：团长合作、项目方合作、资源方合作。工作时间 9:00-21:00。\n"
             f"常见问题标准答案（优先参考）：\n{faq}\n"
             f"项目教程内容（回答项目玩法、收益、返佣、注册流程等问题时以此为准）：\n{tutorial_kb}\n"
