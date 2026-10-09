@@ -1,6 +1,6 @@
 @echo off
-rem 合赢项目社 · 后端常驻运行脚本（由 deploy.bat 注册为开机计划任务 HeyingBackend 自动调用，无需手动运行）
-rem 进程异常退出时 5 秒后自动拉起
+rem Heying backend keep-alive runner (registered as scheduled task HeyingBackend by deploy.bat; no manual run needed)
+rem Auto-restarts 5s after any crash
 chcp 65001 >nul
 cd /d "%~dp0..\..\backend"
 if not exist "..\logs" mkdir "..\logs"
