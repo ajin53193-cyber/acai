@@ -132,6 +132,9 @@
 
 - 2026-07-08 用户服务器实为宝塔 Windows 版（D:\BtSoft\panel），选择不重装 Linux：新增 `deploy/windows/`：deploy.bat（git pull → 检测 py -3.12/3.11/3.10/python → venv + 阿里云 pip → 剔除 @emergentbase devDeps → npmmirror yarn install → 写 .env.production.local `REACT_APP_BACKEND_URL=` 空值后 yarn build → schtasks 注册 HeyingBackend 开机任务(SYSTEM) 调 run-backend.bat → curl 健康检查）、run-backend.bat（uvicorn 127.0.0.1:8001 崩溃 5s 自动拉起，日志 logs/backend.log）、nginx-site.conf、backend.env.example（UPLOAD_DIR 正斜杠）、README_WINDOWS.md 七步指南（Python/Node/Git 官方安装包 + 宝塔 Nginx/MongoDB）。.gitattributes 强制 *.bat CRLF。GitHub 仓库：ajin53193-cyber/acai。⚠️ Windows 脚本无 Windows 环境未实测，用户执行报错需据截图修正
 
+- 2026-10-09 宝塔 Windows 自托管上线成功（eztyv.com）。实战修复脚本：所有 .bat 改纯 ASCII+CRLF（中文乱码/`call :label` 失效根因）、.gitattributes `*.bat -text` 保证仓库存 CRLF；新增 `deploy/windows/setup.bat` 一键引导（宝塔网页终端直接下载运行：codeload 直连+ghfast/ghproxy 镜像兜底下载代码 → 静默装 Python3.11(华为云)/Node20(npmmirror) → robocopy 覆盖写入避免 Access denied → 传 HEYING_PY 完整路径给 deploy.bat）；deploy.bat 优先用 HEYING_PY、yarn 用 `npm config get prefix`\yarn.cmd 完整路径调用（SYSTEM 下 npm 全局目录不在 PATH）、timeout 改 ping（终端重定向报错）。部署结果：前端 build + 后端 schtasks 常驻 + MongoDB 本地 + Let's Encrypt HTTPS + /api 反代全部外网实测 200。两个坑：①宝塔「添加HTML站点」会往根目录写默认 index.html（nginx 欢迎页）覆盖 build/index.html → 重跑 setup.bat 重新构建即可；②server_name 加服务器 IP 会与默认站点冲突并导致 eztyv.com 落到默认块 → 去掉 IP。数据迁移用 LIVE_URL=预览地址 跑 import_from_live.py 成功（10 项目/14 文章/3 教程/3 文件）
+- 2026-10-09 按用户要求聚焦「加入海鸥官方群」引导：移除客服欢迎语「查看最新项目」按钮（server.py /chat/start 只保留 group-link/qr）、移除项目卡片与详情弹窗「查看项目教程」按钮（Projects.jsx，顺带删除未用的 TutorialLink/PlayCircle/isExternal）。预览验证：/chat/start 仅返回 group-link 动作；项目页无教程按钮。待用户 Save to GitHub + 服务器 `D:\setup.bat` 重建发布
+
 ## 待办优先级
 - P0：用户按 deploy/windows/README_WINDOWS.md 在宝塔 Windows 搭建，等待终端截图反馈
 - P0：用户按 deploy/baota/README_BAOTA.md 在宝塔搭建；Save to GitHub → 服务器 clone → deploy.sh → Nginx 配置 → import_from_live.py → 切 DNS

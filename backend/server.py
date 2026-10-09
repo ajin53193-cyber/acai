@@ -741,12 +741,9 @@ async def chat_start(data: ChatStart):
         # 新会话：欢迎语 + 两个按钮（查看教程 / 加入海鸥官方群）
         welcome = (chat_cfg.get("welcome") or "").strip() or "您好，欢迎来到合赢项目社！"
         defaults = ChatConfig().model_dump()
-        tutorial_link = chat_cfg.get("welcome_tutorial_link", defaults["welcome_tutorial_link"])
         group_link = chat_cfg.get("welcome_group_link", defaults["welcome_group_link"])
         actions = []
-        if tutorial_link:
-            actions.append({"type": "link", "label": chat_cfg.get("welcome_tutorial_label") or defaults["welcome_tutorial_label"], "link": tutorial_link})
-        # 「加入官方群」优先跳转进群教程页（可在后台配置）；未配置时回退为直接推送群二维码
+        # 仅保留「加入海鸥官方群」按钮；优先跳转进群教程页（可在后台配置），未配置时回退为直接推送群二维码
         if group_link:
             actions.append({"type": "group-link", "label": chat_cfg.get("welcome_group_label") or defaults["welcome_group_label"], "link": group_link})
         elif chat_cfg.get("qr_image"):
