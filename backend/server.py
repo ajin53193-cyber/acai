@@ -554,6 +554,23 @@ async def startup():
         {"$set": {"chat.welcome_group_label": "立即加入官方群 · 抢先获取一手项目"}},
     )
 
+    # 一次性清理：加入海鸥官方群教程的「下载 / 注册」等非二维码步骤不需要图片，清空其 image（用 migrations 标记，仅执行一次，之后用户可自由再配图）
+    if not await db.migrations.find_one({"key": "join_group_clear_step_images"}):
+        tut = await db.tutorials.find_one({"slug": "join-group"})
+        if tut:
+            steps = tut.get("steps") or []
+            changed = False
+            for s in steps:
+                if not isinstance(s, dict):
+                    continue
+                is_qr_step = "二维码" in (s.get("text") or "") or "群 ID" in (s.get("copy_label") or "") or "群ID" in (s.get("copy_label") or "")
+                if not is_qr_step and s.get("image"):
+                    s["image"] = ""
+                    changed = True
+            if changed:
+                await db.tutorials.update_one({"slug": "join-group"}, {"$set": {"steps": steps}})
+        await db.migrations.insert_one({"key": "join_group_clear_step_images", "at": datetime.now(timezone.utc).isoformat()})
+
 
 @api_router.get("/")
 async def root():
@@ -719,12 +736,13 @@ async def get_tutorial(slug: str):
         qr_image = chat_cfg.get("qr_image", "")
         if qr_image:
             steps = doc.get("steps") or []
+            # 二维码只注入到真正讲二维码/群 ID 的那一步；若未找到则不注入（绝不回退到第一步，避免误把二维码塞进下载/注册步骤）
             target = next(
-                (s for s in steps if isinstance(s, dict) and not s.get("image")
+                (s for s in steps if isinstance(s, dict)
                  and ("二维码" in (s.get("text") or "") or "群 ID" in (s.get("copy_label") or "") or "群ID" in (s.get("copy_label") or ""))),
                 None,
-            ) or next((s for s in steps if isinstance(s, dict) and not s.get("image")), None)
-            if target is not None:
+            )
+            if target is not None and not target.get("image"):
                 target["image"] = qr_image
     return doc
 
