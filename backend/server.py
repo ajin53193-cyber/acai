@@ -706,6 +706,20 @@ async def get_tutorial(slug: str):
     doc = await db.tutorials.find_one({"slug": slug, "published": {"$ne": False}}, {"_id": 0})
     if not doc:
         raise HTTPException(status_code=404, detail="教程不存在或已下架")
+    # 「加入海鸥官方群教程」：自动把客服设置里的群二维码填到讲二维码的那一步（后台换码即同步，无需手动维护）
+    if slug == "join-group":
+        settings = await db.settings.find_one({"key": "site"}, {"_id": 0, "chat": 1})
+        chat_cfg = sync_active_qr(migrate_qr_codes(dict((settings or {}).get("chat") or {})))
+        qr_image = chat_cfg.get("qr_image", "")
+        if qr_image:
+            steps = doc.get("steps") or []
+            target = next(
+                (s for s in steps if isinstance(s, dict) and not s.get("image")
+                 and ("二维码" in (s.get("text") or "") or "群 ID" in (s.get("copy_label") or "") or "群ID" in (s.get("copy_label") or ""))),
+                None,
+            ) or next((s for s in steps if isinstance(s, dict) and not s.get("image")), None)
+            if target is not None:
+                target["image"] = qr_image
     return doc
 
 
