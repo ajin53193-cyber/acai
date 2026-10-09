@@ -130,7 +130,10 @@
 
 - 2026-07-08 宝塔自托管部署包 `deploy/baota/`（用户因 Cloudflare 国内可达性差决定迁回国内服务器）：README_BAOTA.md（七步指南）、deploy.sh（git pull → venv+阿里云 pip 镜像 → 剔除 @emergentbase devDeps 后 npmmirror yarn build，REACT_APP_BACKEND_URL="" 走相对 /api → systemd heying-backend 127.0.0.1:8001 → 健康检查）、nginx-site.conf（/api 反代、SPA fallback、100m 上传、静态缓存）、heying-backend.service、backend.env.example、import_from_live.py（登录线上后台拉 settings/projects/articles/tutorials 并下载 /api/files 引用文件到 UPLOAD_DIR、写 files 记录；已在预览验证 10 项目/14 文章/3 教程/3 文件）；backend/requirements-selfhost.txt（不含 emergentintegrations）。server.py 恢复 LOCAL_STORAGE=1/UPLOAD_DIR 本地存储分支（put/get_object，startup 跳过对象存储初始化；已验证上传+访问）、新增 `_ai_complete`：AI_API_KEY 存在时走 openai SDK OpenAI 兼容接口（AI_BASE_URL 默认 DeepSeek、AI_MODEL 默认 deepseek-chat，未实测需真实密钥），否则走 Emergent 通用密钥。Emergent 部署行为不变
 
+- 2026-07-08 用户服务器实为宝塔 Windows 版（D:\BtSoft\panel），选择不重装 Linux：新增 `deploy/windows/`：deploy.bat（git pull → 检测 py -3.12/3.11/3.10/python → venv + 阿里云 pip → 剔除 @emergentbase devDeps → npmmirror yarn install → 写 .env.production.local `REACT_APP_BACKEND_URL=` 空值后 yarn build → schtasks 注册 HeyingBackend 开机任务(SYSTEM) 调 run-backend.bat → curl 健康检查）、run-backend.bat（uvicorn 127.0.0.1:8001 崩溃 5s 自动拉起，日志 logs/backend.log）、nginx-site.conf、backend.env.example（UPLOAD_DIR 正斜杠）、README_WINDOWS.md 七步指南（Python/Node/Git 官方安装包 + 宝塔 Nginx/MongoDB）。.gitattributes 强制 *.bat CRLF。GitHub 仓库：ajin53193-cyber/acai。⚠️ Windows 脚本无 Windows 环境未实测，用户执行报错需据截图修正
+
 ## 待办优先级
+- P0：用户按 deploy/windows/README_WINDOWS.md 在宝塔 Windows 搭建，等待终端截图反馈
 - P0：用户按 deploy/baota/README_BAOTA.md 在宝塔搭建；Save to GitHub → 服务器 clone → deploy.sh → Nginx 配置 → import_from_live.py → 切 DNS
 - P0：部署新代码（Save to GitHub → 服务器 deploy.sh）后，在生产后台「项目管理 → 礼品卡合作项目 → 编辑」选择教程链接
 - P0：用户在后台「教程管理 → 加入海鸥官方群教程」填写：第一步下载链接、第三步群二维码图片 + 官方群 ID；随后 Re-publish 上线
