@@ -52,6 +52,17 @@ export default function Cooperation() {
             合作共赢
           </h1>
           <p className="mt-4 text-base text-slate-400 sm:text-lg">招募团队长 · 平台提供优质项目 · 每月新项目群内分享</p>
+          <div className="mt-6 flex flex-wrap items-center justify-center gap-2.5 sm:gap-3" data-testid="cooperation-compliance-badges">
+            {["平台不收取任何费用", "不承诺收益", "正规合规项目"].map((t) => (
+              <span
+                key={t}
+                className="inline-flex items-center gap-1.5 rounded-full border border-amber-500/30 bg-amber-500/[0.06] px-3.5 py-1.5 text-xs font-medium text-[#E5C158] sm:text-sm"
+              >
+                <ShieldCheck size={14} className="shrink-0 text-[#D4AF37]" />
+                {t}
+              </span>
+            ))}
+          </div>
         </Reveal>
       </section>
 
