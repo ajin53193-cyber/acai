@@ -369,10 +369,10 @@ export const ChatWidget = () => {
                                   axios.post(`${API}/chat/${sid.current}/action-click`, { label: a.label, link: a.link || "" }).catch(() => {});
                                   goLink(a.link);
                                 }}
-                                className={`flex w-full items-center justify-center gap-1.5 rounded-full px-3 py-2 text-xs font-bold transition-transform hover:scale-[1.02] active:scale-95 ${
+                                className={`flex w-full items-center justify-center gap-1.5 rounded-full px-3 text-xs font-bold transition-transform hover:scale-[1.03] active:scale-95 ${
                                   a.type === "qr" || a.type === "group-link"
-                                    ? "border border-amber-500/50 bg-amber-500/10 text-[#E5C158]"
-                                    : "bg-gold-gradient text-[#060B18]"
+                                    ? "animate-join-pulse bg-gold-gradient py-2.5 text-[#060B18] ring-1 ring-amber-200/60"
+                                    : "border border-amber-500/50 bg-amber-500/10 py-2 text-[#E5C158]"
                                 }`}
                               >
                                 {a.type === "qr" || a.type === "group-link" ? <QrCode size={13} /> : <PlayCircle size={13} />}
