@@ -32,7 +32,7 @@ export default function AccountsPage() {
     const params = user.role === "admin" ? { role: tab } : {};
     api.get("/accounts", { params }).then((r) => { setAccounts(r.data); setLoading(false); }).catch(() => setLoading(false));
   };
-  useEffect(() => { setLoading(true); load(); }, [tab]);
+  useEffect(() => { setLoading(true); load(); }, [tab]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const create = async () => {
     setSaving(true);

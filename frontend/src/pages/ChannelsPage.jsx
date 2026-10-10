@@ -12,14 +12,53 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Plus, Network, Gauge, Loader2, Wallet } from "lucide-react";
+import { Plus, Network, Gauge, Loader2, Wallet, Radio, Pencil, Check, X, RefreshCw } from "lucide-react";
+
+function WalletField({ channel, onSaved }) {
+  const [editing, setEditing] = useState(false);
+  const [val, setVal] = useState(channel.wallet_address || "");
+  const [saving, setSaving] = useState(false);
+  const save = async () => {
+    setSaving(true);
+    try {
+      await api.patch(`/channels/${channel.id}`, { wallet_address: val.trim() });
+      toast.success(val.trim() ? "收款地址已配置，开始链上监听" : "已清除收款地址，切回模拟模式");
+      setEditing(false); onSaved();
+    } catch (err) { toast.error(formatApiErrorDetail(err.response?.data?.detail)); }
+    finally { setSaving(false); }
+  };
+  if (editing) return (
+    <div className="flex items-center gap-1">
+      <Input value={val} onChange={(e) => setVal(e.target.value)} placeholder={channel.network === "TRC20" ? "T 开头 34 位地址" : "0x 开头 42 位地址"} data-testid={`wallet-input-${channel.id}`} className="h-7 text-[11px] font-mono bg-slate-900/60 border-slate-700" />
+      <button onClick={save} disabled={saving} data-testid={`wallet-save-${channel.id}`} className="p-1 text-emerald-400 hover:bg-emerald-400/10 rounded">{saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}</button>
+      <button onClick={() => { setEditing(false); setVal(channel.wallet_address || ""); }} className="p-1 text-slate-400 hover:bg-slate-700 rounded"><X className="w-3.5 h-3.5" /></button>
+    </div>
+  );
+  return (
+    <div className="flex items-center gap-1.5 min-w-0">
+      <span className={`font-mono text-[11px] truncate ${channel.wallet_address ? "text-slate-200" : "text-slate-500"}`} data-testid={`wallet-address-${channel.id}`}>{channel.wallet_address || "未配置（模拟模式）"}</span>
+      <button onClick={() => setEditing(true)} data-testid={`wallet-edit-${channel.id}`} className="p-1 text-slate-500 hover:text-cyan-400 shrink-0"><Pencil className="w-3 h-3" /></button>
+    </div>
+  );
+}
 
 export default function ChannelsPage() {
   const [channels, setChannels] = useState([]);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
-  const [form, setForm] = useState({ name: "", network: "TRC20", fee_rate: 0.02, weight: 10, min_amount: 10, max_amount: 50000 });
+  const [form, setForm] = useState({ name: "", network: "TRC20", fee_rate: 0.02, weight: 10, min_amount: 10, max_amount: 50000, wallet_address: "" });
   const [saving, setSaving] = useState(false);
+  const [syncing, setSyncing] = useState(false);
+
+  const syncNow = async () => {
+    setSyncing(true);
+    try {
+      const { data } = await api.post("/chain/sync");
+      toast.success(`已扫描 ${data.channels} 个地址 / ${data.scanned} 笔转账，匹配 ${data.matched} 笔订单`);
+      load();
+    } catch (err) { toast.error(formatApiErrorDetail(err.response?.data?.detail)); }
+    finally { setSyncing(false); }
+  };
 
   const load = () => api.get("/channels").then((r) => { setChannels(r.data); setLoading(false); }).catch(() => setLoading(false));
   useEffect(() => { load(); }, []);
@@ -33,7 +72,7 @@ export default function ChannelsPage() {
       });
       toast.success("通道已创建");
       setOpen(false);
-      setForm({ name: "", network: "TRC20", fee_rate: 0.02, weight: 10, min_amount: 10, max_amount: 50000 });
+      setForm({ name: "", network: "TRC20", fee_rate: 0.02, weight: 10, min_amount: 10, max_amount: 50000, wallet_address: "" });
       load();
     } catch (err) {
       toast.error(formatApiErrorDetail(err.response?.data?.detail));
@@ -53,8 +92,12 @@ export default function ChannelsPage() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">通道路由</h1>
-          <p className="text-sm text-slate-400 mt-1">配置 USDT 收款通道、权重路由与费率</p>
+          <p className="text-sm text-slate-400 mt-1">配置 USDT 收款通道、权重路由与费率。TRC20 通道配置收款地址后自动通过 TronGrid 监听链上到账</p>
         </div>
+        <div className="flex gap-2">
+        <Button variant="outline" onClick={syncNow} disabled={syncing} data-testid="chain-sync-btn" className="border-slate-700">
+          {syncing ? <Loader2 className="w-4 h-4 animate-spin" /> : <><RefreshCw className="w-4 h-4 mr-1" /> 立即同步链上</>}
+        </Button>
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger asChild>
             <Button data-testid="create-channel-btn" className="bg-gradient-to-r from-cyan-500 to-emerald-500 text-slate-950 font-semibold hover:opacity-90">
@@ -77,10 +120,13 @@ export default function ChannelsPage() {
                 <div className="space-y-1.5"><Label>最小金额</Label><Input type="number" value={form.min_amount} onChange={(e) => setForm({ ...form, min_amount: e.target.value })} className="bg-slate-900/60 border-slate-700 font-mono" /></div>
                 <div className="space-y-1.5"><Label>最大金额</Label><Input type="number" value={form.max_amount} onChange={(e) => setForm({ ...form, max_amount: e.target.value })} className="bg-slate-900/60 border-slate-700 font-mono" /></div>
               </div>
+              <div className="space-y-1.5"><Label>收款钱包地址 <span className="text-slate-500 text-xs">（可选，填写后启用真实链上监听）</span></Label>
+                <Input value={form.wallet_address} onChange={(e) => setForm({ ...form, wallet_address: e.target.value })} data-testid="channel-wallet-input" className="bg-slate-900/60 border-slate-700 font-mono text-xs" placeholder={form.network === "TRC20" ? "T 开头 34 位 TRON 地址" : "0x 开头 42 位地址"} /></div>
             </div>
             <DialogFooter><Button onClick={create} disabled={saving || !form.name} data-testid="channel-submit-btn" className="bg-cyan-500 text-slate-950 hover:bg-cyan-400">{saving ? <Loader2 className="w-4 h-4 animate-spin" /> : "确认创建"}</Button></DialogFooter>
           </DialogContent>
         </Dialog>
+        </div>
       </div>
 
       {loading ? (
@@ -94,7 +140,14 @@ export default function ChannelsPage() {
                   <div className="w-9 h-9 rounded-lg bg-slate-800 flex items-center justify-center"><Network className="w-4 h-4 text-cyan-400" /></div>
                   <div>
                     <div className="font-medium text-sm">{c.name}</div>
-                    <span className={`px-2 py-0.5 rounded text-[10px] font-mono border ${NETWORK_COLORS[c.network]}`}>{c.network}</span>
+                    <div className="flex items-center gap-1.5">
+                      <span className={`px-2 py-0.5 rounded text-[10px] font-mono border ${NETWORK_COLORS[c.network]}`}>{c.network}</span>
+                      {c.wallet_address ? (
+                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] border text-emerald-400 border-emerald-400/30 bg-emerald-400/10" data-testid={`live-badge-${c.id}`}><Radio className="w-2.5 h-2.5 pulse-dot" />链上监听</span>
+                      ) : (
+                        <span className="px-1.5 py-0.5 rounded text-[10px] border text-slate-400 border-slate-600 bg-slate-700/30">模拟</span>
+                      )}
+                    </div>
                   </div>
                 </div>
                 <Switch checked={c.status === "active"} onCheckedChange={() => toggle(c)} data-testid={`channel-toggle-${c.id}`} />
@@ -105,6 +158,12 @@ export default function ChannelsPage() {
                 <div><div className="text-[11px] text-slate-500">成功率</div><div className="font-mono font-semibold text-emerald-400">{c.success_rate}%</div></div>
                 <div><div className="text-[11px] text-slate-500 flex items-center gap-1"><Wallet className="w-3 h-3" />钱包池</div><div className="font-mono font-semibold">{fmtUSDT(c.wallet_balance)}</div></div>
                 <div className="col-span-2"><div className="text-[11px] text-slate-500">限额区间</div><div className="font-mono text-xs">{fmtUSDT(c.min_amount)} ~ {fmtUSDT(c.max_amount)} USDT</div></div>
+                <div className="col-span-2"><div className="text-[11px] text-slate-500 mb-0.5">收款地址</div><WalletField channel={c} onSaved={load} /></div>
+                {c.wallet_address && (
+                  <div className="col-span-2 text-[10px] font-mono text-slate-500">
+                    {c.sync_error ? <span className="text-red-400">同步异常: {c.sync_error}</span> : c.last_sync_at ? `最近同步 ${new Date(c.last_sync_at).toLocaleTimeString("zh-CN")}` : "等待待支付订单后开始轮询"}
+                  </div>
+                )}
               </div>
             </div>
           ))}

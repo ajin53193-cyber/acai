@@ -126,20 +126,21 @@ export default function CheckoutPage() {
                 <div className="flex items-center gap-2 p-3 rounded-lg bg-slate-900/60 border border-slate-700">
                   <Wallet className="w-4 h-4 text-emerald-400" />
                   <span className="text-xs text-slate-400">精确金额</span>
-                  <span className="font-mono text-sm font-semibold ml-auto">{fmtUSDT(order.amount_usdt)}</span>
-                  <button onClick={() => copy(order.amount_usdt)} className="p-1 rounded text-cyan-400 hover:bg-cyan-400/10"><Copy className="w-3.5 h-3.5" /></button>
+                  <span className="font-mono text-sm font-semibold ml-auto text-cyan-300" data-testid="checkout-pay-amount">{order.pay_amount}</span>
+                  <button onClick={() => copy(String(order.pay_amount))} className="p-1 rounded text-cyan-400 hover:bg-cyan-400/10"><Copy className="w-3.5 h-3.5" /></button>
                 </div>
+                {order.live && <p className="text-[11px] text-amber-400/90">请务必按精确金额（含小数尾数）转账，系统通过金额自动匹配订单，金额不符将无法自动到账</p>}
               </div>
 
               <div className="mb-5"><Countdown expiresAt={order.expires_at} status={order.status} /></div>
 
               <div className="flex items-center justify-center gap-2 text-xs text-slate-500 mb-4">
-                <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 pulse-dot" /> 正在监听链上到账...
+                <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 pulse-dot" /> {order.live ? "正在通过 TronGrid 监听 TRC20 链上到账..." : "正在监听链上到账..."}
               </div>
 
-              <Button onClick={simulate} disabled={paying} data-testid="simulate-payment-btn" className="w-full h-11 bg-gradient-to-r from-cyan-500 to-emerald-500 text-slate-950 font-semibold hover:opacity-90">
+              {!order.live && <Button onClick={simulate} disabled={paying} data-testid="simulate-payment-btn" className="w-full h-11 bg-gradient-to-r from-cyan-500 to-emerald-500 text-slate-950 font-semibold hover:opacity-90">
                 {paying ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Zap className="w-4 h-4 mr-1" /> 模拟支付（演示）</>}
-              </Button>
+              </Button>}
             </>
           )}
         </div>

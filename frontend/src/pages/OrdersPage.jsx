@@ -30,6 +30,7 @@ export default function OrdersPage() {
   const [amount, setAmount] = useState("");
   const [network, setNetwork] = useState("TRC20");
   const [merchantId, setMerchantId] = useState("");
+  const [notifyUrl, setNotifyUrl] = useState("");
   const [creating, setCreating] = useState(false);
 
   const load = useCallback(() => {
@@ -50,10 +51,11 @@ export default function OrdersPage() {
     try {
       const body = { amount_usdt: Number(amount), network };
       if (user.role !== "merchant") body.merchant_id = merchantId;
+      if (notifyUrl) body.notify_url = notifyUrl;
       const { data } = await api.post("/orders", body);
-      toast.success(`订单已创建 ${data.order_no}`);
+      toast.success(data.live ? `订单已创建，请向地址精确转账 ${data.pay_amount} USDT` : `订单已创建 ${data.order_no}`);
       setCreateOpen(false);
-      setAmount(""); setMerchantId("");
+      setAmount(""); setMerchantId(""); setNotifyUrl("");
       load();
     } catch (err) {
       toast.error(formatApiErrorDetail(err.response?.data?.detail) || err.message);
@@ -122,6 +124,10 @@ export default function OrdersPage() {
                   </SelectContent>
                 </Select>
               </div>
+              <div className="space-y-1.5">
+                <Label>回调地址 <span className="text-slate-500 text-xs">（可选，留空用商户默认）</span></Label>
+                <Input value={notifyUrl} onChange={(e) => setNotifyUrl(e.target.value)} placeholder="https://..." data-testid="order-notify-url-input" className="bg-slate-900/60 border-slate-700 font-mono text-xs" />
+              </div>
             </div>
             <DialogFooter>
               <Button onClick={createOrder} disabled={creating || !amount} data-testid="order-submit-btn" className="bg-cyan-500 text-slate-950 hover:bg-cyan-400">
@@ -185,17 +191,26 @@ export default function OrdersPage() {
                     <td className="py-3 px-3 font-mono text-xs text-slate-300">{o.order_no}</td>
                     <td className="py-3 px-3">{o.merchant_name}</td>
                     <td className="py-3 px-3"><span className={`px-2 py-0.5 rounded text-[11px] font-mono border ${NETWORK_COLORS[o.network]}`}>{o.network}</span></td>
-                    <td className="py-3 px-3 text-right font-mono font-semibold text-emerald-400">{fmtUSDT(o.amount_usdt)}</td>
+                    <td className="py-3 px-3 text-right font-mono font-semibold text-emerald-400">
+                      {fmtUSDT(o.amount_usdt)}
+                      {o.live && <div className="text-[10px] text-slate-500 font-normal" title="链上精确匹配金额">到账 {o.pay_amount}</div>}
+                    </td>
                     <td className="py-3 px-3 font-mono text-xs text-slate-400">{shortHash(o.tx_id)}</td>
                     <td className="py-3 px-3">
                       <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] border ${s.bg} ${s.color}`}>
                         <span className={`w-1.5 h-1.5 rounded-full ${s.dot} ${o.status === "pending" ? "pulse-dot" : ""}`} />{s.label}
                       </span>
+                      {o.live && <span className="ml-1 text-[10px] text-emerald-400/80 font-mono">链上</span>}
+                      {o.callback_status && o.callback_status !== "none" && (
+                        <span className={`ml-1 text-[10px] font-mono ${o.callback_status === "success" ? "text-emerald-400" : o.callback_status === "failed" ? "text-red-400" : "text-sky-400"}`} data-testid={`cb-status-${o.order_no}`}>
+                          回调{{ pending: "待推", retrying: "重试", success: "成功", failed: "失败" }[o.callback_status]}
+                        </span>
+                      )}
                     </td>
                     <td className="py-3 px-3 text-xs text-slate-500 font-mono">{fmtDate(o.created_at)}</td>
                     <td className="py-3 px-3 text-right">
                       <div className="flex items-center justify-end gap-1">
-                        {o.status === "pending" && (
+                        {o.status === "pending" && !o.live && (
                           <button onClick={() => simulatePay(o)} data-testid={`simulate-pay-${o.order_no}`} title="模拟支付" className="p-1.5 rounded-md text-emerald-400 hover:bg-emerald-400/10 transition-colors">
                             <Zap className="w-4 h-4" />
                           </button>
@@ -228,6 +243,8 @@ export default function OrdersPage() {
                 ["通道", detail.channel_name],
                 ["收款地址", detail.wallet_address],
                 ["TxID", detail.tx_id || "—"],
+                ["回调地址", detail.notify_url || "—"],
+                ["收款模式", detail.live ? "真实链上监听 (TronGrid)" : "模拟到账"],
               ].map(([k, v]) => (
                 <div key={k} className="flex items-center justify-between gap-4 py-1.5 border-b border-slate-800/50">
                   <span className="text-slate-400">{k}</span>
@@ -243,7 +260,16 @@ export default function OrdersPage() {
                 <span className="text-slate-400">金额</span>
                 <span className="font-mono font-bold text-emerald-400">{fmtUSDT(detail.amount_usdt)} USDT</span>
               </div>
-              {detail.status === "pending" && (
+              {detail.live && (
+                <div className="flex items-center justify-between py-1.5">
+                  <span className="text-slate-400">链上精确到账金额</span>
+                  <span className="font-mono font-bold text-cyan-400" data-testid="detail-pay-amount">{detail.pay_amount} USDT</span>
+                </div>
+              )}
+              {detail.status === "pending" && detail.live && (
+                <div className="text-center text-xs text-slate-400 py-2 flex items-center justify-center gap-2"><span className="w-1.5 h-1.5 rounded-full bg-cyan-400 pulse-dot" />正在通过 TronGrid 监听链上到账…</div>
+              )}
+              {detail.status === "pending" && !detail.live && (
                 <Button onClick={() => simulatePay(detail)} className="w-full bg-emerald-500 text-slate-950 hover:bg-emerald-400" data-testid="detail-simulate-pay-btn">
                   <Zap className="w-4 h-4 mr-1" /> 模拟到账确认
                 </Button>
