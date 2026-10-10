@@ -60,6 +60,7 @@
 - [x] 地址健康巡检：/addresses 页，链上 USDT 余额（每 5 分钟自动刷新）、同步状态、待付负载、累计到账、浏览器链接；GET /api/chain/addresses、POST /refresh
 - [x] 商户 IP 白名单：PATCH /api/accounts/me/ip-whitelist，/api/v1 校验来源 IP（X-Forwarded-For），拦截写审计 api.ip_rejected；开发者 API 页维护
 - [x] 代理分润 Excel：GET /api/reports/agent-commission?month&agent_id，3 Sheet（月度汇总/按商户明细/逐单明细）；结算页导出按钮（admin 选代理）
+- [x] 常见教程：5 篇内置图文教程（用户提供文案，含交易所/VPN 链接自动可点），收银台点击标题底部弹层展开；admin 可改标题/改为外链
 - [x] 测试：后端 23/23、前端全通过
 
 ## Env (optional)

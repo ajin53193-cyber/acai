@@ -1,9 +1,29 @@
 import { useEffect, useState, useCallback, useMemo } from "react";
 import { useParams } from "react-router-dom";
 import api, { formatApiErrorDetail } from "@/lib/api";
-import { LANGS, I18N } from "@/lib/checkoutI18n";
+import { LANGS, I18N, TUTORIAL_CONTENT } from "@/lib/checkoutI18n";
 import { toast } from "sonner";
-import { Copy, Clock, CheckCircle2, XCircle, Loader2, Zap, ChevronDown, ChevronUp, Leaf } from "lucide-react";
+import { Copy, Clock, CheckCircle2, XCircle, Loader2, Zap, ChevronDown, ChevronUp, Leaf, X } from "lucide-react";
+
+function Linkify({ text }) {
+  const parts = text.split(/(https?:\/\/[^\s，。）)]+)/g);
+  return <>{parts.map((p, i) => /^https?:\/\//.test(p) ? <a key={i} href={p} target="_blank" rel="noreferrer" className="text-blue-500 break-all">{p}</a> : <span key={i}>{p}</span>)}</>;
+}
+
+function TutorialSheet({ item, onClose }) {
+  if (!item) return null;
+  return (
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40" onClick={onClose} data-testid="tutorial-sheet">
+      <div className="bg-white w-full max-w-md max-h-[85vh] rounded-t-2xl sm:rounded-2xl flex flex-col" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100">
+          <h3 className="font-semibold text-slate-900 text-[16px]" data-testid="tutorial-title">{item.title}</h3>
+          <button onClick={onClose} className="p-1 text-slate-500" data-testid="tutorial-close-btn"><X className="w-5 h-5" /></button>
+        </div>
+        <div className="px-4 py-4 overflow-y-auto text-[15px] leading-relaxed text-slate-700 whitespace-pre-wrap" data-testid="tutorial-content"><Linkify text={item.content} /></div>
+      </div>
+    </div>
+  );
+}
 
 const NET_STYLE = {
   TRC20: { bg: "bg-red-50", text: "text-red-600", tag: "TRC20" },
@@ -55,6 +75,7 @@ export default function CheckoutPage() {
   const [paying, setPaying] = useState(false);
   const [lang, setLang] = useState(() => localStorage.getItem("sf_pay_lang") || "zh-CN");
   const [energyOpen, setEnergyOpen] = useState(true);
+  const [tutorial, setTutorial] = useState(null);
   const t = I18N[lang];
 
   const load = useCallback(() => {
@@ -99,7 +120,9 @@ export default function CheckoutPage() {
   const amount = order.pay_amount;
   const st = order.status;
   const notes = t.notes(order.network, amount, order.explorer_url);
-  const tutorials = settings?.tutorial_links?.length ? settings.tutorial_links : t.defaultTutorials.map((title) => ({ title, url: "" }));
+  const tutorials = settings?.tutorial_links?.length
+    ? settings.tutorial_links.map((tu, i) => ({ ...tu, content: tu.content || TUTORIAL_CONTENT[i] || "" }))
+    : t.defaultTutorials.map((title, i) => ({ title, url: "", content: TUTORIAL_CONTENT[i] }));
   const showEnergy = settings?.energy_enabled && settings?.energy_trx_address && order.network === "TRC20" && st === "pending";
 
   return shell(<>
@@ -200,10 +223,12 @@ export default function CheckoutPage() {
       <p className="text-slate-700 text-[15px] mb-2">{t.tutorials}</p>
       <ol className="space-y-2 text-[15px]">
         {tutorials.map((tu, i) => (
-          <li key={i}>{tu.url ? <a href={tu.url} target="_blank" rel="noreferrer" className="text-blue-500">{i + 1}、{tu.title}</a> : <span className="text-blue-500">{i + 1}、{tu.title}</span>}</li>
+          <li key={i}>{tu.url ? <a href={tu.url} target="_blank" rel="noreferrer" className="text-blue-500">{i + 1}、{tu.title}</a>
+            : <button onClick={() => setTutorial(tu)} className="text-blue-500 text-left" data-testid={`tutorial-link-${i}`}>{i + 1}、{tu.title}</button>}</li>
         ))}
       </ol>
       {settings?.support_url && <a href={settings.support_url} target="_blank" rel="noreferrer" className="mt-3 block text-center text-sm text-blue-500" data-testid="support-link">{t.contact} ↗</a>}
     </section>
+    <TutorialSheet item={tutorial} onClose={() => setTutorial(null)} />
   </>);
 }
