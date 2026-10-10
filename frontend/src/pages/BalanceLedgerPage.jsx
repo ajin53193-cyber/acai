@@ -29,6 +29,7 @@ export default function BalanceLedgerPage() {
   const [loading, setLoading] = useState(!pick);
   const [month, setMonth] = useState(() => new Date().toISOString().slice(0, 7));
   const [busy, setBusy] = useState(false);
+  const [byMonth, setByMonth] = useState(false);
 
   useEffect(() => {
     if (!pick) return;
@@ -42,17 +43,18 @@ export default function BalanceLedgerPage() {
     if (pick && !accountId) { setData(null); return; }
     setLoading(true);
     const params = pick ? { account_id: accountId } : {};
+    if (byMonth && month) params.month = month;
     api.get("/balance/ledger", { params })
       .then((r) => { setData(r.data); setLoading(false); })
       .catch((err) => { setLoading(false); toast.error(formatApiErrorDetail(err.response?.data?.detail)); });
-  }, [pick, accountId]);
+  }, [pick, accountId, byMonth, month]);
 
   useEffect(() => { load(); }, [load]);
 
   const download = async () => {
     setBusy(true);
     try {
-      const params = {}; if (pick) params.account_id = accountId; if (month) params.month = month;
+      const params = {}; if (pick) params.account_id = accountId; if (byMonth && month) params.month = month;
       const res = await api.get("/reports/balance-ledger", { params, responseType: "blob" });
       const url = URL.createObjectURL(res.data);
       const a = document.createElement("a"); a.href = url; a.download = `ledger_${month || "all"}.xlsx`; a.click(); URL.revokeObjectURL(url);
@@ -81,7 +83,11 @@ export default function BalanceLedgerPage() {
               <SelectContent>{accounts.map((m) => <SelectItem key={m.id} value={m.id}>{m.name} · {m.email}</SelectItem>)}</SelectContent>
             </Select>
           )}
-          <Input type="month" value={month} onChange={(e) => setMonth(e.target.value)} data-testid="ledger-month-input" className="w-[150px] bg-slate-900/60 border-slate-700 font-mono" />
+          <Select value={byMonth ? "month" : "all"} onValueChange={(v) => setByMonth(v === "month")}>
+            <SelectTrigger data-testid="ledger-range-select" className="w-[118px] bg-slate-900/60 border-slate-700"><SelectValue /></SelectTrigger>
+            <SelectContent><SelectItem value="all">全部时间</SelectItem><SelectItem value="month">按月份</SelectItem></SelectContent>
+          </Select>
+          <Input type="month" value={month} onChange={(e) => setMonth(e.target.value)} disabled={!byMonth} data-testid="ledger-month-input" className="w-[150px] bg-slate-900/60 border-slate-700 font-mono disabled:opacity-40" />
           <Button onClick={download} disabled={busy || (pick && !accountId)} variant="outline" data-testid="ledger-export-btn" className="border-slate-700 hover:bg-slate-800">
             {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <><FileText className="w-4 h-4 mr-1" /> 导出 Excel</>}
           </Button>

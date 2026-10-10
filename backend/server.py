@@ -28,6 +28,7 @@ import pyotp
 import qrcode
 import io as _io
 import base64
+from email_utils import notify_security
 
 # ---------------------------------------------------------------------------
 # DB & app setup
@@ -764,6 +765,10 @@ async def login(data: LoginInput, request: Request, response: Response):
             return {"requires_2fa": True}
         secret = user.get("totp_secret")
         if not secret or not pyotp.TOTP(secret).verify(str(data.code).strip().replace(" ", ""), valid_window=1):
+            locked = await record_login_failure(identifier, email, ip)
+            asyncio.create_task(notify_security(user, "fail", ip))
+            if locked:
+                raise HTTPException(status_code=423, detail=f"连续 {LOCK_MAX_FAILS} 次验证失败，账号已锁定 {LOCK_MINUTES} 分钟")
             raise HTTPException(status_code=401, detail="两步验证码错误")
     await db.login_attempts.delete_one({"identifier": identifier})
     token = create_access_token(str(user["_id"]), user["email"], user["role"])
@@ -813,6 +818,7 @@ async def totp_enable(data: TotpCode, request: Request, user: dict = Depends(get
                               {"$set": {"totp_secret": secret, "totp_enabled": True},
                                "$unset": {"totp_pending_secret": ""}})
     await audit(user, "auth.2fa_enable", "user", user["_id"], {}, request)
+    asyncio.create_task(notify_security(user, "enable", client_ip(request)))
     return {"ok": True, "totp_enabled": True}
 
 
@@ -828,6 +834,7 @@ async def totp_disable(data: TotpCode, request: Request, user: dict = Depends(ge
     await db.users.update_one({"_id": user["_id"]},
                               {"$set": {"totp_enabled": False}, "$unset": {"totp_secret": "", "totp_pending_secret": ""}})
     await audit(user, "auth.2fa_disable", "user", user["_id"], {}, request)
+    asyncio.create_task(notify_security(user, "disable", client_ip(request)))
     return {"ok": True, "totp_enabled": False}
 
 
@@ -2162,11 +2169,19 @@ async def resolve_ledger_account(user: dict, account_id: Optional[str]) -> Objec
 
 @api_router.get("/balance/ledger")
 async def balance_ledger(account_id: Optional[str] = None, category: Optional[str] = None,
-                         limit: int = Query(300, le=2000), user: dict = Depends(get_current_user)):
+                         month: Optional[str] = None, limit: int = Query(300, le=2000),
+                         user: dict = Depends(get_current_user)):
     acc_id = await resolve_ledger_account(user, account_id)
     q: dict = {"account_id": str(acc_id)}
     if category:
         q["category"] = category
+    if month:
+        try:
+            start = datetime.strptime(month, "%Y-%m").replace(tzinfo=timezone.utc)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="month 格式应为 YYYY-MM")
+        end = (start.replace(year=start.year + 1, month=1) if start.month == 12 else start.replace(month=start.month + 1))
+        q["created_at"] = {"$gte": iso(start), "$lt": iso(end)}
     rows = await db.balance_ledger.find(q).sort("created_at", -1).to_list(limit)
     acc = await db.users.find_one({"_id": acc_id})
     return {
