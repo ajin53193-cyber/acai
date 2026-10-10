@@ -1,0 +1,34 @@
+{
+  "summary": "Iteration 7: order search enhancements + /addresses management page + sweep flow. Backend 7/7 pytest green, Playwright frontend full flow passed (add/pause/label/sweep/history/search/remove), DB state restored exactly (TRC20 channel = 2 original addresses, no paused meta).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_iteration7.py",
+    "/app/test_reports/pytest/iter7.xml"
+  ],
+  "detailed_results": {
+    "order_search": "GET /api/orders?keyword= works for wallet_address (TN3W4H...), out_trade_no (merchant-created SRCH123-<ts> round-tripped), numeric amount (100.5007 matches amount_usdt or pay_amount), and merchant scope only returns own merchant's orders.",
+    "address_health": "GET /api/chain/addresses returns {total_balance, total_swept, by_network{TRC20/ERC20/BEP20}, addresses[3]} with label/paused/swept_total/swept_count/last_swept_at/unswept. Non-admin -> 403.",
+    "address_manage": "POST /chain/addresses adds TXYZ... with label (wallet_addresses len 3). Invalid address -> 400. PATCH {status:paused} 200, {status:bogus} 400. 3 new TRC20 merchant orders assigned to non-paused originals only (TEST_ADDR excluded). POST /chain/sweeps amount=0 -> 400, valid -> 200, non-admin -> 403. GET /chain/sweeps?address lists; health swept_total >= 55.5 reflected. audit-logs contains address.sweep. DELETE for TRC20_ORIG[0] (has pending orders) -> 400. DELETE for cleaned test addr -> 200, len back to 2.",
+    "frontend_addresses": "/addresses page title '收款地址管理' loads. total-balance-card shows 681,205,475.72 USDT. Initial 3 rows. Add dialog (channel=TRC20 极速通道, address=TXYZ..., label='测试地址UI') success toast; row with label visible. Pause toggle -> paused-badge appears. label-edit->input->save changes label to 热钱包UI. Sweep dialog submit success; sweep-history-dialog lists sweep-row-*. Search 'TXYZ' narrows to 1 row. Unpause then remove-btn (window.confirm accepted) removes row; final 3 rows restored.",
+    "frontend_orders": "order-search-input placeholder includes '商户单号' ('搜索订单号 / TxID / 商户单号 / 钱包地址 / 金额 / 商户').",
+    "regression_audit": "/audit page lists address.add/remove/update/sweep entries with CN labels (添加地址/移除地址/地址标签/暂停/冷钱包归集). Filter includes '收款地址' option group."
+  },
+  "action_items": [],
+  "critical_code_review_comments": [
+    "server.py is now 1876 lines - splitting into routers (orders, chain, addresses, sweeps, audit) is overdue.",
+    "pick_address falls back to all addresses if ALL are paused (`addrs or paused_addrs`) - correct for availability, but silently sends to paused addr; consider a 400 instead when all paused.",
+    "Add-address UI dropdown lists ALL channels including inactive (TEST_Channel). Initial test added to inactive TRC20 channel because option text was ambiguous; UI should either filter to status=active channels or append a (未启用) badge. Not a functional bug for the acceptance test since backend only exposes active channels in GET /chain/addresses, but UX is confusing.",
+    "DELETE /chain/addresses/{channel_id}/{address} does not currently check for pending orders assigned to OTHER channels sharing the address - not an issue here but noteworthy.",
+    "address_meta orphaned rows (label/paused) remain after address is removed from all channels; no cleanup. Minor data hygiene issue."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iteration7.py"
+  ],
+  "success_rate": {"backend": "100% (7/7)", "frontend": "100%"},
+  "test_credentials": "Used admin ajin53193@gmail.com/admin888 and merchant merchant@demo.com/merchant888 from /app/memory/test_credentials.md.",
+  "seed_data_creation": "Created transient merchant orders via POST /api/orders (SRCH123-<ts>, 15/16/17 USDT TRC20) - left as pending. Sweep records inserted for TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf (55.5 and 12.5 USDT) and remain in db.sweeps. TEST_Channel wallet_addresses manually cleaned to [] after a dropdown misclick (TEST_Channel is inactive and does not affect prod paths).",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "test_iteration7.py pre-cleans TEST_ADDR before run so it's safely re-runnable. UI add-address dropdown exposes inactive channels; be careful when selecting - prefer selector with full channel name '极速通道'. DB state at end-of-test: TRC20 极速通道 has exactly [TN3W4H..., TU4vEruv...]; BEP20 低费通道 has [0x8894E0...]; both active. No paused address_meta rows. Pending merchant test orders (3 TRC20) remain on original addresses - will expire in 15 min."
+}

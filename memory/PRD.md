@@ -75,6 +75,11 @@
 - [x] TronGrid Key 已配置（429 消失）；EVM RPC 拉取限制 3000 块/150 条 + 25s 超时，chain/sync 由 502 降至 ~5s
 - [x] 测试：通过（见 iteration_6.json）
 
+## Implemented (2026-06, iteration 7)
+- [x] 订单搜索增强：订单号 / TxID / 商户单号 (out_trade_no) / 钱包地址 / 商户名 模糊 + 金额精确匹配；详情显示商户单号
+- [x] 收款地址管理页（/addresses）：地址池增删（有待付订单禁止删除）、暂停/恢复分配（暂停地址不再分配新订单）、标签备注、总余额与分链余额、冷钱包归集标记（金额/冷钱包/TxID/备注）与归集记录；审计 address.*
+- [x] 测试：通过（见 iteration_7.json）
+
 ## Env (optional)
 - ETHERSCAN_API_KEY：ERC20/BEP20 监听与余额必需（Etherscan V2 免费 Key，https://etherscan.io/apis）
 - TRONGRID_API_KEY：公共接口限速较严 (429)，生产建议配置 TronGrid Key
