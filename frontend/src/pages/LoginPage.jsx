@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { ShieldCheck, Loader2, ArrowRight } from "lucide-react";
+import { ShieldCheck, Loader2, ArrowRight, KeyRound, ArrowLeft } from "lucide-react";
 
 const DEMO = [
   { label: "平台管理员", email: "ajin53193@gmail.com", password: "admin888" },
@@ -20,12 +20,22 @@ export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [need2fa, setNeed2fa] = useState(false);
+  const [code, setCode] = useState("");
 
   const submit = async (e) => {
     e?.preventDefault();
     setLoading(true);
     try {
-      const { data } = await api.post("/auth/login", { email, password });
+      const payload = { email, password };
+      if (need2fa) payload.code = code;
+      const { data } = await api.post("/auth/login", payload);
+      if (data.requires_2fa) {
+        setNeed2fa(true);
+        setLoading(false);
+        toast.info("请输入验证器 App 中的 6 位验证码");
+        return;
+      }
       login(data.token, data.user);
       toast.success(`欢迎回来，${data.user.name}`);
       navigate("/");
@@ -35,6 +45,8 @@ export default function LoginPage() {
       setLoading(false);
     }
   };
+
+  const backToPassword = () => { setNeed2fa(false); setCode(""); };
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background grain p-4 relative overflow-hidden">
@@ -53,9 +65,37 @@ export default function LoginPage() {
         </div>
 
         <div className="glass rounded-2xl p-7 shadow-2xl">
-          <h2 className="text-lg font-semibold mb-1">登录控制台</h2>
-          <p className="text-sm text-slate-400 mb-6">使用账号密码进入您的管理后台</p>
+          <h2 className="text-lg font-semibold mb-1">{need2fa ? "两步验证" : "登录控制台"}</h2>
+          <p className="text-sm text-slate-400 mb-6">{need2fa ? "请输入验证器 App 生成的 6 位动态验证码" : "使用账号密码进入您的管理后台"}</p>
 
+          {need2fa ? (
+            <form onSubmit={submit} className="space-y-4" data-testid="twofa-login-form">
+              <div className="flex items-center gap-2 text-sm text-slate-300 px-3 py-2 rounded-lg bg-slate-900/60 border border-slate-700">
+                <KeyRound className="w-4 h-4 text-cyan-400" /> {email}
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="code" className="text-slate-300">动态验证码</Label>
+                <Input
+                  id="code"
+                  value={code}
+                  onChange={(e) => setCode(e.target.value)}
+                  placeholder="6 位数字"
+                  inputMode="numeric"
+                  maxLength={6}
+                  autoFocus
+                  data-testid="login-2fa-input"
+                  className="bg-slate-900/60 border-slate-700 h-11 font-mono tracking-[0.4em] text-center text-lg"
+                  required
+                />
+              </div>
+              <Button type="submit" disabled={loading || code.length < 6} data-testid="login-2fa-submit-btn" className="w-full h-11 bg-gradient-to-r from-cyan-500 to-emerald-500 text-slate-950 font-semibold hover:opacity-90 transition-opacity">
+                {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <>验证并登录 <ArrowRight className="w-4 h-4 ml-1" /></>}
+              </Button>
+              <button type="button" onClick={backToPassword} data-testid="login-2fa-back-btn" className="w-full text-xs text-slate-500 hover:text-slate-300 flex items-center justify-center gap-1">
+                <ArrowLeft className="w-3 h-3" /> 返回重新输入密码
+              </button>
+            </form>
+          ) : (
           <form onSubmit={submit} className="space-y-4">
             <div className="space-y-1.5">
               <Label htmlFor="email" className="text-slate-300">邮箱</Label>
@@ -92,7 +132,9 @@ export default function LoginPage() {
               {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <>登录 <ArrowRight className="w-4 h-4 ml-1" /></>}
             </Button>
           </form>
+          )}
 
+          {!need2fa && (
           <div className="mt-6 pt-5 border-t border-slate-800">
             <p className="text-[11px] uppercase tracking-wider text-slate-500 mb-3 font-mono">演示账号 · 点击快速填充</p>
             <div className="grid grid-cols-3 gap-2">
@@ -109,6 +151,7 @@ export default function LoginPage() {
               ))}
             </div>
           </div>
+          )}
         </div>
       </div>
     </div>

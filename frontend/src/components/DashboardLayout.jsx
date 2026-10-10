@@ -5,6 +5,7 @@ import { ROLE_LABELS, fmtUSDT } from "@/lib/format";
 import {
   LayoutDashboard, Receipt, Network, Wallet, Users, LogOut, ShieldCheck,
   Activity, ChevronRight, Menu, X, Webhook, ScrollText, Code2, HeartPulse,
+  ArrowLeftRight, UserCog, Fingerprint,
 } from "lucide-react";
 import { PaymentAlerts } from "@/components/PaymentAlerts";
 import { AlertBell } from "@/components/AlertBell";
@@ -15,10 +16,12 @@ const NAV = [
   { to: "/channels", label: "通道路由", icon: Network, roles: ["admin", "operator"], perm: "channels.manage" },
   { to: "/addresses", label: "收款地址", icon: HeartPulse, roles: ["admin", "operator"], perm: "channels.manage" },
   { to: "/settlements", label: "结算分润", icon: Wallet, roles: ["admin", "agent", "merchant", "operator"], perm: "payouts.review" },
+  { to: "/ledger", label: "资金流水", icon: ArrowLeftRight, roles: ["admin", "agent", "merchant"] },
   { to: "/accounts", label: "账户权限", icon: Users, roles: ["admin", "agent", "operator"], perm: "accounts.view" },
   { to: "/callbacks", label: "回调通知", icon: Webhook, roles: ["admin", "agent", "merchant", "operator"], perm: "callbacks.retry" },
   { to: "/api", label: "开发者 API", icon: Code2, roles: ["merchant"] },
   { to: "/audit", label: "审计日志", icon: ScrollText, roles: ["admin", "operator"], perm: "audit.view" },
+  { to: "/operators", label: "操作员留痕", icon: UserCog, roles: ["admin"] },
 ];
 
 export const hasPerm = (user, perm) => user.role === "admin" || (user.role === "operator" && (user.permissions || []).includes(perm));
@@ -85,6 +88,18 @@ export default function DashboardLayout() {
               <div className="text-sm font-medium truncate">{user.name}</div>
               <div className="text-[11px] text-slate-500">{ROLE_LABELS[user.role]}</div>
             </div>
+            {(user.role === "admin" || user.role === "operator") && (
+              <NavLink
+                to="/security"
+                onClick={() => setOpen(false)}
+                data-testid="nav-security-link"
+                title="安全设置 / 两步验证"
+                className={({ isActive }) => `p-2 rounded-md transition-colors relative ${isActive ? "text-cyan-400 bg-cyan-400/10" : "text-slate-500 hover:text-cyan-400 hover:bg-slate-700"}`}
+              >
+                <Fingerprint className="w-[18px] h-[18px]" />
+                {user.totp_required && !user.totp_enabled && <span className="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-amber-400" />}
+              </NavLink>
+            )}
             <button
               onClick={handleLogout}
               data-testid="logout-btn"

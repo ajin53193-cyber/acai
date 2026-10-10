@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/select";
 import { toast } from "sonner";
 import {
-  Plus, Loader2, KeyRound, Lock, Unlock, Copy, SlidersHorizontal, Snowflake, ShieldCheck,
+  Plus, Loader2, KeyRound, Lock, Unlock, Copy, SlidersHorizontal, Snowflake, ShieldCheck, Fingerprint,
 } from "lucide-react";
 
 export default function AccountsPage() {
@@ -74,8 +74,7 @@ export default function AccountsPage() {
     } catch (err) { toast.error(formatApiErrorDetail(err.response?.data?.detail)); }
   };
 
-  const resetKey = async (a) => {
-    try {
+  const resetKey = async (a) => {    try {
       const { data } = await api.post(`/accounts/${a.id}/reset-api-key`);
       navigator.clipboard.writeText(`API Key: ${data.api_key}\nSecret: ${data.api_secret}`);
       toast.success("密钥已重置并复制到剪贴板");
@@ -84,6 +83,14 @@ export default function AccountsPage() {
   };
 
   const copy = (t) => { navigator.clipboard.writeText(t); toast.success("已复制"); };
+
+  const toggleRequire2fa = async (a) => {
+    try {
+      const { data } = await api.post(`/accounts/${a.id}/require-2fa`);
+      toast.success(data.totp_required ? "已强制开启两步验证" : "已取消强制两步验证");
+      load();
+    } catch (err) { toast.error(formatApiErrorDetail(err.response?.data?.detail)); }
+  };
 
   return (
     <div className="space-y-6" data-testid="accounts-page">
@@ -161,7 +168,13 @@ export default function AccountsPage() {
                   <td className="py-3 px-3 font-medium">{a.name}</td>
                   <td className="py-3 px-3 font-mono text-xs text-slate-400">{a.email}</td>
                   <td className="py-3 px-3"><span className="px-2 py-0.5 rounded text-[11px] bg-slate-800 text-slate-300">{ROLE_LABELS[a.role]}</span>
-                    {a.role === "operator" && <div className="text-[10px] text-slate-500 mt-0.5 max-w-[220px] truncate" data-testid={`perms-${a.id}`}>{(a.permissions || []).map((p) => perms[p] || p).join("、") || "无权限"}</div>}</td>
+                    {a.role === "operator" && <div className="text-[10px] text-slate-500 mt-0.5 max-w-[220px] truncate" data-testid={`perms-${a.id}`}>{(a.permissions || []).map((p) => perms[p] || p).join("、") || "无权限"}</div>}
+                    {a.role === "operator" && (a.totp_required || a.totp_enabled) && (
+                      <div className="flex items-center gap-1 mt-1" data-testid={`twofa-tag-${a.id}`}>
+                        {a.totp_enabled && <span className="px-1.5 py-0.5 rounded text-[10px] border border-emerald-400/30 text-emerald-400 flex items-center gap-0.5"><ShieldCheck className="w-2.5 h-2.5" />2FA已绑定</span>}
+                        {a.totp_required && <span className="px-1.5 py-0.5 rounded text-[10px] border border-amber-400/30 text-amber-400 flex items-center gap-0.5"><Fingerprint className="w-2.5 h-2.5" />强制2FA</span>}
+                      </div>
+                    )}</td>
                   <td className="py-3 px-3 text-right font-mono">{(a.rate * 100).toFixed(2)}%</td>
                   <td className="py-3 px-3 text-right font-mono font-semibold text-emerald-400">{fmtUSDT(a.balance)}</td>
                   <td className="py-3 px-3 font-mono text-xs text-slate-400">
@@ -178,6 +191,9 @@ export default function AccountsPage() {
                     <div className="flex items-center justify-end gap-1">
                       {user.role === "admin" && a.role === "operator" && (
                         <button onClick={() => { setPermEdit(a); setPermVal(a.permissions || []); }} data-testid={`edit-perms-${a.id}`} title="编辑权限" className="p-1.5 rounded-md text-cyan-400 hover:bg-cyan-400/10"><ShieldCheck className="w-4 h-4" /></button>
+                      )}
+                      {user.role === "admin" && a.role === "operator" && (
+                        <button onClick={() => toggleRequire2fa(a)} data-testid={`require-2fa-${a.id}`} title={a.totp_required ? "取消强制两步验证" : "强制两步验证"} className={`p-1.5 rounded-md ${a.totp_required ? "text-emerald-400 hover:bg-emerald-400/10" : "text-slate-400 hover:bg-slate-700"}`}><Fingerprint className="w-4 h-4" /></button>
                       )}
                       {user.role === "admin" && a.role !== "operator" && (
                         <button onClick={() => setAdjust(a)} data-testid={`adjust-${a.id}`} title="调整余额" className="p-1.5 rounded-md text-cyan-400 hover:bg-cyan-400/10"><SlidersHorizontal className="w-4 h-4" /></button>

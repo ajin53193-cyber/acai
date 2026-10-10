@@ -24,6 +24,10 @@ import hashlib
 import json
 import re
 import httpx
+import pyotp
+import qrcode
+import io as _io
+import base64
 
 # ---------------------------------------------------------------------------
 # DB & app setup
@@ -107,6 +111,10 @@ def clean_user(u: dict) -> dict:
     u = dict(u)
     u["id"] = str(u.pop("_id"))
     u.pop("password_hash", None)
+    u["totp_enabled"] = bool(u.get("totp_enabled"))
+    u["totp_required"] = bool(u.get("totp_required"))
+    u.pop("totp_secret", None)
+    u.pop("totp_pending_secret", None)
     return u
 
 
@@ -123,6 +131,18 @@ async def audit(user: dict, action: str, target_type: str, target_id: str,
         "action": action, "target_type": target_type, "target_id": str(target_id),
         "detail": detail or {}, "ip": client_ip(request) if request else None,
         "created_at": iso(now_utc()),
+    })
+
+
+async def record_ledger(account_id: str, category: str, amount: float, balance_after: float,
+                        frozen_after: Optional[float] = None, ref_type: Optional[str] = None,
+                        ref_id: Optional[Any] = None, remark: str = "", operator: Optional[str] = None):
+    await db.balance_ledger.insert_one({
+        "account_id": str(account_id), "category": category, "amount": round(amount, 4),
+        "balance_after": round(balance_after, 4),
+        "frozen_after": round(frozen_after, 4) if frozen_after is not None else None,
+        "ref_type": ref_type, "ref_id": str(ref_id) if ref_id else None,
+        "remark": remark, "operator": operator, "created_at": iso(now_utc()),
     })
 
 
@@ -526,7 +546,7 @@ async def get_current_user(request: Request) -> dict:
             raise HTTPException(status_code=403, detail="账号已被冻结")
         if user["role"] == "operator":
             path = request.url.path
-            if not path.startswith(("/api/auth/me", "/api/auth/logout", "/api/auth/refresh")):
+            if not path.startswith(("/api/auth/me", "/api/auth/logout", "/api/auth/refresh", "/api/auth/2fa")):
                 perm = perm_for_path(path, request.method)
                 if not perm or perm not in (user.get("permissions") or []):
                     raise HTTPException(status_code=403, detail="操作员无此权限")
@@ -559,7 +579,7 @@ def perm_for_path(path: str, method: str) -> Optional[str]:
             return None
     if path == "/api/accounts" and method == "POST":
         return None
-    if path.startswith("/api/accounts/") and (path.endswith("toggle-status") or path.endswith("reset-api-key")):
+    if path.startswith("/api/accounts/") and (path.endswith("toggle-status") or path.endswith("reset-api-key") or path.endswith("require-2fa")):
         return None
     for prefix, suffix, perm in PERM_RULES:
         if path.startswith(prefix) and (suffix is None or path.endswith(suffix)):
@@ -600,6 +620,7 @@ async def merchant_ids_for_scope(user: dict) -> Optional[List[ObjectId]]:
 class LoginInput(BaseModel):
     email: EmailStr
     password: str
+    code: Optional[str] = None
 
 
 class AccountCreate(BaseModel):
@@ -738,6 +759,12 @@ async def login(data: LoginInput, request: Request, response: Response):
         raise HTTPException(status_code=401, detail="邮箱或密码错误")
     if user.get("status") == "frozen":
         raise HTTPException(status_code=403, detail="账号已被冻结")
+    if user.get("totp_enabled") and user["role"] in ("admin", "operator"):
+        if not data.code:
+            return {"requires_2fa": True}
+        secret = user.get("totp_secret")
+        if not secret or not pyotp.TOTP(secret).verify(str(data.code).strip().replace(" ", ""), valid_window=1):
+            raise HTTPException(status_code=401, detail="两步验证码错误")
     await db.login_attempts.delete_one({"identifier": identifier})
     token = create_access_token(str(user["_id"]), user["email"], user["role"])
     response.set_cookie("access_token", token, httponly=True, secure=True,
@@ -754,6 +781,54 @@ async def logout(response: Response, user: dict = Depends(get_current_user)):
 @api_router.get("/auth/me")
 async def me(user: dict = Depends(get_current_user)):
     return clean_user(user)
+
+
+class TotpCode(BaseModel):
+    code: str
+
+
+@api_router.post("/auth/2fa/setup")
+async def totp_setup(user: dict = Depends(get_current_user)):
+    if user["role"] not in ("admin", "operator"):
+        raise HTTPException(status_code=403, detail="当前角色无需两步验证")
+    if user.get("totp_enabled"):
+        raise HTTPException(status_code=400, detail="两步验证已启用，请先关闭再重新绑定")
+    secret = pyotp.random_base32()
+    await db.users.update_one({"_id": user["_id"]}, {"$set": {"totp_pending_secret": secret}})
+    uri = pyotp.TOTP(secret).provisioning_uri(name=user["email"], issuer_name="四方收款平台")
+    img = qrcode.make(uri)
+    buf = _io.BytesIO(); img.save(buf, format="PNG"); buf.seek(0)
+    qr_data = "data:image/png;base64," + base64.b64encode(buf.read()).decode()
+    return {"secret": secret, "otpauth_uri": uri, "qr": qr_data}
+
+
+@api_router.post("/auth/2fa/enable")
+async def totp_enable(data: TotpCode, request: Request, user: dict = Depends(get_current_user)):
+    secret = user.get("totp_pending_secret")
+    if not secret:
+        raise HTTPException(status_code=400, detail="请先获取绑定二维码")
+    if not pyotp.TOTP(secret).verify(data.code.strip().replace(" ", ""), valid_window=1):
+        raise HTTPException(status_code=400, detail="验证码错误，请重试")
+    await db.users.update_one({"_id": user["_id"]},
+                              {"$set": {"totp_secret": secret, "totp_enabled": True},
+                               "$unset": {"totp_pending_secret": ""}})
+    await audit(user, "auth.2fa_enable", "user", user["_id"], {}, request)
+    return {"ok": True, "totp_enabled": True}
+
+
+@api_router.post("/auth/2fa/disable")
+async def totp_disable(data: TotpCode, request: Request, user: dict = Depends(get_current_user)):
+    if not user.get("totp_enabled"):
+        raise HTTPException(status_code=400, detail="两步验证未启用")
+    if user.get("totp_required"):
+        raise HTTPException(status_code=403, detail="管理员已强制开启两步验证，无法关闭")
+    secret = user.get("totp_secret")
+    if not secret or not pyotp.TOTP(secret).verify(data.code.strip().replace(" ", ""), valid_window=1):
+        raise HTTPException(status_code=400, detail="验证码错误")
+    await db.users.update_one({"_id": user["_id"]},
+                              {"$set": {"totp_enabled": False}, "$unset": {"totp_secret": "", "totp_pending_secret": ""}})
+    await audit(user, "auth.2fa_disable", "user", user["_id"], {}, request)
+    return {"ok": True, "totp_enabled": False}
 
 
 # ---------------------------------------------------------------------------
@@ -1091,11 +1166,22 @@ async def settle_order(order: dict):
         if agent:
             agent_rate = agent.get("rate", channel_rate)
             agent_commission = round(amount * max(merchant_rate - agent_rate, 0), 4)
-            await db.users.update_one({"_id": agent["_id"]},
-                                      {"$inc": {"balance": agent_commission}})
+            if agent_commission > 0:
+                await db.users.update_one({"_id": agent["_id"]},
+                                          {"$inc": {"balance": agent_commission}})
+                agent_upd = await db.users.find_one({"_id": agent["_id"]})
+                await record_ledger(str(agent["_id"]), "commission", agent_commission,
+                                    agent_upd.get("balance", 0), agent_upd.get("frozen_balance", 0),
+                                    "order", order.get("order_no"),
+                                    remark=f"订单 {order.get('order_no')} 代理分润")
     platform_profit = round(fee - agent_commission, 4)
 
     await db.users.update_one({"_id": merchant["_id"]}, {"$inc": {"balance": merchant_receive}})
+    m_upd = await db.users.find_one({"_id": merchant["_id"]})
+    await record_ledger(str(merchant["_id"]), "order_credit", merchant_receive,
+                        m_upd.get("balance", 0), m_upd.get("frozen_balance", 0),
+                        "order", order.get("order_no"),
+                        remark=f"{order.get('network', '')} 收款 {amount} USDT，手续费 {fee}")
     return fee, merchant_receive, agent_commission, platform_profit
 
 
@@ -1468,14 +1554,33 @@ async def callback_sign_preview(user: dict = Depends(require_roles("merchant")))
 # ---------------------------------------------------------------------------
 @api_router.get("/audit-logs")
 async def list_audit_logs(user: dict = Depends(require_roles("admin")), action: Optional[str] = None,
-                          actor: Optional[str] = None, limit: int = Query(200, le=1000)):
+                          actor: Optional[str] = None, actor_id: Optional[str] = None, limit: int = Query(200, le=1000)):
     q: dict = {}
     if action:
         q["action"] = {"$regex": f"^{action}", "$options": "i"}
     if actor:
         q["actor_email"] = {"$regex": actor, "$options": "i"}
+    if actor_id:
+        q["actor_id"] = actor_id
     logs = await db.audit_logs.find(q).sort("created_at", -1).to_list(limit)
     return [serialize(l) for l in logs]
+
+
+@api_router.get("/operators")
+async def list_operators(user: dict = Depends(require_roles("admin"))):
+    ops = await db.users.find({"role": "operator"}).sort("created_at", -1).to_list(200)
+    result = []
+    for o in ops:
+        oid = str(o["_id"])
+        count = await db.audit_logs.count_documents({"actor_id": oid})
+        last = await db.audit_logs.find({"actor_id": oid}).sort("created_at", -1).limit(1).to_list(1)
+        result.append({
+            "id": oid, "name": o["name"], "email": o["email"],
+            "status": o.get("status", "active"), "permissions": o.get("permissions", []),
+            "totp_enabled": bool(o.get("totp_enabled")), "totp_required": bool(o.get("totp_required")),
+            "action_count": count, "last_action_at": last[0]["created_at"] if last else None,
+        })
+    return result
 
 
 @api_router.get("/auth/lockouts")
@@ -1725,6 +1830,10 @@ async def adjust_balance(account_id: str, data: BalanceAdjust, request: Request,
         "remark": data.remark, "operator": user["email"], "created_at": iso(now_utc()),
     })
     updated = await db.users.find_one({"_id": acc["_id"]})
+    _cat = {"credit": "adjust_credit", "debit": "adjust_debit", "freeze": "adjust_freeze", "unfreeze": "adjust_unfreeze"}[data.action]
+    _delta = {"credit": amt, "debit": -amt, "freeze": -amt, "unfreeze": amt}[data.action]
+    await record_ledger(account_id, _cat, _delta, updated.get("balance", 0), updated.get("frozen_balance", 0),
+                        "adjust", None, remark=data.remark or "", operator=user["email"])
     await audit(user, f"balance.{data.action}", "user", account_id,
                 {"target_email": acc["email"], "amount": amt, "remark": data.remark,
                  "balance_before": round(acc.get("balance", 0), 4), "balance_after": round(updated.get("balance", 0), 4)}, request)
@@ -1754,6 +1863,20 @@ async def reset_api_key(account_id: str, request: Request, user: dict = Depends(
     await db.users.update_one({"_id": acc["_id"]}, {"$set": {"api_key": key, "api_secret": sec}})
     await audit(user, "account.reset_api_key", "user", account_id, {"target_email": acc["email"]}, request)
     return {"api_key": key, "api_secret": sec}
+
+
+@api_router.post("/accounts/{account_id}/require-2fa")
+async def set_require_2fa(account_id: str, request: Request, user: dict = Depends(require_roles("admin"))):
+    acc = await db.users.find_one({"_id": ObjectId(account_id)})
+    if not acc:
+        raise HTTPException(status_code=404, detail="账户不存在")
+    if acc["role"] not in ("admin", "operator"):
+        raise HTTPException(status_code=400, detail="仅管理员/操作员账户支持强制两步验证")
+    new_val = not acc.get("totp_required")
+    await db.users.update_one({"_id": acc["_id"]}, {"$set": {"totp_required": new_val}})
+    await audit(user, "account.require_2fa" if new_val else "account.unrequire_2fa", "user", account_id,
+                {"target_email": acc["email"], "required": new_val}, request)
+    return {"totp_required": new_val}
 
 
 # ---------------------------------------------------------------------------
@@ -1820,6 +1943,10 @@ async def request_payout(data: PayoutCreate, user: dict = Depends(get_current_us
                               {"$inc": {"balance": -data.amount, "frozen_balance": data.amount}})
     res = await db.payouts.insert_one(doc)
     doc["_id"] = res.inserted_id
+    _u = await db.users.find_one({"_id": user["_id"]})
+    await record_ledger(str(user["_id"]), "payout_freeze", -round(data.amount, 2),
+                        _u.get("balance", 0), _u.get("frozen_balance", 0),
+                        "payout", res.inserted_id, remark="提现申请，冻结待审核")
     return serialize(doc)
 
 
@@ -1832,6 +1959,10 @@ async def approve_payout(payout_id: str, request: Request, user: dict = Depends(
                                 {"$set": {"status": "approved", "approved_at": iso(now_utc())}})
     await db.users.update_one({"_id": ObjectId(p["merchant_id"])},
                               {"$inc": {"frozen_balance": -p["amount"]}})
+    _u = await db.users.find_one({"_id": ObjectId(p["merchant_id"])})
+    await record_ledger(p["merchant_id"], "payout_done", 0.0,
+                        _u.get("balance", 0), _u.get("frozen_balance", 0),
+                        "payout", payout_id, remark=f"提现 {p['amount']} USDT 已放款", operator=user["email"])
     await audit(user, "payout.approve", "payout", payout_id,
                 {"merchant_name": p["merchant_name"], "amount": p["amount"]}, request)
     return {"ok": True}
@@ -1845,6 +1976,10 @@ async def reject_payout(payout_id: str, request: Request, user: dict = Depends(r
     await db.payouts.update_one({"_id": p["_id"]}, {"$set": {"status": "rejected"}})
     await db.users.update_one({"_id": ObjectId(p["merchant_id"])},
                               {"$inc": {"balance": p["amount"], "frozen_balance": -p["amount"]}})
+    _u = await db.users.find_one({"_id": ObjectId(p["merchant_id"])})
+    await record_ledger(p["merchant_id"], "payout_reject", round(p["amount"], 2),
+                        _u.get("balance", 0), _u.get("frozen_balance", 0),
+                        "payout", payout_id, remark="提现被驳回，退回余额", operator=user["email"])
     await audit(user, "payout.reject", "payout", payout_id,
                 {"merchant_name": p["merchant_name"], "amount": p["amount"]}, request)
     return {"ok": True}
@@ -2004,6 +2139,95 @@ async def merchant_statement(month: str, merchant_id: Optional[str] = None, user
 
 
 # ---------------------------------------------------------------------------
+# Balance ledger (merchant / agent running statement)
+# ---------------------------------------------------------------------------
+async def resolve_ledger_account(user: dict, account_id: Optional[str]) -> ObjectId:
+    if user["role"] == "merchant":
+        return user["_id"]
+    if user["role"] == "agent":
+        if not account_id:
+            return user["_id"]
+        acc = await db.users.find_one({"_id": ObjectId(account_id)})
+        if not acc or (acc["_id"] != user["_id"] and acc.get("parent_agent_id") != str(user["_id"])):
+            raise HTTPException(status_code=403, detail="无权限查看该账户")
+        return acc["_id"]
+    # admin / operator
+    if not account_id:
+        raise HTTPException(status_code=400, detail="请选择账户")
+    acc = await db.users.find_one({"_id": ObjectId(account_id)})
+    if not acc:
+        raise HTTPException(status_code=404, detail="账户不存在")
+    return acc["_id"]
+
+
+@api_router.get("/balance/ledger")
+async def balance_ledger(account_id: Optional[str] = None, category: Optional[str] = None,
+                         limit: int = Query(300, le=2000), user: dict = Depends(get_current_user)):
+    acc_id = await resolve_ledger_account(user, account_id)
+    q: dict = {"account_id": str(acc_id)}
+    if category:
+        q["category"] = category
+    rows = await db.balance_ledger.find(q).sort("created_at", -1).to_list(limit)
+    acc = await db.users.find_one({"_id": acc_id})
+    return {
+        "account": {"id": str(acc_id), "name": acc.get("name"), "email": acc.get("email"),
+                    "role": acc.get("role"), "balance": acc.get("balance", 0),
+                    "frozen_balance": acc.get("frozen_balance", 0)},
+        "entries": [serialize(r) for r in rows],
+    }
+
+
+LEDGER_CAT_LABELS = {
+    "order_credit": "收款入账", "commission": "代理分润", "payout_freeze": "提现冻结",
+    "payout_done": "提现完成", "payout_reject": "提现驳回退回", "adjust_credit": "人工加款",
+    "adjust_debit": "人工扣款", "adjust_freeze": "冻结", "adjust_unfreeze": "解冻",
+}
+
+
+@api_router.get("/reports/balance-ledger")
+async def balance_ledger_report(account_id: Optional[str] = None, month: Optional[str] = None,
+                                user: dict = Depends(get_current_user)):
+    from openpyxl import Workbook
+    from openpyxl.styles import Font, PatternFill, Alignment
+    from openpyxl.utils import get_column_letter
+    from fastapi.responses import StreamingResponse
+    from urllib.parse import quote
+    import io
+
+    acc_id = await resolve_ledger_account(user, account_id)
+    acc = await db.users.find_one({"_id": acc_id})
+    q: dict = {"account_id": str(acc_id)}
+    title_suffix = "全部"
+    if month:
+        try:
+            start = datetime.strptime(month, "%Y-%m").replace(tzinfo=timezone.utc)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="month 格式应为 YYYY-MM")
+        end = (start.replace(year=start.year + 1, month=1) if start.month == 12 else start.replace(month=start.month + 1))
+        q["created_at"] = {"$gte": iso(start), "$lt": iso(end)}
+        title_suffix = month
+    rows = await db.balance_ledger.find(q).sort("created_at", 1).to_list(100000)
+
+    wb = Workbook()
+    head_font = Font(bold=True, color="FFFFFF"); head_fill = PatternFill("solid", fgColor="0E7490")
+    ws = wb.active; ws.title = "资金流水"
+    ws.append(["时间", "类型", "变动金额(USDT)", "变动后余额", "变动后冻结", "关联", "备注", "操作人"])
+    for c in ws[1]:
+        c.font, c.fill, c.alignment = head_font, head_fill, Alignment(horizontal="center")
+    for r in rows:
+        ws.append([(r.get("created_at") or "")[:19].replace("T", " "), LEDGER_CAT_LABELS.get(r["category"], r["category"]),
+                   r.get("amount"), r.get("balance_after"), r.get("frozen_after"),
+                   f"{r.get('ref_type') or ''} {(r.get('ref_id') or '')}".strip(), r.get("remark", ""), r.get("operator") or ""])
+    for i, w in enumerate([20, 14, 16, 14, 14, 30, 34, 24], 1):
+        ws.column_dimensions[get_column_letter(i)].width = w
+    ws.freeze_panes = "A2"
+    buf = io.BytesIO(); wb.save(buf); buf.seek(0)
+    fname = f"ledger_{acc.get('name', '')}_{title_suffix}.xlsx"
+    return StreamingResponse(buf, media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                             headers={"Content-Disposition": f"attachment; filename*=UTF-8''{quote(fname)}"})
+
+
+# ---------------------------------------------------------------------------
 # Seed
 # ---------------------------------------------------------------------------
 async def seed():
@@ -2017,6 +2241,8 @@ async def seed():
     await db.orders.create_index([("status", 1), ("wallet_address", 1), ("pay_amount", 1)])
     await db.orders.create_index([("merchant_id", 1), ("out_trade_no", 1)])
     await db.alerts.create_index([("read", 1), ("created_at", -1)])
+    await db.balance_ledger.create_index([("account_id", 1), ("created_at", -1)])
+    await db.audit_logs.create_index([("actor_id", 1), ("created_at", -1)])
     admin_email = os.environ.get("ADMIN_EMAIL", "admin@example.com").lower()
     admin_password = os.environ.get("ADMIN_PASSWORD", "admin123")
     admin = await db.users.find_one({"email": admin_email})
@@ -2094,6 +2320,34 @@ async def seed():
                 await mark_paid(order, notify=False)
             elif random.random() < 0.5:
                 await db.orders.update_one({"_id": order["_id"]}, {"$set": {"status": "expired"}})
+    # one-time backfill of balance ledger from existing paid orders
+    if await db.balance_ledger.count_documents({}) == 0 and await db.orders.count_documents({"status": "paid"}) > 0:
+        merchants = await db.users.find({"role": "merchant"}).to_list(1000)
+        m_agent = {str(m["_id"]): m.get("parent_agent_id") for m in merchants}
+        paid = await db.orders.find({"status": "paid"}).sort("paid_at", 1).to_list(100000)
+        running: dict = {}
+        for o in paid:
+            ts = o.get("paid_at") or o.get("created_at") or iso(now_utc())
+            mid = o["merchant_id"]
+            net = round(o.get("merchant_receive", 0), 4)
+            running[mid] = round(running.get(mid, 0.0) + net, 4)
+            await db.balance_ledger.insert_one({
+                "account_id": str(mid), "category": "order_credit", "amount": net,
+                "balance_after": running[mid], "frozen_after": 0.0, "ref_type": "order",
+                "ref_id": o.get("order_no"), "remark": f"{o.get('network', '')} 收款 {o.get('amount_usdt')} USDT，手续费 {o.get('fee', 0)}",
+                "operator": None, "created_at": ts,
+            })
+            comm = round(o.get("agent_commission", 0), 4)
+            aid = m_agent.get(str(mid))
+            if comm > 0 and aid:
+                running[aid] = round(running.get(aid, 0.0) + comm, 4)
+                await db.balance_ledger.insert_one({
+                    "account_id": str(aid), "category": "commission", "amount": comm,
+                    "balance_after": running[aid], "frozen_after": 0.0, "ref_type": "order",
+                    "ref_id": o.get("order_no"), "remark": f"订单 {o.get('order_no')} 代理分润",
+                    "operator": None, "created_at": ts,
+                })
+
     logger.info("Seed complete.")
 
 

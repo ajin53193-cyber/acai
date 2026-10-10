@@ -14,6 +14,9 @@ import CallbacksPage from "@/pages/CallbacksPage";
 import AuditLogsPage from "@/pages/AuditLogsPage";
 import ApiDocsPage from "@/pages/ApiDocsPage";
 import AddressHealthPage from "@/pages/AddressHealthPage";
+import OperatorTrailPage from "@/pages/OperatorTrailPage";
+import BalanceLedgerPage from "@/pages/BalanceLedgerPage";
+import SecurityPage from "@/pages/SecurityPage";
 import { Loader2 } from "lucide-react";
 
 function Protected({ children, roles }) {
@@ -56,6 +59,30 @@ function App() {
                 }
               />
               <Route path="settlements" element={<SettlementsPage />} />
+              <Route
+                path="ledger"
+                element={
+                  <Protected roles={["admin", "agent", "merchant"]}>
+                    <BalanceLedgerPage />
+                  </Protected>
+                }
+              />
+              <Route
+                path="operators"
+                element={
+                  <Protected roles={["admin"]}>
+                    <OperatorTrailPage />
+                  </Protected>
+                }
+              />
+              <Route
+                path="security"
+                element={
+                  <Protected roles={["admin", "operator"]}>
+                    <SecurityPage />
+                  </Protected>
+                }
+              />
               <Route
                 path="addresses"
                 element={
