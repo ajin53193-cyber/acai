@@ -1,0 +1,122 @@
+{
+  "project_title": "四方收款平台 (USDT Crypto Aggregated Payment Platform)",
+  "app_type": "dashboard (data-dense financial admin SaaS & checkout portal)",
+  "theme": "Dark Mode (Professional Financial Obsidian/Slate Dark)",
+  "language": "zh-CN (Simplified Chinese)",
+  "typography": {
+    "font_family_main": "'PingFang SC', 'Microsoft YaHei', 'Inter', -apple-system, sans-serif",
+    "font_family_mono": "'JetBrains Mono', 'Roboto Mono', 'Fira Code', monospace",
+    "font_weights": {
+      "light": "300",
+      "regular": "400",
+      "medium": "500",
+      "semibold": "600",
+      "bold": "700"
+    },
+    "scale": {
+      "hero_title": "text-3xl sm:text-4xl lg:text-5xl font-bold tracking-tight",
+      "section_heading": "text-xl sm:text-2xl font-semibold tracking-tight",
+      "card_title": "text-base sm:text-lg font-medium",
+      "body": "text-sm sm:text-base leading-relaxed",
+      "caption": "text-xs font-mono uppercase tracking-wider text-slate-400"
+    },
+    "rules": "All numerical data, wallet addresses, transaction hashes (TxID), interest rates, and financial amounts MUST use font-family_mono for precise tabular alignment and high-density scanability."
+  },
+  "colors": {
+    "archetype": "THE PERFORMANCE PRO / FINTECH OBSIDIAN DARK",
+    "background_primary": "#070A11 (Rich Obsidian)",
+    "background_secondary": "#0F172A (Deep Slate Card)",
+    "background_tertiary": "#1E293B (Elevated Surface)",
+    "card_background": "rgba(15, 23, 42, 0.85)",
+    "card_border": "rgba(51, 65, 85, 0.6)",
+    "text_primary": "#F8FAFC (Pure White Slate)",
+    "text_secondary": "#94A3B8 (Cool Slate Muted)",
+    "text_accent": "#38BDF8 (Vibrant Sky Blue)",
+    "brand_primary": "#06B6D4 (Cyan Electric)",
+    "brand_secondary": "#10B981 (Emerald Green / Buy State)",
+    "status_success": "#10B981 (Paid / Confirmed)",
+    "status_pending": "#F59E0B (Pending / In Progress)",
+    "status_danger": "#EF4444 (Failed / Expired / Rejected)",
+    "status_info": "#3B82F6 (Processing / Dispatched)",
+    "usdt_green": "#26A17B (Tether Official Green Accent)",
+    "gradient_accent": "linear-gradient(135deg, rgba(6, 182, 212, 0.15) 0%, rgba(16, 185, 129, 0.1) 100%)",
+    "rules": "No pure white backgrounds for cards or overlays. All popovers, headers, and modals MUST use dark slate backgrounds with high contrast text and 1px subtle borders (rgba(255, 255, 255, 0.1)). Transparency in headers or dropdowns is strictly prohibited; backdrop-blur with 85%+ opacity must be enforced."
+  },
+  "visual_enhancers": {
+    "glassmorphism": "backdrop-blur-xl bg-slate-900/85 border border-slate-700/60 shadow-xl",
+    "glow_effects": "shadow-[0_0_15px_rgba(6,182,212,0.15)] on active status and primary CTAs",
+    "data_density": "Compact padding (py-2.5 px-3 for tables), explicit row hovers, status indicators with glowing pulse dot animations",
+    "borders": "1px crisp slate stroke (border-slate-800) with rounded-lg radius for cards, rounded-xl for modals"
+  },
+  "grid_and_layouts": {
+    "mode": "MODE B: High Density Grid (Financial Analytics & Command Center)",
+    "layout_structure": {
+      "sidebar": "Fixed left navigation (240px wide) with dark gradient background, platform logo, role switcher, and collapsible submenus",
+      "header": "Sticky top bar (h-16) with backdrop-blur, search, global network status (TRC20/ERC20 node latency), notification drawer, live USDT price marquee, and user avatar with role badge",
+      "main_content": "Flexible grid space with responsive container padding (p-4 md:p-6 lg:p-8)",
+      "checkout_page": "Dedicated standalone full-screen customer payment view with responsive centered card, QR code canvas, countdown timer ring, network tab selector, and live status poller/websocket mock"
+    }
+  },
+  "key_modules_and_views": {
+    "1_auth_system": {
+      "name": "JWT Role Login & Portal Switcher",
+      "features": ["Quick switch between Platform Admin (总控后台), Channel/Agent (代理商端), and Merchant Portal (商户端)", "Demo login credentials fill buttons for instant testing", "2FA / Google Authenticator prompt simulation"]
+    },
+    "2_dashboard_analytics": {
+      "name": "Data Command Dashboard (数据总览)",
+      "features": ["Real-time volume metrics (Today's Total USDT, Success Rate %, Active Channels count, Pending Settlements)", "Interactive Area/Bar charts for 24h payment flow trends", "Live transaction ticker feed with animated incoming payments", "Quick action shortcuts (Manual Match, Channel Rate Adjust, Merchant Balance Payout)"]
+    },
+    "3_order_management": {
+      "name": "Order & Collection Management (订单与收款)",
+      "features": ["Data-dense table with advanced filters (Merchant ID, Chain Network TRC20/ERC20/BEP20, TxID Hash, Payment Status, Date Range)", "Real-time order status badge (待支付, 已支付, 超时未付, 异常调账)", "Order detail modal showing block explorer links, callback notification logs, and manual override controls"]
+    },
+    "4_channel_configuration": {
+      "name": "Payment Channel & USDT Routing (通道路由与USDT节点配置)",
+      "features": ["USDT Channel List (TRC20 Auto-matching, ERC20 High-speed, BEP20 Low-fee)", "Routing Rules Matrix (Weight allocation, Min/Max limit routing, Success-rate auto-failover)", "Channel Wallet Pool monitoring (Address balance, Gas fee alert, On-chain status)"]
+    },
+    "5_settlement_reconciliation": {
+      "name": "Settlement & Profit Reconciliation (结算与调账分润)",
+      "features": ["Merchant Settlement Audit & Payout queue", "Agent Profit-sharing calculation breakdown (Multi-level percentage commission)", "Daily Reconciliation Report export (CSV/Excel download mock)", "Fee rate setting matrix (Individual merchant rates vs default channel rates)"]
+    },
+    "6_account_permission_management": {
+      "name": "Merchant & Agent Account Management (商户与代理权限)",
+      "features": ["Merchant List with API Key / Secret generation", "IP White-list configuration", "Balance adjustment modal (Freeze, Unfreeze, Credit adjust)", "Agent rebate tier editor"]
+    },
+    "7_usdt_checkout_page": {
+      "name": "Live USDT Checkout Payment Page (USDT 交互收银台)",
+      "features": ["Dynamic QR Code generation for USDT Wallet Address", "15-minute expiration countdown timer with visual progress ring", "Chain Network selector (TRC20 / ERC20 / BEP20)", "Copy Address & Exact Amount button with instant feedback toast", "Simulated live payment detection with instant SUCCESS animation trigger button for seamless testing"]
+    }
+  },
+  "image_urls": {
+    "usdt_checkout_bg": "https://images.unsplash.com/photo-1559028006-448665bd7c7f?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAzMzV8MHwxfHNlYXJjaHwxfHxjcnlwdG8lMjBVU0RUJTIwZmluYW5jZSUyMGRhc2hib2FyZCUyMGRhcmslMjBpbnRlcmZhY2V8ZW58MHx8fHwxNzkxNjI1MDg5fDA&ixlib=rb-4.1.0&q=85",
+    "fintech_dashboard_preview": "https://images.unsplash.com/photo-1658953229625-aad99d7603b4?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAzMzV8MHwxfHNlYXJjaHw0fHxjcnlwdG8lMjBVU0RUJTIwZmluYW5jZSUyMGRhc2hib2FyZCUyMGRhcmslMjBpbnRlcmZhY2V8ZW58MHx8fHwxNzkxNjI1MDg5fDA&ixlib=rb-4.1.0&q=85",
+    "crypto_terminal_screen": "https://images.unsplash.com/photo-1720962158813-29b66b8e23e1?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAzMzV8MHwxfHNlYXJjaHwzfHxjcnlwdG8lMjBVU0RUJTIwZmluYW5jZSUyMGRhc2hib2FyZCUyMGRhcmslMjBpbnRlcmZhY2V8ZW58MHx8fHwxNzkxNjI1MDg5fDA&ixlib=rb-4.1.0&q=85"
+  },
+  "instructions_to_main_agent": [
+    "Strictly maintain Chinese language UI string constants (e.g., 四方支付总控平台, 订单管理, USDT通道路由, 商户结算分润, 代理商中心, 收银台).",
+    "Ensure Javascript files use .js / .jsx extensions in src/ (as react configured with craco/js).",
+    "Implement clear role-based switching: Platform Admin (全局数据/通道配置/商户代理管理), Agent Portal (代理团队/下级分润/账单), Merchant Portal (商户API密钥/交易订单/提现申请), and Checkout Page.",
+    "Ensure all buttons, form inputs, navigation items, status badges, and table rows include unique data-testid attributes (e.g. data-testid='nav-orders-link', data-testid='channel-status-switch', data-testid='simulate-payment-btn').",
+    "Integrate Recharts with custom tooltips, dark axis strokes (#475569), and glowing area fills for volume charts.",
+    "Provide interactive modals for: Channel Routing Rules, Balance Adjustment, Merchant API Key Reset, and Order TxID Manual Verification.",
+    "Include simulated real-time WebSocket pulses / auto-refresh toggle for order status monitoring.",
+    "Use Sonner toasts for all actions like API Key copy, address copy, order dispatch, and status updates."
+  ],
+  "UNIVERSAL GUIDELINES FOR MAIN AGENT": [
+    "Dark colors look good when used independently without gradients. DO NOT use dark colors as high-contrast gradients.",
+    "Don't make generic centered layouts, simplistic gradients, and uniform styling.",
+    "Create depth through layered design elements with z-index hierarchy.",
+    "Use glass-morphism effects with backdrop filters (12-24px blur).",
+    "You MUST NOT apply universal transition. Eg: transition: all. Always add transitions for specific interactive elements like button, input excluding transforms.",
+    "You MUST NOT center align the app container, ie do not add .App { text-align: center; } in the css file.",
+    "Always use modern button styles like pill-shaped, or sharp button with interaction animations & color relevant to the app style.",
+    "NEVER use AI assistant Emoji characters like 🤖🧠💭💡🔮🎯 for icons. Use lucide-react icons instead.",
+    "Every interaction needs micro-animations - hover states, transitions, entrance animations. Static = dead.",
+    "Use generous spacing for key numbers and dense grids for data tables.",
+    "Subtle grain textures, glow dots on status badges, custom scrollbars, selection states, and loading skeletons separate good from extraordinary.",
+    "All interactive and key informational elements MUST include data-testid attribute for stable testing."
+  ]
+},
+overwrite: true,
+path: "/app/design_guidelines.json"
+}
