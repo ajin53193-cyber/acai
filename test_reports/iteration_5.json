@@ -1,0 +1,37 @@
+{
+  "summary": "Iteration-5 testing complete. Backend: 7/7 pytest cases in test_iteration5.py PASSED (TestCheckoutSettings 3/3 — tutorial_links+brand_subtitle persist, merchant forbidden; TestChain 3/3 — /chain/addresses/refresh ok, BEP20 0x8894E0a0...D4E3 has numeric balance (via publicnode RPC fallback) with status 'ok' and no balance_error; /chain/sync returns 200 with no ETHERSCAN/Free API errors; TestCheckoutPublic 1/1 — live TRC20 order via merchant). Frontend (390x844 mobile checkout): /pay/{no} header shows checkout-brand-name=商户名 and checkout-brand-subtitle='测试副标题'; energy-section present, energy-body ABSENT until energy-toggle-btn click; after click energy-body visible with 4 energy-rules items; 2nd click collapses; notes section heading exactly '充币说明'; labels '13.2296 USDT'/‘TRC20充币地址'/'保存二维码'/'充币数量'/'订单号' all present; tutorials shows single '1、测试教程', clicking tutorial-link-0 opens tutorial-sheet with tutorial-title='测试教程' and tutorial-content containing https://example.com link; tutorial-close-btn closes the sheet; simulate-payment-btn absent for live order. Frontend admin UI (1920x1080 /channels): checkout-settings-btn opens dialog; tab-tutorials shows 5 default tutorial-item-{i} entries; tutorial-item-1 title='如何购买' with content containing 'binance'; edit title, tutorial-add-btn adds a 6th, tutorial-remove-btn removes it back to 5, checkout-settings-save-btn shows '收银台设置已保存' toast; GET /api/checkout/settings reflects the edited title. All test data RESTORED (tutorial_links=[], brand_subtitle='USDT 安全收款', energy_enabled=true, energy_trx_address=TW1vPSPr5FvmfgV1vF3abQs2e5fCTJprQ1).",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "/api/chain/sync", "issue": "Takes 30-60+s with 3 live addresses; occasional Cloudflare 502 at ingress edge (flaky, succeeded on retry). Consider making sync async/background with status polling."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "CheckoutSettingsDialog", "issues": ["DialogContent still missing DialogDescription — a11y warning (carried over from iteration 4, non-blocking)"]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iteration5.py",
+    "/app/test_reports/pytest/iteration5.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "server.py now 1672 lines — modularization still pending from iterations 3/4.",
+    "put_checkout_settings replaces the full doc on $set (model_dump). Since the CheckoutSettings model carries defaults for every field, PUT with partial payload silently blanks out other fields. Admin UI always sends the full state so OK, but any external PUT with partial body (e.g. for brand only) would nuke tutorial_links/energy_rules. Consider PATCH or exclude_unset+dict-merge.",
+    "fetch_evm_transfers_rpc paginates eth_getLogs across potentially many blocks (one eth_getBlockByNumber per log just for timestamp). For BEP20 with a 3s block time and 24h window this is ~28,800 blocks; a log hit triggers a per-block fetch — if there are hundreds of transfers it becomes slow. Consider block-timestamp caching, or chunking eth_getLogs by block range and batching getBlockByNumber calls.",
+    "/chain/sync endpoint iterates addresses sequentially inside the request; with Cloudflare 60s edge timeout this is on the edge of safe. Should be a background job returning a job-id, with GET /chain/sync/{id} status.",
+    "Admin PUT checkout settings uses List[dict] without inner validation for tutorial_links / energy_rules — malformed entries (e.g. {'title': 123}) would pass. Introduce TutorialLink and EnergyRule BaseModels.",
+    "CheckoutPage: Linkify regex /(https?:\\/\\/[^\\s，。）)]+)/g strips Chinese punctuation but will keep trailing punctuation like semicolons; minor UX. Also Linkify is used on tutorial-content whitespace-pre-wrap but the Chinese ellipsis '…' and full-stop handled OK.",
+    "CheckoutSettingsDialog.save sends tutorial_links filtered by t.title.trim() — empty-title items silently dropped on save, which is OK but a hint ('空标题将不保存') would improve UX."
+  ],
+  "updated_files": ["/app/backend/tests/test_iteration5.py"],
+  "success_rate": {"backend": "100% (7/7)", "frontend": "100%"},
+  "test_credentials": "admin ajin53193@gmail.com/admin888, merchant merchant@demo.com/merchant888",
+  "seed_data_creation": "Created 1 TRC20 live order (TEST_i5_*) for public-page UI check. All checkout settings restored to spec defaults (energy_enabled=true, energy_trx_address=TW1vPSPr5FvmfgV1vF3abQs2e5fCTJprQ1, energy_price_text='2TRX/笔（即每65500能量只需2TRX）', tutorial_links=[], energy_rules=[], brand_subtitle='USDT 安全收款', brand_subtitle_tw='USDT 安全收款', brand_subtitle_en='Secure USDT Payment', logo_url='', support_url='').",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Iteration 5 features all pass. GET /api/channels returns {id,name,network,wallet_addresses,...}; POST /api/orders accepts {network, amount_usdt, out_trade_no, remark?, notify_url?} — NOT channel_id. OrderCreate picks a channel by network+amount via pick_channel. /chain/sync is slow (30-60s) and may hit Cloudflare 502 at ingress edge; retry safely. BEP20 balance query uses publicnode RPC (ethereum-rpc.publicnode.com / bsc-rpc.publicnode.com) when Etherscan v2 free plan doesn't cover a chain. CheckoutSettings PUT replaces entire doc (defaults overwrite missing fields) — always send full payload."
+}

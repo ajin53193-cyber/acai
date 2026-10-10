@@ -63,6 +63,12 @@
 - [x] 常见教程：5 篇内置图文教程（用户提供文案，含交易所/VPN 链接自动可点），收银台点击标题底部弹层展开；admin 可改标题/改为外链
 - [x] 测试：后端 23/23、前端全通过
 
+## Implemented (2026-06, iteration 5)
+- [x] 教程全文后台编辑：收银台设置改为 Tab（品牌/能量租赁/常见教程），教程编辑器支持标题/外链/正文、排序、新增删除；收银台点击弹层展示
+- [x] Etherscan Key 已配置；免费版不覆盖 BSC → 自动回退公共 RPC (publicnode) eth_getLogs/eth_call，BEP20 余额与到账监听已实际跑通
+- [x] 收银台品牌化：顶部左侧显示商户名称 + 三语副标题，可选 Logo URL；能量租赁默认折叠；按新参考图调整文案（充币地址/保存二维码/充币数量/订单号/充币说明）与字号
+- [x] 测试：后端 7/7、前端全通过
+
 ## Env (optional)
 - ETHERSCAN_API_KEY：ERC20/BEP20 监听与余额必需（Etherscan V2 免费 Key，https://etherscan.io/apis）
 - TRONGRID_API_KEY：公共接口限速较严 (429)，生产建议配置 TronGrid Key
