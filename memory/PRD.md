@@ -39,14 +39,23 @@
 - [x] 种子数据：1 admin + 1 agent + 3 商户 + 3 通道 + 120 订单（近7天）
 - [x] 测试：后端 21/21、前端 100% 通过
 
+## Implemented (2026-06, iteration 2)
+- [x] 真实 TRC20 链上收款：通道配置 wallet_address → 订单 live=true，金额唯一尾数 (pay_amount) 匹配；后台每 20s 轮询 TronGrid（仅在有待支付订单时），tx_id 去重 (chain_txs)；POST /api/chain/sync 手动同步；GET /api/chain/txs；live 订单禁止模拟支付；收银台显示精确到账金额
+- [x] 商户回调通知：notify_url（商户默认 PATCH /api/accounts/me/notify 或订单级）；支付成功入队 callbacks，worker 每 5s 投递，HMAC-SHA256(api_secret) 签名（key 升序 k=v& 排除 sign/空值），响应含 success 视为成功，失败按 15s/1m/5m/30m/2h 重试 5 次；GET /api/callbacks、手动重试、测试接收器 /api/callbacks/test-receiver、签名示例 /api/callbacks/sign-preview；前端 /callbacks 页
+- [x] 操作审计日志：audit_logs 记录余额调整/冻结/提现审核/通道增改/密钥重置/账户创建/手动核账/回调地址设置（含操作人、IP、before/after）；GET /api/audit-logs（admin，按操作类型/操作人筛选）；前端 /audit 页
+- [x] 修复 AccountsPage useEffect lint 警告
+- [x] 测试：后端 17/17（修复 sign-preview 空值字段后）、前端通过
+
+## Env (optional)
+- TRONGRID_API_KEY：公共接口限速较严 (429)，生产建议配置 TronGrid Key
+
 ## Mocked
-- USDT 链上到账为模拟：钱包地址/TxID 服务端生成，/api/orders/{order_no}/simulate-pay 模拟确认。无真实区块链对接。
+- ERC20 / BEP20 及未配置收款地址的 TRC20 通道仍为模拟到账（simulate-pay）。配置了地址的 TRC20 通道为真实链上监听。
 
 ## Backlog
-- P1: 真实 USDT 链上监听 / 商户回调通知（callback）签名与重试
-- P1: 登录限流/防爆破、操作审计日志页面
-- P2: 代理多级分润（当前单级）、商户 IP 白名单、2FA
-- P2: 种子 pending 订单过期时间优化、server.py 拆分为子路由模块
+- P1: ERC20/BEP20 链上监听（Etherscan/BscScan Key）、登录限流/防爆破
+- P2: 代理多级分润（当前单级）、商户 IP 白名单、2FA、商户 API 下单接口（api_key 签名）
+- P2: server.py 拆分为子路由模块
 
 ## Next Tasks
 - 按需接入真实支付/链上监听，或扩展回调通知与对账自动化。

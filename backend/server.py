@@ -714,7 +714,7 @@ async def callback_sign_preview(user: dict = Depends(require_roles("merchant")))
               "network": "TRC20", "status": "paid", "tx_id": "a" * 64,
               "paid_at": iso(now_utc()), "remark": "", "timestamp": int(now_utc().timestamp())}
     sample["sign"] = sign_payload(sample, user.get("api_secret", ""))
-    items = sorted((k, v) for k, v in sample.items() if k != "sign")
+    items = sorted((k, v) for k, v in sample.items() if k != "sign" and v is not None and v != "")
     return {"payload": sample, "sign_string": "&".join(f"{k}={v}" for k, v in items),
             "algorithm": "HMAC-SHA256(api_secret, sign_string) -> hex"}
 

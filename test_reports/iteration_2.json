@@ -1,0 +1,45 @@
+{
+  "summary": "Comprehensive testing of iteration-2 features (TRC20 chain monitoring, async callbacks, audit logs). Backend: 16/17 pytest passed (94%). Frontend: all data-testids present and working for admin + merchant flows; wallet edit, chain-sync-btn, audit page filters, callbacks page notify-settings, sign preview, callback table, order create dialog with notify_url, checkout live/sim differentiation. Found 1 backend bug: GET /api/callbacks/sign-preview returns a sign_string that includes empty fields (remark=) while the actual HMAC signing filters them out, so merchants cannot reproduce the server sign using the returned sign_string.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {
+        "endpoint": "GET /api/callbacks/sign-preview",
+        "issue": "Returned sign_string does not match the signing algorithm used by sign_payload(). The endpoint builds sign_string with `items = sorted((k, v) for k, v in sample.items() if k != 'sign')` (no empty-value filter), but sign_payload() excludes None/empty values. Result: HMAC-SHA256(api_secret, sign_string) != payload['sign'] when any payload field is empty (e.g. remark=''). Merchants following the preview will reject valid callbacks. Fix: in /callbacks/sign-preview, build items with the same filter `v is not None and v != ''` as sign_payload(). Reproduce: GET /callbacks/sign-preview as merchant; compute HMAC-SHA256 of returned sign_string with api_secret; compare to payload.sign."
+      }
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_new_features.py",
+    "/app/backend/tests/backend_test.py",
+    "/app/test_reports/pytest/new_features.xml"
+  ],
+  "action_items": [
+    "Fix /api/callbacks/sign-preview to filter empty/None values in sign_string generation so it matches sign_payload()."
+  ],
+  "critical_code_review_comments": [
+    "server.py is now 1121 lines (grew from 793). Strongly recommend splitting into modules: routes/{auth,orders,channels,accounts,callbacks,audit,chain}.py + services/{callback_worker,chain_listener}.py.",
+    "sign_payload and the sign_string returned by /callbacks/sign-preview use different filters (empty-value handling diverges) — see backend_issues above.",
+    "chain_listener() swallows exceptions globally but updates channel.sync_error only inside the per-channel try/except — good; however only triggers polling if there is a pending order with that wallet_address which skips historical confirmation if the order's expires_at already passed. Acceptable for MVP.",
+    "callback_worker polls every 5s but does not use a lock/claim pattern; if two workers ran, duplicate deliveries could occur. For single-process preview this is fine.",
+    "update_my_notify audit uses target_id=user['_id'] (ObjectId) which is converted to str in audit() — OK, but inconsistent with other audit calls that pass res.inserted_id. Not a bug.",
+    "manual_verify uses path param order_id (ObjectId) while other order endpoints use order_no (string). Inconsistent API design.",
+    "/orders/{order_no}/simulate-pay is still unauthenticated (acceptable for demo but a production risk).",
+    "list_audit_logs's `l` shadows builtin in list comprehension — pure style nit."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_new_features.py"
+  ],
+  "success_rate": {"backend": "94% (16/17)", "frontend": "100%"},
+  "test_credentials": "admin ajin53193@gmail.com/admin888, agent agent@demo.com/agent888, merchant merchant@demo.com/merchant888",
+  "seed_data_creation": "No destructive seed changes. Tests created: a few TEST_* orders (TRC20 live + BEP20 sim), test callbacks, +1 USDT balance credit to one merchant for audit log coverage, two toggle-status (freeze→unfreeze) ops on one merchant (net no change). All channel wallet_address edits restored to original.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Backend sign-preview bug is the only blocker-level issue. Live TRC20 flow verified end-to-end via API (live=true, unique pay_amount with 4 decimals, simulate-pay 400). Callback worker verified: good URL -> success in ~5-10s, bad URL -> retrying with next_at scheduled. Admin sees all callbacks, merchant sees own. Audit logs record all admin ops with actor_email/detail/ip. All frontend testids match spec: nav-callbacks-link, nav-audit-link, live-badge-*, wallet-edit/input/save-*, chain-sync-btn, audit-logs-page/action-filter/actor-input, order-notify-url-input, detail-pay-amount, notify-settings/url-input/save-btn/use-test-btn, sign-preview-btn/sign-preview, callback-row-*/retry-*, checkout-pay-amount, simulate-payment-btn present only for non-live orders. /api/chain/sync returned 200 during this run (not rate limited).",
+  "rca of the issue": "Bug: /callbacks/sign-preview returns a sign_string that includes empty fields. RCA: in server.py the endpoint constructs items with a filter that only excludes 'sign' but sign_payload (used to compute the hash) additionally excludes None/''. Fix: change the endpoint's items construction to `items = sorted((k, v) for k, v in sample.items() if k != 'sign' and v is not None and v != '')` so the preview matches the signing algorithm the worker uses."
+}
