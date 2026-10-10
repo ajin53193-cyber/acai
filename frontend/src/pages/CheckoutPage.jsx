@@ -53,14 +53,14 @@ function Countdown({ expiresAt, t }) {
     tick(); const i = setInterval(tick, 1000); return () => clearInterval(i);
   }, [expiresAt]);
   const m = String(Math.floor(left / 60)).padStart(2, "0"), s = String(left % 60).padStart(2, "0");
-  return <p className="text-center text-slate-500 text-sm" data-testid="checkout-countdown">{t.payWithin} <span className="text-amber-500 font-semibold font-mono text-base">{m}:{s}s</span> {t.payWithinSuffix}</p>;
+  return <p className="text-center text-slate-500 text-[16px]" data-testid="checkout-countdown">{t.payWithin} <span className="text-amber-500 font-semibold tabular-nums text-[17px]">{m}: {s}s</span> {t.payWithinSuffix}</p>;
 }
 
 function Row({ k, v, copyVal, onCopy, testid }) {
   return (
     <div className="flex items-center justify-between py-3 border-b border-slate-100 last:border-0">
-      <span className="text-slate-600 text-[15px]">{k}</span>
-      <span className="flex items-center gap-2 text-slate-900 font-semibold text-[15px]" data-testid={testid}>{v}
+      <span className="text-slate-700 text-[16px]">{k}</span>
+      <span className="flex items-center gap-1.5 text-slate-900 font-semibold text-[16px]" data-testid={testid}>{v}
         {copyVal !== undefined && <button onClick={() => onCopy(copyVal)} className="text-blue-500 p-0.5"><Copy className="w-4 h-4" /></button>}
       </span>
     </div>
@@ -74,7 +74,7 @@ export default function CheckoutPage() {
   const [notFound, setNotFound] = useState(false);
   const [paying, setPaying] = useState(false);
   const [lang, setLang] = useState(() => localStorage.getItem("sf_pay_lang") || "zh-CN");
-  const [energyOpen, setEnergyOpen] = useState(true);
+  const [energyOpen, setEnergyOpen] = useState(false);
   const [tutorial, setTutorial] = useState(null);
   const t = I18N[lang];
 
@@ -98,19 +98,28 @@ export default function CheckoutPage() {
     } catch { window.open(qrUrl, "_blank"); }
   };
 
+  const subtitle = settings ? (lang === "en" ? settings.brand_subtitle_en : lang === "zh-TW" ? settings.brand_subtitle_tw : settings.brand_subtitle) : "";
   const shell = (inner) => (
-    <div className="min-h-screen bg-[#F5F6F8] text-slate-900 font-sans" data-testid="checkout-page" style={{ colorScheme: "light" }}>
-      <header className="bg-white border-b border-slate-200">
-        <div className="max-w-md mx-auto px-4 h-14 flex items-center justify-end">
-          <div className="relative">
-            <select value={lang} onChange={(e) => changeLang(e.target.value)} data-testid="checkout-lang-select" className="appearance-none bg-transparent pr-6 text-slate-800 text-base font-medium focus:outline-none">
+    <div className="min-h-screen bg-[#F5F6F8] text-slate-900" data-testid="checkout-page" style={{ colorScheme: "light", fontFamily: "-apple-system, BlinkMacSystemFont, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', 'Noto Sans SC', 'Helvetica Neue', Arial, sans-serif" }}>
+      <header className="bg-white border-b border-slate-200 sticky top-0 z-10">
+        <div className="max-w-md mx-auto px-4 h-14 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5 min-w-0" data-testid="checkout-brand">
+            {settings?.logo_url ? <img src={settings.logo_url} alt="logo" className="w-9 h-9 rounded-lg object-contain" />
+              : <div className="w-9 h-9 rounded-lg bg-[#26A17B] text-white flex items-center justify-center font-bold text-base shrink-0">{order?.merchant_name?.[0] || "U"}</div>}
+            <div className="min-w-0 leading-tight">
+              <div className="font-semibold text-[15px] truncate" data-testid="checkout-brand-name">{order?.merchant_name || "USDT"}</div>
+              {subtitle && <div className="text-[11px] text-slate-500 truncate" data-testid="checkout-brand-subtitle">{subtitle}</div>}
+            </div>
+          </div>
+          <div className="relative shrink-0">
+            <select value={lang} onChange={(e) => changeLang(e.target.value)} data-testid="checkout-lang-select" className="appearance-none bg-transparent pr-5 text-slate-700 text-[14px] font-medium focus:outline-none">
               {LANGS.map((l) => <option key={l.code} value={l.code}>{l.label}</option>)}
             </select>
-            <ChevronDown className="w-4 h-4 absolute right-0 top-1/2 -translate-y-1/2 pointer-events-none text-slate-700" />
+            <ChevronDown className="w-4 h-4 absolute right-0 top-1/2 -translate-y-1/2 pointer-events-none text-slate-600" />
           </div>
         </div>
       </header>
-      <main className="max-w-md mx-auto px-3 py-4 space-y-3 pb-10">{inner}</main>
+      <main className="max-w-md mx-auto px-3 py-3 space-y-3 pb-10">{inner}</main>
     </div>
   );
 
@@ -126,50 +135,49 @@ export default function CheckoutPage() {
   const showEnergy = settings?.energy_enabled && settings?.energy_trx_address && order.network === "TRC20" && st === "pending";
 
   return shell(<>
-    <section className="bg-white rounded-2xl shadow-sm px-4 pt-6 pb-4">
+    <section className="bg-white rounded-2xl shadow-sm px-4 pt-5 pb-4">
       <div className="flex flex-col items-center">
-        {st === "pending" && <><div className="w-16 h-16 rounded-full bg-amber-400 flex items-center justify-center shadow"><Clock className="w-9 h-9 text-white" strokeWidth={2.5} /></div><div className="mt-2 text-amber-500 font-bold text-xl" data-testid="checkout-status">{t.pending}</div></>}
-        {st === "paid" && <><div className="w-16 h-16 rounded-full bg-emerald-500 flex items-center justify-center shadow"><CheckCircle2 className="w-9 h-9 text-white" strokeWidth={2.5} /></div><div className="mt-2 text-emerald-600 font-bold text-xl" data-testid="checkout-status">{t.paid}</div></>}
-        {st === "expired" && <><div className="w-16 h-16 rounded-full bg-slate-400 flex items-center justify-center shadow"><XCircle className="w-9 h-9 text-white" strokeWidth={2.5} /></div><div className="mt-2 text-slate-500 font-bold text-xl" data-testid="checkout-status">{t.expired}</div></>}
-        <div className="mt-3 flex items-center gap-2">
-          <Tether size={28} />
-          <span className="text-5xl font-bold tracking-tight" data-testid="checkout-pay-amount">{amount}</span>
+        {st === "pending" && <><div className="w-14 h-14 rounded-full bg-amber-400 flex items-center justify-center shadow-sm"><Clock className="w-8 h-8 text-white" strokeWidth={2.5} /></div><div className="mt-2 text-amber-500 font-bold text-[20px]" data-testid="checkout-status">{t.pending}</div></>}
+        {st === "paid" && <><div className="w-14 h-14 rounded-full bg-emerald-500 flex items-center justify-center shadow-sm"><CheckCircle2 className="w-8 h-8 text-white" strokeWidth={2.5} /></div><div className="mt-2 text-emerald-600 font-bold text-[20px]" data-testid="checkout-status">{t.paid}</div></>}
+        {st === "expired" && <><div className="w-14 h-14 rounded-full bg-slate-400 flex items-center justify-center shadow-sm"><XCircle className="w-8 h-8 text-white" strokeWidth={2.5} /></div><div className="mt-2 text-slate-500 font-bold text-[20px]" data-testid="checkout-status">{t.expired}</div></>}
+        <div className="mt-2 flex items-center gap-2">
+          <Tether size={26} />
+          <span className="text-[40px] font-bold tracking-tight tabular-nums leading-none" data-testid="checkout-pay-amount">{amount}</span>
           <button onClick={() => copy(amount)} data-testid="copy-amount-btn" className="text-blue-500 p-1"><Copy className="w-5 h-5" /></button>
         </div>
-        {st === "pending" && <p className="mt-3 text-center text-[15px] text-slate-700 leading-relaxed px-2">{order.live ? t.ensure(amount) : t.ensureSim(amount)}</p>}
+        {st === "pending" && <p className="mt-3 text-center text-[17px] text-slate-800 leading-relaxed px-1">{order.live ? t.ensure(amount) : t.ensureSim(amount)}</p>}
         {st === "pending" && <div className="mt-2 w-full"><Countdown expiresAt={order.expires_at} t={t} /></div>}
       </div>
 
       {st === "pending" && (
         <>
-          <div className="mt-5 border border-slate-200 rounded-xl p-4">
-            <div className="flex items-center gap-2 text-slate-500 text-[15px]"><NetBadge n={order.network} /> {t.depositAddr(order.network)}</div>
+          <div className="mt-4 border border-slate-200 rounded-xl p-3.5">
+            <div className="flex items-center gap-2 text-slate-500 text-[16px]"><NetBadge n={order.network} /> {t.depositAddr(order.network)}</div>
             <div className="mt-2 flex items-start gap-2">
-              <span className="font-mono text-[17px] leading-snug break-all flex-1 text-slate-700" data-testid="checkout-address"><BoldDigits text={order.wallet_address} /></span>
+              <span className="text-[18px] leading-snug break-all flex-1 text-slate-800 tracking-tight" data-testid="checkout-address"><BoldDigits text={order.wallet_address} /></span>
               <button onClick={() => copy(order.wallet_address)} data-testid="copy-address-btn" className="text-blue-500 p-1 shrink-0"><Copy className="w-5 h-5" /></button>
             </div>
           </div>
           <p className="mt-2 text-orange-500 text-[15px] font-medium">{t.checkChain(order.network)}</p>
           {!order.live && <p className="mt-1 text-xs text-slate-400">{t.demo}</p>}
 
-          <div className="mt-5 flex flex-col items-center">
-            <div className="relative">
-              <img src={qrUrl} alt="QR" width={240} height={240} className="rounded" data-testid="checkout-qr" />
-              <div className="absolute inset-0 flex items-center justify-center pointer-events-none"><div className="bg-white rounded-full p-1"><Tether size={40} /></div></div>
+          <div className="mt-4 flex flex-col items-center">
+            <div className="relative p-2 bg-white rounded-xl border border-slate-100">
+              <img src={qrUrl} alt="QR" width={220} height={220} className="rounded" data-testid="checkout-qr" />
+              <div className="absolute inset-0 flex items-center justify-center pointer-events-none"><div className="bg-white rounded-full p-1"><Tether size={38} /></div></div>
             </div>
-            <button onClick={saveQr} data-testid="save-qr-btn" className="mt-3 text-blue-500 text-lg font-medium">{t.saveQr}</button>
+            <button onClick={saveQr} data-testid="save-qr-btn" className="mt-2.5 text-blue-500 text-[16px] font-medium">{t.saveQr}</button>
           </div>
         </>
       )}
 
       {st === "paid" && order.tx_url && <a href={order.tx_url} target="_blank" rel="noreferrer" className="block text-center text-blue-500 text-sm mt-3" data-testid="view-tx-link">{t.viewTx} ↗</a>}
 
-      <div className="mt-5 border-t border-slate-200 pt-1">
-        <Row k={t.coin} v={<><Tether size={22} /> USDT</>} onCopy={copy} />
+      <div className="mt-4 border-t border-slate-200 pt-0.5">
+        <Row k={t.coin} v={<><Tether size={20} /> USDT</>} onCopy={copy} />
         <Row k={t.protocol} v={<><NetBadge n={order.network} /> {order.network}</>} onCopy={copy} />
-        <Row k={t.amount} v={`${amount} USDT`} copyVal={amount} onCopy={copy} testid="checkout-row-amount" />
-        <Row k={t.orderNo} v={<span className="font-mono font-normal text-slate-500">{order.order_no}</span>} copyVal={order.order_no} onCopy={copy} testid="checkout-row-order-no" />
-        <Row k={t.merchant} v={order.merchant_name} onCopy={copy} />
+        <Row k={t.amount} v={<span className="tabular-nums">{amount} USDT</span>} copyVal={amount} onCopy={copy} testid="checkout-row-amount" />
+        <Row k={t.orderNo} v={<span className="font-normal text-slate-500 text-[15px]">{order.order_no}</span>} copyVal={order.order_no} onCopy={copy} testid="checkout-row-order-no" />
       </div>
 
       {st === "pending" && (
@@ -186,22 +194,22 @@ export default function CheckoutPage() {
 
     {showEnergy && (
       <section className="bg-[#EEF9EA] rounded-2xl px-4 py-3" data-testid="energy-section">
-        <button onClick={() => setEnergyOpen(!energyOpen)} className="w-full flex items-center justify-between text-[17px] font-medium text-slate-800">
+        <button onClick={() => setEnergyOpen(!energyOpen)} data-testid="energy-toggle-btn" aria-expanded={energyOpen} className="w-full flex items-center justify-between text-[16px] font-medium text-slate-800">
           <span className="flex items-center gap-2"><Leaf className="w-5 h-5 text-emerald-600" /> {t.energyTitle}</span>
-          {energyOpen ? <ChevronUp className="w-5 h-5 text-blue-500" /> : <ChevronDown className="w-5 h-5 text-blue-500" />}
+          {energyOpen ? <ChevronUp className="w-6 h-6 text-blue-500 border-2 border-blue-500 rounded-full p-0.5" /> : <ChevronDown className="w-6 h-6 text-blue-500 border-2 border-blue-500 rounded-full p-0.5" />}
         </button>
         {energyOpen && (
-          <div className="mt-3 space-y-3">
-            <p className="text-[15px]"><b>{t.rentFee}</b><span className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-red-500 text-white text-[9px] font-bold mx-1">▼</span>{settings.energy_price_text}</p>
+          <div className="mt-3 space-y-3" data-testid="energy-body">
+            <p className="text-[14px]"><b>{t.rentFee}</b><span className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-red-500 text-white text-[9px] font-bold mx-1">▼</span>{settings.energy_price_text}</p>
             <div className="bg-[#DDF3D6] rounded-xl p-3">
-              <p className="text-[15px] font-semibold text-slate-800">{t.trxAddr} <span className="text-emerald-700 font-normal">{t.trxHint}</span></p>
+              <p className="text-[14px] font-semibold text-slate-800">{t.trxAddr} <span className="text-emerald-700 font-normal">{t.trxHint}</span></p>
               <div className="mt-1 flex items-start gap-2">
-                <span className="font-mono text-[17px] break-all flex-1 text-slate-700" data-testid="energy-trx-address"><BoldDigits text={settings.energy_trx_address} /></span>
+                <span className="font-mono text-[16px] break-all flex-1 text-slate-700 tracking-tight" data-testid="energy-trx-address"><BoldDigits text={settings.energy_trx_address} /></span>
                 <button onClick={() => copy(settings.energy_trx_address)} className="text-blue-500 p-1 shrink-0"><Copy className="w-5 h-5" /></button>
               </div>
-              <p className="mt-2 text-orange-500 font-semibold text-[15px]">{t.trxOnly}</p>
+              <p className="mt-2 text-orange-500 font-semibold text-[14px]">{t.trxOnly}</p>
             </div>
-            <ol className="space-y-2 text-[15px] text-slate-700 leading-relaxed" data-testid="energy-rules">
+            <ol className="space-y-2 text-[14px] text-slate-700 leading-relaxed" data-testid="energy-rules">
               {(settings.energy_rules?.length ? settings.energy_rules.map((r) => [r.title, r.text]) : t.energyRules).map(([k, v], i) => (
                 <li key={i}><b className="text-slate-900">{i + 1}、{k}：</b>{v}</li>
               ))}
@@ -211,17 +219,18 @@ export default function CheckoutPage() {
       </section>
     )}
 
-    <section className="px-2 py-2" data-testid="checkout-notes">
-      <ol className="space-y-2 text-[15px] leading-relaxed text-slate-700">
+    <section className="px-1 py-1" data-testid="checkout-notes">
+      <h3 className="text-[16px] font-semibold text-slate-800 mb-2">{t.notesTitle}</h3>
+      <ol className="space-y-1.5 text-[16px] leading-[1.7] text-slate-700">
         {notes.map(([k, v, link], i) => (
-          <li key={k} className="flex gap-1.5"><span>{i + 1}、</span><span><b className="text-slate-900">{k}：</b>{v}{link && <> <a href={link} target="_blank" rel="noreferrer" className="text-blue-500 break-all" data-testid="explorer-link">{link}</a></>}</span></li>
+          <li key={k} className="flex gap-1"><span className="shrink-0">{i + 1}、</span><span><b className="text-slate-900">{k}：</b>{v}{link && <> <a href={link} target="_blank" rel="noreferrer" className="text-blue-500 break-all" data-testid="explorer-link">{link}</a></>}</span></li>
         ))}
       </ol>
     </section>
 
     <section className="bg-white rounded-2xl shadow-sm px-4 py-4" data-testid="checkout-tutorials">
-      <p className="text-slate-700 text-[15px] mb-2">{t.tutorials}</p>
-      <ol className="space-y-2 text-[15px]">
+      <p className="text-slate-700 text-[16px] mb-2">{t.tutorials}</p>
+      <ol className="space-y-2 text-[16px]">
         {tutorials.map((tu, i) => (
           <li key={i}>{tu.url ? <a href={tu.url} target="_blank" rel="noreferrer" className="text-blue-500">{i + 1}、{tu.title}</a>
             : <button onClick={() => setTutorial(tu)} className="text-blue-500 text-left" data-testid={`tutorial-link-${i}`}>{i + 1}、{tu.title}</button>}</li>

@@ -6,12 +6,12 @@ export const LANGS = [
 
 const zhCN = {
   pending: "待付款", paid: "支付成功", expired: "订单已超时", notFound: "订单不存在或已失效",
-  ensure: (a) => `请确保实际到账 = ${a} USDT（含小数尾数），金额不符将无法自动上分`,
-  ensureSim: (a) => `请确保实际到账 ≥ ${a} USDT，若到账不足将无法自动上分`,
+  ensure: (a) => `请确保实际到账=${a}USDT（含小数尾数），金额不符将无法自动上分`,
+  ensureSim: (a) => `请确保实际到账≥${a}USDT，若到账不足将无法自动上分`,
   payWithin: "请在", payWithinSuffix: "内完成付款",
-  depositAddr: (n) => `${n} 入币地址`, checkChain: (n) => `请认准 ${n} 公链 + 仔细核对，以免造成损失！`,
-  saveQr: "保存 QR", coin: "币种", protocol: "公链协议", amount: "存币数量", orderNo: "订单编号", merchant: "收款商户",
-  energyTitle: "能量租赁，节省 70% 矿工费", rentFee: "租赁费用：", trxAddr: "TRX 地址", trxHint: "（先向下方地址转 TRX 购买能量，后再转 U 不扣矿工费）",
+  depositAddr: (n) => `${n}充币地址`, checkChain: (n) => `请认准${n}公链+仔细核对，以免造成损失！`,
+  saveQr: "保存二维码", coin: "币种", protocol: "公链协议", amount: "充币数量", orderNo: "订单号", merchant: "收款商户",
+  energyTitle: "能量租赁，节省70%矿工费", rentFee: "租赁费用：", trxAddr: "TRX地址", trxHint: "(先向下方地址转TRX购买能量，后再转U不扣矿工费)",
   trxOnly: "此地址只收 TRX，请勿转 USDT！请勿转 USDT！请勿转 USDT！",
   rentDesc: "租赁说明：因任何一笔 TRC20 转账支出都要支付矿工费（例如：冷钱包转账需消耗 TRX，而交易所一般收取 1U 手续费），但矿工费可以用能量替代（即地址有能量时优先使用能量）。",
   energyRules: [
@@ -20,16 +20,16 @@ const zhCN = {
     ["不适用场景", "交易所的提币不消耗TRX矿工费，而是直接扣除USDT手续费，所以租赁能量对交易所的提币无效。"],
     ["能量有效期", "2小时，购买后需尽快使用。"],
   ],
-  notesTitle: "注意事项", notes: (n, a, exp) => [
-    ["币种限制", `以上地址只支持 ${n} 公链协议的 USDT 币种（泰达币），请勿充入其他币种，以免造成损失。`],
-    ["金额限制", `请务必按以上金额 ${a} USDT 进行充币，超出或低于此金额将无法自动上分，需自行联系商户进行补单。`],
-    ["到账时间", "提币到以上地址后，至少需要 1 个区块链确认才能到账，一般 1 分钟内完成，请耐心等待区块网络确认。"],
-    ["异常处理", "若存在确认超时、错误、大额误充等情形，请联系商户客服进行人工处理。"],
-    ["使用正版", "请务必使用正版浏览器、APP 等程序，切勿使用破解版、非官方版本，以免被篡改或被盗。"],
+  notesTitle: "充币说明", notes: (n, a, exp) => [
+    ["币种限制", `以上地址只支持${n}公链协议的USDT币种（泰达币），请勿充入其他币种，以免造成损失。`],
+    ["金额限制", `请务必按以上金额${a}USDT进行充币，超出或低于此金额将无法自动上分，需自行联系商户进行补单。`],
+    ["到账时间", "提币到以上地址后，至少需要1个区块链确认才能到账，一般1分钟内完成，请耐心等待区块网络确认。"],
+    ["异常处理", "若存在确认超时、错误、大额误充等情形，请联系钱包客服进行人工处理。"],
+    ["使用正版", "请务必使用正版浏览器、APP等程序，切勿使用破解版、非官方版本，以免被篡改或被盗。"],
     ["转账地址", "请勿从高风险地址转入，相关地址有高风险拦截及冻结风险，避免影响正常充币流程。"],
     ["区块链记录", "一切交易以官方区块链浏览器记录为准，以上地址的区块链记录链接是", exp],
   ],
-  tutorials: "常见教程：", defaultTutorials: ["什么是 USDT", "如何购买", "充币多久能到账 / 如何查询", "充 / 提币需要手续费吗", "充币没到账要怎么处理"],
+  tutorials: "常见教程：", defaultTutorials: ["什么是USDT", "如何购买", "充币多久能到账/如何查询", "充/提币需要手续费吗", "充币没到账要怎么处理"],
   listening: "正在监听链上到账…", simulate: "模拟支付（演示）", viewTx: "查看链上交易", copied: "已复制", contact: "联系客服",
   demo: "演示订单：此地址为模拟地址，请勿真实转账",
 };
@@ -40,8 +40,8 @@ const zhTW = {
   ensure: (a) => `請確保實際到帳 = ${a} USDT（含小數尾數），金額不符將無法自動上分`,
   ensureSim: (a) => `請確保實際到帳 ≥ ${a} USDT，若到帳不足將無法自動上分`,
   payWithin: "請在", payWithinSuffix: "內完成付款",
-  depositAddr: (n) => `${n} 入幣地址`, checkChain: (n) => `請認準 ${n} 公鏈 + 仔細核對，以免造成損失！`,
-  saveQr: "儲存 QR", coin: "幣種", protocol: "公鏈協議", amount: "存幣數量", orderNo: "訂單編號", merchant: "收款商戶",
+  depositAddr: (n) => `${n}充幣地址`, checkChain: (n) => `請認準${n}公鏈+仔細核對，以免造成損失！`,
+  saveQr: "保存二維碼", coin: "幣種", protocol: "公鏈協議", amount: "充幣數量", orderNo: "訂單號", merchant: "收款商戶",
   energyTitle: "能量租賃，節省 70% 礦工費", rentFee: "租賃費用：", trxAddr: "TRX 地址", trxHint: "（先向下方地址轉 TRX 購買能量，後再轉 U 不扣礦工費）",
   trxOnly: "此地址只收 TRX，請勿轉 USDT！請勿轉 USDT！請勿轉 USDT！",
   rentDesc: "租賃說明：因任何一筆 TRC20 轉賬支出都要支付礦工費（例如：冷錢包轉賬需消耗 TRX，而交易所一般收取 1U 手續費），但礦工費可以用能量替代（即地址有能量時優先使用能量）。",
@@ -51,7 +51,7 @@ const zhTW = {
     ["不適用場景", "交易所的提幣不消耗TRX礦工費，而是直接扣除USDT手續費，所以租賃能量對交易所的提幣無效。"],
     ["能量有效期", "2小時，購買後需盡快使用。"],
   ],
-  notesTitle: "注意事項", notes: (n, a, exp) => [
+  notesTitle: "充幣說明", notes: (n, a, exp) => [
     ["幣種限制", `以上地址只支持 ${n} 公鏈協議的 USDT 幣種（泰達幣），請勿充入其他幣種，以免造成損失。`],
     ["金額限制", `請務必按以上金額 ${a} USDT 進行充幣，超出或低於此金額將無法自動上分，需自行聯繫商戶進行補單。`],
     ["到賬時間", "提幣到以上地址後，至少需要 1 個區塊鏈確認才能到賬，一般 1 分鐘內完成，請耐心等待區塊網絡確認。"],
@@ -81,7 +81,7 @@ const en = {
     ["Not applicable", "Exchange withdrawals do not consume TRX gas (they deduct a USDT fee), so energy rental has no effect on them."],
     ["Energy validity", "2 hours — please use it soon after purchase."],
   ],
-  notesTitle: "Notes", notes: (n, a, exp) => [
+  notesTitle: "Deposit Notes", notes: (n, a, exp) => [
     ["Coin", `This address only accepts USDT on the ${n} network. Do not deposit other coins.`],
     ["Amount", `Send exactly ${a} USDT. Over- or under-payments cannot be credited automatically; contact the merchant to fix.`],
     ["Arrival", "At least 1 block confirmation is required, usually within 1 minute. Please wait for the network."],
