@@ -206,6 +206,14 @@ async def callback_worker():
         await asyncio.sleep(5)
 
 
+EVM_CHAINS = {"ERC20": {"chainid": 1, "contract": "0xdAC17F958D2ee523a2206206994597C13D831ec7", "decimals": 6,
+                        "explorer": "https://etherscan.io"},
+              "BEP20": {"chainid": 56, "contract": "0x55d398326f99059fF775485246999027B3197955", "decimals": 18,
+                        "explorer": "https://bscscan.com"}}
+ETHERSCAN_API = "https://api.etherscan.io/v2/api"
+ETHERSCAN_API_KEY = os.environ.get("ETHERSCAN_API_KEY", "")
+
+
 async def fetch_trc20_transfers(address: str, since_ms: int) -> List[dict]:
     headers = {"TRON-PRO-API-KEY": TRONGRID_API_KEY} if TRONGRID_API_KEY else {}
     params = {"only_confirmed": "true", "only_to": "true", "limit": 100,
@@ -213,19 +221,81 @@ async def fetch_trc20_transfers(address: str, since_ms: int) -> List[dict]:
     async with httpx.AsyncClient(timeout=15) as hc:
         r = await hc.get(f"{TRONGRID_API}/v1/accounts/{address}/transactions/trc20", params=params, headers=headers)
         r.raise_for_status()
-        return r.json().get("data", [])
+        return [{"transaction_id": t["transaction_id"], "from": t.get("from"), "value": t["value"],
+                 "decimals": t.get("token_info", {}).get("decimals", 6), "block_timestamp": t["block_timestamp"]}
+                for t in r.json().get("data", [])]
 
 
-async def match_chain_tx(tx: dict, address: str):
+async def fetch_evm_transfers(network: str, address: str, since_ms: int) -> List[dict]:
+    if not ETHERSCAN_API_KEY:
+        raise RuntimeError("未配置 ETHERSCAN_API_KEY（Etherscan V2 统一 Key 覆盖 ETH/BSC）")
+    cfg = EVM_CHAINS[network]
+    params = {"chainid": cfg["chainid"], "module": "account", "action": "tokentx", "contractaddress": cfg["contract"],
+              "address": address, "page": 1, "offset": 100, "sort": "desc", "apikey": ETHERSCAN_API_KEY}
+    async with httpx.AsyncClient(timeout=20) as hc:
+        r = await hc.get(ETHERSCAN_API, params=params)
+        r.raise_for_status()
+        data = r.json()
+    if data.get("status") != "1" and data.get("message") != "No transactions found":
+        raise RuntimeError(str(data.get("result", data.get("message")))[:150])
+    out = []
+    for t in data.get("result", []) or []:
+        ts = int(t["timeStamp"]) * 1000
+        if ts < since_ms or t.get("to", "").lower() != address.lower():
+            continue
+        out.append({"transaction_id": t["hash"], "from": t.get("from"), "value": t["value"],
+                    "decimals": int(t.get("tokenDecimal", cfg["decimals"])), "block_timestamp": ts})
+    return out
+
+
+async def fetch_transfers(network: str, address: str, since_ms: int) -> List[dict]:
+    if network == "TRC20":
+        return await fetch_trc20_transfers(address, since_ms)
+    return await fetch_evm_transfers(network, address, since_ms)
+
+
+async def fetch_balance(network: str, address: str) -> float:
+    if network == "TRC20":
+        headers = {"TRON-PRO-API-KEY": TRONGRID_API_KEY} if TRONGRID_API_KEY else {}
+        async with httpx.AsyncClient(timeout=15) as hc:
+            r = await hc.get(f"{TRONGRID_API}/v1/accounts/{address}", headers=headers)
+            r.raise_for_status()
+            data = r.json().get("data") or [{}]
+        for item in data[0].get("trc20", []):
+            if USDT_TRC20_CONTRACT in item:
+                return round(int(item[USDT_TRC20_CONTRACT]) / 1e6, 2)
+        return 0.0
+    if not ETHERSCAN_API_KEY:
+        raise RuntimeError("未配置 ETHERSCAN_API_KEY")
+    cfg = EVM_CHAINS[network]
+    params = {"chainid": cfg["chainid"], "module": "account", "action": "tokenbalance", "contractaddress": cfg["contract"],
+              "address": address, "tag": "latest", "apikey": ETHERSCAN_API_KEY}
+    async with httpx.AsyncClient(timeout=20) as hc:
+        r = await hc.get(ETHERSCAN_API, params=params)
+        data = r.json()
+    if data.get("status") != "1":
+        raise RuntimeError(str(data.get("result"))[:150])
+    return round(int(data["result"]) / (10 ** cfg["decimals"]), 2)
+
+
+async def set_address_health(network: str, address: str, channel: dict, **fields):
+    fields["updated_at"] = iso(now_utc())
+    await db.address_health.update_one({"address": address, "network": network},
+                                       {"$set": {**fields, "channel_id": str(channel["_id"]), "channel_name": channel["name"]}},
+                                       upsert=True)
+
+
+async def match_chain_tx(tx: dict, address: str, network: str = "TRC20"):
     txid = tx["transaction_id"]
     if await db.chain_txs.find_one({"tx_id": txid}):
         return
-    decimals = tx.get("token_info", {}).get("decimals", 6)
+    decimals = tx.get("decimals", 6)
     amount = round(int(tx["value"]) / (10 ** decimals), 6)
     ts = datetime.fromtimestamp(tx["block_timestamp"] / 1000, tz=timezone.utc)
-    order = await db.orders.find_one({"status": "pending", "wallet_address": address,
-                                      "pay_amount": amount, "network": "TRC20"})
-    rec = {"tx_id": txid, "network": "TRC20", "to": address, "from": tx.get("from"),
+    addr_q = address if network == "TRC20" else {"$regex": f"^{address}$", "$options": "i"}
+    order = await db.orders.find_one({"status": "pending", "wallet_address": addr_q,
+                                      "pay_amount": amount, "network": network})
+    rec = {"tx_id": txid, "network": network, "to": address, "from": tx.get("from"),
            "amount": amount, "block_time": iso(ts), "order_no": order["order_no"] if order else None,
            "matched": bool(order), "created_at": iso(now_utc())}
     await db.chain_txs.insert_one(rec)
@@ -250,8 +320,24 @@ async def pick_address(ch: dict) -> str:
 
 
 async def live_address_list() -> List[tuple]:
-    chs = await db.channels.find({"network": "TRC20", "status": "active"}).to_list(200)
+    chs = await db.channels.find({"status": "active"}).to_list(200)
     return [(ch, a) for ch in chs for a in channel_addresses(ch)]
+
+
+async def sync_address(ch: dict, addr: str, since_ms: int) -> int:
+    network = ch["network"]
+    try:
+        txs = await fetch_transfers(network, addr, since_ms)
+        for tx in txs:
+            await match_chain_tx(tx, addr, network)
+        await db.channels.update_one({"_id": ch["_id"]}, {"$set": {"last_sync_at": iso(now_utc()), "sync_error": None}})
+        await set_address_health(network, addr, ch, last_sync_at=iso(now_utc()), sync_error=None, last_tx_count=len(txs))
+        return len(txs)
+    except Exception as e:
+        await db.channels.update_one({"_id": ch["_id"]}, {"$set": {"sync_error": str(e)[:200]}})
+        await set_address_health(network, addr, ch, sync_error=str(e)[:200])
+        logger.warning(f"{network} 轮询失败 {addr}: {e}")
+        raise
 
 
 async def chain_listener():
@@ -264,19 +350,31 @@ async def chain_listener():
                     continue
                 since = int((now_utc() - timedelta(hours=2)).timestamp() * 1000)
                 try:
-                    txs = await fetch_trc20_transfers(addr, since)
-                    for tx in txs:
-                        await match_chain_tx(tx, addr)
-                    await db.channels.update_one({"_id": ch["_id"]}, {"$set": {"last_sync_at": iso(now_utc()), "sync_error": None}})
-                except Exception as e:
-                    await db.channels.update_one({"_id": ch["_id"]}, {"$set": {"sync_error": str(e)[:200]}})
-                    logger.warning(f"TronGrid 轮询失败 {addr}: {e}")
+                    await sync_address(ch, addr, since)
+                except Exception:
+                    pass
                 await asyncio.sleep(1)
             await db.orders.update_many({"status": "pending", "expires_at": {"$lt": iso(now_utc())}},
                                         {"$set": {"status": "expired"}})
         except Exception as e:
             logger.warning(f"chain listener error: {e}")
         await asyncio.sleep(CHAIN_POLL_SECONDS)
+
+
+async def balance_refresher():
+    await asyncio.sleep(10)
+    while True:
+        try:
+            for ch, addr in await live_address_list():
+                try:
+                    bal = await fetch_balance(ch["network"], addr)
+                    await set_address_health(ch["network"], addr, ch, balance=bal, balance_at=iso(now_utc()), balance_error=None)
+                except Exception as e:
+                    await set_address_health(ch["network"], addr, ch, balance_error=str(e)[:200])
+                await asyncio.sleep(2)
+        except Exception as e:
+            logger.warning(f"balance refresher error: {e}")
+        await asyncio.sleep(300)
 
 
 async def unique_pay_amount(amount: float, address: str) -> float:
@@ -414,6 +512,10 @@ class ApiOrderQuery(BaseModel):
 
 class NotifySettings(BaseModel):
     notify_url: Optional[str] = ""
+
+
+class IpWhitelist(BaseModel):
+    ips: List[str]
 
 
 # ---------------------------------------------------------------------------
@@ -632,12 +734,20 @@ def api_pay_url(order_no: str) -> str:
     return f"{os.environ.get('FRONTEND_URL', '')}/pay/{order_no}"
 
 
-async def verify_api_request(body: dict) -> dict:
+async def verify_api_request(body: dict, request: Request) -> dict:
     merchant = await db.users.find_one({"api_key": body.get("api_key"), "role": "merchant"})
     if not merchant:
         raise HTTPException(status_code=401, detail="api_key 无效")
     if merchant.get("status") == "frozen":
         raise HTTPException(status_code=403, detail="商户已被冻结")
+    wl = merchant.get("ip_whitelist") or []
+    ip = client_ip(request)
+    if wl and ip not in wl:
+        await db.audit_logs.insert_one({
+            "actor_id": str(merchant["_id"]), "actor_email": merchant["email"], "actor_role": "merchant",
+            "action": "api.ip_rejected", "target_type": "api", "target_id": body.get("api_key", ""),
+            "detail": {"ip": ip}, "ip": ip, "created_at": iso(now_utc())})
+        raise HTTPException(status_code=403, detail=f"来源 IP {ip} 不在白名单内")
     if abs(int(now_utc().timestamp()) - int(body.get("timestamp", 0))) > 300:
         raise HTTPException(status_code=401, detail="timestamp 已过期（允许 ±300 秒）")
     nonce = body.get("nonce", "")
@@ -658,9 +768,9 @@ def api_order_view(o: dict) -> dict:
 
 
 @api_router.post("/v1/orders")
-async def api_create_order(data: ApiOrderCreate):
+async def api_create_order(data: ApiOrderCreate, request: Request):
     body = data.model_dump()
-    merchant = await verify_api_request(body)
+    merchant = await verify_api_request(body, request)
     dup = await db.orders.find_one({"merchant_id": str(merchant["_id"]), "out_trade_no": data.out_trade_no})
     if dup:
         return {"code": 0, "msg": "duplicate", "data": api_order_view(dup)}
@@ -669,9 +779,9 @@ async def api_create_order(data: ApiOrderCreate):
 
 
 @api_router.post("/v1/orders/query")
-async def api_query_order(data: ApiOrderQuery):
+async def api_query_order(data: ApiOrderQuery, request: Request):
     body = data.model_dump()
-    merchant = await verify_api_request(body)
+    merchant = await verify_api_request(body, request)
     q: dict = {"merchant_id": str(merchant["_id"])}
     if data.order_no:
         q["order_no"] = data.order_no
@@ -726,18 +836,60 @@ async def get_order_public(order_no: str):
     if order["status"] == "pending" and datetime.fromisoformat(order["expires_at"]) < now_utc():
         await db.orders.update_one({"_id": order["_id"]}, {"$set": {"status": "expired"}})
         order["status"] = "expired"
+    net = order["network"]
+    explorer = (f"https://tronscan.org/#/address/{order['wallet_address']}" if net == "TRC20"
+                else f"{EVM_CHAINS[net]['explorer']}/address/{order['wallet_address']}")
+    tx_url = None
+    if order.get("tx_id") and order.get("live"):
+        tx_url = f"https://tronscan.org/#/transaction/{order['tx_id']}" if net == "TRC20" else f"{EVM_CHAINS[net]['explorer']}/tx/{order['tx_id']}"
     return {
         "order_no": order["order_no"],
         "amount_usdt": order["amount_usdt"],
         "pay_amount": order.get("pay_amount", order["amount_usdt"]),
         "live": order.get("live", False),
-        "network": order["network"],
+        "network": net,
         "wallet_address": order["wallet_address"],
         "status": order["status"],
         "merchant_name": order["merchant_name"],
+        "created_at": order["created_at"],
         "expires_at": order["expires_at"],
         "tx_id": order.get("tx_id"),
+        "explorer_url": explorer,
+        "tx_url": tx_url,
     }
+
+
+DEFAULT_CHECKOUT_SETTINGS = {
+    "energy_enabled": False, "energy_trx_address": "", "energy_price_text": "2 TRX/笔（即每 65500 能量只需 2 TRX）",
+    "support_url": "", "tutorial_links": [],
+}
+
+
+@api_router.get("/checkout/settings")
+async def get_checkout_settings():
+    doc = await db.settings.find_one({"_id": "checkout"}) or {}
+    doc.pop("_id", None)
+    return {**DEFAULT_CHECKOUT_SETTINGS, **doc}
+
+
+class CheckoutSettings(BaseModel):
+    energy_enabled: bool = False
+    energy_trx_address: str = ""
+    energy_price_text: str = ""
+    support_url: str = ""
+    tutorial_links: List[dict] = []
+
+
+@api_router.put("/checkout/settings")
+async def put_checkout_settings(data: CheckoutSettings, request: Request, user: dict = Depends(require_roles("admin"))):
+    addr = data.energy_trx_address.strip()
+    if addr:
+        validate_wallet("TRC20", addr)
+    doc = data.model_dump()
+    doc["energy_trx_address"] = addr
+    await db.settings.update_one({"_id": "checkout"}, {"$set": doc}, upsert=True)
+    await audit(user, "settings.checkout", "settings", "checkout", doc, request)
+    return doc
 
 
 async def settle_order(order: dict):
@@ -829,21 +981,56 @@ async def list_chain_txs(user: dict = Depends(require_roles("admin")), limit: in
 @api_router.post("/chain/sync")
 async def chain_sync_now(user: dict = Depends(require_roles("admin"))):
     pairs = await live_address_list()
-    scanned, matched = 0, 0
+    scanned, matched, errors = 0, 0, []
     since = int((now_utc() - timedelta(hours=24)).timestamp() * 1000)
     for ch, addr in pairs:
+        before = await db.orders.count_documents({"status": "paid", "wallet_address": addr})
         try:
-            txs = await fetch_trc20_transfers(addr, since)
+            scanned += await sync_address(ch, addr, since)
         except Exception as e:
-            raise HTTPException(status_code=400, detail=f"TronGrid 请求失败（公共接口限速，请稍后重试或配置 TRONGRID_API_KEY）: {e}")
-        for tx in txs:
-            before = await db.orders.count_documents({"status": "paid", "tx_id": tx["transaction_id"]})
-            await match_chain_tx(tx, addr)
-            scanned += 1
-            if not before and await db.orders.count_documents({"status": "paid", "tx_id": tx["transaction_id"]}):
-                matched += 1
-        await db.channels.update_one({"_id": ch["_id"]}, {"$set": {"last_sync_at": iso(now_utc()), "sync_error": None}})
-    return {"channels": len({str(ch["_id"]) for ch, _ in pairs}), "addresses": len(pairs), "scanned": scanned, "matched": matched}
+            errors.append(f"{ch['network']} {addr[:8]}…: {str(e)[:80]}")
+            continue
+        matched += await db.orders.count_documents({"status": "paid", "wallet_address": addr}) - before
+    return {"channels": len({str(ch["_id"]) for ch, _ in pairs}), "addresses": len(pairs),
+            "scanned": scanned, "matched": matched, "errors": errors}
+
+
+@api_router.get("/chain/addresses")
+async def list_address_health(user: dict = Depends(require_roles("admin"))):
+    pairs = await live_address_list()
+    health = {(h["network"], h["address"]): h async for h in db.address_health.find()}
+    pipeline = [{"$match": {"status": "pending"}}, {"$group": {"_id": "$wallet_address", "n": {"$sum": 1}}}]
+    pending = {r["_id"]: r["n"] async for r in db.orders.aggregate(pipeline)}
+    paid_pipeline = [{"$match": {"status": "paid", "live": True}},
+                     {"$group": {"_id": "$wallet_address", "n": {"$sum": 1}, "vol": {"$sum": "$amount_usdt"}, "last": {"$max": "$paid_at"}}}]
+    paid = {r["_id"]: r async for r in db.orders.aggregate(paid_pipeline)}
+    rows = []
+    for ch, addr in pairs:
+        h = health.get((ch["network"], addr), {})
+        p = paid.get(addr, {})
+        explorer = f"https://tronscan.org/#/address/{addr}" if ch["network"] == "TRC20" else f"{EVM_CHAINS[ch['network']]['explorer']}/address/{addr}"
+        rows.append({"address": addr, "network": ch["network"], "channel_id": str(ch["_id"]), "channel_name": ch["name"],
+                     "balance": h.get("balance"), "balance_at": h.get("balance_at"), "balance_error": h.get("balance_error"),
+                     "last_sync_at": h.get("last_sync_at"), "sync_error": h.get("sync_error"),
+                     "pending": pending.get(addr, 0), "paid_count": p.get("n", 0), "paid_volume": round(p.get("vol", 0), 2),
+                     "last_paid_at": p.get("last"), "explorer": explorer,
+                     "status": "error" if h.get("sync_error") or h.get("balance_error") else ("ok" if h.get("last_sync_at") or h.get("balance_at") else "idle")})
+    return rows
+
+
+@api_router.post("/chain/addresses/refresh")
+async def refresh_address_health(user: dict = Depends(require_roles("admin"))):
+    pairs = await live_address_list()
+    ok, errors = 0, []
+    for ch, addr in pairs:
+        try:
+            bal = await fetch_balance(ch["network"], addr)
+            await set_address_health(ch["network"], addr, ch, balance=bal, balance_at=iso(now_utc()), balance_error=None)
+            ok += 1
+        except Exception as e:
+            await set_address_health(ch["network"], addr, ch, balance_error=str(e)[:200])
+            errors.append(f"{ch['network']} {addr[:8]}…: {str(e)[:80]}")
+    return {"ok": ok, "errors": errors}
 
 
 # ---------------------------------------------------------------------------
@@ -1022,6 +1209,30 @@ async def list_accounts(user: dict = Depends(get_current_user), role: Optional[s
         raise HTTPException(status_code=403, detail="无权限")
     accounts = await db.users.find(q).sort("created_at", -1).to_list(500)
     return [clean_user(a) for a in accounts]
+
+
+@api_router.patch("/accounts/me/ip-whitelist")
+async def update_my_ip_whitelist(data: IpWhitelist, request: Request, user: dict = Depends(require_roles("merchant"))):
+    import ipaddress
+    ips: List[str] = []
+    for raw in data.ips:
+        s = raw.strip()
+        if not s:
+            continue
+        try:
+            ipaddress.ip_address(s)
+        except ValueError:
+            raise HTTPException(status_code=400, detail=f"IP 格式不正确: {s}")
+        if s not in ips:
+            ips.append(s)
+    await db.users.update_one({"_id": user["_id"]}, {"$set": {"ip_whitelist": ips}})
+    await audit(user, "merchant.ip_whitelist", "user", user["_id"], {"ips": ips}, request)
+    return {"ip_whitelist": ips, "your_ip": client_ip(request)}
+
+
+@api_router.get("/accounts/me/ip")
+async def my_ip(request: Request, user: dict = Depends(get_current_user)):
+    return {"ip": client_ip(request)}
 
 
 @api_router.patch("/accounts/me/notify")
@@ -1232,6 +1443,86 @@ async def reject_payout(payout_id: str, request: Request, user: dict = Depends(r
 
 
 # ---------------------------------------------------------------------------
+# Reports (xlsx)
+# ---------------------------------------------------------------------------
+@api_router.get("/reports/agent-commission")
+async def agent_commission_report(month: str, agent_id: Optional[str] = None,
+                                  user: dict = Depends(require_roles("admin", "agent"))):
+    from openpyxl import Workbook
+    from openpyxl.styles import Font, PatternFill, Alignment
+    from openpyxl.utils import get_column_letter
+    from fastapi.responses import StreamingResponse
+    import io
+
+    if user["role"] == "agent":
+        agent = user
+    else:
+        if not agent_id:
+            raise HTTPException(status_code=400, detail="请选择代理")
+        agent = await db.users.find_one({"_id": ObjectId(agent_id), "role": "agent"})
+        if not agent:
+            raise HTTPException(status_code=404, detail="代理不存在")
+    try:
+        start = datetime.strptime(month, "%Y-%m").replace(tzinfo=timezone.utc)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="month 格式应为 YYYY-MM")
+    end = (start.replace(year=start.year + 1, month=1) if start.month == 12 else start.replace(month=start.month + 1))
+
+    merchants = await db.users.find({"role": "merchant", "parent_agent_id": str(agent["_id"])}).to_list(500)
+    m_ids = [str(m["_id"]) for m in merchants]
+    orders = await db.orders.find({"merchant_id": {"$in": m_ids}, "status": "paid",
+                                   "paid_at": {"$gte": iso(start), "$lt": iso(end)}}).sort("paid_at", 1).to_list(100000)
+
+    wb = Workbook()
+    head_font = Font(bold=True, color="FFFFFF")
+    head_fill = PatternFill("solid", fgColor="0F766E")
+
+    def write_sheet(ws, headers, rows, widths=None):
+        ws.append(headers)
+        for c in ws[1]:
+            c.font, c.fill, c.alignment = head_font, head_fill, Alignment(horizontal="center")
+        for r in rows:
+            ws.append(r)
+        for i, w in enumerate(widths or [18] * len(headers), 1):
+            ws.column_dimensions[get_column_letter(i)].width = w
+        ws.freeze_panes = "A2"
+
+    total = {"n": len(orders), "amt": sum(o["amount_usdt"] for o in orders), "fee": sum(o.get("fee", 0) for o in orders),
+             "comm": sum(o.get("agent_commission", 0) for o in orders), "recv": sum(o.get("merchant_receive", 0) for o in orders)}
+    ws = wb.active
+    ws.title = "月度汇总"
+    write_sheet(ws, ["项目", "数值"], [
+        ["代理", agent["name"]], ["代理邮箱", agent["email"]], ["月份", month],
+        ["代理费率", agent.get("rate", 0)], ["下级商户数", len(merchants)],
+        ["成功订单数", total["n"]], ["交易流水 (USDT)", round(total["amt"], 2)],
+        ["手续费合计 (USDT)", round(total["fee"], 2)], ["商户实收合计 (USDT)", round(total["recv"], 2)],
+        ["代理分润合计 (USDT)", round(total["comm"], 2)],
+        ["生成时间", now_utc().strftime("%Y-%m-%d %H:%M UTC")]], [24, 36])
+
+    by_m: dict = {}
+    for o in orders:
+        d = by_m.setdefault(o["merchant_id"], {"name": o["merchant_name"], "n": 0, "amt": 0.0, "fee": 0.0, "comm": 0.0, "recv": 0.0})
+        d["n"] += 1; d["amt"] += o["amount_usdt"]; d["fee"] += o.get("fee", 0); d["comm"] += o.get("agent_commission", 0); d["recv"] += o.get("merchant_receive", 0)
+    m_rate = {str(m["_id"]): m.get("rate", 0) for m in merchants}
+    write_sheet(wb.create_sheet("按商户明细"), ["商户", "商户费率", "订单数", "交易流水", "手续费", "商户实收", "代理分润"],
+                [[d["name"], m_rate.get(mid, ""), d["n"], round(d["amt"], 2), round(d["fee"], 2), round(d["recv"], 2), round(d["comm"], 2)]
+                 for mid, d in sorted(by_m.items(), key=lambda x: -x[1]["amt"])], [22, 12, 10, 16, 16, 16, 16])
+
+    write_sheet(wb.create_sheet("逐单明细"), ["订单号", "商户", "网络", "金额", "手续费", "商户实收", "代理分润", "TxID", "支付时间"],
+                [[o["order_no"], o["merchant_name"], o["network"], o["amount_usdt"], o.get("fee", 0), o.get("merchant_receive", 0),
+                  o.get("agent_commission", 0), o.get("tx_id") or "", (o.get("paid_at") or "")[:19].replace("T", " ")] for o in orders],
+                [26, 18, 10, 12, 12, 12, 12, 40, 20])
+
+    buf = io.BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+    fname = f"commission_{agent['name']}_{month}.xlsx"
+    from urllib.parse import quote
+    return StreamingResponse(buf, media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                             headers={"Content-Disposition": f"attachment; filename*=UTF-8''{quote(fname)}"})
+
+
+# ---------------------------------------------------------------------------
 # Seed
 # ---------------------------------------------------------------------------
 async def seed():
@@ -1329,6 +1620,7 @@ async def on_startup():
     await seed()
     asyncio.create_task(chain_listener())
     asyncio.create_task(callback_worker())
+    asyncio.create_task(balance_refresher())
 
 
 @app.on_event("shutdown")

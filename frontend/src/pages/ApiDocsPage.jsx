@@ -1,11 +1,39 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import api, { formatApiErrorDetail } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { Copy, Eye, EyeOff, KeyRound, Loader2, PlayCircle, Code2 } from "lucide-react";
+import { Copy, Eye, EyeOff, KeyRound, Loader2, PlayCircle, Code2, ShieldCheck } from "lucide-react";
+
+function IpWhitelist({ user }) {
+  const [val, setVal] = useState((user.ip_whitelist || []).join("\n"));
+  const [myIp, setMyIp] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(user.ip_whitelist || []);
+  useEffect(() => { api.get("/accounts/me/ip").then((r) => setMyIp(r.data.ip)).catch(() => {}); }, []);
+  const save = async () => {
+    setSaving(true);
+    try {
+      const { data } = await api.patch("/accounts/me/ip-whitelist", { ips: val.split(/[\n,\s]+/).filter(Boolean) });
+      setSaved(data.ip_whitelist); toast.success(data.ip_whitelist.length ? `白名单已保存（${data.ip_whitelist.length} 个 IP）` : "白名单已清空，不限制来源 IP");
+    } catch (err) { toast.error(formatApiErrorDetail(err.response?.data?.detail)); }
+    finally { setSaving(false); }
+  };
+  return (
+    <div className="glass rounded-xl p-5 space-y-3" data-testid="ip-whitelist">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2 text-sm font-semibold"><ShieldCheck className="w-4 h-4 text-emerald-400" /> API 来源 IP 白名单</div>
+        <span className={`text-[11px] px-2 py-0.5 rounded-full border ${saved.length ? "text-emerald-400 border-emerald-400/30 bg-emerald-400/10" : "text-slate-400 border-slate-600"}`} data-testid="ip-whitelist-status">{saved.length ? `已启用 · ${saved.length} 个 IP` : "未启用（不限制）"}</span>
+      </div>
+      <p className="text-xs text-slate-500">仅允许列表内的服务器 IP 调用 /api/v1 接口；留空则不限制。您当前的出口 IP：<span className="font-mono text-cyan-400" data-testid="my-ip">{myIp || "…"}</span>
+        {myIp && <button onClick={() => setVal((v) => (v ? v + "\n" : "") + myIp)} className="ml-2 text-cyan-400 hover:underline" data-testid="add-my-ip-btn">添加当前 IP</button>}</p>
+      <textarea value={val} onChange={(e) => setVal(e.target.value)} rows={3} data-testid="ip-whitelist-input" className="w-full rounded-md bg-slate-900/60 border border-slate-700 font-mono text-xs p-2 text-slate-200 focus:outline-none focus:border-cyan-500" placeholder={"每行一个 IP，例如\n203.0.113.10\n2001:db8::1"} />
+      <div className="flex justify-end"><Button onClick={save} disabled={saving} data-testid="ip-whitelist-save-btn" className="bg-cyan-500 text-slate-950 hover:bg-cyan-400">{saving ? <Loader2 className="w-4 h-4 animate-spin" /> : "保存白名单"}</Button></div>
+    </div>
+  );
+}
 
 const BASE = process.env.REACT_APP_BACKEND_URL;
 
@@ -54,6 +82,7 @@ export default function ApiDocsPage() {
       setOutNo("M" + Date.now());
     } catch (err) {
       setResult(err.response?.data || { error: err.message });
+      if (err.response?.status === 403) toast.info("提示：若已启用 IP 白名单，请先添加当前 IP");
       toast.error(formatApiErrorDetail(err.response?.data?.detail));
     } finally { setBusy(false); }
   };
@@ -78,6 +107,8 @@ export default function ApiDocsPage() {
               <button onClick={() => copy(user.api_secret)} className="text-cyan-400"><Copy className="w-3.5 h-3.5" /></button></div></div>
         </div>
       </div>
+
+      <IpWhitelist user={user} />
 
       <div className="grid lg:grid-cols-2 gap-5">
         <div className="glass rounded-xl p-5 space-y-4">

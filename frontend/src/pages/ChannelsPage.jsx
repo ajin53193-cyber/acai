@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/select";
 import { toast } from "sonner";
 import { Plus, Network, Gauge, Loader2, Wallet, Radio, Pencil, Check, X, RefreshCw } from "lucide-react";
+import { CheckoutSettingsDialog } from "@/components/CheckoutSettingsDialog";
 
 function WalletField({ channel, onSaved }) {
   const addrs = channel.wallet_addresses || [];
@@ -73,7 +74,8 @@ export default function ChannelsPage() {
     setSyncing(true);
     try {
       const { data } = await api.post("/chain/sync");
-      toast.success(`已扫描 ${data.addresses} 个地址 / ${data.scanned} 笔转账，匹配 ${data.matched} 笔订单`);
+      toast[data.errors?.length ? "warning" : "success"](`已扫描 ${data.addresses} 个地址 / ${data.scanned} 笔转账，匹配 ${data.matched} 笔订单${data.errors?.length ? `，${data.errors.length} 个地址失败` : ""}`);
+      (data.errors || []).slice(0, 2).forEach((e) => toast.error(e, { duration: 7000 }));
       load();
     } catch (err) { toast.error(formatApiErrorDetail(err.response?.data?.detail)); }
     finally { setSyncing(false); }
@@ -112,9 +114,10 @@ export default function ChannelsPage() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">通道路由</h1>
-          <p className="text-sm text-slate-400 mt-1">配置 USDT 收款通道、权重路由与费率。TRC20 通道配置收款地址后自动通过 TronGrid 监听链上到账</p>
+          <p className="text-sm text-slate-400 mt-1">配置 USDT 收款通道、权重路由与费率。配置收款地址后自动监听链上到账（TRC20 via TronGrid，ERC20/BEP20 via Etherscan 需 ETHERSCAN_API_KEY）</p>
         </div>
         <div className="flex gap-2">
+        <CheckoutSettingsDialog />
         <Button variant="outline" onClick={syncNow} disabled={syncing} data-testid="chain-sync-btn" className="border-slate-700">
           {syncing ? <Loader2 className="w-4 h-4 animate-spin" /> : <><RefreshCw className="w-4 h-4 mr-1" /> 立即同步链上</>}
         </Button>

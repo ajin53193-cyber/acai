@@ -13,6 +13,7 @@ import CheckoutPage from "@/pages/CheckoutPage";
 import CallbacksPage from "@/pages/CallbacksPage";
 import AuditLogsPage from "@/pages/AuditLogsPage";
 import ApiDocsPage from "@/pages/ApiDocsPage";
+import AddressHealthPage from "@/pages/AddressHealthPage";
 import { Loader2 } from "lucide-react";
 
 function Protected({ children, roles }) {
@@ -55,6 +56,14 @@ function App() {
                 }
               />
               <Route path="settlements" element={<SettlementsPage />} />
+              <Route
+                path="addresses"
+                element={
+                  <Protected roles={["admin"]}>
+                    <AddressHealthPage />
+                  </Protected>
+                }
+              />
               <Route path="callbacks" element={<CallbacksPage />} />
               <Route
                 path="api"
