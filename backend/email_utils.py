@@ -136,5 +136,8 @@ async def notify_security(user: dict, event: str, ip: Optional[str] = None):
             '</td></tr></table>'
         )
         await send_email(to=user["email"], subject=f"【四方收款平台】{title}", html=html)
+    except httpx.HTTPStatusError as e:
+        lvl = logging.DEBUG if e.response.status_code == 429 else logging.WARNING
+        logger.log(lvl, f"security email skipped ({event}): HTTP {e.response.status_code}")
     except Exception as e:
         logger.warning(f"security email failed ({event}): {e}")

@@ -100,11 +100,18 @@
 - [x] 商户余额变动流水（/ledger，admin/agent/merchant）：收款入账/代理分润/提现冻结/提现完成/驳回退回/人工加扣款/冻结解冻，含运行余额 balance_after；GET /api/balance/ledger、Excel 导出 GET /api/reports/balance-ledger；settle_order/payout/adjust 均写 balance_ledger，启动时从历史已付订单回填
 - [x] 测试：后端 20/20、前端 100% 通过（见 iteration_9.json）；admin 账号登录测试后已确认 2FA 关闭
 
+## Implemented (2026-06, iteration 10)
+- [x] 2FA 失败锁定：登录时 2FA 验证码错误也计入 5 次/15 分钟防爆破锁定（record_login_failure），连续失败 → HTTP 423
+- [x] 资金流水月份筛选：GET /api/balance/ledger?month=YYYY-MM；/ledger 页「全部时间/按月份」切换，前端按月实时筛选表格
+- [x] 2FA 安全邮件（Emergent 托管 Resend）：启用/关闭/登录验证失败 时后台 fire-and-forget 发送安全提醒邮件至账户邮箱（notify_security，asyncio.create_task，不阻塞响应；429 限流降级为 DEBUG 日志）
+- [x] 重构起步：邮件逻辑抽离至独立模块 backend/email_utils.py（发件网关校验 + send_email + notify_security），server.py 仅 import 使用
+- [x] 测试：后端 20/20、前端 100% 通过（见 iteration_10.json）；admin 账号确认 2FA 关闭
+
 ## Backlog
 - P1: 获取 ETHERSCAN_API_KEY 后验证 ERC20/BEP20 真实到账
 - P2: 代理多级分润（当前单级）
-- P2: server.py 拆分为子路由模块（现 ~2375 行）；大流量下 TronGrid 需付费 Key 或自建节点
-- P2: 2FA 登录错误码也纳入防爆破锁定计数
+- P2: server.py 进一步拆分为路由模块（现 ~2389 行，email 已抽出；建议继续拆 auth/orders/settlements/ledger/operators）
+- P2: admin 账户删除接口（清理测试遗留账户 test_2fa_*@demo.com）
 
 ## Next Tasks
 - 按需接入真实支付/链上监听，或扩展回调通知与对账自动化。
