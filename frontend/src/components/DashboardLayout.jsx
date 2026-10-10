@@ -13,7 +13,7 @@ const NAV = [
   { to: "/", label: "数据总览", icon: LayoutDashboard, roles: ["admin", "agent", "merchant"], end: true },
   { to: "/orders", label: "订单与收款", icon: Receipt, roles: ["admin", "agent", "merchant"] },
   { to: "/channels", label: "通道路由", icon: Network, roles: ["admin"] },
-  { to: "/addresses", label: "地址巡检", icon: HeartPulse, roles: ["admin"] },
+  { to: "/addresses", label: "收款地址", icon: HeartPulse, roles: ["admin"] },
   { to: "/settlements", label: "结算分润", icon: Wallet, roles: ["admin", "agent", "merchant"] },
   { to: "/accounts", label: "账户权限", icon: Users, roles: ["admin", "agent"] },
   { to: "/callbacks", label: "回调通知", icon: Webhook, roles: ["admin", "agent", "merchant"] },

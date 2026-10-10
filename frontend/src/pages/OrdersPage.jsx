@@ -142,7 +142,7 @@ export default function OrdersPage() {
       <div className="glass rounded-xl p-4 flex flex-wrap gap-3 items-center">
         <div className="relative flex-1 min-w-[200px]">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
-          <Input value={keyword} onChange={(e) => setKeyword(e.target.value)} placeholder="搜索订单号 / TxID / 商户" data-testid="order-search-input" className="pl-9 bg-slate-900/60 border-slate-700" />
+          <Input value={keyword} onChange={(e) => setKeyword(e.target.value)} placeholder="搜索订单号 / TxID / 商户单号 / 钱包地址 / 金额 / 商户" data-testid="order-search-input" className="pl-9 bg-slate-900/60 border-slate-700" />
         </div>
         <Select value={statusFilter} onValueChange={setStatusFilter}>
           <SelectTrigger data-testid="status-filter" className="w-[140px] bg-slate-900/60 border-slate-700"><SelectValue /></SelectTrigger>
@@ -243,6 +243,7 @@ export default function OrdersPage() {
                 ["通道", detail.channel_name],
                 ["收款地址", detail.wallet_address],
                 ["TxID", detail.tx_id || "—"],
+                ["商户单号", detail.out_trade_no || "—"],
                 ["回调地址", detail.notify_url || "—"],
                 ["收款模式", detail.live ? "真实链上监听 (TronGrid)" : "模拟到账"],
               ].map(([k, v]) => (

@@ -7,7 +7,7 @@ import { Loader2, Search, ScrollText } from "lucide-react";
 
 const ACTION_GROUPS = [
   ["all", "全部操作"], ["balance", "余额调整"], ["account", "账户/冻结/密钥"],
-  ["payout", "提现审核"], ["channel", "通道配置"], ["order", "手动核账"], ["merchant", "商户设置"], ["auth", "登录安全"], ["api", "API拦截"], ["settings", "系统设置"],
+  ["payout", "提现审核"], ["channel", "通道配置"], ["order", "手动核账"], ["merchant", "商户设置"], ["auth", "登录安全"], ["api", "API拦截"], ["settings", "系统设置"], ["address", "收款地址"],
 ];
 
 const ACTION_LABELS = {
@@ -16,7 +16,8 @@ const ACTION_LABELS = {
   "payout.approve": "提现通过", "payout.reject": "提现驳回", "channel.create": "新增通道", "channel.update": "修改通道",
   "order.manual_verify": "手动核账", "merchant.notify_url": "设置回调地址",
   "auth.login_failed": "登录失败", "auth.locked": "账号锁定", "auth.unlock": "解除锁定",
-  "merchant.ip_whitelist": "设置IP白名单", "api.ip_rejected": "API IP拦截", "settings.checkout": "收银台设置",
+  "merchant.ip_whitelist": "设置IP白名单", "api.ip_rejected": "API IP拦截", "settings.checkout": "收银台设置", "settings.alerts": "预警阈值",
+  "address.add": "添加地址", "address.remove": "移除地址", "address.update": "地址标签/暂停", "address.sweep": "冷钱包归集",
 };
 
 const ACTION_COLORS = {
