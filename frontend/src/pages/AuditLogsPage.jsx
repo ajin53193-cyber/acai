@@ -7,7 +7,7 @@ import { Loader2, Search, ScrollText } from "lucide-react";
 
 const ACTION_GROUPS = [
   ["all", "全部操作"], ["balance", "余额调整"], ["account", "账户/冻结/密钥"],
-  ["payout", "提现审核"], ["channel", "通道配置"], ["order", "手动核账"], ["merchant", "商户设置"],
+  ["payout", "提现审核"], ["channel", "通道配置"], ["order", "手动核账"], ["merchant", "商户设置"], ["auth", "登录安全"],
 ];
 
 const ACTION_LABELS = {
@@ -15,6 +15,7 @@ const ACTION_LABELS = {
   "account.create": "创建账户", "account.freeze": "冻结账号", "account.unfreeze": "解冻账号", "account.reset_api_key": "重置API密钥",
   "payout.approve": "提现通过", "payout.reject": "提现驳回", "channel.create": "新增通道", "channel.update": "修改通道",
   "order.manual_verify": "手动核账", "merchant.notify_url": "设置回调地址",
+  "auth.login_failed": "登录失败", "auth.locked": "账号锁定", "auth.unlock": "解除锁定",
 };
 
 const ACTION_COLORS = {
@@ -24,6 +25,7 @@ const ACTION_COLORS = {
   channel: "text-cyan-400 bg-cyan-400/10 border-cyan-400/30",
   order: "text-red-400 bg-red-400/10 border-red-400/30",
   merchant: "text-slate-300 bg-slate-400/10 border-slate-500/30",
+  auth: "text-orange-400 bg-orange-400/10 border-orange-400/30",
 };
 
 function Detail({ d }) {
@@ -93,7 +95,7 @@ export default function AuditLogsPage() {
                 return (
                   <tr key={l.id} className="border-b border-slate-800/50 hover:bg-slate-800/30 align-top" data-testid={`audit-row-${l.id}`}>
                     <td className="py-3 px-3 text-xs font-mono text-slate-500 whitespace-nowrap">{fmtDate(l.created_at)}</td>
-                    <td className="py-3 px-3 text-xs"><div>{l.actor_email}</div><div className="text-[10px] text-slate-500">{l.actor_role}</div></td>
+                    <td className="py-3 px-3 text-xs"><div>{l.actor_email}</div><div className="text-[10px] text-slate-500">{l.actor_role === "anonymous" ? "未登录" : l.actor_role}</div></td>
                     <td className="py-3 px-3"><span className={`px-2 py-0.5 rounded text-[11px] border whitespace-nowrap ${ACTION_COLORS[grp] || ACTION_COLORS.merchant}`}>{ACTION_LABELS[l.action] || l.action}</span></td>
                     <td className="py-3 px-3 text-[11px] font-mono text-slate-400">{l.target_type}:{String(l.target_id).slice(-8)}</td>
                     <td className="py-3 px-3"><Detail d={l.detail} /></td>

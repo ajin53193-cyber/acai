@@ -4,8 +4,9 @@ import { useAuth } from "@/context/AuthContext";
 import { ROLE_LABELS, fmtUSDT } from "@/lib/format";
 import {
   LayoutDashboard, Receipt, Network, Wallet, Users, LogOut, ShieldCheck,
-  Activity, ChevronRight, Menu, X, Webhook, ScrollText,
+  Activity, ChevronRight, Menu, X, Webhook, ScrollText, Code2,
 } from "lucide-react";
+import { PaymentAlerts } from "@/components/PaymentAlerts";
 
 const NAV = [
   { to: "/", label: "数据总览", icon: LayoutDashboard, roles: ["admin", "agent", "merchant"], end: true },
@@ -14,6 +15,7 @@ const NAV = [
   { to: "/settlements", label: "结算分润", icon: Wallet, roles: ["admin", "agent", "merchant"] },
   { to: "/accounts", label: "账户权限", icon: Users, roles: ["admin", "agent"] },
   { to: "/callbacks", label: "回调通知", icon: Webhook, roles: ["admin", "agent", "merchant"] },
+  { to: "/api", label: "开发者 API", icon: Code2, roles: ["merchant"] },
   { to: "/audit", label: "审计日志", icon: ScrollText, roles: ["admin"] },
 ];
 
@@ -107,6 +109,7 @@ export default function DashboardLayout() {
             <span className="text-amber-400">BEP20 45ms</span>
           </div>
           <div className="ml-auto flex items-center gap-4">
+            <PaymentAlerts />
             <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-800/60 border border-slate-700/60">
               <span className="text-[11px] text-slate-400">余额</span>
               <span className="font-mono text-sm font-semibold text-emerald-400" data-testid="header-balance">

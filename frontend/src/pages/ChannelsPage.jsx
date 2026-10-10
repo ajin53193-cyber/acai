@@ -15,29 +15,48 @@ import { toast } from "sonner";
 import { Plus, Network, Gauge, Loader2, Wallet, Radio, Pencil, Check, X, RefreshCw } from "lucide-react";
 
 function WalletField({ channel, onSaved }) {
+  const addrs = channel.wallet_addresses || [];
   const [editing, setEditing] = useState(false);
-  const [val, setVal] = useState(channel.wallet_address || "");
+  const [val, setVal] = useState(addrs.join("\n"));
   const [saving, setSaving] = useState(false);
+  const pending = channel.pending_by_address || {};
   const save = async () => {
     setSaving(true);
+    const list = val.split(/[\n,\s]+/).map((s) => s.trim()).filter(Boolean);
     try {
-      await api.patch(`/channels/${channel.id}`, { wallet_address: val.trim() });
-      toast.success(val.trim() ? "收款地址已配置，开始链上监听" : "已清除收款地址，切回模拟模式");
+      await api.patch(`/channels/${channel.id}`, { wallet_addresses: list });
+      toast.success(list.length ? `已配置 ${list.length} 个收款地址，开始链上监听` : "已清除收款地址，切回模拟模式");
       setEditing(false); onSaved();
     } catch (err) { toast.error(formatApiErrorDetail(err.response?.data?.detail)); }
     finally { setSaving(false); }
   };
   if (editing) return (
-    <div className="flex items-center gap-1">
-      <Input value={val} onChange={(e) => setVal(e.target.value)} placeholder={channel.network === "TRC20" ? "T 开头 34 位地址" : "0x 开头 42 位地址"} data-testid={`wallet-input-${channel.id}`} className="h-7 text-[11px] font-mono bg-slate-900/60 border-slate-700" />
-      <button onClick={save} disabled={saving} data-testid={`wallet-save-${channel.id}`} className="p-1 text-emerald-400 hover:bg-emerald-400/10 rounded">{saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}</button>
-      <button onClick={() => { setEditing(false); setVal(channel.wallet_address || ""); }} className="p-1 text-slate-400 hover:bg-slate-700 rounded"><X className="w-3.5 h-3.5" /></button>
+    <div className="space-y-1">
+      <textarea value={val} onChange={(e) => setVal(e.target.value)} rows={Math.min(8, Math.max(3, val.split("\n").length + 1))}
+        placeholder={channel.network === "TRC20" ? "每行一个 T 开头 34 位地址，可填多个" : "每行一个 0x 开头 42 位地址"}
+        data-testid={`wallet-input-${channel.id}`} className="w-full rounded-md text-[11px] font-mono bg-slate-900/60 border border-slate-700 p-2 text-slate-200 focus:outline-none focus:border-cyan-500" />
+      <div className="flex items-center gap-1 justify-end">
+        <span className="text-[10px] text-slate-500 mr-auto">多地址轮询分流，每地址最多 9999 笔并发待支付</span>
+        <button onClick={save} disabled={saving} data-testid={`wallet-save-${channel.id}`} className="p-1 text-emerald-400 hover:bg-emerald-400/10 rounded">{saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}</button>
+        <button onClick={() => { setEditing(false); setVal(addrs.join("\n")); }} className="p-1 text-slate-400 hover:bg-slate-700 rounded"><X className="w-3.5 h-3.5" /></button>
+      </div>
     </div>
   );
   return (
-    <div className="flex items-center gap-1.5 min-w-0">
-      <span className={`font-mono text-[11px] truncate ${channel.wallet_address ? "text-slate-200" : "text-slate-500"}`} data-testid={`wallet-address-${channel.id}`}>{channel.wallet_address || "未配置（模拟模式）"}</span>
-      <button onClick={() => setEditing(true)} data-testid={`wallet-edit-${channel.id}`} className="p-1 text-slate-500 hover:text-cyan-400 shrink-0"><Pencil className="w-3 h-3" /></button>
+    <div className="space-y-1">
+      <div className="flex items-center gap-1.5 min-w-0">
+        <span className={`text-[11px] ${addrs.length ? "text-slate-200" : "text-slate-500"}`} data-testid={`wallet-address-${channel.id}`}>
+          {addrs.length ? `${addrs.length} 个地址池` : "未配置（模拟模式）"}
+        </span>
+        <button onClick={() => setEditing(true)} data-testid={`wallet-edit-${channel.id}`} className="p-1 text-slate-500 hover:text-cyan-400 shrink-0"><Pencil className="w-3 h-3" /></button>
+      </div>
+      {addrs.slice(0, 4).map((a) => (
+        <div key={a} className="flex items-center gap-2 font-mono text-[10px] text-slate-400" data-testid={`wallet-addr-row-${channel.id}`}>
+          <span className="truncate">{a}</span>
+          <span className={`ml-auto shrink-0 px-1.5 rounded ${pending[a] ? "text-amber-400 bg-amber-400/10" : "text-slate-600"}`}>{pending[a] || 0} 待付</span>
+        </div>
+      ))}
+      {addrs.length > 4 && <div className="text-[10px] text-slate-500">… 另 {addrs.length - 4} 个地址</div>}
     </div>
   );
 }
@@ -54,7 +73,7 @@ export default function ChannelsPage() {
     setSyncing(true);
     try {
       const { data } = await api.post("/chain/sync");
-      toast.success(`已扫描 ${data.channels} 个地址 / ${data.scanned} 笔转账，匹配 ${data.matched} 笔订单`);
+      toast.success(`已扫描 ${data.addresses} 个地址 / ${data.scanned} 笔转账，匹配 ${data.matched} 笔订单`);
       load();
     } catch (err) { toast.error(formatApiErrorDetail(err.response?.data?.detail)); }
     finally { setSyncing(false); }
@@ -67,8 +86,9 @@ export default function ChannelsPage() {
     setSaving(true);
     try {
       await api.post("/channels", {
-        ...form, fee_rate: Number(form.fee_rate), weight: Number(form.weight),
+        ...form, wallet_address: "", fee_rate: Number(form.fee_rate), weight: Number(form.weight),
         min_amount: Number(form.min_amount), max_amount: Number(form.max_amount),
+        wallet_addresses: form.wallet_address.split(/[\n,\s]+/).map((s) => s.trim()).filter(Boolean),
       });
       toast.success("通道已创建");
       setOpen(false);
@@ -120,8 +140,8 @@ export default function ChannelsPage() {
                 <div className="space-y-1.5"><Label>最小金额</Label><Input type="number" value={form.min_amount} onChange={(e) => setForm({ ...form, min_amount: e.target.value })} className="bg-slate-900/60 border-slate-700 font-mono" /></div>
                 <div className="space-y-1.5"><Label>最大金额</Label><Input type="number" value={form.max_amount} onChange={(e) => setForm({ ...form, max_amount: e.target.value })} className="bg-slate-900/60 border-slate-700 font-mono" /></div>
               </div>
-              <div className="space-y-1.5"><Label>收款钱包地址 <span className="text-slate-500 text-xs">（可选，填写后启用真实链上监听）</span></Label>
-                <Input value={form.wallet_address} onChange={(e) => setForm({ ...form, wallet_address: e.target.value })} data-testid="channel-wallet-input" className="bg-slate-900/60 border-slate-700 font-mono text-xs" placeholder={form.network === "TRC20" ? "T 开头 34 位 TRON 地址" : "0x 开头 42 位地址"} /></div>
+              <div className="space-y-1.5"><Label>收款钱包地址池 <span className="text-slate-500 text-xs">（可选，每行一个，填写后启用真实链上监听）</span></Label>
+                <textarea value={form.wallet_address} onChange={(e) => setForm({ ...form, wallet_address: e.target.value })} rows={3} data-testid="channel-wallet-input" className="w-full rounded-md bg-slate-900/60 border border-slate-700 font-mono text-xs p-2 text-slate-200 focus:outline-none focus:border-cyan-500" placeholder={form.network === "TRC20" ? "T 开头 34 位 TRON 地址，每行一个" : "0x 开头 42 位地址，每行一个"} /></div>
             </div>
             <DialogFooter><Button onClick={create} disabled={saving || !form.name} data-testid="channel-submit-btn" className="bg-cyan-500 text-slate-950 hover:bg-cyan-400">{saving ? <Loader2 className="w-4 h-4 animate-spin" /> : "确认创建"}</Button></DialogFooter>
           </DialogContent>
@@ -143,7 +163,7 @@ export default function ChannelsPage() {
                     <div className="flex items-center gap-1.5">
                       <span className={`px-2 py-0.5 rounded text-[10px] font-mono border ${NETWORK_COLORS[c.network]}`}>{c.network}</span>
                       {c.wallet_address ? (
-                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] border text-emerald-400 border-emerald-400/30 bg-emerald-400/10" data-testid={`live-badge-${c.id}`}><Radio className="w-2.5 h-2.5 pulse-dot" />链上监听</span>
+                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] border text-emerald-400 border-emerald-400/30 bg-emerald-400/10" data-testid={`live-badge-${c.id}`}><Radio className="w-2.5 h-2.5 pulse-dot" />链上监听 ×{(c.wallet_addresses || []).length}</span>
                       ) : (
                         <span className="px-1.5 py-0.5 rounded text-[10px] border text-slate-400 border-slate-600 bg-slate-700/30">模拟</span>
                       )}

@@ -120,14 +120,22 @@ async def audit(user: dict, action: str, target_type: str, target_id: str,
     await db.audit_logs.insert_one({
         "actor_id": str(user["_id"]), "actor_email": user["email"], "actor_role": user["role"],
         "action": action, "target_type": target_type, "target_id": str(target_id),
-        "detail": detail or {}, "ip": request.client.host if request and request.client else None,
+        "detail": detail or {}, "ip": client_ip(request) if request else None,
         "created_at": iso(now_utc()),
     })
 
 
+def canon(v: Any) -> str:
+    if isinstance(v, bool):
+        return "true" if v else "false"
+    if isinstance(v, float) and v == int(v):
+        return str(int(v))
+    return str(v)
+
+
 def sign_payload(payload: dict, secret: str) -> str:
     items = sorted((k, v) for k, v in payload.items() if k != "sign" and v is not None and v != "")
-    raw = "&".join(f"{k}={v}" for k, v in items)
+    raw = "&".join(f"{k}={canon(v)}" for k, v in items)
     return hmac.new(secret.encode(), raw.encode(), hashlib.sha256).hexdigest()
 
 
@@ -150,7 +158,8 @@ async def build_callback_payload(order: dict, secret: str) -> dict:
         "order_no": order["order_no"], "amount_usdt": order["amount_usdt"],
         "pay_amount": order.get("pay_amount", order["amount_usdt"]), "network": order["network"],
         "status": order["status"], "tx_id": order.get("tx_id"), "paid_at": order.get("paid_at"),
-        "remark": order.get("remark", ""), "timestamp": int(now_utc().timestamp()),
+        "remark": order.get("remark", ""), "out_trade_no": order.get("out_trade_no") or "",
+        "timestamp": int(now_utc().timestamp()),
     }
     payload["sign"] = sign_payload(payload, secret)
     return payload
@@ -225,14 +234,31 @@ async def match_chain_tx(tx: dict, address: str):
         logger.info(f"链上到账匹配成功 {order['order_no']} {amount} USDT tx={txid}")
 
 
+def channel_addresses(ch: dict) -> List[str]:
+    addrs = ch.get("wallet_addresses") or ([ch["wallet_address"]] if ch.get("wallet_address") else [])
+    return [a for a in addrs if a]
+
+
+async def pick_address(ch: dict) -> str:
+    addrs = channel_addresses(ch)
+    if len(addrs) == 1:
+        return addrs[0]
+    pipeline = [{"$match": {"status": "pending", "wallet_address": {"$in": addrs}}},
+                {"$group": {"_id": "$wallet_address", "n": {"$sum": 1}}}]
+    counts = {r["_id"]: r["n"] async for r in db.orders.aggregate(pipeline)}
+    return min(addrs, key=lambda a: (counts.get(a, 0), random.random()))
+
+
+async def live_address_list() -> List[tuple]:
+    chs = await db.channels.find({"network": "TRC20", "status": "active"}).to_list(200)
+    return [(ch, a) for ch in chs for a in channel_addresses(ch)]
+
+
 async def chain_listener():
     await asyncio.sleep(3)
     while True:
         try:
-            channels = await db.channels.find({"network": "TRC20", "status": "active",
-                                               "wallet_address": {"$nin": [None, ""]}}).to_list(100)
-            for ch in channels:
-                addr = ch["wallet_address"]
+            for ch, addr in await live_address_list():
                 has_pending = await db.orders.count_documents({"status": "pending", "wallet_address": addr}) > 0
                 if not has_pending:
                     continue
@@ -245,6 +271,7 @@ async def chain_listener():
                 except Exception as e:
                     await db.channels.update_one({"_id": ch["_id"]}, {"$set": {"sync_error": str(e)[:200]}})
                     logger.warning(f"TronGrid 轮询失败 {addr}: {e}")
+                await asyncio.sleep(1)
             await db.orders.update_many({"status": "pending", "expires_at": {"$lt": iso(now_utc())}},
                                         {"$set": {"status": "expired"}})
         except Exception as e:
@@ -254,8 +281,8 @@ async def chain_listener():
 
 async def unique_pay_amount(amount: float, address: str) -> float:
     base = round(amount, 2)
-    for _ in range(200):
-        cents = random.randint(1, 99) / 10000
+    for _ in range(300):
+        cents = random.randint(1, 9999) / 10000
         cand = round(base + cents, 4)
         exists = await db.orders.find_one({"status": "pending", "wallet_address": address, "pay_amount": cand})
         if not exists:
@@ -341,6 +368,7 @@ class ChannelCreate(BaseModel):
     max_amount: float = 50000
     status: str = "active"
     wallet_address: Optional[str] = ""
+    wallet_addresses: Optional[List[str]] = None
 
 
 class ChannelUpdate(BaseModel):
@@ -351,6 +379,7 @@ class ChannelUpdate(BaseModel):
     max_amount: Optional[float] = None
     status: Optional[str] = None
     wallet_address: Optional[str] = None
+    wallet_addresses: Optional[List[str]] = None
 
 
 class OrderCreate(BaseModel):
@@ -359,6 +388,28 @@ class OrderCreate(BaseModel):
     merchant_id: Optional[str] = None  # admin/agent may specify
     remark: Optional[str] = ""
     notify_url: Optional[str] = None
+    out_trade_no: Optional[str] = None
+
+
+class ApiOrderCreate(BaseModel):
+    api_key: str
+    timestamp: int
+    nonce: str
+    sign: str
+    amount_usdt: float
+    network: Optional[str] = "TRC20"
+    out_trade_no: str
+    notify_url: Optional[str] = None
+    remark: Optional[str] = ""
+
+
+class ApiOrderQuery(BaseModel):
+    api_key: str
+    timestamp: int
+    nonce: str
+    sign: str
+    order_no: Optional[str] = None
+    out_trade_no: Optional[str] = None
 
 
 class NotifySettings(BaseModel):
@@ -368,14 +419,59 @@ class NotifySettings(BaseModel):
 # ---------------------------------------------------------------------------
 # Auth routes
 # ---------------------------------------------------------------------------
+LOCK_MAX_FAILS = 5
+LOCK_MINUTES = 15
+
+
+async def check_lockout(identifier: str):
+    rec = await db.login_attempts.find_one({"identifier": identifier})
+    if rec and rec.get("locked_until") and datetime.fromisoformat(rec["locked_until"]) > now_utc():
+        remain = int((datetime.fromisoformat(rec["locked_until"]) - now_utc()).total_seconds() // 60) + 1
+        raise HTTPException(status_code=423, detail=f"失败次数过多，账号已临时锁定，请 {remain} 分钟后再试")
+
+
+async def record_login_failure(identifier: str, email: str, ip: Optional[str]):
+    rec = await db.login_attempts.find_one({"identifier": identifier})
+    window_start = now_utc() - timedelta(minutes=LOCK_MINUTES)
+    count = 1
+    if rec and rec.get("last_fail_at") and datetime.fromisoformat(rec["last_fail_at"]) > window_start:
+        count = rec.get("count", 0) + 1
+    upd = {"identifier": identifier, "email": email, "ip": ip, "count": count, "last_fail_at": iso(now_utc())}
+    locked = count >= LOCK_MAX_FAILS
+    if locked:
+        upd["locked_until"] = iso(now_utc() + timedelta(minutes=LOCK_MINUTES))
+    await db.login_attempts.update_one({"identifier": identifier}, {"$set": upd}, upsert=True)
+    await db.audit_logs.insert_one({
+        "actor_id": None, "actor_email": email, "actor_role": "anonymous",
+        "action": "auth.locked" if locked else "auth.login_failed", "target_type": "login", "target_id": email,
+        "detail": {"fail_count": count, **({"locked_minutes": LOCK_MINUTES} if locked else {})},
+        "ip": ip, "created_at": iso(now_utc()),
+    })
+    return locked
+
+
+def client_ip(request: Request) -> Optional[str]:
+    xff = request.headers.get("x-forwarded-for")
+    if xff:
+        return xff.split(",")[0].strip()
+    return request.client.host if request.client else None
+
+
 @api_router.post("/auth/login")
-async def login(data: LoginInput, response: Response):
+async def login(data: LoginInput, request: Request, response: Response):
     email = data.email.lower()
+    ip = client_ip(request)
+    identifier = email
+    await check_lockout(identifier)
     user = await db.users.find_one({"email": email})
     if not user or not verify_password(data.password, user["password_hash"]):
+        locked = await record_login_failure(identifier, email, ip)
+        if locked:
+            raise HTTPException(status_code=423, detail=f"连续 {LOCK_MAX_FAILS} 次密码错误，账号已锁定 {LOCK_MINUTES} 分钟")
         raise HTTPException(status_code=401, detail="邮箱或密码错误")
     if user.get("status") == "frozen":
         raise HTTPException(status_code=403, detail="账号已被冻结")
+    await db.login_attempts.delete_one({"identifier": identifier})
     token = create_access_token(str(user["_id"]), user["email"], user["role"])
     response.set_cookie("access_token", token, httponly=True, secure=True,
                         samesite="none", max_age=604800, path="/")
@@ -473,30 +569,24 @@ async def pick_channel(network: Optional[str], amount: float) -> Optional[dict]:
     return channels[0]
 
 
-@api_router.post("/orders")
-async def create_order(data: OrderCreate, user: dict = Depends(get_current_user)):
-    # determine merchant
-    if user["role"] == "merchant":
-        merchant = user
-    else:
-        if not data.merchant_id:
-            raise HTTPException(status_code=400, detail="请选择商户")
-        merchant = await db.users.find_one({"_id": ObjectId(data.merchant_id), "role": "merchant"})
-        if not merchant:
-            raise HTTPException(status_code=404, detail="商户不存在")
-
-    network = data.network or random.choice(NETWORKS)
-    channel = await pick_channel(network, data.amount_usdt)
+async def build_order(merchant: dict, amount_usdt: float, network: Optional[str], remark: str,
+                      notify_url: Optional[str], out_trade_no: Optional[str] = None) -> dict:
+    network = network or random.choice(NETWORKS)
+    if network not in NETWORKS:
+        raise HTTPException(status_code=400, detail="不支持的网络")
+    if amount_usdt <= 0:
+        raise HTTPException(status_code=400, detail="金额必须大于 0")
+    channel = await pick_channel(network, amount_usdt)
     if not channel:
         raise HTTPException(status_code=400, detail="没有可用的收款通道")
-
     expires = now_utc() + timedelta(minutes=15)
-    live = bool(channel.get("wallet_address"))
-    address = channel["wallet_address"] if live else gen_wallet_address(network)
-    amount = round(data.amount_usdt, 2)
+    live = bool(channel_addresses(channel))
+    address = await pick_address(channel) if live else gen_wallet_address(network)
+    amount = round(amount_usdt, 2)
     pay_amount = await unique_pay_amount(amount, address) if live else amount
     order = {
         "order_no": gen_order_no(),
+        "out_trade_no": out_trade_no or None,
         "merchant_id": str(merchant["_id"]),
         "merchant_name": merchant["name"],
         "amount_usdt": amount,
@@ -508,8 +598,8 @@ async def create_order(data: OrderCreate, user: dict = Depends(get_current_user)
         "status": "pending",
         "channel_id": str(channel["_id"]),
         "channel_name": channel["name"],
-        "remark": data.remark or "",
-        "notify_url": data.notify_url or merchant.get("notify_url") or None,
+        "remark": remark or "",
+        "notify_url": notify_url or merchant.get("notify_url") or None,
         "callback_status": None,
         "created_at": iso(now_utc()),
         "paid_at": None,
@@ -517,7 +607,94 @@ async def create_order(data: OrderCreate, user: dict = Depends(get_current_user)
     }
     res = await db.orders.insert_one(order)
     order["_id"] = res.inserted_id
+    return order
+
+
+@api_router.post("/orders")
+async def create_order(data: OrderCreate, user: dict = Depends(get_current_user)):
+    # determine merchant
+    if user["role"] == "merchant":
+        merchant = user
+    else:
+        if not data.merchant_id:
+            raise HTTPException(status_code=400, detail="请选择商户")
+        merchant = await db.users.find_one({"_id": ObjectId(data.merchant_id), "role": "merchant"})
+        if not merchant:
+            raise HTTPException(status_code=404, detail="商户不存在")
+    order = await build_order(merchant, data.amount_usdt, data.network, data.remark, data.notify_url, data.out_trade_no)
     return serialize(order)
+
+
+# ---------------------------------------------------------------------------
+# Merchant Open API (api_key + HMAC signature)
+# ---------------------------------------------------------------------------
+def api_pay_url(order_no: str) -> str:
+    return f"{os.environ.get('FRONTEND_URL', '')}/pay/{order_no}"
+
+
+async def verify_api_request(body: dict) -> dict:
+    merchant = await db.users.find_one({"api_key": body.get("api_key"), "role": "merchant"})
+    if not merchant:
+        raise HTTPException(status_code=401, detail="api_key 无效")
+    if merchant.get("status") == "frozen":
+        raise HTTPException(status_code=403, detail="商户已被冻结")
+    if abs(int(now_utc().timestamp()) - int(body.get("timestamp", 0))) > 300:
+        raise HTTPException(status_code=401, detail="timestamp 已过期（允许 ±300 秒）")
+    nonce = body.get("nonce", "")
+    if not nonce or await db.api_nonces.find_one({"api_key": body["api_key"], "nonce": nonce}):
+        raise HTTPException(status_code=401, detail="nonce 重复或缺失")
+    expected = sign_payload(body, merchant.get("api_secret", ""))
+    if not hmac.compare_digest(expected, str(body.get("sign", ""))):
+        raise HTTPException(status_code=401, detail="签名错误")
+    await db.api_nonces.insert_one({"api_key": body["api_key"], "nonce": nonce, "created_at": now_utc()})
+    return merchant
+
+
+def api_order_view(o: dict) -> dict:
+    return {"order_no": o["order_no"], "out_trade_no": o.get("out_trade_no"), "amount_usdt": o["amount_usdt"],
+            "pay_amount": o.get("pay_amount", o["amount_usdt"]), "network": o["network"],
+            "wallet_address": o["wallet_address"], "status": o["status"], "tx_id": o.get("tx_id"),
+            "paid_at": o.get("paid_at"), "expires_at": o["expires_at"], "pay_url": api_pay_url(o["order_no"])}
+
+
+@api_router.post("/v1/orders")
+async def api_create_order(data: ApiOrderCreate):
+    body = data.model_dump()
+    merchant = await verify_api_request(body)
+    dup = await db.orders.find_one({"merchant_id": str(merchant["_id"]), "out_trade_no": data.out_trade_no})
+    if dup:
+        return {"code": 0, "msg": "duplicate", "data": api_order_view(dup)}
+    order = await build_order(merchant, data.amount_usdt, data.network, data.remark, data.notify_url, data.out_trade_no)
+    return {"code": 0, "msg": "success", "data": api_order_view(order)}
+
+
+@api_router.post("/v1/orders/query")
+async def api_query_order(data: ApiOrderQuery):
+    body = data.model_dump()
+    merchant = await verify_api_request(body)
+    q: dict = {"merchant_id": str(merchant["_id"])}
+    if data.order_no:
+        q["order_no"] = data.order_no
+    elif data.out_trade_no:
+        q["out_trade_no"] = data.out_trade_no
+    else:
+        raise HTTPException(status_code=400, detail="需提供 order_no 或 out_trade_no")
+    o = await db.orders.find_one(q)
+    if not o:
+        raise HTTPException(status_code=404, detail="订单不存在")
+    return {"code": 0, "msg": "success", "data": api_order_view(o)}
+
+
+@api_router.get("/notifications/paid")
+async def paid_notifications(since: str, user: dict = Depends(get_current_user)):
+    scope = await merchant_ids_for_scope(user)
+    q: dict = {"status": "paid", "paid_at": {"$gt": since}}
+    if scope is not None:
+        q["merchant_id"] = {"$in": [str(i) for i in scope]}
+    orders = await db.orders.find(q).sort("paid_at", -1).to_list(20)
+    return {"now": iso(now_utc()), "orders": [
+        {"order_no": o["order_no"], "amount_usdt": o["amount_usdt"], "merchant_name": o["merchant_name"],
+         "network": o["network"], "live": o.get("live", False), "paid_at": o["paid_at"]} for o in orders]}
 
 
 @api_router.get("/orders")
@@ -651,23 +828,22 @@ async def list_chain_txs(user: dict = Depends(require_roles("admin")), limit: in
 
 @api_router.post("/chain/sync")
 async def chain_sync_now(user: dict = Depends(require_roles("admin"))):
-    channels = await db.channels.find({"network": "TRC20", "status": "active",
-                                       "wallet_address": {"$nin": [None, ""]}}).to_list(100)
+    pairs = await live_address_list()
     scanned, matched = 0, 0
     since = int((now_utc() - timedelta(hours=24)).timestamp() * 1000)
-    for ch in channels:
+    for ch, addr in pairs:
         try:
-            txs = await fetch_trc20_transfers(ch["wallet_address"], since)
+            txs = await fetch_trc20_transfers(addr, since)
         except Exception as e:
             raise HTTPException(status_code=400, detail=f"TronGrid 请求失败（公共接口限速，请稍后重试或配置 TRONGRID_API_KEY）: {e}")
         for tx in txs:
             before = await db.orders.count_documents({"status": "paid", "tx_id": tx["transaction_id"]})
-            await match_chain_tx(tx, ch["wallet_address"])
+            await match_chain_tx(tx, addr)
             scanned += 1
             if not before and await db.orders.count_documents({"status": "paid", "tx_id": tx["transaction_id"]}):
                 matched += 1
         await db.channels.update_one({"_id": ch["_id"]}, {"$set": {"last_sync_at": iso(now_utc()), "sync_error": None}})
-    return {"channels": len(channels), "scanned": scanned, "matched": matched}
+    return {"channels": len({str(ch["_id"]) for ch, _ in pairs}), "addresses": len(pairs), "scanned": scanned, "matched": matched}
 
 
 # ---------------------------------------------------------------------------
@@ -715,7 +891,7 @@ async def callback_sign_preview(user: dict = Depends(require_roles("merchant")))
               "paid_at": iso(now_utc()), "remark": "", "timestamp": int(now_utc().timestamp())}
     sample["sign"] = sign_payload(sample, user.get("api_secret", ""))
     items = sorted((k, v) for k, v in sample.items() if k != "sign" and v is not None and v != "")
-    return {"payload": sample, "sign_string": "&".join(f"{k}={v}" for k, v in items),
+    return {"payload": sample, "sign_string": "&".join(f"{k}={canon(v)}" for k, v in items),
             "algorithm": "HMAC-SHA256(api_secret, sign_string) -> hex"}
 
 
@@ -734,13 +910,27 @@ async def list_audit_logs(user: dict = Depends(require_roles("admin")), action: 
     return [serialize(l) for l in logs]
 
 
+@api_router.get("/auth/lockouts")
+async def list_lockouts(user: dict = Depends(require_roles("admin"))):
+    recs = await db.login_attempts.find().sort("last_fail_at", -1).to_list(200)
+    now = iso(now_utc())
+    return [{**serialize(r), "locked": bool(r.get("locked_until") and r["locked_until"] > now)} for r in recs]
+
+
+@api_router.delete("/auth/lockouts/{identifier:path}")
+async def clear_lockout(identifier: str, request: Request, user: dict = Depends(require_roles("admin"))):
+    await db.login_attempts.delete_one({"identifier": identifier})
+    await audit(user, "auth.unlock", "login", identifier, {}, request)
+    return {"ok": True}
+
+
 # ---------------------------------------------------------------------------
 # Channels
 # ---------------------------------------------------------------------------
 @api_router.get("/channels")
 async def list_channels(user: dict = Depends(get_current_user)):
     channels = await db.channels.find().sort("created_at", -1).to_list(200)
-    return [serialize(c) for c in channels]
+    return [await channel_view(c) for c in channels]
 
 
 def validate_wallet(network: str, address: str):
@@ -752,21 +942,50 @@ def validate_wallet(network: str, address: str):
         raise HTTPException(status_code=400, detail="EVM 地址格式不正确（0x 开头 42 位）")
 
 
+def normalize_addresses(network: str, addrs: Optional[List[str]], single: Optional[str]) -> List[str]:
+    raw = list(addrs or []) + ([single] if single else [])
+    out: List[str] = []
+    for a in raw:
+        a = (a or "").strip()
+        if a and a not in out:
+            validate_wallet(network, a)
+            out.append(a)
+    return out
+
+
+async def channel_pending_counts(ch: dict) -> dict:
+    addrs = channel_addresses(ch)
+    if not addrs:
+        return {}
+    pipeline = [{"$match": {"status": "pending", "wallet_address": {"$in": addrs}}},
+                {"$group": {"_id": "$wallet_address", "n": {"$sum": 1}}}]
+    return {r["_id"]: r["n"] async for r in db.orders.aggregate(pipeline)}
+
+
+async def channel_view(ch: dict) -> dict:
+    v = serialize(ch)
+    v["wallet_addresses"] = channel_addresses(ch)
+    v["wallet_address"] = v["wallet_addresses"][0] if v["wallet_addresses"] else ""
+    v["pending_by_address"] = await channel_pending_counts(ch)
+    return v
+
+
 @api_router.post("/channels")
 async def create_channel(data: ChannelCreate, request: Request, user: dict = Depends(require_roles("admin"))):
     if data.network not in NETWORKS:
         raise HTTPException(status_code=400, detail="不支持的网络")
-    validate_wallet(data.network, data.wallet_address or "")
+    addrs = normalize_addresses(data.network, data.wallet_addresses, data.wallet_address)
     doc = data.model_dump()
-    doc["wallet_address"] = (doc.get("wallet_address") or "").strip()
+    doc["wallet_addresses"] = addrs
+    doc["wallet_address"] = addrs[0] if addrs else ""
     doc["success_rate"] = round(random.uniform(95, 99.5), 1)
     doc["wallet_balance"] = round(random.uniform(10000, 80000), 2)
     doc["created_at"] = iso(now_utc())
     res = await db.channels.insert_one(doc)
     doc["_id"] = res.inserted_id
     await audit(user, "channel.create", "channel", res.inserted_id,
-                {"name": doc["name"], "network": doc["network"], "wallet_address": doc["wallet_address"]}, request)
-    return serialize(doc)
+                {"name": doc["name"], "network": doc["network"], "wallet_addresses": addrs}, request)
+    return await channel_view(doc)
 
 
 @api_router.patch("/channels/{channel_id}")
@@ -778,14 +997,15 @@ async def update_channel(channel_id: str, data: ChannelUpdate, request: Request,
     old = await db.channels.find_one({"_id": ObjectId(channel_id)})
     if not old:
         raise HTTPException(status_code=404, detail="通道不存在")
-    if "wallet_address" in upd:
-        upd["wallet_address"] = upd["wallet_address"].strip()
-        validate_wallet(old["network"], upd["wallet_address"])
+    if "wallet_addresses" in upd or "wallet_address" in upd:
+        addrs = normalize_addresses(old["network"], upd.pop("wallet_addresses", None), upd.pop("wallet_address", None))
+        upd["wallet_addresses"] = addrs
+        upd["wallet_address"] = addrs[0] if addrs else ""
     await db.channels.update_one({"_id": ObjectId(channel_id)}, {"$set": upd})
     c = await db.channels.find_one({"_id": ObjectId(channel_id)})
     await audit(user, "channel.update", "channel", channel_id,
                 {"name": old["name"], "changes": upd, "before": {k: old.get(k) for k in upd}}, request)
-    return serialize(c)
+    return await channel_view(c)
 
 
 # ---------------------------------------------------------------------------
@@ -1019,6 +1239,11 @@ async def seed():
     await db.chain_txs.create_index("tx_id", unique=True)
     await db.audit_logs.create_index([("created_at", -1)])
     await db.callbacks.create_index([("status", 1), ("next_at", 1)])
+    await db.login_attempts.create_index("identifier")
+    await db.api_nonces.create_index("created_at", expireAfterSeconds=600)
+    await db.api_nonces.create_index([("api_key", 1), ("nonce", 1)])
+    await db.orders.create_index([("status", 1), ("wallet_address", 1), ("pay_amount", 1)])
+    await db.orders.create_index([("merchant_id", 1), ("out_trade_no", 1)])
     admin_email = os.environ.get("ADMIN_EMAIL", "admin@example.com").lower()
     admin_password = os.environ.get("ADMIN_PASSWORD", "admin123")
     admin = await db.users.find_one({"email": admin_email})
