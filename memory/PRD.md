@@ -69,6 +69,12 @@
 - [x] 收银台品牌化：顶部左侧显示商户名称 + 三语副标题，可选 Logo URL；能量租赁默认折叠；按新参考图调整文案（充币地址/保存二维码/充币数量/订单号/充币说明）与字号
 - [x] 测试：后端 7/7、前端全通过
 
+## Implemented (2026-06, iteration 6)
+- [x] 地址余额预警：余额突变（≥pct% 且 ≥min_abs USDT，默认 10%/100）与同步失败超时（默认 10 分钟）生成 alerts；admin 头部铃铛（未读角标、弹层列表、全部已读、阈值设置），新预警 toast + 提示音；GET/PUT /api/alerts/settings
+- [x] 收银台主题色：settings.theme_color（#RRGGBB 校验）→ 收银台 CSS 变量 --accent（链接/头像/二维码标识），后台取色器 + 预设色
+- [x] TronGrid Key 已配置（429 消失）；EVM RPC 拉取限制 3000 块/150 条 + 25s 超时，chain/sync 由 502 降至 ~5s
+- [x] 测试：通过（见 iteration_6.json）
+
 ## Env (optional)
 - ETHERSCAN_API_KEY：ERC20/BEP20 监听与余额必需（Etherscan V2 免费 Key，https://etherscan.io/apis）
 - TRONGRID_API_KEY：公共接口限速较严 (429)，生产建议配置 TronGrid Key
