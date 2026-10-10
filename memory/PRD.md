@@ -94,10 +94,17 @@
 ## Mocked
 - ERC20 / BEP20 及未配置收款地址的 TRC20 通道仍为模拟到账（simulate-pay）。配置了地址的 TRC20 通道为真实链上监听。
 
+## Implemented (2026-06, iteration 9)
+- [x] 操作员操作留痕视图（/operators，仅 admin）：左侧操作员列表（操作次数/最近操作/2FA 状态），右侧按时间线展示该员工全部审计记录；GET /api/operators、GET /api/audit-logs?actor_id=
+- [x] 两步验证 2FA/TOTP（admin + operator）：验证器 App（pyotp），自助绑定页 /security（二维码 + 密钥 + 验证码启用/关闭），登录时 totp_enabled 的 admin/operator 需二次验证（POST /api/auth/login 无 code 返回 {requires_2fa:true}）；管理员强制 POST /api/accounts/{id}/require-2fa（强制者不可自行关闭）
+- [x] 商户余额变动流水（/ledger，admin/agent/merchant）：收款入账/代理分润/提现冻结/提现完成/驳回退回/人工加扣款/冻结解冻，含运行余额 balance_after；GET /api/balance/ledger、Excel 导出 GET /api/reports/balance-ledger；settle_order/payout/adjust 均写 balance_ledger，启动时从历史已付订单回填
+- [x] 测试：后端 20/20、前端 100% 通过（见 iteration_9.json）；admin 账号登录测试后已确认 2FA 关闭
+
 ## Backlog
 - P1: 获取 ETHERSCAN_API_KEY 后验证 ERC20/BEP20 真实到账
-- P2: 代理多级分润（当前单级）、2FA
-- P2: server.py 拆分为子路由模块；大流量下 TronGrid 需付费 Key 或自建节点
+- P2: 代理多级分润（当前单级）
+- P2: server.py 拆分为子路由模块（现 ~2375 行）；大流量下 TronGrid 需付费 Key 或自建节点
+- P2: 2FA 登录错误码也纳入防爆破锁定计数
 
 ## Next Tasks
 - 按需接入真实支付/链上监听，或扩展回调通知与对账自动化。
