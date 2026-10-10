@@ -860,8 +860,8 @@ async def get_order_public(order_no: str):
 
 
 DEFAULT_CHECKOUT_SETTINGS = {
-    "energy_enabled": False, "energy_trx_address": "", "energy_price_text": "2 TRX/笔（即每 65500 能量只需 2 TRX）",
-    "support_url": "", "tutorial_links": [],
+    "energy_enabled": False, "energy_trx_address": "", "energy_price_text": "2TRX/笔（即每65500能量只需2TRX）",
+    "support_url": "", "tutorial_links": [], "energy_rules": [],
 }
 
 
@@ -878,6 +878,7 @@ class CheckoutSettings(BaseModel):
     energy_price_text: str = ""
     support_url: str = ""
     tutorial_links: List[dict] = []
+    energy_rules: List[dict] = []
 
 
 @api_router.put("/checkout/settings")

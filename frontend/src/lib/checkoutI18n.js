@@ -14,6 +14,12 @@ const zhCN = {
   energyTitle: "能量租赁，节省 70% 矿工费", rentFee: "租赁费用：", trxAddr: "TRX 地址", trxHint: "（先向下方地址转 TRX 购买能量，后再转 U 不扣矿工费）",
   trxOnly: "此地址只收 TRX，请勿转 USDT！请勿转 USDT！请勿转 USDT！",
   rentDesc: "租赁说明：因任何一笔 TRC20 转账支出都要支付矿工费（例如：冷钱包转账需消耗 TRX，而交易所一般收取 1U 手续费），但矿工费可以用能量替代（即地址有能量时优先使用能量）。",
+  energyRules: [
+    ["租赁说明", "因任何一笔TRC20转账支出都要支付矿工费（例如：冷钱包转账需消耗TRX，而交易所一般收取1U手续费），但矿工费可以用能量替代（即地址有能量时优先使用能量）。"],
+    ["约节省70%矿工费攻略（交易所的提币除外）", "所以您在充币前可以先花2或4TRX购买6.5万或13.1万的能量，然后系统将自动用该笔能量来抵扣USDT转账的矿工费，每6.5万能量可以抵扣1笔转账（即2TRX的能量可以抵扣原本6.4285TRX矿工费，约节省70%）；因TRC20特殊机制，若转账时的对方收币地址的USDT余额为0，则系统需要消耗双倍矿工费（即13.0285TRX矿工费），则该笔转账也需要消耗双倍能量为13.1万（即4TRX的能量可以抵扣原本13.0285TRX矿工费，约节省70%），详见详细租赁规则。"],
+    ["不适用场景", "交易所的提币不消耗TRX矿工费，而是直接扣除USDT手续费，所以租赁能量对交易所的提币无效。"],
+    ["能量有效期", "2小时，购买后需尽快使用。"],
+  ],
   notesTitle: "注意事项", notes: (n, a, exp) => [
     ["币种限制", `以上地址只支持 ${n} 公链协议的 USDT 币种（泰达币），请勿充入其他币种，以免造成损失。`],
     ["金额限制", `请务必按以上金额 ${a} USDT 进行充币，超出或低于此金额将无法自动上分，需自行联系商户进行补单。`],
@@ -39,6 +45,12 @@ const zhTW = {
   energyTitle: "能量租賃，節省 70% 礦工費", rentFee: "租賃費用：", trxAddr: "TRX 地址", trxHint: "（先向下方地址轉 TRX 購買能量，後再轉 U 不扣礦工費）",
   trxOnly: "此地址只收 TRX，請勿轉 USDT！請勿轉 USDT！請勿轉 USDT！",
   rentDesc: "租賃說明：因任何一筆 TRC20 轉賬支出都要支付礦工費（例如：冷錢包轉賬需消耗 TRX，而交易所一般收取 1U 手續費），但礦工費可以用能量替代（即地址有能量時優先使用能量）。",
+  energyRules: [
+    ["租賃說明", "因任何一筆TRC20轉賬支出都要支付礦工費（例如：冷錢包轉賬需消耗TRX，而交易所一般收取1U手續費），但礦工費可以用能量替代（即地址有能量時優先使用能量）。"],
+    ["約節省70%礦工費攻略（交易所的提幣除外）", "所以您在充幣前可以先花2或4TRX購買6.5萬或13.1萬的能量，然後系統將自動用該筆能量來抵扣USDT轉賬的礦工費，每6.5萬能量可以抵扣1筆轉賬（即2TRX的能量可以抵扣原本6.4285TRX礦工費，約節省70%）；因TRC20特殊機制，若轉賬時的對方收幣地址的USDT餘額為0，則系統需要消耗雙倍礦工費（即13.0285TRX礦工費），則該筆轉賬也需要消耗雙倍能量為13.1萬（即4TRX的能量可以抵扣原本13.0285TRX礦工費，約節省70%），詳見詳細租賃規則。"],
+    ["不適用場景", "交易所的提幣不消耗TRX礦工費，而是直接扣除USDT手續費，所以租賃能量對交易所的提幣無效。"],
+    ["能量有效期", "2小時，購買後需盡快使用。"],
+  ],
   notesTitle: "注意事項", notes: (n, a, exp) => [
     ["幣種限制", `以上地址只支持 ${n} 公鏈協議的 USDT 幣種（泰達幣），請勿充入其他幣種，以免造成損失。`],
     ["金額限制", `請務必按以上金額 ${a} USDT 進行充幣，超出或低於此金額將無法自動上分，需自行聯繫商戶進行補單。`],
@@ -63,6 +75,12 @@ const en = {
   energyTitle: "Energy rental — save 70% on gas", rentFee: "Rental fee: ", trxAddr: "TRX Address", trxHint: "(Send TRX to the address below to buy energy first, then transfer USDT without gas)",
   trxOnly: "This address accepts TRX ONLY. Do NOT send USDT here!",
   rentDesc: "About rental: every TRC20 transfer costs gas (e.g. cold wallets burn TRX, exchanges charge ~1 USDT). Gas can be replaced by Energy — if the address has energy, it will be used first.",
+  energyRules: [
+    ["About rental", "Every TRC20 transfer costs gas (e.g. cold wallets burn TRX, exchanges charge ~1 USDT). Gas can be replaced by Energy — if the address has energy, it is used first."],
+    ["Save ~70% on gas (except exchange withdrawals)", "Before depositing, spend 2 or 4 TRX to buy 65,000 or 131,000 energy. The system will automatically use it to cover the USDT transfer gas. Each 65,000 energy covers one transfer (2 TRX of energy replaces ~6.4285 TRX gas, ~70% saved). Due to TRC20 rules, if the recipient's USDT balance is 0, double gas (~13.0285 TRX) is needed, so double energy (131,000 = 4 TRX) is required."],
+    ["Not applicable", "Exchange withdrawals do not consume TRX gas (they deduct a USDT fee), so energy rental has no effect on them."],
+    ["Energy validity", "2 hours — please use it soon after purchase."],
+  ],
   notesTitle: "Notes", notes: (n, a, exp) => [
     ["Coin", `This address only accepts USDT on the ${n} network. Do not deposit other coins.`],
     ["Amount", `Send exactly ${a} USDT. Over- or under-payments cannot be credited automatically; contact the merchant to fix.`],

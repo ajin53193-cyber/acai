@@ -178,7 +178,11 @@ export default function CheckoutPage() {
               </div>
               <p className="mt-2 text-orange-500 font-semibold text-[15px]">{t.trxOnly}</p>
             </div>
-            <p className="text-[15px] text-slate-700 leading-relaxed"><b>1. </b>{t.rentDesc}</p>
+            <ol className="space-y-2 text-[15px] text-slate-700 leading-relaxed" data-testid="energy-rules">
+              {(settings.energy_rules?.length ? settings.energy_rules.map((r) => [r.title, r.text]) : t.energyRules).map(([k, v], i) => (
+                <li key={i}><b className="text-slate-900">{i + 1}、{k}：</b>{v}</li>
+              ))}
+            </ol>
           </div>
         )}
       </section>

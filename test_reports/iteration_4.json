@@ -1,0 +1,26 @@
+{
+  "summary": "Iteration-4 full regression (backend + frontend). All 23 pytest cases in test_iteration4.py PASSED (100%). Frontend verified: redesigned /pay/{order_no} checkout page renders light theme with status/amount/address/QR/energy section (TRC20+energy_enabled); language switch to en persists in localStorage sf_pay_lang and traditional zh-TW renders '幣種限制'; simulate-payment-btn ABSENT for live TRC20 and PRESENT for BEP20 when channel addresses cleared (clicking it transitions to '支付成功'). Admin /addresses shows all 3 configured addresses with addr-row-{address}, BEP20 status '异常' with ETHERSCAN_API_KEY toast; refresh and sync buttons work. Channels page checkout-settings-btn opens dialog with all 5 inputs. Agent /settlements export-commission-btn opens dialog without agent-select, downloads commission_YYYY-MM.xlsx (3 sheets 月度汇总/按商户明细/逐单明细 verified via openpyxl, has '代理分润合计 (USDT)' row). Admin same dialog shows agent-select (required). Merchant /api ip-whitelist block: add-my-ip-btn fills textarea, save shows '已启用 · 1 个 IP', clear and save shows '未启用（不限制）'. Admin regression: dashboard, orders, callbacks, audit, channels, addresses all load. State restored: BEP20 channel wallet_addresses reinstated; merchant ip_whitelist cleared; TRC20 channel left untouched (not modified).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": [
+    {"screen": "DialogContent (checkout-settings & commission-export)", "issues": ["Radix DialogContent missing aria-describedby / Description — accessibility warning in console (non-blocking)"]}
+  ]},
+  "test_report_links": ["/app/backend/tests/test_iteration4.py", "/app/test_reports/pytest/iteration4.xml"],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "server.py is now 1639 lines — iteration 3 carry-over. Strongly recommend splitting into routes/* and services/* modules before next iteration (checkout, chain, reports, api_v1, auth).",
+    "GET /api/orders/{order_no}/public auto-expires on read via a write (update_one). This is OK but means an unauthenticated GET can mutate state; low risk but worth noting.",
+    "verify_api_request records audit for api.ip_rejected before signature verification — so an unverified caller with a known api_key can spam audit_logs. Consider verifying signature first (or rate-limiting unverified rejections).",
+    "sign_payload still filters empty/None fields in both verification and preview (as in iteration 2 note); server + sample stay consistent. The iteration-2 'sign-preview' concern about empty-field divergence between sign_string and sign_payload remains unverified but did not surface in iteration-4 tests.",
+    "list_address_health performs 3 full aggregations on every call (no caching); for 10+ addresses it's fine, but under heavier load add a short-lived cache or project only needed fields.",
+    "agent_commission_report loads up to 100000 orders in-memory for a month — ok for current volumes; for growth switch to Mongo aggregation + streaming write to xlsx.",
+    "update_my_ip_whitelist uses raw string IP comparison in verify_api_request; client_ip takes first X-Forwarded-For — fine, but spec of multi-IP XFF chains (proxy of proxy) could cause mismatches. Document that caller must whitelist their egress IP as seen by Kubernetes ingress.",
+    "DialogContent lacks DialogDescription (shadcn), causing React a11y warnings in console for both checkout-settings-dialog and commission-export-dialog."
+  ],
+  "updated_files": ["/app/backend/tests/test_iteration4.py"],
+  "success_rate": {"backend": "100% (23/23)", "frontend": "100%"},
+  "test_credentials": "admin ajin53193@gmail.com/admin888, agent agent@demo.com/agent888, merchant merchant@demo.com/merchant888",
+  "seed_data_creation": "TEST_i4 orders created (TRC20 live x1 for checkout UI, BEP20 live x1 for explorer check, BEP20 non-live simulate x1, TRC20 openapi x1 after whitelist clear). State restored: BEP20 wallet_addresses -> [0x8894E0a0c962CB723c1976a4421c95949bE2D4E3]; merchant ip_whitelist -> []. Checkout settings LEFT WITH energy_enabled=true + energy_trx_address=TW1vPSPr5FvmfgV1vF3abQs2e5fCTJprQ1 + support/tutorial URLs set from test (acceptable per spec; admin may re-configure).",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "test_iteration4.py uses REACT_APP_BACKEND_URL (falls back to /app/frontend/.env). Audit list endpoint path is /api/audit-logs (not /api/audit). Public /api/orders/{no}/public returns {status,network,wallet_address,pay_amount,explorer_url,tx_url,created_at,expires_at,...}. /api/chain/sync NEVER returns 4xx for provider errors — ETHERSCAN missing is reflected only in errors[] array. Address health BEP20 row shows status='error' once refresh has been called at least once; before any refresh, status may be 'idle'. Commission dialog hides commission-agent-select for agent role; shows it for admin and the download button is disabled until month+agent chosen. Checkout lang persists in localStorage key sf_pay_lang."
+}

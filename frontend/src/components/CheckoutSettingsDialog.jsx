@@ -13,17 +13,23 @@ export function CheckoutSettingsDialog() {
   const [s, setS] = useState(null);
   const [saving, setSaving] = useState(false);
   const [tutorials, setTutorials] = useState("");
+  const [rules, setRules] = useState("");
 
   useEffect(() => {
     if (!open) return;
-    api.get("/checkout/settings").then((r) => { setS(r.data); setTutorials((r.data.tutorial_links || []).map((t) => `${t.title}|${t.url}`).join("\n")); });
+    api.get("/checkout/settings").then((r) => {
+      setS(r.data);
+      setTutorials((r.data.tutorial_links || []).map((t) => `${t.title}|${t.url}`).join("\n"));
+      setRules((r.data.energy_rules || []).map((t) => `${t.title}|${t.text}`).join("\n"));
+    });
   }, [open]);
 
   const save = async () => {
     setSaving(true);
     try {
       const tutorial_links = tutorials.split("\n").map((l) => l.trim()).filter(Boolean).map((l) => { const [title, url = ""] = l.split("|"); return { title: title.trim(), url: url.trim() }; });
-      await api.put("/checkout/settings", { ...s, tutorial_links });
+      const energy_rules = rules.split("\n").map((l) => l.trim()).filter(Boolean).map((l) => { const i = l.indexOf("|"); return i < 0 ? { title: "", text: l } : { title: l.slice(0, i).trim(), text: l.slice(i + 1).trim() }; });
+      await api.put("/checkout/settings", { ...s, tutorial_links, energy_rules });
       toast.success("收银台设置已保存"); setOpen(false);
     } catch (err) { toast.error(formatApiErrorDetail(err.response?.data?.detail)); }
     finally { setSaving(false); }
@@ -34,7 +40,7 @@ export function CheckoutSettingsDialog() {
       <DialogTrigger asChild>
         <Button variant="outline" data-testid="checkout-settings-btn" className="border-slate-700"><Settings2 className="w-4 h-4 mr-1" /> 收银台设置</Button>
       </DialogTrigger>
-      <DialogContent className="glass border-slate-700 max-w-lg" data-testid="checkout-settings-dialog">
+      <DialogContent className="glass border-slate-700 max-w-lg max-h-[90vh] overflow-y-auto" data-testid="checkout-settings-dialog">
         <DialogHeader><DialogTitle>收银台设置</DialogTitle></DialogHeader>
         {!s ? <div className="py-6 flex justify-center"><Loader2 className="w-5 h-5 animate-spin text-cyan-400" /></div> : (
           <div className="space-y-4 py-2">
@@ -44,6 +50,8 @@ export function CheckoutSettingsDialog() {
             </div>
             <div className="space-y-1.5"><Label>TRX 收款地址（只收 TRX）</Label><Input value={s.energy_trx_address} onChange={(e) => setS({ ...s, energy_trx_address: e.target.value })} data-testid="energy-trx-input" className="bg-slate-900/60 border-slate-700 font-mono text-xs" placeholder="T 开头 34 位" /></div>
             <div className="space-y-1.5"><Label>租赁价格文案</Label><Input value={s.energy_price_text} onChange={(e) => setS({ ...s, energy_price_text: e.target.value })} data-testid="energy-price-input" className="bg-slate-900/60 border-slate-700" /></div>
+            <div className="space-y-1.5"><Label>租赁说明条款（每行：标题|内容，留空用内置 4 条默认文案，自动跟随语言）</Label>
+              <textarea value={rules} onChange={(e) => setRules(e.target.value)} rows={4} data-testid="energy-rules-input" className="w-full rounded-md bg-slate-900/60 border border-slate-700 text-xs p-2 text-slate-200 focus:outline-none focus:border-cyan-500" placeholder={"租赁说明|因任何一笔TRC20转账...\n能量有效期|2小时，购买后需尽快使用。"} /></div>
             <div className="space-y-1.5"><Label>客服链接（可选）</Label><Input value={s.support_url} onChange={(e) => setS({ ...s, support_url: e.target.value })} data-testid="support-url-input" className="bg-slate-900/60 border-slate-700 font-mono text-xs" placeholder="https://t.me/..." /></div>
             <div className="space-y-1.5"><Label>常见教程（每行：标题|链接，留空用默认文案）</Label>
               <textarea value={tutorials} onChange={(e) => setTutorials(e.target.value)} rows={4} data-testid="tutorials-input" className="w-full rounded-md bg-slate-900/60 border border-slate-700 text-xs p-2 text-slate-200 focus:outline-none focus:border-cyan-500" placeholder={"什么是USDT|https://...\n如何购买|https://..."} /></div>

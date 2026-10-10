@@ -53,15 +53,25 @@
 - [x] 通道多收款地址池：channel.wallet_addresses[]，下单选待支付最少的地址，金额尾数 0.0001–0.9999（单地址 9999 并发）；通道卡片显示地址池与各地址待付数；监听器遍历全部地址（每地址间隔 1s）
 - [x] 测试：后端 16/16、前端全通过
 
+## Implemented (2026-06, iteration 4)
+- [x] 收银台重做：浅色移动端优先，参考图 1:1（状态图标、金额复制、地址数字加粗、带 USDT 标识二维码、保存 QR、信息表、7 条注意事项、常见教程）；简体/繁體/English 切换（localStorage sf_pay_lang）
+- [x] 能量租赁板块：admin「收银台设置」可配置 TRX 地址/价格文案/4 条租赁条款/客服链接/教程链接（PUT /api/checkout/settings），不配置不显示；默认条款内置三语
+- [x] 多链监听：ERC20/BEP20 通过 Etherscan V2 统一接口（需 ETHERSCAN_API_KEY，未配置时地址状态显示异常）；chain/sync 返回 errors 不再 4xx
+- [x] 地址健康巡检：/addresses 页，链上 USDT 余额（每 5 分钟自动刷新）、同步状态、待付负载、累计到账、浏览器链接；GET /api/chain/addresses、POST /refresh
+- [x] 商户 IP 白名单：PATCH /api/accounts/me/ip-whitelist，/api/v1 校验来源 IP（X-Forwarded-For），拦截写审计 api.ip_rejected；开发者 API 页维护
+- [x] 代理分润 Excel：GET /api/reports/agent-commission?month&agent_id，3 Sheet（月度汇总/按商户明细/逐单明细）；结算页导出按钮（admin 选代理）
+- [x] 测试：后端 23/23、前端全通过
+
 ## Env (optional)
+- ETHERSCAN_API_KEY：ERC20/BEP20 监听与余额必需（Etherscan V2 免费 Key，https://etherscan.io/apis）
 - TRONGRID_API_KEY：公共接口限速较严 (429)，生产建议配置 TronGrid Key
 
 ## Mocked
 - ERC20 / BEP20 及未配置收款地址的 TRC20 通道仍为模拟到账（simulate-pay）。配置了地址的 TRC20 通道为真实链上监听。
 
 ## Backlog
-- P1: ERC20/BEP20 链上监听（Etherscan/BscScan Key）
-- P2: 代理多级分润（当前单级）、商户 IP 白名单、2FA
+- P1: 获取 ETHERSCAN_API_KEY 后验证 ERC20/BEP20 真实到账
+- P2: 代理多级分润（当前单级）、2FA
 - P2: server.py 拆分为子路由模块；大流量下 TronGrid 需付费 Key 或自建节点
 
 ## Next Tasks
