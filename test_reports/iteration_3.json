@@ -1,0 +1,42 @@
+{
+  "summary": "Iteration-3 full regression: Merchant Open API (HMAC + nonce + idempotent out_trade_no), Multi-address TRC20 pool with least-pending distribution, Brute-force lockout flow + admin unlock + audit logs, Paid-notifications polling + toast + chime. 16/16 backend pytest cases passed (100%). Frontend: /api try-panel submits with code=0 and refreshes out_trade_no, api_key/secret toggle works, Channels page shows '链上监听 ×2' badge and 2 wallet-addr-rows for the restored TRC20 channel, wallet edit textarea has correct 2 lines, Audit page shows 登录失败/账号锁定/解除锁定 rows with role '未登录' and IP, Login page shows exact lock message '连续 5 次密码错误，账号已锁定 15 分钟' after 5 bad attempts, sonner payment toast '收款成功 42.00 USDT' appeared ~5s after simulate-pay. State restored: shop2 unlocked, TRC20 极速通道 wallet_addresses restored to the 2 required addresses.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {
+        "endpoint": "GET /api/callbacks/sign-preview",
+        "issue": "Still open from iteration 2 — sign_string includes empty fields while sign_payload filters them. Not re-verified this iteration but flagged in iteration_2.json."
+      }
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iteration3.py",
+    "/app/test_reports/pytest/iteration3.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "server.py is now 1347 lines (was 1121). Growing fast — recommend splitting into routes/{auth,orders,channels,callbacks,audit,chain,api_v1}.py and services/{callback_worker,chain_listener,lockout}.py before next iteration.",
+    "verify_api_request stores nonces in db.api_nonces but there is no TTL index — nonces accumulate forever. Spec says '10 min unique'; add a TTL index (created_at + 600s) or an in-process LRU to avoid unbounded growth.",
+    "Open API endpoints always return HTTPException (status 401/400) for failed verification but the spec wants a {code, msg} wrapper for client-friendly handling. Currently clients must look at HTTP status + detail; consistent envelope would be nicer but not blocking.",
+    "ApiOrderCreate.timestamp is Pydantic int: if a client sends it as string '1718...' it will fail with 422 before HMAC verify. Minor UX; acceptable.",
+    "channel_addresses falls back to [wallet_address] only when wallet_addresses is empty/null — correct, but wallet_address is now derivative (first of list). Legacy code paths that still set wallet_address directly would silently diverge. Not a bug today but tech debt.",
+    "normalize_addresses de-dups preserving order but silently drops duplicates; consider warning the admin (minor UX).",
+    "pick_address uses random.random() tie-breaker — fine, but under heavy contention two concurrent orders could pick the same address and both be charged the same pay_amount+suffix (unique_pay_amount checks DB, so suffix differs). Acceptable.",
+    "login_attempts lockout is correctly keyed by email (not IP) per spec. Successful login clears via delete_one — good."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iteration3.py"
+  ],
+  "success_rate": {"backend": "100% (16/16)", "frontend": "100%"},
+  "test_credentials": "admin ajin53193@gmail.com/admin888, merchant merchant@demo.com/merchant888, shop2@demo.com/merchant888 (lockout target — RESTORED), agent agent@demo.com/agent888",
+  "seed_data_creation": "TEST_* orders created via API (TRC20 pool distribution x6, Open API create x4, duplicate out_trade_no x2, BEP20 toast x1, BEP20 since-now x1, TRC20 simulated fallback x1). No destructive seed changes. Channel TRC20 极速通道 wallet_addresses restored to [TN3W4H6rK2ce4vX9YnFQHwKENnHjoxb3m9, TU4vEruvZwLLkSfV9bNw12EJTPvNr7Pvaa]. shop2@demo.com lockout cleared.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "All iteration-3 features verified end-to-end. Open API canonicalization confirmed: whole-number floats serialized as int in sign (sign_payload uses canon()). Nonce replay returns 401 with Chinese 'nonce 重复或缺失'. Duplicate out_trade_no returns 200 code=0 msg='duplicate' with same order_no. Stale timestamp (now-1000s) rejected 401 with 'timestamp 已过期'. pay_amount suffix always within 0.0001–0.9999 and distributed across both wallets. Paid-notifications polling in DashboardLayout fires every 6s and PaymentAlerts dispatches sonner toast + chime; sound-toggle-btn present in header. Audit testid is 'audit-action-filter' and 'audit-actor-input' (spec referenced 'action-filter' loosely).",
+  "rca of the issue": "No new blocking issues. One carry-over from iteration 2 (sign-preview empty-field divergence) remains unverified in this run."
+}

@@ -46,6 +46,13 @@
 - [x] 修复 AccountsPage useEffect lint 警告
 - [x] 测试：后端 17/17（修复 sign-preview 空值字段后）、前端通过
 
+## Implemented (2026-06, iteration 3)
+- [x] 商户开放 API：POST /api/v1/orders、/api/v1/orders/query，api_key + timestamp(±300s) + nonce(防重放, 10min TTL) + HMAC-SHA256 sign（key 升序 k=v&，排除 sign/空值，整数值浮点规范为整数），out_trade_no 幂等；商户前端「开发者 API」页（凭证、文档、浏览器本地签名在线调试）
+- [x] 到账提醒：GET /api/notifications/paid?since；Layout 每 6s 轮询 → sonner toast + WebAudio 提示音，头部音量开关（localStorage sf_sound）
+- [x] 登录防爆破：按邮箱 5 次失败/15 分钟 → 锁定 15 分钟 (HTTP 423)，成功登录清零；审计 auth.login_failed / auth.locked / auth.unlock（真实 IP 取 X-Forwarded-For）；admin GET /api/auth/lockouts、DELETE /api/auth/lockouts/{email}
+- [x] 通道多收款地址池：channel.wallet_addresses[]，下单选待支付最少的地址，金额尾数 0.0001–0.9999（单地址 9999 并发）；通道卡片显示地址池与各地址待付数；监听器遍历全部地址（每地址间隔 1s）
+- [x] 测试：后端 16/16、前端全通过
+
 ## Env (optional)
 - TRONGRID_API_KEY：公共接口限速较严 (429)，生产建议配置 TronGrid Key
 
@@ -53,9 +60,9 @@
 - ERC20 / BEP20 及未配置收款地址的 TRC20 通道仍为模拟到账（simulate-pay）。配置了地址的 TRC20 通道为真实链上监听。
 
 ## Backlog
-- P1: ERC20/BEP20 链上监听（Etherscan/BscScan Key）、登录限流/防爆破
-- P2: 代理多级分润（当前单级）、商户 IP 白名单、2FA、商户 API 下单接口（api_key 签名）
-- P2: server.py 拆分为子路由模块
+- P1: ERC20/BEP20 链上监听（Etherscan/BscScan Key）
+- P2: 代理多级分润（当前单级）、商户 IP 白名单、2FA
+- P2: server.py 拆分为子路由模块；大流量下 TronGrid 需付费 Key 或自建节点
 
 ## Next Tasks
 - 按需接入真实支付/链上监听，或扩展回调通知与对账自动化。
