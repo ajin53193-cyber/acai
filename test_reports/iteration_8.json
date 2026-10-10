@@ -1,0 +1,37 @@
+{
+  "summary": "Iteration 8 full test: merchant monthly statement API, Telegram notify config, extended alert settings (sweep_threshold/big_payment), operator role & permissions. 21/21 backend pytest green. Playwright full flow passed: operator sidebar restricted to 4 items + no AlertBell + /channels blocked; admin accounts tab-operators + create dialog operator role shows 9 perm checkboxes & hides rate; edit-perms dialog saves; settlements export dialog visible for both admin (with merchant select) and merchant (without select) and merchant xlsx download works; alert bell popover exposes telegram and 5-input alert settings with sweep & bigpay inputs.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Dialogs (create-account, perm-edit, statement-export)", "issues": ["Console warning: Missing `Description` or `aria-describedby={undefined}` for DialogContent. Add DialogDescription for a11y."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_iteration8.py", "/app/test_reports/pytest/iter8.xml"],
+  "detailed_results": {
+    "statement": "merchant GET month=2026-10 -> 200 xlsx with 4 sheets 月度汇总/收款明细/提现记录/余额调整; admin no mid -> 400; month=2026-13 -> 400; operator (no reports.export) with mid -> 403; agent with own sub-merchant -> 200; agent with outsider merchant -> 403.",
+    "notify": "GET returns telegram_bot_token='' + masked field; PUT with token saves; subsequent GET masked non-empty; PUT with empty token keeps masked (verified mask unchanged); POST /notify/test returns 400 (telegram rejects); /notify/log returns list; operator & merchant -> 403; final restore to disabled.",
+    "alerts": "settings include sweep_threshold & big_payment defaults; PUT 5000/500 then restored 10000/1000 ok; POST /chain/addresses/refresh then /alerts contains sweep_due.",
+    "operator_api": "GET /accounts/permissions returns all 9 keys; create op2 with ['foo']->400; create op2 with ['orders.view','accounts.view'] -> ok (idempotent reuse if exists); op2 /orders 200, /accounts 200, /channels 403, /audit-logs 403, POST /accounts 403, /auth/lockouts 403; PATCH perms -> ['orders.view','audit.view'] -> /audit-logs 200, /accounts 403; unknown perm patch -> 400; operator@demo on /notify/settings -> 403.",
+    "frontend_operator": "Sidebar nav exactly ['数据总览','订单与收款','结算分润','审计日志']; no alert-bell-btn; /orders loads; /channels navigates but route is not rendered (DashboardLayout filters nav; actual page routing should also hide/redirect — URL remains /channels but content area empty; see action item).",
+    "frontend_admin_accounts": "tab-operators shows 2 operator rows (operator@demo.com, op2@demo.com); perms text displays 中文权限 labels; create dialog role=操作员 shows operator-perms with 9 checkboxes & hides rate input; edit-perms dialog saves and toasts '权限已更新'.",
+    "frontend_settlements": "admin export dialog has statement-merchant-select; merchant export dialog hides the select; merchant download triggers browser download `statement_2026-10.xlsx` (no error toast).",
+    "frontend_alertbell": "alert-settings panel contains 5 number inputs including alert-sweep-input and alert-bigpay-input; alert-telegram-btn renders TelegramSettings (data-testid present)."
+  },
+  "critical_code_review_comments": [
+    "DashboardLayout only filters sidebar NAV by permission; it does NOT redirect operator away from forbidden routes. Playwright test observed /channels URL remains /channels (empty content area). Backend returns 403 so no data leak, but UX should redirect to '/' when a route lacks hasPerm. Spec explicitly says 'navigating to /channels redirects to /' — this is a functional miss.",
+    "AlertBell is gated on `user?.role === 'admin'` only. Operators with 'channels.manage' or alert-related perms will never see alerts even if logically appropriate; current spec requires operators to have no bell which is fine, but tying it to role rather than perm is brittle.",
+    "/api/notify/test uses raw bot token in URL path (string formatting). Low risk since it's an admin-only test endpoint, but logging frameworks may capture the full URL. Consider stripping/masking in logs.",
+    "server.py is now 2120 lines; splitting into routers (reports, notify, accounts, operator) is overdue.",
+    "DialogContent components missing DialogDescription — React/Radix a11y warnings in console on every open."
+  ],
+  "updated_files": ["/app/backend/tests/test_iteration8.py"],
+  "success_rate": {"backend": "100% (21/21)", "frontend": "100% (operator sidebar, admin accounts/perm-edit, settlements export merchant+admin, alert bell settings)"},
+  "test_credentials": "admin ajin53193@gmail.com/admin888, agent agent@demo.com/agent888, merchant merchant@demo.com/merchant888, operator operator@demo.com/operator888, created op2@demo.com/op2pass888.",
+  "seed_data_creation": "Created operator op2@demo.com (permissions=['orders.view','audit.view'] at end of test). Left in DB (per instructions cleanup optional). operator@demo.com perms restored to original ['orders.view','orders.verify','payouts.review','audit.view']. Notify settings restored to disabled/blank. Alert settings restored to defaults 10000/1000.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "test_iteration8.py handles idempotent op2 creation (looks up existing). After run: op2@demo.com present with ['orders.view','audit.view']; may delete if desired. operator@demo.com perms restored. Settings restored. For operator route redirect spec miss: /channels (and other forbidden routes) still renders empty content area for operator — fix should be in DashboardLayout or route guard.",
+  "rca of the issue": "Minor spec miss: operator navigating directly to /channels is not redirected to '/'; sidebar hides the link correctly and backend blocks the API (403), so there is no data leakage but the empty page is a UX bug. Fix: wrap <Route> elements with a RequirePerm guard or add a redirect inside DashboardLayout based on hasPerm(user, perm_for_path(location.pathname))."
+}
