@@ -1,0 +1,39 @@
+{
+  "summary": "Iteration 11: full backend + frontend verification for USDT四方 enhancements (richer order detail, chain-tx records, merchant daily stats, security hardening). 26/26 pytest cases pass including rate-limit trip. Frontend: Dashboard today cards (stat-today-orders=81, stat-today-paid=21, stat-today-success=25.9%) all render for admin/merchant/agent; /orders detail dialog shows all required fields (订单号/商户/通道/网络/收款地址/TxID/商户单号/回调地址/回调状态/手续费/实收/创建/支付/过期/收款模式) with external explorer anchors; admin sees view-chain-txs-btn and chain-tx-dialog correctly lists chain txs for that wallet (TU4vEruvZwLLkSfV9bNw12EJTPvNr7Pvaa shown with explorer tronscan link); merchant does NOT see the button (confirmed False). /addresses has chaintx-btn-<address> on 3 rows, dialog opens. /security SecurityPolicyCard renders with policy-enforce_admin_2fa / policy-enforce_operator_2fa / policy-login_alert checkboxes + policy-save-btn (enabled for admin). Backend: GET /api/chain/txs admin-only — merchant/agent/operator all 403 (operator lacks channels.manage as expected). GET /api/security/policy allowed for admin & operator; PUT allowed only for admin (merchant/operator 403). Security headers (X-Frame-Options=DENY, X-Content-Type-Options=nosniff, Referrer-Policy, Strict-Transport-Security, Permissions-Policy) present on both authed and 401 responses. Rate limit tripped on request #~301 to /api/auth/me with detail '请求过于频繁，请稍后再试'. Login new-device email is fire-and-forget — merchant login returned 200 + token in <5s. Policy reset to defaults (all False, login_alert True) and admin ajin53193@gmail.com confirmed with 2FA DISABLED at end.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Order detail dialog / chain-tx dialog", "issues": ["React warning: 'Missing Description or aria-describedby for DialogContent' — purely accessibility hygiene, add <DialogDescription> or aria-describedby to shadcn Dialog instances; does not affect functionality."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iteration11.py",
+    "/app/test_reports/pytest/iteration11.xml"
+  ],
+  "action_items": [
+    "(Optional) Add <DialogDescription> to OrderDetailDialog + ChainTxDialog to silence Radix aria-describedby warnings.",
+    "(Optional) server.py is now 2484 lines — still worth splitting into routers/auth, routers/orders, routers/chain, routers/security as recommended in iteration 10."
+  ],
+  "critical_code_review_comments": [
+    "/api/chain/txs uses require_roles('admin') — review request wording was 'admin/operator (with channels.manage)' but implementation is admin-only. Confirmed with context note this is intentional/expected because operator lacks channels.manage. If main agent later wants operator-with-perm access, switch to a permission-based dependency (e.g. require_perm('channels.manage')).",
+    "security_middleware rate-limit bucket is in-memory dict — fine for single-pod preview, but will be ineffective across replicas in prod. Consider Redis-backed limiter for production (slowapi + aioredis).",
+    "security_middleware cleanup check `if len(_rl_bucket) > 5000` happens inside the hot path per request — move to periodic background task to avoid O(n) scans in request handler.",
+    "login_ips list grows unbounded if ever changed to not slice; current `(known + [ip])[-10:]` is good — keep.",
+    "No DialogDescription in several shadcn Dialogs; triggers Radix a11y warnings observed in console (OrderDetailDialog, ChainTxDialog)."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iteration11.py"
+  ],
+  "success_rate": {"backend": "100% (26/26)", "frontend": "100%"},
+  "test_credentials": "Admin ajin53193@gmail.com/admin888 (2FA DISABLED verified at end); Merchant merchant@demo.com/merchant888; Agent agent@demo.com/agent888; Operator operator@demo.com/operator888.",
+  "seed_data_creation": "None (iteration 11 uses only existing data). Security policy was temporarily set to all-True then reset to defaults (enforce_admin_2fa=false, enforce_operator_2fa=false, login_alert=true).",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "test_iteration11.py adds dashboard/chain-tx/security-policy/headers/rate-limit coverage on top of iteration10. IMPORTANT: TestZZZZRateLimit must run LAST (class name prefix ZZZZ ensures ordering) because it fires ~301 GETs to trip 429 and sleeps 62s to let the window reset before the final admin login check. Run with `-n 0` to avoid xdist splitting the rate-limit test onto another worker (it still trips because /api hits are per-IP, but serial is safer). Must pass REACT_APP_BACKEND_URL env explicitly (not auto-loaded).",
+  "rca_of_the_issue": "N/A — no production bugs found. All iteration-11 features verified end-to-end."
+}

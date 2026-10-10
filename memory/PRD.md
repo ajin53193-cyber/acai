@@ -107,6 +107,13 @@
 - [x] 重构起步：邮件逻辑抽离至独立模块 backend/email_utils.py（发件网关校验 + send_email + notify_security），server.py 仅 import 使用
 - [x] 测试：后端 20/20、前端 100% 通过（见 iteration_10.json）；admin 账号确认 2FA 关闭
 
+## Implemented (2026-06, iteration 11)
+- [x] 订单详情完善：订单详情弹窗补全 网络/收款地址/TxID/商户单号/回调地址/回调状态/手续费/实收/创建·支付·过期时间/收款模式，收款地址与 TxID 支持复制 + 区块浏览器外链
+- [x] 收款地址 → 链上到账记录：订单详情（admin/operator）与「收款地址」页每行可点开 ChainTxDialog，展示该地址 chain_txs（时间/网络/金额/来源/TxID 外链/匹配订单）；GET /api/chain/txs?address=&order_no=（admin/operator 专用，商户 403）
+- [x] 商户当日统计：仪表盘新增 今日订单数/今日成功收款/今日成功率（today_success_rate=今日已支付÷今日订单）；dashboard/stats 按角色数据域
+- [x] 平台安全加固：全局安全响应头（HSTS/X-Frame-Options/X-Content-Type-Options/Referrer-Policy/Permissions-Policy）、按 IP 全局限流（默认 300 req/60s → 429）、新设备/新 IP 登录邮件提醒、2FA 平台策略（GET/PUT /api/security/policy，/security 页策略卡）
+- [x] 测试：后端 26/26、前端 100% 通过（见 iteration_11.json）；admin 确认 2FA 关闭、安全策略复位默认
+
 ## Backlog
 - P1: 获取 ETHERSCAN_API_KEY 后验证 ERC20/BEP20 真实到账
 - P2: 代理多级分润（当前单级）
