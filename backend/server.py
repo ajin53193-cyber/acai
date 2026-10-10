@@ -307,7 +307,33 @@ async def fetch_balance(network: str, address: str) -> float:
     return round(int(res, 16) / (10 ** cfg["decimals"]), 2)
 
 
-DEFAULT_ALERT_SETTINGS = {"pct": 10.0, "min_abs": 100.0, "sync_minutes": 10}
+DEFAULT_ALERT_SETTINGS = {"pct": 10.0, "min_abs": 100.0, "sync_minutes": 10, "sweep_threshold": 10000.0, "big_payment": 1000.0}
+DEFAULT_NOTIFY_SETTINGS = {"telegram_enabled": False, "telegram_bot_token": "", "telegram_chat_id": "",
+                           "notify_alerts": True, "notify_big_payment": True, "notify_sweep": True}
+
+
+async def notify_settings() -> dict:
+    doc = await db.settings.find_one({"_id": "notify"}) or {}
+    doc.pop("_id", None)
+    return {**DEFAULT_NOTIFY_SETTINGS, **doc}
+
+
+async def send_telegram(text: str, kind: str = "alert") -> bool:
+    cfg = await notify_settings()
+    if not cfg["telegram_enabled"] or not cfg["telegram_bot_token"] or not cfg["telegram_chat_id"]:
+        return False
+    if (kind == "alert" and not cfg["notify_alerts"]) or (kind == "payment" and not cfg["notify_big_payment"]) or (kind == "sweep" and not cfg["notify_sweep"]):
+        return False
+    try:
+        async with httpx.AsyncClient(timeout=10) as hc:
+            r = await hc.post(f"https://api.telegram.org/bot{cfg['telegram_bot_token']}/sendMessage",
+                              json={"chat_id": cfg["telegram_chat_id"], "text": text, "parse_mode": "HTML", "disable_web_page_preview": True})
+            ok = r.status_code == 200 and r.json().get("ok")
+        await db.notify_log.insert_one({"kind": kind, "text": text, "ok": bool(ok), "resp": r.text[:300], "created_at": iso(now_utc())})
+        return bool(ok)
+    except Exception as e:
+        await db.notify_log.insert_one({"kind": kind, "text": text, "ok": False, "resp": str(e)[:300], "created_at": iso(now_utc())})
+        return False
 
 
 async def alert_settings() -> dict:
@@ -324,6 +350,16 @@ async def raise_alert(kind: str, network: str, address: str, channel: dict, mess
     await db.alerts.insert_one({"type": kind, "network": network, "address": address, "channel_name": channel["name"],
                                 "message": message, "detail": detail, "read": False, "created_at": iso(now_utc())})
     logger.warning(f"ALERT {kind} {network} {address}: {message}")
+    icon = {"balance_change": "⚠️", "sync_failed": "🔴", "sweep_due": "🧊"}.get(kind, "⚠️")
+    await send_telegram(f"{icon} <b>地址预警</b>\n{message}\n<code>{network} {address}</code>", "sweep" if kind == "sweep_due" else "alert")
+
+
+async def check_sweep_alert(network: str, address: str, ch: dict, bal: float):
+    cfg = await alert_settings()
+    if cfg.get("sweep_threshold", 0) > 0 and bal >= cfg["sweep_threshold"]:
+        await raise_alert("sweep_due", network, address, ch,
+                          f"{ch['name']} 地址余额 {round(bal, 2)} USDT 已超过归集阈值 {cfg['sweep_threshold']}，建议归集至冷钱包",
+                          {"balance": round(bal, 2), "threshold": cfg["sweep_threshold"]}, cooldown_min=360)
 
 
 async def check_balance_alert(network: str, address: str, ch: dict, new_bal: float):
@@ -447,6 +483,7 @@ async def balance_refresher():
                 try:
                     bal = await fetch_balance(ch["network"], addr)
                     await check_balance_alert(ch["network"], addr, ch, bal)
+                    await check_sweep_alert(ch["network"], addr, ch, bal)
                     await set_address_health(ch["network"], addr, ch, balance=bal, balance_at=iso(now_utc()), balance_error=None)
                 except Exception as e:
                     await set_address_health(ch["network"], addr, ch, balance_error=str(e)[:200])
@@ -485,6 +522,14 @@ async def get_current_user(request: Request) -> dict:
         user = await db.users.find_one({"_id": ObjectId(payload["sub"])})
         if not user:
             raise HTTPException(status_code=401, detail="用户不存在")
+        if user.get("status") == "frozen":
+            raise HTTPException(status_code=403, detail="账号已被冻结")
+        if user["role"] == "operator":
+            path = request.url.path
+            if not path.startswith(("/api/auth/me", "/api/auth/logout", "/api/auth/refresh")):
+                perm = perm_for_path(path, request.method)
+                if not perm or perm not in (user.get("permissions") or []):
+                    raise HTTPException(status_code=403, detail="操作员无此权限")
         return user
     except jwt.ExpiredSignatureError:
         raise HTTPException(status_code=401, detail="登录已过期")
@@ -492,11 +537,45 @@ async def get_current_user(request: Request) -> dict:
         raise HTTPException(status_code=401, detail="无效的令牌")
 
 
+OPERATOR_PERMS = {
+    "orders.view": "订单查看", "orders.verify": "手动核账", "payouts.review": "提现审核",
+    "accounts.view": "商户/代理查看", "balance.adjust": "余额调整", "channels.manage": "通道/地址管理",
+    "callbacks.retry": "回调重试", "audit.view": "审计日志", "reports.export": "报表导出",
+}
+PERM_RULES = [
+    ("/api/orders/", "verify", "orders.verify"), ("/api/orders", None, "orders.view"),
+    ("/api/settlements/payouts", None, "payouts.review"), ("/api/settlements", None, "orders.view"),
+    ("/api/accounts/", "adjust", "balance.adjust"), ("/api/accounts", None, "accounts.view"),
+    ("/api/channels", None, "channels.manage"), ("/api/chain", None, "channels.manage"), ("/api/alerts", None, "channels.manage"),
+    ("/api/callbacks", None, "callbacks.retry"), ("/api/audit-logs", None, "audit.view"), ("/api/reports", None, "reports.export"),
+    ("/api/dashboard", None, "orders.view"), ("/api/notifications", None, "orders.view"),
+]
+OPERATOR_FORBIDDEN = ("/api/accounts/me", "/api/auth/lockouts", "/api/checkout/settings", "/api/notify/settings")
+
+
+def perm_for_path(path: str, method: str) -> Optional[str]:
+    for p in OPERATOR_FORBIDDEN:
+        if path.startswith(p):
+            return None
+    if path == "/api/accounts" and method == "POST":
+        return None
+    if path.startswith("/api/accounts/") and (path.endswith("toggle-status") or path.endswith("reset-api-key")):
+        return None
+    for prefix, suffix, perm in PERM_RULES:
+        if path.startswith(prefix) and (suffix is None or path.endswith(suffix)):
+            return perm
+    return None
+
+
 def require_roles(*roles):
-    async def checker(user: dict = Depends(get_current_user)) -> dict:
-        if user["role"] not in roles:
-            raise HTTPException(status_code=403, detail="无权限访问")
-        return user
+    async def checker(request: Request, user: dict = Depends(get_current_user)) -> dict:
+        if user["role"] in roles:
+            return user
+        if user["role"] == "operator" and "admin" in roles:
+            perm = perm_for_path(request.url.path, request.method)
+            if perm and perm in (user.get("permissions") or []):
+                return user
+        raise HTTPException(status_code=403, detail="无权限访问")
     return checker
 
 
@@ -505,6 +584,8 @@ async def merchant_ids_for_scope(user: dict) -> Optional[List[ObjectId]]:
     role = user["role"]
     if role == "admin":
         return None
+    if role == "operator":
+        return None if "orders.view" in (user.get("permissions") or []) else []
     if role == "merchant":
         return [user["_id"]]
     # agent: merchants whose parent_agent_id == agent id
@@ -525,9 +606,14 @@ class AccountCreate(BaseModel):
     email: EmailStr
     password: str
     name: str
-    role: str  # agent | merchant
+    role: str  # agent | merchant | operator
     rate: float = 0.03
     parent_agent_id: Optional[str] = None
+    permissions: Optional[List[str]] = None
+
+
+class PermissionsUpdate(BaseModel):
+    permissions: List[str]
 
 
 class BalanceAdjust(BaseModel):
@@ -1034,6 +1120,9 @@ async def mark_paid(order: dict, tx_id: Optional[str] = None, paid_at: Optional[
     order.update(update)
     if notify:
         await enqueue_callback(order)
+    cfg = await alert_settings()
+    if order["amount_usdt"] >= cfg.get("big_payment", 1000):
+        await send_telegram(f"💰 <b>大额到账</b> {order['amount_usdt']} USDT\n商户：{order['merchant_name']}\n订单：<code>{order['order_no']}</code>\n网络：{order['network']}" + (f"\nTx：<code>{update['tx_id']}</code>" if order.get("live") else ""), "payment")
     return order
 
 
@@ -1218,6 +1307,7 @@ async def refresh_address_health(user: dict = Depends(require_roles("admin"))):
         try:
             bal = await fetch_balance(ch["network"], addr)
             await check_balance_alert(ch["network"], addr, ch, bal)
+            await check_sweep_alert(ch["network"], addr, ch, bal)
             await set_address_health(ch["network"], addr, ch, balance=bal, balance_at=iso(now_utc()), balance_error=None)
             ok += 1
         except Exception as e:
@@ -1233,6 +1323,61 @@ class AlertSettings(BaseModel):
     pct: float = 10.0
     min_abs: float = 100.0
     sync_minutes: int = 10
+    sweep_threshold: float = 10000.0
+    big_payment: float = 1000.0
+
+
+class NotifySettingsIn(BaseModel):
+    telegram_enabled: bool = False
+    telegram_bot_token: str = ""
+    telegram_chat_id: str = ""
+    notify_alerts: bool = True
+    notify_big_payment: bool = True
+    notify_sweep: bool = True
+
+
+@api_router.get("/notify/settings")
+async def get_notify_settings(user: dict = Depends(require_roles("admin"))):
+    cfg = await notify_settings()
+    tok = cfg["telegram_bot_token"]
+    cfg["telegram_bot_token_masked"] = (tok[:6] + "…" + tok[-4:]) if len(tok) > 12 else ("已设置" if tok else "")
+    cfg["telegram_bot_token"] = ""
+    return cfg
+
+
+@api_router.put("/notify/settings")
+async def put_notify_settings(data: NotifySettingsIn, request: Request, user: dict = Depends(require_roles("admin"))):
+    old = await notify_settings()
+    doc = data.model_dump()
+    if not doc["telegram_bot_token"]:
+        doc["telegram_bot_token"] = old["telegram_bot_token"]
+    doc["telegram_chat_id"] = doc["telegram_chat_id"].strip()
+    await db.settings.update_one({"_id": "notify"}, {"$set": doc}, upsert=True)
+    await audit(user, "settings.notify", "settings", "notify", {k: v for k, v in doc.items() if k != "telegram_bot_token"}, request)
+    return {"ok": True}
+
+
+@api_router.post("/notify/test")
+async def test_notify(user: dict = Depends(require_roles("admin"))):
+    cfg = await notify_settings()
+    if not cfg["telegram_bot_token"] or not cfg["telegram_chat_id"]:
+        raise HTTPException(status_code=400, detail="请先填写 Bot Token 与 Chat ID")
+    try:
+        async with httpx.AsyncClient(timeout=10) as hc:
+            r = await hc.post(f"https://api.telegram.org/bot{cfg['telegram_bot_token']}/sendMessage",
+                              json={"chat_id": cfg["telegram_chat_id"], "text": f"✅ 四方收款平台 Telegram 推送测试成功\n{iso(now_utc())[:19]}", "parse_mode": "HTML"})
+            body = r.json()
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"请求 Telegram 失败: {e}")
+    if not body.get("ok"):
+        raise HTTPException(status_code=400, detail=f"Telegram 返回错误: {body.get('description', body)}")
+    return {"ok": True}
+
+
+@api_router.get("/notify/log")
+async def notify_log(user: dict = Depends(require_roles("admin")), limit: int = Query(50, le=200)):
+    rows = await db.notify_log.find().sort("created_at", -1).to_list(limit)
+    return [serialize(r) for r in rows]
 
 
 @api_router.get("/alerts")
@@ -1262,7 +1407,7 @@ async def get_alert_settings(user: dict = Depends(require_roles("admin"))):
 
 @api_router.put("/alerts/settings")
 async def put_alert_settings(data: AlertSettings, request: Request, user: dict = Depends(require_roles("admin"))):
-    if data.pct <= 0 or data.min_abs < 0 or data.sync_minutes < 1:
+    if data.pct <= 0 or data.min_abs < 0 or data.sync_minutes < 1 or data.sweep_threshold < 0 or data.big_payment < 0:
         raise HTTPException(status_code=400, detail="阈值不合法")
     await db.settings.update_one({"_id": "alerts"}, {"$set": data.model_dump()}, upsert=True)
     await audit(user, "settings.alerts", "settings", "alerts", data.model_dump(), request)
@@ -1438,7 +1583,9 @@ async def update_channel(channel_id: str, data: ChannelUpdate, request: Request,
 async def list_accounts(user: dict = Depends(get_current_user), role: Optional[str] = None):
     q: dict = {}
     if user["role"] == "admin":
-        q["role"] = role if role else {"$in": ["agent", "merchant"]}
+        q["role"] = role if role else {"$in": ["agent", "merchant", "operator"]}
+    elif user["role"] == "operator":
+        q["role"] = role if role in ("agent", "merchant") else {"$in": ["agent", "merchant"]}
     elif user["role"] == "agent":
         q = {"role": "merchant", "parent_agent_id": str(user["_id"])}
     else:
@@ -1483,10 +1630,14 @@ async def update_my_notify(data: NotifySettings, request: Request, user: dict = 
 
 @api_router.post("/accounts")
 async def create_account(data: AccountCreate, request: Request, user: dict = Depends(require_roles("admin", "agent"))):
-    if data.role not in ["agent", "merchant"]:
+    if data.role not in ["agent", "merchant", "operator"]:
         raise HTTPException(status_code=400, detail="角色不合法")
     if user["role"] == "agent" and data.role != "merchant":
         raise HTTPException(status_code=403, detail="代理只能创建商户")
+    if data.role == "operator":
+        bad = [p for p in (data.permissions or []) if p not in OPERATOR_PERMS]
+        if bad:
+            raise HTTPException(status_code=400, detail=f"未知权限: {bad}")
     email = data.email.lower()
     if await db.users.find_one({"email": email}):
         raise HTTPException(status_code=400, detail="邮箱已存在")
@@ -1510,11 +1661,32 @@ async def create_account(data: AccountCreate, request: Request, user: dict = Dep
     if data.role == "merchant":
         doc["api_key"] = gen_api_key()
         doc["api_secret"] = gen_api_secret()
+    if data.role == "operator":
+        doc["permissions"] = data.permissions or []
+        doc["rate"] = 0
     res = await db.users.insert_one(doc)
     doc["_id"] = res.inserted_id
     await audit(user, "account.create", "user", res.inserted_id,
-                {"email": email, "role": data.role, "name": data.name, "rate": data.rate}, request)
+                {"email": email, "role": data.role, "name": data.name, "rate": data.rate, "permissions": doc.get("permissions")}, request)
     return clean_user(doc)
+
+
+@api_router.get("/accounts/permissions")
+async def list_permissions(user: dict = Depends(require_roles("admin"))):
+    return OPERATOR_PERMS
+
+
+@api_router.patch("/accounts/{account_id}/permissions")
+async def update_permissions(account_id: str, data: PermissionsUpdate, request: Request, user: dict = Depends(require_roles("admin"))):
+    acc = await db.users.find_one({"_id": ObjectId(account_id), "role": "operator"})
+    if not acc:
+        raise HTTPException(status_code=404, detail="操作员不存在")
+    bad = [p for p in data.permissions if p not in OPERATOR_PERMS]
+    if bad:
+        raise HTTPException(status_code=400, detail=f"未知权限: {bad}")
+    await db.users.update_one({"_id": acc["_id"]}, {"$set": {"permissions": data.permissions}})
+    await audit(user, "account.permissions", "user", account_id, {"target_email": acc["email"], "permissions": data.permissions}, request)
+    return {"permissions": data.permissions}
 
 
 @api_router.get("/accounts/{account_id}")
@@ -1754,6 +1926,79 @@ async def agent_commission_report(month: str, agent_id: Optional[str] = None,
     buf.seek(0)
     fname = f"commission_{agent['name']}_{month}.xlsx"
     from urllib.parse import quote
+    return StreamingResponse(buf, media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                             headers={"Content-Disposition": f"attachment; filename*=UTF-8''{quote(fname)}"})
+
+
+@api_router.get("/reports/merchant-statement")
+async def merchant_statement(month: str, merchant_id: Optional[str] = None, user: dict = Depends(get_current_user)):
+    from openpyxl import Workbook
+    from openpyxl.styles import Font, PatternFill, Alignment
+    from openpyxl.utils import get_column_letter
+    from fastapi.responses import StreamingResponse
+    from urllib.parse import quote
+    import io
+
+    if user["role"] == "merchant":
+        merchant = user
+    else:
+        if user["role"] == "operator" and "reports.export" not in (user.get("permissions") or []):
+            raise HTTPException(status_code=403, detail="无权限访问")
+        if not merchant_id:
+            raise HTTPException(status_code=400, detail="请选择商户")
+        merchant = await db.users.find_one({"_id": ObjectId(merchant_id), "role": "merchant"})
+        if not merchant:
+            raise HTTPException(status_code=404, detail="商户不存在")
+        if user["role"] == "agent" and merchant.get("parent_agent_id") != str(user["_id"]):
+            raise HTTPException(status_code=403, detail="无权限")
+    try:
+        start = datetime.strptime(month, "%Y-%m").replace(tzinfo=timezone.utc)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="month 格式应为 YYYY-MM")
+    end = (start.replace(year=start.year + 1, month=1) if start.month == 12 else start.replace(month=start.month + 1))
+    mid = str(merchant["_id"])
+    orders = await db.orders.find({"merchant_id": mid, "status": "paid", "paid_at": {"$gte": iso(start), "$lt": iso(end)}}).sort("paid_at", 1).to_list(100000)
+    payouts = await db.payouts.find({"merchant_id": mid, "created_at": {"$gte": iso(start), "$lt": iso(end)}}).sort("created_at", 1).to_list(10000)
+    adjustments = await db.audit_logs.find({"action": {"$regex": "^balance\\."}, "target_id": mid,
+                                            "created_at": {"$gte": iso(start), "$lt": iso(end)}}).sort("created_at", 1).to_list(10000)
+
+    wb = Workbook()
+    head_font = Font(bold=True, color="FFFFFF")
+    head_fill = PatternFill("solid", fgColor="0E7490")
+
+    def write_sheet(ws, headers, rows, widths=None):
+        ws.append(headers)
+        for c in ws[1]:
+            c.font, c.fill, c.alignment = head_font, head_fill, Alignment(horizontal="center")
+        for r in rows:
+            ws.append(r)
+        for i, w in enumerate(widths or [18] * len(headers), 1):
+            ws.column_dimensions[get_column_letter(i)].width = w
+        ws.freeze_panes = "A2"
+
+    amt = sum(o["amount_usdt"] for o in orders); fee = sum(o.get("fee", 0) for o in orders); recv = sum(o.get("merchant_receive", 0) for o in orders)
+    approved = sum(p["amount"] for p in payouts if p["status"] == "approved")
+    by_net: dict = {}
+    for o in orders:
+        d = by_net.setdefault(o["network"], {"n": 0, "amt": 0.0, "fee": 0.0})
+        d["n"] += 1; d["amt"] += o["amount_usdt"]; d["fee"] += o.get("fee", 0)
+    ws = wb.active; ws.title = "月度汇总"
+    write_sheet(ws, ["项目", "数值"], [
+        ["商户", merchant["name"]], ["商户邮箱", merchant["email"]], ["月份", month], ["商户费率", merchant.get("rate", 0)],
+        ["成功订单数", len(orders)], ["收款流水 (USDT)", round(amt, 2)], ["手续费合计 (USDT)", round(fee, 2)], ["实收合计 (USDT)", round(recv, 2)],
+        ["提现申请笔数", len(payouts)], ["已通过提现 (USDT)", round(approved, 2)],
+        ["当前可用余额 (USDT)", round(merchant.get("balance", 0), 2)], ["当前冻结余额 (USDT)", round(merchant.get("frozen_balance", 0), 2)],
+        ["生成时间", now_utc().strftime("%Y-%m-%d %H:%M UTC")]] + [[f"{n} 订单数/流水/手续费", f"{d['n']} / {round(d['amt'], 2)} / {round(d['fee'], 2)}"] for n, d in by_net.items()], [26, 40])
+    write_sheet(wb.create_sheet("收款明细"), ["订单号", "商户单号", "网络", "订单金额", "实付金额", "手续费", "实收", "TxID", "收款地址", "支付时间"],
+                [[o["order_no"], o.get("out_trade_no") or "", o["network"], o["amount_usdt"], o.get("pay_amount", o["amount_usdt"]), o.get("fee", 0), o.get("merchant_receive", 0),
+                  o.get("tx_id") or "", o["wallet_address"], (o.get("paid_at") or "")[:19].replace("T", " ")] for o in orders], [26, 18, 8, 12, 12, 10, 12, 40, 36, 20])
+    write_sheet(wb.create_sheet("提现记录"), ["申请时间", "金额", "网络", "提现地址", "状态", "审核时间"],
+                [[(p.get("created_at") or "")[:19].replace("T", " "), p["amount"], p.get("network", ""), p.get("address", ""), p["status"], (p.get("approved_at") or "")[:19].replace("T", " ")] for p in payouts], [20, 12, 8, 40, 10, 20])
+    write_sheet(wb.create_sheet("余额调整"), ["时间", "操作", "金额", "余额前", "余额后", "操作人", "备注"],
+                [[(a["created_at"] or "")[:19].replace("T", " "), a["action"], a["detail"].get("amount"), a["detail"].get("balance_before"), a["detail"].get("balance_after"), a["actor_email"], a["detail"].get("remark", "")] for a in adjustments], [20, 16, 12, 12, 12, 24, 24])
+
+    buf = io.BytesIO(); wb.save(buf); buf.seek(0)
+    fname = f"statement_{merchant['name']}_{month}.xlsx"
     return StreamingResponse(buf, media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                              headers={"Content-Disposition": f"attachment; filename*=UTF-8''{quote(fname)}"})
 

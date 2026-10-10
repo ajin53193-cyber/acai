@@ -12,6 +12,7 @@ import {
 import { toast } from "sonner";
 import { Download, Loader2, CheckCircle2, XCircle, ArrowUpRight } from "lucide-react";
 import { CommissionExport } from "@/components/CommissionExport";
+import { MerchantStatementExport } from "@/components/MerchantStatementExport";
 
 export default function SettlementsPage() {
   const { user, refresh } = useAuth();
@@ -63,6 +64,7 @@ export default function SettlementsPage() {
           <p className="text-sm text-slate-400 mt-1">对账报表、分润明细与提现管理</p>
         </div>
         <div className="flex gap-2">
+          <MerchantStatementExport user={user} />
           {user.role !== "merchant" && <CommissionExport isAdmin={user.role === "admin"} />}
           <Button onClick={exportCsv} variant="outline" data-testid="export-csv-btn" className="border-slate-700 hover:bg-slate-800">
             <Download className="w-4 h-4 mr-1" /> 导出对账

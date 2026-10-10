@@ -2,6 +2,7 @@ export const ROLE_LABELS = {
   admin: "平台管理",
   agent: "代理商",
   merchant: "商户",
+  operator: "操作员",
 };
 
 export const STATUS_MAP = {

@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/select";
 import { toast } from "sonner";
 import {
-  Plus, Loader2, KeyRound, Lock, Unlock, Copy, SlidersHorizontal, Snowflake,
+  Plus, Loader2, KeyRound, Lock, Unlock, Copy, SlidersHorizontal, Snowflake, ShieldCheck,
 } from "lucide-react";
 
 export default function AccountsPage() {
@@ -24,7 +24,16 @@ export default function AccountsPage() {
   const [loading, setLoading] = useState(true);
   const [createOpen, setCreateOpen] = useState(false);
   const [adjust, setAdjust] = useState(null);
-  const [form, setForm] = useState({ email: "", password: "", name: "", role: "merchant", rate: 0.03 });
+  const [form, setForm] = useState({ email: "", password: "", name: "", role: "merchant", rate: 0.03, permissions: [] });
+  const [perms, setPerms] = useState({});
+  const [permEdit, setPermEdit] = useState(null);
+  const [permVal, setPermVal] = useState([]);
+  useEffect(() => { if (user.role === "admin") api.get("/accounts/permissions").then((r) => setPerms(r.data)).catch(() => {}); }, [user.role]);
+  const savePerms = async () => {
+    try { await api.patch(`/accounts/${permEdit.id}/permissions`, { permissions: permVal }); toast.success("权限已更新"); setPermEdit(null); load(); }
+    catch (err) { toast.error(formatApiErrorDetail(err.response?.data?.detail)); }
+  };
+  const togglePerm = (list, setList, p) => setList(list.includes(p) ? list.filter((x) => x !== p) : [...list, p]);
   const [adjForm, setAdjForm] = useState({ amount: "", action: "credit", remark: "" });
   const [saving, setSaving] = useState(false);
 
@@ -42,7 +51,7 @@ export default function AccountsPage() {
       await api.post("/accounts", body);
       toast.success("账户已创建");
       setCreateOpen(false);
-      setForm({ email: "", password: "", name: "", role: "merchant", rate: 0.03 });
+      setForm({ email: "", password: "", name: "", role: "merchant", rate: 0.03, permissions: [] });
       load();
     } catch (err) { toast.error(formatApiErrorDetail(err.response?.data?.detail)); }
     finally { setSaving(false); }
@@ -96,13 +105,23 @@ export default function AccountsPage() {
                 <div className="space-y-1.5"><Label>账户类型</Label>
                   <Select value={form.role} onValueChange={(v) => setForm({ ...form, role: v })}>
                     <SelectTrigger data-testid="account-role-select" className="bg-slate-900/60 border-slate-700"><SelectValue /></SelectTrigger>
-                    <SelectContent><SelectItem value="merchant">商户</SelectItem><SelectItem value="agent">代理商</SelectItem></SelectContent>
+                    <SelectContent><SelectItem value="merchant">商户</SelectItem><SelectItem value="agent">代理商</SelectItem><SelectItem value="operator">操作员（员工）</SelectItem></SelectContent>
                   </Select></div>
+              )}
+              {form.role === "operator" && (
+                <div className="space-y-1.5" data-testid="operator-perms"><Label>操作权限</Label>
+                  <div className="grid grid-cols-3 gap-1.5">
+                    {Object.entries(perms).map(([k, l]) => (
+                      <label key={k} className={`flex items-center gap-1.5 text-xs px-2 py-1.5 rounded border cursor-pointer ${form.permissions.includes(k) ? "border-cyan-500/50 bg-cyan-500/10 text-cyan-300" : "border-slate-700 text-slate-400"}`}>
+                        <input type="checkbox" checked={form.permissions.includes(k)} onChange={() => togglePerm(form.permissions, (v) => setForm({ ...form, permissions: v }), k)} data-testid={`perm-${k}`} className="accent-cyan-500" />{l}
+                      </label>
+                    ))}
+                  </div></div>
               )}
               <div className="space-y-1.5"><Label>名称</Label><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} data-testid="account-name-input" className="bg-slate-900/60 border-slate-700" /></div>
               <div className="space-y-1.5"><Label>邮箱</Label><Input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} data-testid="account-email-input" className="bg-slate-900/60 border-slate-700 font-mono" /></div>
               <div className="space-y-1.5"><Label>初始密码</Label><Input value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} data-testid="account-password-input" className="bg-slate-900/60 border-slate-700 font-mono" /></div>
-              <div className="space-y-1.5"><Label>费率 (0-1)</Label><Input type="number" step="0.001" value={form.rate} onChange={(e) => setForm({ ...form, rate: e.target.value })} data-testid="account-rate-input" className="bg-slate-900/60 border-slate-700 font-mono" /></div>
+              {form.role !== "operator" && <div className="space-y-1.5"><Label>费率 (0-1)</Label><Input type="number" step="0.001" value={form.rate} onChange={(e) => setForm({ ...form, rate: e.target.value })} data-testid="account-rate-input" className="bg-slate-900/60 border-slate-700 font-mono" /></div>}
             </div>
             <DialogFooter><Button onClick={create} disabled={saving || !form.email || !form.name || !form.password} data-testid="account-submit-btn" className="bg-cyan-500 text-slate-950 hover:bg-cyan-400">{saving ? <Loader2 className="w-4 h-4 animate-spin" /> : "确认创建"}</Button></DialogFooter>
           </DialogContent>
@@ -114,6 +133,7 @@ export default function AccountsPage() {
           <TabsList className="bg-slate-900/60 border border-slate-800">
             <TabsTrigger value="merchant" data-testid="tab-merchants">商户</TabsTrigger>
             <TabsTrigger value="agent" data-testid="tab-agents">代理商</TabsTrigger>
+            <TabsTrigger value="operator" data-testid="tab-operators">操作员</TabsTrigger>
           </TabsList>
         </Tabs>
       )}
@@ -140,7 +160,8 @@ export default function AccountsPage() {
                 <tr key={a.id} className="border-b border-slate-800/50 hover:bg-slate-800/30 transition-colors" data-testid={`account-row-${a.id}`}>
                   <td className="py-3 px-3 font-medium">{a.name}</td>
                   <td className="py-3 px-3 font-mono text-xs text-slate-400">{a.email}</td>
-                  <td className="py-3 px-3"><span className="px-2 py-0.5 rounded text-[11px] bg-slate-800 text-slate-300">{ROLE_LABELS[a.role]}</span></td>
+                  <td className="py-3 px-3"><span className="px-2 py-0.5 rounded text-[11px] bg-slate-800 text-slate-300">{ROLE_LABELS[a.role]}</span>
+                    {a.role === "operator" && <div className="text-[10px] text-slate-500 mt-0.5 max-w-[220px] truncate" data-testid={`perms-${a.id}`}>{(a.permissions || []).map((p) => perms[p] || p).join("、") || "无权限"}</div>}</td>
                   <td className="py-3 px-3 text-right font-mono">{(a.rate * 100).toFixed(2)}%</td>
                   <td className="py-3 px-3 text-right font-mono font-semibold text-emerald-400">{fmtUSDT(a.balance)}</td>
                   <td className="py-3 px-3 font-mono text-xs text-slate-400">
@@ -155,7 +176,10 @@ export default function AccountsPage() {
                   </td>
                   <td className="py-3 px-3 text-right">
                     <div className="flex items-center justify-end gap-1">
-                      {user.role === "admin" && (
+                      {user.role === "admin" && a.role === "operator" && (
+                        <button onClick={() => { setPermEdit(a); setPermVal(a.permissions || []); }} data-testid={`edit-perms-${a.id}`} title="编辑权限" className="p-1.5 rounded-md text-cyan-400 hover:bg-cyan-400/10"><ShieldCheck className="w-4 h-4" /></button>
+                      )}
+                      {user.role === "admin" && a.role !== "operator" && (
                         <button onClick={() => setAdjust(a)} data-testid={`adjust-${a.id}`} title="调整余额" className="p-1.5 rounded-md text-cyan-400 hover:bg-cyan-400/10"><SlidersHorizontal className="w-4 h-4" /></button>
                       )}
                       {a.role === "merchant" && (
@@ -176,6 +200,20 @@ export default function AccountsPage() {
       </div>
 
       {/* adjust dialog */}
+      <Dialog open={!!permEdit} onOpenChange={(v) => !v && setPermEdit(null)}>
+        <DialogContent className="glass border-slate-700" data-testid="perm-edit-dialog">
+          <DialogHeader><DialogTitle>编辑操作员权限 · {permEdit?.name}</DialogTitle></DialogHeader>
+          <div className="grid grid-cols-3 gap-1.5 py-2">
+            {Object.entries(perms).map(([k, l]) => (
+              <label key={k} className={`flex items-center gap-1.5 text-xs px-2 py-1.5 rounded border cursor-pointer ${permVal.includes(k) ? "border-cyan-500/50 bg-cyan-500/10 text-cyan-300" : "border-slate-700 text-slate-400"}`}>
+                <input type="checkbox" checked={permVal.includes(k)} onChange={() => togglePerm(permVal, setPermVal, k)} data-testid={`edit-perm-${k}`} className="accent-cyan-500" />{l}
+              </label>
+            ))}
+          </div>
+          <DialogFooter><Button onClick={savePerms} data-testid="perm-save-btn" className="bg-cyan-500 text-slate-950 hover:bg-cyan-400">保存权限</Button></DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <Dialog open={!!adjust} onOpenChange={(v) => !v && setAdjust(null)}>
         <DialogContent className="glass border-slate-700" data-testid="adjust-dialog">
           <DialogHeader><DialogTitle className="flex items-center gap-2"><Snowflake className="w-4 h-4 text-cyan-400" /> 余额调整 · {adjust?.name}</DialogTitle></DialogHeader>

@@ -80,6 +80,13 @@
 - [x] 收款地址管理页（/addresses）：地址池增删（有待付订单禁止删除）、暂停/恢复分配（暂停地址不再分配新订单）、标签备注、总余额与分链余额、冷钱包归集标记（金额/冷钱包/TxID/备注）与归集记录；审计 address.*
 - [x] 测试：通过（见 iteration_7.json）
 
+## Implemented (2026-06, iteration 8)
+- [x] 商户月账单 Excel：GET /api/reports/merchant-statement?month&merchant_id（商户本人/代理下级/admin/有 reports.export 的操作员），4 Sheet（月度汇总/收款明细/提现记录/余额调整）；结算页按钮
+- [x] Telegram 推送：settings.notify（bot token 掩码存储、chat id、三类开关），铃铛弹层内配置 + 发送测试；地址预警/归集提醒/大额到账（≥big_payment）自动推送；notify_log
+- [x] 归集提醒：余额 ≥ sweep_threshold（默认 10000）生成 sweep_due 预警（6 小时冷却）；阈值设置新增 归集阈值/大额阈值
+- [x] 操作员子账号：role=operator + permissions[]（9 项），get_current_user 按路径→权限映射统一鉴权（禁止账户创建/冻结/密钥/收银台设置/锁定管理）；账户页「操作员」Tab、权限勾选与编辑；侧栏按权限显示
+- [x] 测试账号 operator@demo.com / operator888（orders.view, orders.verify, payouts.review, audit.view）
+
 ## Env (optional)
 - ETHERSCAN_API_KEY：ERC20/BEP20 监听与余额必需（Etherscan V2 免费 Key，https://etherscan.io/apis）
 - TRONGRID_API_KEY：公共接口限速较严 (429)，生产建议配置 TronGrid Key

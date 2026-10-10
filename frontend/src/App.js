@@ -50,7 +50,7 @@ function App() {
               <Route
                 path="channels"
                 element={
-                  <Protected roles={["admin"]}>
+                  <Protected roles={["admin", "operator"]}>
                     <ChannelsPage />
                   </Protected>
                 }
@@ -59,7 +59,7 @@ function App() {
               <Route
                 path="addresses"
                 element={
-                  <Protected roles={["admin"]}>
+                  <Protected roles={["admin", "operator"]}>
                     <AddressHealthPage />
                   </Protected>
                 }
@@ -76,7 +76,7 @@ function App() {
               <Route
                 path="audit"
                 element={
-                  <Protected roles={["admin"]}>
+                  <Protected roles={["admin", "operator"]}>
                     <AuditLogsPage />
                   </Protected>
                 }
