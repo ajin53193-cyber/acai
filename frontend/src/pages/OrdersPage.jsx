@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from "react";
 import api, { formatApiErrorDetail } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
-import { fmtUSDT, STATUS_MAP, NETWORK_COLORS, fmtDate, shortHash } from "@/lib/format";
+import { fmtUSDT, STATUS_MAP, NETWORK_COLORS, fmtDate, shortHash, explorerAddr, explorerTx } from "@/lib/format";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -13,8 +13,9 @@ import {
 } from "@/components/ui/select";
 import { toast } from "sonner";
 import {
-  Plus, Search, Copy, ExternalLink, Zap, Loader2, CheckCircle2,
+  Plus, Search, Copy, ExternalLink, Zap, Loader2, CheckCircle2, Activity,
 } from "lucide-react";
+import { ChainTxDialog } from "@/components/ChainTxDialog";
 
 export default function OrdersPage() {
   const { user } = useAuth();
@@ -26,6 +27,7 @@ export default function OrdersPage() {
   const [merchants, setMerchants] = useState([]);
   const [createOpen, setCreateOpen] = useState(false);
   const [detail, setDetail] = useState(null);
+  const [chainView, setChainView] = useState(null);
 
   const [amount, setAmount] = useState("");
   const [network, setNetwork] = useState("TRC20");
@@ -241,10 +243,17 @@ export default function OrdersPage() {
                 ["订单号", detail.order_no],
                 ["商户", detail.merchant_name],
                 ["通道", detail.channel_name],
+                ["网络", detail.network],
                 ["收款地址", detail.wallet_address],
                 ["TxID", detail.tx_id || "—"],
                 ["商户单号", detail.out_trade_no || "—"],
                 ["回调地址", detail.notify_url || "—"],
+                ["回调状态", { none: "无需回调", pending: "待推送", retrying: "重试中", success: "成功", failed: "失败" }[detail.callback_status] || "—"],
+                ["手续费", detail.fee != null ? `${fmtUSDT(detail.fee)} USDT` : "—"],
+                ["实收金额", detail.merchant_receive != null ? `${fmtUSDT(detail.merchant_receive)} USDT` : "—"],
+                ["创建时间", fmtDate(detail.created_at)],
+                ["支付时间", detail.paid_at ? fmtDate(detail.paid_at) : "—"],
+                ["过期时间", detail.expires_at ? fmtDate(detail.expires_at) : "—"],
                 ["收款模式", detail.live ? "真实链上监听 (TronGrid)" : "模拟到账"],
               ].map(([k, v]) => (
                 <div key={k} className="flex items-center justify-between gap-4 py-1.5 border-b border-slate-800/50">
@@ -253,6 +262,12 @@ export default function OrdersPage() {
                     {v}
                     {(k === "收款地址" || k === "TxID") && v !== "—" && (
                       <button onClick={() => copy(v)} className="text-slate-500 hover:text-cyan-400"><Copy className="w-3 h-3" /></button>
+                    )}
+                    {k === "收款地址" && v !== "—" && (
+                      <a href={explorerAddr(detail.network, v)} target="_blank" rel="noreferrer" className="text-slate-500 hover:text-cyan-400"><ExternalLink className="w-3 h-3" /></a>
+                    )}
+                    {k === "TxID" && v !== "—" && (
+                      <a href={explorerTx(detail.network, v)} target="_blank" rel="noreferrer" className="text-slate-500 hover:text-cyan-400"><ExternalLink className="w-3 h-3" /></a>
                     )}
                   </span>
                 </div>
@@ -266,6 +281,11 @@ export default function OrdersPage() {
                   <span className="text-slate-400">链上精确到账金额</span>
                   <span className="font-mono font-bold text-cyan-400" data-testid="detail-pay-amount">{detail.pay_amount} USDT</span>
                 </div>
+              )}
+              {(user.role === "admin" || user.role === "operator") && detail.wallet_address && (
+                <Button variant="outline" onClick={() => setChainView({ address: detail.wallet_address })} data-testid="view-chain-txs-btn" className="w-full border-slate-700 hover:bg-slate-800">
+                  <Activity className="w-4 h-4 mr-1" /> 查看该收款地址链上到账记录
+                </Button>
               )}
               {detail.status === "pending" && detail.live && (
                 <div className="text-center text-xs text-slate-400 py-2 flex items-center justify-center gap-2"><span className="w-1.5 h-1.5 rounded-full bg-cyan-400 pulse-dot" />正在通过 TronGrid 监听链上到账…</div>
@@ -284,6 +304,8 @@ export default function OrdersPage() {
           )}
         </DialogContent>
       </Dialog>
+
+      <ChainTxDialog open={!!chainView} onClose={() => setChainView(null)} title="收款地址链上到账记录" params={chainView ? { address: chainView.address } : null} />
     </div>
   );
 }

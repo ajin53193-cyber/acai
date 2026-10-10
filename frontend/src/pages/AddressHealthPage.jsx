@@ -7,7 +7,8 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Loader2, RefreshCw, ExternalLink, Activity, AlertTriangle, CheckCircle2, CircleDashed, Plus, Pause, Play, Trash2, Snowflake, Tag, History, Search } from "lucide-react";
+import { Loader2, RefreshCw, ExternalLink, Activity, AlertTriangle, CheckCircle2, CircleDashed, Plus, Pause, Play, Trash2, Snowflake, Tag, History, Search, Link2 } from "lucide-react";
+import { ChainTxDialog } from "@/components/ChainTxDialog";
 
 const ST = {
   ok: { label: "正常", cls: "text-emerald-400 bg-emerald-400/10 border-emerald-400/30", Icon: CheckCircle2 },
@@ -104,6 +105,7 @@ export default function AddressHealthPage() {
   const [addOpen, setAddOpen] = useState(false);
   const [sweepRow, setSweepRow] = useState(null);
   const [histRow, setHistRow] = useState(null);
+  const [chainRow, setChainRow] = useState(null);
   const [editLabel, setEditLabel] = useState(null);
   const [labelVal, setLabelVal] = useState("");
   const [q, setQ] = useState("");
@@ -199,6 +201,7 @@ export default function AddressHealthPage() {
                   <td className="py-3 px-3 text-right whitespace-nowrap">
                     <button onClick={() => setSweepRow(r)} data-testid={`sweep-btn-${r.address}`} className="p-1.5 rounded text-cyan-400 hover:bg-cyan-400/10" title="标记归集"><Snowflake className="w-4 h-4" /></button>
                     <button onClick={() => setHistRow(r)} data-testid={`history-btn-${r.address}`} className="p-1.5 rounded text-slate-400 hover:text-slate-100" title="归集记录"><History className="w-4 h-4" /></button>
+                    <button onClick={() => setChainRow(r)} data-testid={`chaintx-btn-${r.address}`} className="p-1.5 rounded text-cyan-400 hover:bg-cyan-400/10" title="链上到账记录"><Link2 className="w-4 h-4" /></button>
                     <button onClick={() => togglePause(r)} data-testid={`pause-btn-${r.address}`} className="p-1.5 rounded text-amber-400 hover:bg-amber-400/10" title={r.paused ? "恢复分配" : "暂停分配"}>{r.paused ? <Play className="w-4 h-4" /> : <Pause className="w-4 h-4" />}</button>
                     <a href={r.explorer} target="_blank" rel="noreferrer" className="p-1.5 inline-block rounded text-slate-400 hover:text-cyan-400" title="区块浏览器"><ExternalLink className="w-4 h-4" /></a>
                     <button onClick={() => remove(r)} data-testid={`remove-btn-${r.address}`} className="p-1.5 rounded text-red-400 hover:bg-red-400/10" title="移除地址"><Trash2 className="w-4 h-4" /></button>
@@ -212,6 +215,7 @@ export default function AddressHealthPage() {
       <AddDialog open={addOpen} onClose={() => setAddOpen(false)} channels={channels} onDone={load} />
       <SweepDialog row={sweepRow} onClose={() => setSweepRow(null)} onDone={load} />
       <HistoryDialog row={histRow} onClose={() => setHistRow(null)} />
+      <ChainTxDialog open={!!chainRow} onClose={() => setChainRow(null)} title="收款地址链上到账记录" params={chainRow ? { address: chainRow.address } : null} />
     </div>
   );
 }

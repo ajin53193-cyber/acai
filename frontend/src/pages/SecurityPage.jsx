@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import api, { formatApiErrorDetail } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -127,6 +127,45 @@ export default function SecurityPage() {
           </div>
         )}
       </div>
+
+      <SecurityPolicyCard user={user} />
+    </div>
+  );
+}
+
+function SecurityPolicyCard({ user }) {
+  const [pol, setPol] = useState(null);
+  const [saving, setSaving] = useState(false);
+  useEffect(() => { api.get("/security/policy").then((r) => setPol(r.data)).catch(() => {}); }, []);
+  const set = (k, v) => setPol((p) => ({ ...p, [k]: v }));
+  const save = async () => {
+    setSaving(true);
+    try {
+      const { enforce_admin_2fa, enforce_operator_2fa, login_alert } = pol;
+      await api.put("/security/policy", { enforce_admin_2fa, enforce_operator_2fa, login_alert });
+      toast.success("安全策略已保存");
+    } catch (e) { toast.error("保存失败"); } finally { setSaving(false); }
+  };
+  if (!pol) return null;
+  const isAdmin = user.role === "admin";
+  const Row = ({ k, label, desc }) => (
+    <label className={`flex items-start gap-3 p-3 rounded-lg border ${pol[k] ? "border-cyan-500/40 bg-cyan-500/5" : "border-slate-800"} ${isAdmin ? "cursor-pointer" : "opacity-80"}`}>
+      <input type="checkbox" checked={!!pol[k]} disabled={!isAdmin} onChange={(e) => set(k, e.target.checked)} data-testid={`policy-${k}`} className="mt-0.5 accent-cyan-500" />
+      <span><span className="text-sm text-slate-200">{label}</span><span className="block text-xs text-slate-500 mt-0.5">{desc}</span></span>
+    </label>
+  );
+  return (
+    <div className="glass rounded-xl p-6" data-testid="security-policy-card">
+      <div className="flex items-center gap-2 mb-4"><ShieldCheck className="w-5 h-5 text-cyan-400" /><span className="font-semibold">平台安全策略</span>{!isAdmin && <span className="text-[11px] text-slate-500">（仅管理员可修改）</span>}</div>
+      {pol.enforced_for_me && !user.totp_enabled && (
+        <div className="mb-3 px-3 py-2 rounded-lg bg-amber-400/10 border border-amber-400/30 text-amber-300 text-xs" data-testid="policy-enforced-note">平台已要求你的角色开启两步验证，请尽快完成上方绑定。</div>
+      )}
+      <div className="space-y-2">
+        <Row k="enforce_admin_2fa" label="要求管理员开启两步验证" desc="开启后管理员在安全页收到强制绑定提示" />
+        <Row k="enforce_operator_2fa" label="要求操作员开启两步验证" desc="开启后操作员在安全页收到强制绑定提示" />
+        <Row k="login_alert" label="新设备 / 新 IP 登录邮件提醒" desc="账户从陌生 IP 成功登录时发送安全邮件" />
+      </div>
+      {isAdmin && <Button onClick={save} disabled={saving} data-testid="policy-save-btn" className="mt-4 bg-cyan-500 text-slate-950 hover:bg-cyan-400">{saving ? <Loader2 className="w-4 h-4 animate-spin" /> : "保存策略"}</Button>}
     </div>
   );
 }

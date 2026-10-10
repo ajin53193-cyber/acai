@@ -82,6 +82,12 @@ export default function DashboardPage() {
         <StatCard icon={Wallet} label={stats.profit_label} value={fmtUSDT(stats.profit)} unit="USDT" accent="bg-emerald-500" delay={180} testid="stat-profit" />
       </div>
 
+      <div className="grid grid-cols-3 gap-4">
+        <div className="glass rounded-xl p-4" data-testid="stat-today-orders"><div className="text-xs text-slate-400 mb-1">今日订单数</div><div className="font-mono text-xl font-bold">{stats.today_orders ?? 0} <span className="text-xs text-slate-500 font-normal">笔</span></div></div>
+        <div className="glass rounded-xl p-4" data-testid="stat-today-paid"><div className="text-xs text-slate-400 mb-1">今日成功收款</div><div className="font-mono text-xl font-bold text-emerald-400">{stats.today_paid ?? 0} <span className="text-xs text-slate-500 font-normal">笔</span></div></div>
+        <div className="glass rounded-xl p-4" data-testid="stat-today-success"><div className="text-xs text-slate-400 mb-1">今日成功率</div><div className="font-mono text-xl font-bold text-cyan-400">{stats.today_success_rate ?? 0}%</div></div>
+      </div>
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <div className="lg:col-span-2 glass rounded-xl p-5 fade-up" style={{ animationDelay: "200ms" }}>
           <div className="flex items-center justify-between mb-4">

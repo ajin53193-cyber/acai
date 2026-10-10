@@ -6,6 +6,7 @@ ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
 
 from fastapi import FastAPI, APIRouter, HTTPException, Depends, Request, Response, Query
+from fastapi.responses import JSONResponse
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
 from pydantic import BaseModel, Field, EmailStr
@@ -116,6 +117,7 @@ def clean_user(u: dict) -> dict:
     u["totp_required"] = bool(u.get("totp_required"))
     u.pop("totp_secret", None)
     u.pop("totp_pending_secret", None)
+    u.pop("login_ips", None)
     return u
 
 
@@ -547,7 +549,7 @@ async def get_current_user(request: Request) -> dict:
             raise HTTPException(status_code=403, detail="账号已被冻结")
         if user["role"] == "operator":
             path = request.url.path
-            if not path.startswith(("/api/auth/me", "/api/auth/logout", "/api/auth/refresh", "/api/auth/2fa")):
+            if not path.startswith(("/api/auth/me", "/api/auth/logout", "/api/auth/refresh", "/api/auth/2fa", "/api/security/policy")):
                 perm = perm_for_path(path, request.method)
                 if not perm or perm not in (user.get("permissions") or []):
                     raise HTTPException(status_code=403, detail="操作员无此权限")
@@ -771,6 +773,16 @@ async def login(data: LoginInput, request: Request, response: Response):
                 raise HTTPException(status_code=423, detail=f"连续 {LOCK_MAX_FAILS} 次验证失败，账号已锁定 {LOCK_MINUTES} 分钟")
             raise HTTPException(status_code=401, detail="两步验证码错误")
     await db.login_attempts.delete_one({"identifier": identifier})
+    pol = await security_policy()
+    if pol.get("login_alert", True) and ip:
+        known = user.get("login_ips") or []
+        if ip not in known:
+            if known:
+                asyncio.create_task(notify_security(user, "login_new_device", ip))
+            await db.users.update_one({"_id": user["_id"]},
+                                      {"$set": {"login_ips": (known + [ip])[-10:], "last_login_at": iso(now_utc()), "last_login_ip": ip}})
+        else:
+            await db.users.update_one({"_id": user["_id"]}, {"$set": {"last_login_at": iso(now_utc()), "last_login_ip": ip}})
     token = create_access_token(str(user["_id"]), user["email"], user["role"])
     response.set_cookie("access_token", token, httponly=True, secure=True,
                         samesite="none", max_age=604800, path="/")
@@ -839,6 +851,35 @@ async def totp_disable(data: TotpCode, request: Request, user: dict = Depends(ge
 
 
 # ---------------------------------------------------------------------------
+# Security policy
+# ---------------------------------------------------------------------------
+class SecurityPolicy(BaseModel):
+    enforce_admin_2fa: bool = False
+    enforce_operator_2fa: bool = False
+    login_alert: bool = True
+
+
+async def security_policy() -> dict:
+    doc = await db.settings.find_one({"_id": "security"}) or {}
+    doc.pop("_id", None)
+    return {"enforce_admin_2fa": False, "enforce_operator_2fa": False, "login_alert": True, **doc}
+
+
+@api_router.get("/security/policy")
+async def get_security_policy(user: dict = Depends(get_current_user)):
+    pol = await security_policy()
+    enforced = (user["role"] == "admin" and pol["enforce_admin_2fa"]) or (user["role"] == "operator" and pol["enforce_operator_2fa"])
+    return {**pol, "enforced_for_me": bool(enforced)}
+
+
+@api_router.put("/security/policy")
+async def put_security_policy(data: SecurityPolicy, request: Request, user: dict = Depends(require_roles("admin"))):
+    await db.settings.update_one({"_id": "security"}, {"$set": data.model_dump()}, upsert=True)
+    await audit(user, "settings.security", "settings", "security", data.model_dump(), request)
+    return {"ok": True, **data.model_dump()}
+
+
+# ---------------------------------------------------------------------------
 # Dashboard
 # ---------------------------------------------------------------------------
 @api_router.get("/dashboard/stats")
@@ -858,6 +899,11 @@ async def dashboard_stats(user: dict = Depends(get_current_user)):
     paid_orders = len([o for o in all_orders if o["status"] == "paid"])
     pending_orders = len([o for o in all_orders if o["status"] == "pending"])
     success_rate = round(paid_orders / total_orders * 100, 1) if total_orders else 0.0
+
+    today_all = [o for o in all_orders if datetime.fromisoformat(o["created_at"]) >= today_start]
+    today_orders = len(today_all)
+    today_paid = len([o for o in today_all if o["status"] == "paid"])
+    today_success_rate = round(today_paid / today_orders * 100, 1) if today_orders else 0.0
 
     if user["role"] == "admin":
         profit = sum(o.get("platform_profit", 0) for o in all_orders if o["status"] == "paid")
@@ -893,6 +939,9 @@ async def dashboard_stats(user: dict = Depends(get_current_user)):
         "active_channels": active_channels,
         "balance": balance,
         "trend": trend,
+        "today_orders": today_orders,
+        "today_paid": today_paid,
+        "today_success_rate": today_success_rate,
     }
 
 
@@ -1249,10 +1298,20 @@ async def manual_verify(order_id: str, request: Request, user: dict = Depends(re
     return {"ok": True}
 
 
+def _tx_explorer(network: str, txid: str) -> str:
+    return f"https://tronscan.org/#/transaction/{txid}" if network == "TRC20" else f"{EVM_CHAINS[network]['explorer']}/tx/{txid}"
+
+
 @api_router.get("/chain/txs")
-async def list_chain_txs(user: dict = Depends(require_roles("admin")), limit: int = Query(100, le=500)):
-    txs = await db.chain_txs.find().sort("created_at", -1).to_list(limit)
-    return [serialize(t) for t in txs]
+async def list_chain_txs(user: dict = Depends(require_roles("admin")), address: Optional[str] = None,
+                         order_no: Optional[str] = None, limit: int = Query(100, le=500)):
+    q: dict = {}
+    if address:
+        q["to"] = {"$regex": f"^{re.escape(address)}$", "$options": "i"}
+    if order_no:
+        q["order_no"] = order_no
+    txs = await db.chain_txs.find(q).sort("created_at", -1).to_list(limit)
+    return [{**serialize(t), "explorer": _tx_explorer(t["network"], t["tx_id"])} for t in txs]
 
 
 @api_router.post("/chain/sync")
@@ -2380,6 +2439,41 @@ async def on_shutdown():
 
 
 app.include_router(api_router)
+
+
+RATE_LIMIT_MAX = int(os.environ.get("RATE_LIMIT_MAX", "300"))
+RATE_LIMIT_WINDOW = 60
+_rl_bucket: dict = {}
+
+
+@app.middleware("http")
+async def security_middleware(request: Request, call_next):
+    ip = (request.headers.get("x-forwarded-for", "").split(",")[0].strip()
+          or (request.client.host if request.client else "")) or "unknown"
+    path = request.url.path
+    if path.startswith("/api") and request.method != "OPTIONS":
+        now = now_utc().timestamp()
+        bucket = _rl_bucket.get(ip)
+        if not bucket or now - bucket["start"] >= RATE_LIMIT_WINDOW:
+            _rl_bucket[ip] = {"start": now, "count": 1}
+        else:
+            bucket["count"] += 1
+            if bucket["count"] > RATE_LIMIT_MAX:
+                return JSONResponse(status_code=429, content={"detail": "请求过于频繁，请稍后再试"})
+        if len(_rl_bucket) > 5000:
+            cutoff = now - RATE_LIMIT_WINDOW
+            for k in [k for k, v in _rl_bucket.items() if v["start"] < cutoff]:
+                _rl_bucket.pop(k, None)
+    resp = await call_next(request)
+    resp.headers["X-Content-Type-Options"] = "nosniff"
+    resp.headers["X-Frame-Options"] = "DENY"
+    resp.headers["Referrer-Policy"] = "no-referrer"
+    resp.headers["X-XSS-Protection"] = "1; mode=block"
+    resp.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+    resp.headers["Permissions-Policy"] = "geolocation=(), microphone=(), camera=()"
+    return resp
+
+
 app.add_middleware(
     CORSMiddleware,
     allow_credentials=True,

@@ -40,3 +40,17 @@ export function shortHash(h, n = 8) {
   if (h.length <= n * 2) return h;
   return `${h.slice(0, n)}...${h.slice(-6)}`;
 }
+
+export function explorerAddr(network, address) {
+  if (!address) return "#";
+  if (network === "TRC20") return `https://tronscan.org/#/address/${address}`;
+  if (network === "BEP20") return `https://bscscan.com/address/${address}`;
+  return `https://etherscan.io/address/${address}`;
+}
+
+export function explorerTx(network, tx) {
+  if (!tx) return "#";
+  if (network === "TRC20") return `https://tronscan.org/#/transaction/${tx}`;
+  if (network === "BEP20") return `https://bscscan.com/tx/${tx}`;
+  return `https://etherscan.io/tx/${tx}`;
+}
