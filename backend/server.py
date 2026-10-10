@@ -229,16 +229,17 @@ async def fetch_evm_transfers_rpc(network: str, address: str, since_ms: int) -> 
     cfg = EVM_CHAINS[network]
     latest = int(await rpc_call(cfg["rpc"], "eth_blockNumber", []), 16)
     span = int((now_utc().timestamp() * 1000 - since_ms) / 1000 / cfg["block_sec"]) + 20
-    from_block = max(0, latest - min(span, 9000))
+    from_block = max(0, latest - min(span, 3000))
     logs = await rpc_call(cfg["rpc"], "eth_getLogs", [{
         "fromBlock": hex(from_block), "toBlock": "latest", "address": cfg["contract"],
         "topics": [TRANSFER_TOPIC, None, "0x" + address[2:].lower().rjust(64, "0")]}])
+    logs = logs[-150:]
     out, block_ts = [], {}
+    for bn in {lg["blockNumber"] for lg in logs}:
+        blk = await rpc_call(cfg["rpc"], "eth_getBlockByNumber", [bn, False])
+        block_ts[bn] = int(blk["timestamp"], 16) * 1000
     for lg in logs:
         bn = lg["blockNumber"]
-        if bn not in block_ts:
-            blk = await rpc_call(cfg["rpc"], "eth_getBlockByNumber", [bn, False])
-            block_ts[bn] = int(blk["timestamp"], 16) * 1000
         if block_ts[bn] < since_ms:
             continue
         out.append({"transaction_id": lg["transactionHash"], "from": "0x" + lg["topics"][1][-40:],
@@ -305,6 +306,52 @@ async def fetch_balance(network: str, address: str) -> float:
     return round(int(res, 16) / (10 ** cfg["decimals"]), 2)
 
 
+DEFAULT_ALERT_SETTINGS = {"pct": 10.0, "min_abs": 100.0, "sync_minutes": 10}
+
+
+async def alert_settings() -> dict:
+    doc = await db.settings.find_one({"_id": "alerts"}) or {}
+    doc.pop("_id", None)
+    return {**DEFAULT_ALERT_SETTINGS, **doc}
+
+
+async def raise_alert(kind: str, network: str, address: str, channel: dict, message: str, detail: dict, cooldown_min: int = 60):
+    recent = await db.alerts.find_one({"type": kind, "address": address, "network": network,
+                                       "created_at": {"$gt": iso(now_utc() - timedelta(minutes=cooldown_min))}})
+    if recent:
+        return
+    await db.alerts.insert_one({"type": kind, "network": network, "address": address, "channel_name": channel["name"],
+                                "message": message, "detail": detail, "read": False, "created_at": iso(now_utc())})
+    logger.warning(f"ALERT {kind} {network} {address}: {message}")
+
+
+async def check_balance_alert(network: str, address: str, ch: dict, new_bal: float):
+    prev = await db.address_health.find_one({"address": address, "network": network})
+    old = prev.get("balance") if prev else None
+    if old is None:
+        return
+    diff = new_bal - old
+    cfg = await alert_settings()
+    if abs(diff) >= cfg["min_abs"] and (old == 0 or abs(diff) / old * 100 >= cfg["pct"]):
+        sign = "+" if diff > 0 else ""
+        await raise_alert("balance_change", network, address, ch,
+                          f"{ch['name']} 地址余额突变 {sign}{round(diff, 2)} USDT（{round(old, 2)} → {round(new_bal, 2)}）",
+                          {"before": round(old, 2), "after": round(new_bal, 2), "diff": round(diff, 2)}, cooldown_min=5)
+
+
+async def check_sync_alert(network: str, address: str, ch: dict):
+    h = await db.address_health.find_one({"address": address, "network": network}) or {}
+    cfg = await alert_settings()
+    first_err = h.get("first_error_at")
+    if not first_err:
+        await db.address_health.update_one({"address": address, "network": network}, {"$set": {"first_error_at": iso(now_utc())}}, upsert=True)
+        return
+    if datetime.fromisoformat(first_err) <= now_utc() - timedelta(minutes=cfg["sync_minutes"]):
+        await raise_alert("sync_failed", network, address, ch,
+                          f"{ch['name']} 地址同步失败已超过 {cfg['sync_minutes']} 分钟：{h.get('sync_error', '')[:80]}",
+                          {"since": first_err, "error": h.get("sync_error")})
+
+
 async def set_address_health(network: str, address: str, channel: dict, **fields):
     fields["updated_at"] = iso(now_utc())
     await db.address_health.update_one({"address": address, "network": network},
@@ -358,11 +405,12 @@ async def sync_address(ch: dict, addr: str, since_ms: int) -> int:
         for tx in txs:
             await match_chain_tx(tx, addr, network)
         await db.channels.update_one({"_id": ch["_id"]}, {"$set": {"last_sync_at": iso(now_utc()), "sync_error": None}})
-        await set_address_health(network, addr, ch, last_sync_at=iso(now_utc()), sync_error=None, last_tx_count=len(txs))
+        await set_address_health(network, addr, ch, last_sync_at=iso(now_utc()), sync_error=None, last_tx_count=len(txs), first_error_at=None)
         return len(txs)
     except Exception as e:
         await db.channels.update_one({"_id": ch["_id"]}, {"$set": {"sync_error": str(e)[:200]}})
         await set_address_health(network, addr, ch, sync_error=str(e)[:200])
+        await check_sync_alert(network, addr, ch)
         logger.warning(f"{network} 轮询失败 {addr}: {e}")
         raise
 
@@ -395,6 +443,7 @@ async def balance_refresher():
             for ch, addr in await live_address_list():
                 try:
                     bal = await fetch_balance(ch["network"], addr)
+                    await check_balance_alert(ch["network"], addr, ch, bal)
                     await set_address_health(ch["network"], addr, ch, balance=bal, balance_at=iso(now_utc()), balance_error=None)
                 except Exception as e:
                     await set_address_health(ch["network"], addr, ch, balance_error=str(e)[:200])
@@ -890,6 +939,7 @@ DEFAULT_CHECKOUT_SETTINGS = {
     "energy_enabled": False, "energy_trx_address": "", "energy_price_text": "2TRX/笔（即每65500能量只需2TRX）",
     "support_url": "", "tutorial_links": [], "energy_rules": [],
     "logo_url": "", "brand_subtitle": "USDT 安全收款", "brand_subtitle_tw": "USDT 安全收款", "brand_subtitle_en": "Secure USDT Payment",
+    "theme_color": "#26A17B",
 }
 
 
@@ -911,6 +961,7 @@ class CheckoutSettings(BaseModel):
     brand_subtitle: str = ""
     brand_subtitle_tw: str = ""
     brand_subtitle_en: str = ""
+    theme_color: str = "#26A17B"
 
 
 @api_router.put("/checkout/settings")
@@ -918,6 +969,9 @@ async def put_checkout_settings(data: CheckoutSettings, request: Request, user: 
     addr = data.energy_trx_address.strip()
     if addr:
         validate_wallet("TRC20", addr)
+    import re
+    if not re.fullmatch(r"#[0-9a-fA-F]{6}", data.theme_color or ""):
+        raise HTTPException(status_code=400, detail="主题色需为 #RRGGBB 格式")
     doc = data.model_dump()
     doc["energy_trx_address"] = addr
     await db.settings.update_one({"_id": "checkout"}, {"$set": doc}, upsert=True)
@@ -1019,7 +1073,10 @@ async def chain_sync_now(user: dict = Depends(require_roles("admin"))):
     for ch, addr in pairs:
         before = await db.orders.count_documents({"status": "paid", "wallet_address": addr})
         try:
-            scanned += await sync_address(ch, addr, since)
+            scanned += await asyncio.wait_for(sync_address(ch, addr, since), timeout=25)
+        except asyncio.TimeoutError:
+            errors.append(f"{ch['network']} {addr[:8]}…: 超时（地址交易过多），后台轮询将继续处理")
+            continue
         except Exception as e:
             errors.append(f"{ch['network']} {addr[:8]}…: {str(e)[:80]}")
             continue
@@ -1058,12 +1115,56 @@ async def refresh_address_health(user: dict = Depends(require_roles("admin"))):
     for ch, addr in pairs:
         try:
             bal = await fetch_balance(ch["network"], addr)
+            await check_balance_alert(ch["network"], addr, ch, bal)
             await set_address_health(ch["network"], addr, ch, balance=bal, balance_at=iso(now_utc()), balance_error=None)
             ok += 1
         except Exception as e:
             await set_address_health(ch["network"], addr, ch, balance_error=str(e)[:200])
             errors.append(f"{ch['network']} {addr[:8]}…: {str(e)[:80]}")
     return {"ok": ok, "errors": errors}
+
+
+# ---------------------------------------------------------------------------
+# Alerts
+# ---------------------------------------------------------------------------
+class AlertSettings(BaseModel):
+    pct: float = 10.0
+    min_abs: float = 100.0
+    sync_minutes: int = 10
+
+
+@api_router.get("/alerts")
+async def list_alerts(user: dict = Depends(require_roles("admin")), unread: bool = False, limit: int = Query(50, le=200)):
+    q = {"read": False} if unread else {}
+    rows = await db.alerts.find(q).sort("created_at", -1).to_list(limit)
+    unread_count = await db.alerts.count_documents({"read": False})
+    return {"unread": unread_count, "alerts": [serialize(r) for r in rows]}
+
+
+@api_router.post("/alerts/read-all")
+async def read_all_alerts(user: dict = Depends(require_roles("admin"))):
+    await db.alerts.update_many({"read": False}, {"$set": {"read": True}})
+    return {"ok": True}
+
+
+@api_router.post("/alerts/{alert_id}/read")
+async def read_alert(alert_id: str, user: dict = Depends(require_roles("admin"))):
+    await db.alerts.update_one({"_id": ObjectId(alert_id)}, {"$set": {"read": True}})
+    return {"ok": True}
+
+
+@api_router.get("/alerts/settings")
+async def get_alert_settings(user: dict = Depends(require_roles("admin"))):
+    return await alert_settings()
+
+
+@api_router.put("/alerts/settings")
+async def put_alert_settings(data: AlertSettings, request: Request, user: dict = Depends(require_roles("admin"))):
+    if data.pct <= 0 or data.min_abs < 0 or data.sync_minutes < 1:
+        raise HTTPException(status_code=400, detail="阈值不合法")
+    await db.settings.update_one({"_id": "alerts"}, {"$set": data.model_dump()}, upsert=True)
+    await audit(user, "settings.alerts", "settings", "alerts", data.model_dump(), request)
+    return data.model_dump()
 
 
 # ---------------------------------------------------------------------------
@@ -1568,6 +1669,7 @@ async def seed():
     await db.api_nonces.create_index([("api_key", 1), ("nonce", 1)])
     await db.orders.create_index([("status", 1), ("wallet_address", 1), ("pay_amount", 1)])
     await db.orders.create_index([("merchant_id", 1), ("out_trade_no", 1)])
+    await db.alerts.create_index([("read", 1), ("created_at", -1)])
     admin_email = os.environ.get("ADMIN_EMAIL", "admin@example.com").lower()
     admin_password = os.environ.get("ADMIN_PASSWORD", "admin123")
     admin = await db.users.find_one({"email": admin_email})

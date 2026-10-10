@@ -7,6 +7,7 @@ import {
   Activity, ChevronRight, Menu, X, Webhook, ScrollText, Code2, HeartPulse,
 } from "lucide-react";
 import { PaymentAlerts } from "@/components/PaymentAlerts";
+import { AlertBell } from "@/components/AlertBell";
 
 const NAV = [
   { to: "/", label: "数据总览", icon: LayoutDashboard, roles: ["admin", "agent", "merchant"], end: true },
@@ -110,6 +111,7 @@ export default function DashboardLayout() {
             <span className="text-amber-400">BEP20 45ms</span>
           </div>
           <div className="ml-auto flex items-center gap-4">
+            {user?.role === "admin" && <AlertBell />}
             <PaymentAlerts />
             <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-800/60 border border-slate-700/60">
               <span className="text-[11px] text-slate-400">余额</span>

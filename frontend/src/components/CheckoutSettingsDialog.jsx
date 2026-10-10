@@ -97,6 +97,12 @@ export function CheckoutSettingsDialog() {
                 <div className="space-y-1.5"><Label>副标题（繁體）</Label><Input value={s.brand_subtitle_tw} onChange={(e) => setS({ ...s, brand_subtitle_tw: e.target.value })} className={inputCls} /></div>
                 <div className="space-y-1.5"><Label>副标题（English）</Label><Input value={s.brand_subtitle_en} onChange={(e) => setS({ ...s, brand_subtitle_en: e.target.value })} className={inputCls} /></div>
               </div>
+              <div className="space-y-1.5"><Label>收银台主题色（链接、Logo 头像、二维码标识）</Label>
+                <div className="flex items-center gap-3">
+                  <input type="color" value={s.theme_color || "#26A17B"} onChange={(e) => setS({ ...s, theme_color: e.target.value })} data-testid="theme-color-picker" className="w-10 h-10 rounded cursor-pointer bg-transparent border border-slate-700" />
+                  <Input value={s.theme_color || ""} onChange={(e) => setS({ ...s, theme_color: e.target.value })} data-testid="theme-color-input" className={`${inputCls} font-mono text-xs w-32`} placeholder="#26A17B" />
+                  <div className="flex gap-1.5">{["#26A17B", "#2563EB", "#7C3AED", "#DC2626", "#EA580C", "#0F766E", "#111827"].map((c) => <button key={c} onClick={() => setS({ ...s, theme_color: c })} className="w-6 h-6 rounded-full border border-white/20" style={{ background: c }} title={c} />)}</div>
+                </div></div>
               <div className="space-y-1.5"><Label>客服链接（可选）</Label><Input value={s.support_url} onChange={(e) => setS({ ...s, support_url: e.target.value })} data-testid="support-url-input" className={`${inputCls} font-mono text-xs`} placeholder="https://t.me/..." /></div>
             </TabsContent>
             <TabsContent value="energy" className="space-y-4 pt-3">

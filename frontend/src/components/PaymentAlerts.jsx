@@ -4,7 +4,7 @@ import { fmtUSDT } from "@/lib/format";
 import { toast } from "sonner";
 import { Volume2, VolumeX } from "lucide-react";
 
-function playChime() {
+export function playChime() {
   try {
     const ctx = new (window.AudioContext || window.webkitAudioContext)();
     [[880, 0], [1174.66, 0.12], [1567.98, 0.24]].forEach(([f, t]) => {
