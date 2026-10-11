@@ -345,7 +345,7 @@ async def send_telegram(text: str, kind: str = "alert") -> bool:
     cfg = await notify_settings()
     if not cfg["telegram_enabled"] or not cfg["telegram_bot_token"] or not cfg["telegram_chat_id"]:
         return False
-    if (kind == "alert" and not cfg["notify_alerts"]) or (kind == "payment" and not cfg["notify_big_payment"]) or (kind == "sweep" and not cfg["notify_sweep"]):
+    if kind != "report" and ((kind == "alert" and not cfg["notify_alerts"]) or (kind == "payment" and not cfg["notify_big_payment"]) or (kind == "sweep" and not cfg["notify_sweep"])):
         return False
     try:
         async with httpx.AsyncClient(timeout=10) as hc:
@@ -1511,6 +1511,146 @@ async def resend_callback(order_id: str, request: Request, user: dict = Depends(
         cb = await db.callbacks.find_one({"_id": cb["_id"]})
     await audit(user, "order.resend_callback", "order", order["order_no"], {}, request)
     return {"ok": True, "callback": serialize(cb) if cb else None}
+
+
+# ---------------------------------------------------------------------------
+# Batch order operations (admin / operator)
+# ---------------------------------------------------------------------------
+class BatchOrderIds(BaseModel):
+    ids: List[str]
+
+
+@api_router.post("/orders/batch-reject")
+async def batch_reject_orders(data: BatchOrderIds, request: Request, user: dict = Depends(require_roles("admin"))):
+    success, failed = [], []
+    for oid in data.ids:
+        try:
+            order = await db.orders.find_one({"_id": ObjectId(oid)})
+            if not order:
+                failed.append({"id": oid, "reason": "订单不存在"}); continue
+            if order["status"] == "paid":
+                failed.append({"id": oid, "order_no": order["order_no"], "reason": "已支付，无法驳回"}); continue
+            if order["status"] == "rejected":
+                success.append({"id": oid, "order_no": order["order_no"]}); continue
+            await db.orders.update_one({"_id": order["_id"]}, {"$set": {"status": "rejected", "rejected_at": iso(now_utc())}})
+            await audit(user, "order.reject", "order", order["order_no"], {"amount_usdt": order["amount_usdt"], "batch": True}, request)
+            success.append({"id": oid, "order_no": order["order_no"]})
+        except Exception as e:
+            failed.append({"id": oid, "reason": str(e)[:100]})
+    return {"ok": True, "total": len(data.ids), "success_count": len(success), "failed_count": len(failed),
+            "success": success, "failed": failed}
+
+
+@api_router.post("/orders/batch-resend-callback")
+async def batch_resend_callback(data: BatchOrderIds, request: Request, user: dict = Depends(require_roles("admin"))):
+    success, failed = [], []
+    for oid in data.ids:
+        try:
+            order = await db.orders.find_one({"_id": ObjectId(oid)})
+            if not order:
+                failed.append({"id": oid, "reason": "订单不存在"}); continue
+            if order["status"] != "paid":
+                failed.append({"id": oid, "order_no": order["order_no"], "reason": "仅已支付订单可回调"}); continue
+            if not order.get("notify_url"):
+                failed.append({"id": oid, "order_no": order["order_no"], "reason": "未配置回调地址"}); continue
+            await enqueue_callback(order)
+            cb = await db.callbacks.find_one({"order_no": order["order_no"]}, sort=[("created_at", -1)])
+            if cb:
+                await deliver_callback(cb)
+            await audit(user, "order.resend_callback", "order", order["order_no"], {"batch": True}, request)
+            success.append({"id": oid, "order_no": order["order_no"]})
+        except Exception as e:
+            failed.append({"id": oid, "reason": str(e)[:100]})
+    return {"ok": True, "total": len(data.ids), "success_count": len(success), "failed_count": len(failed),
+            "success": success, "failed": failed}
+
+
+# ---------------------------------------------------------------------------
+# Daily profit-sharing reconciliation (cron): snapshot + backfill + Telegram
+# Profit-sharing stays real-time (settle_order). This only snapshots & safety-nets.
+# ---------------------------------------------------------------------------
+async def build_profit_snapshot(day: str) -> dict:
+    start, end = f"{day}T00:00:00", f"{day}T23:59:59.999999"
+    orders = await db.orders.find({"status": "paid", "paid_at": {"$gte": start, "$lte": end}}).to_list(100000)
+    merchants: dict = {}
+    tot = {"amount": 0.0, "fee": 0.0, "receive": 0.0, "commission": 0.0, "platform": 0.0}
+    for o in orders:
+        tot["amount"] += o.get("amount_usdt", 0); tot["fee"] += o.get("fee", 0)
+        tot["receive"] += o.get("merchant_receive", 0); tot["commission"] += o.get("agent_commission", 0)
+        tot["platform"] += o.get("platform_profit", 0)
+        m = merchants.setdefault(o["merchant_id"], {"merchant_id": o["merchant_id"], "merchant_name": o.get("merchant_name", ""),
+                                                     "orders": 0, "amount": 0.0, "fee": 0.0, "receive": 0.0, "commission": 0.0, "platform": 0.0})
+        m["orders"] += 1; m["amount"] += o.get("amount_usdt", 0); m["fee"] += o.get("fee", 0)
+        m["receive"] += o.get("merchant_receive", 0); m["commission"] += o.get("agent_commission", 0); m["platform"] += o.get("platform_profit", 0)
+    return {
+        "date": day, "order_count": len(orders),
+        "total_amount": round(tot["amount"], 4), "total_fee": round(tot["fee"], 4),
+        "total_merchant_receive": round(tot["receive"], 4), "total_agent_commission": round(tot["commission"], 4),
+        "total_platform_profit": round(tot["platform"], 4),
+        "merchants": [{k: (round(v, 4) if isinstance(v, float) else v) for k, v in m.items()} for m in merchants.values()],
+        "updated_at": iso(now_utc()),
+    }
+
+
+async def backfill_unsettled() -> int:
+    count = 0
+    async for o in db.orders.find({"status": "paid", "merchant_receive": None}):
+        fee, mr, ac, pp = await settle_order(o)
+        await db.orders.update_one({"_id": o["_id"]},
+                                   {"$set": {"fee": fee, "merchant_receive": mr, "agent_commission": ac, "platform_profit": pp}})
+        count += 1
+    return count
+
+
+async def run_daily_settlement(run_id: str, day: str) -> dict:
+    if await db.cron_runs.find_one({"run_id": run_id}):
+        return {"skipped": True}
+    await db.cron_runs.insert_one({"run_id": run_id, "job": "daily-settle", "day": day, "started_at": iso(now_utc())})
+    backfilled = await backfill_unsettled()
+    snap = await build_profit_snapshot(day)
+    snap["backfilled"] = backfilled
+    await db.profit_snapshots.update_one({"date": day}, {"$set": snap}, upsert=True)
+    text = (f"📊 <b>日终分润对账</b> {day}\n"
+            f"订单数：{snap['order_count']}\n收款总额：{snap['total_amount']} USDT\n"
+            f"手续费：{snap['total_fee']} USDT\n商户实收：{snap['total_merchant_receive']} USDT\n"
+            f"代理分润：{snap['total_agent_commission']} USDT\n平台利润：{snap['total_platform_profit']} USDT"
+            + (f"\n⚠️ 补偿结算：{backfilled} 单" if backfilled else ""))
+    await send_telegram(text, "report")
+    await db.cron_runs.update_one({"run_id": run_id}, {"$set": {"finished_at": iso(now_utc())}})
+    return snap
+
+
+@api_router.post("/cron/daily-settle")
+async def cron_daily_settle(request: Request):
+    # Cron endpoints must ack 2xx immediately; enqueue/background the actual work.
+    secret = os.environ.get("WEBHOOK_CRON_SECRET", "")
+    auth = request.headers.get("Authorization", "")
+    token = auth[7:] if auth.startswith("Bearer ") else ""
+    if not secret or not hmac.compare_digest(token, secret):
+        raise HTTPException(status_code=401, detail="unauthorized")
+    try:
+        body = await request.json()
+    except Exception:
+        body = {}
+    run_id = request.headers.get("X-Webhook-Id") or (body or {}).get("run_id") or secrets.token_hex(8)
+    day = (now_utc() - timedelta(days=1)).strftime("%Y-%m-%d")
+    asyncio.create_task(run_daily_settlement(run_id, day))
+    return {"ok": True, "accepted": True, "run_id": run_id, "date": day}
+
+
+@api_router.get("/profit-snapshots")
+async def list_profit_snapshots(user: dict = Depends(require_roles("admin")), limit: int = Query(90, le=365)):
+    rows = await db.profit_snapshots.find().sort("date", -1).to_list(limit)
+    return [serialize(r) for r in rows]
+
+
+@api_router.post("/profit-snapshots/run")
+async def run_profit_snapshot(request: Request, date: Optional[str] = None, user: dict = Depends(require_roles("admin"))):
+    day = date or (now_utc() - timedelta(days=1)).strftime("%Y-%m-%d")
+    snap = await run_daily_settlement("manual-" + secrets.token_hex(6), day)
+    await audit(user, "settle.snapshot", "snapshot", day, {"order_count": snap.get("order_count")}, request)
+    doc = await db.profit_snapshots.find_one({"date": day})
+    return serialize(doc) if doc else {"date": day, "order_count": 0}
 
 
 def _tx_explorer(network: str, txid: str) -> str:

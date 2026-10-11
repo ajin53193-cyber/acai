@@ -5,7 +5,7 @@ import { ROLE_LABELS, fmtUSDT } from "@/lib/format";
 import {
   LayoutDashboard, Receipt, Network, Wallet, Users, LogOut, ShieldCheck,
   Activity, ChevronRight, Menu, X, Webhook, ScrollText, Code2, HeartPulse,
-  ArrowLeftRight, UserCog, Fingerprint, BarChart3,
+  ArrowLeftRight, UserCog, Fingerprint, BarChart3, PieChart,
 } from "lucide-react";
 import { PaymentAlerts } from "@/components/PaymentAlerts";
 import { AlertBell } from "@/components/AlertBell";
@@ -16,6 +16,7 @@ const NAV = [
   { to: "/channels", label: "通道路由", icon: Network, roles: ["admin", "operator"], perm: "channels.manage" },
   { to: "/addresses", label: "收款地址", icon: HeartPulse, roles: ["admin", "operator"], perm: "channels.manage" },
   { to: "/settlements", label: "结算分润", icon: Wallet, roles: ["admin", "operator"], perm: "payouts.review" },
+  { to: "/profit-snapshots", label: "分润快照", icon: PieChart, roles: ["admin"] },
   { to: "/ledger", label: "资金流水", icon: ArrowLeftRight, roles: ["admin"] },
   { to: "/accounts", label: "账户权限", icon: Users, roles: ["admin", "operator"], perm: "accounts.view" },
   { to: "/merchant-stats", label: "商户统计", icon: BarChart3, roles: ["admin", "operator"], perm: "orders.view" },

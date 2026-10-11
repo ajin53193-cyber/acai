@@ -17,6 +17,7 @@ import {
   Plus, Search, Copy, ExternalLink, Zap, Loader2, CheckCircle2, Activity, Link2, RefreshCw, Ban,
 } from "lucide-react";
 import { ChainTxDialog } from "@/components/ChainTxDialog";
+import { Checkbox } from "@/components/ui/checkbox";
 
 export default function OrdersPage() {
   const { user } = useAuth();
@@ -29,6 +30,8 @@ export default function OrdersPage() {
   const [createOpen, setCreateOpen] = useState(false);
   const [detail, setDetail] = useState(null);
   const [chainView, setChainView] = useState(null);
+  const [selected, setSelected] = useState(() => new Set());
+  const [batchBusy, setBatchBusy] = useState(false);
 
   const resendCallback = async (o) => {
     try {
@@ -63,7 +66,7 @@ export default function OrdersPage() {
     if (mId) params.merchant_id = mId;
     if (d) params.date = d;
     if (s && e) { params.start = s; params.end = e; }
-    api.get("/orders", { params }).then((r) => { setOrders(r.data); setLoading(false); }).catch(() => setLoading(false));
+    api.get("/orders", { params }).then((r) => { setOrders(r.data); setLoading(false); setSelected(new Set()); }).catch(() => setLoading(false));
   }, [statusFilter, networkFilter, keyword, searchParams]);
 
   useEffect(() => { load(); }, [load]);
@@ -106,6 +109,33 @@ export default function OrdersPage() {
   };
 
   const copyPayLink = (o) => copy(`${window.location.origin}/pay/${o.order_no}`, "收银台链接已复制");
+
+  const toggleSel = (id) => setSelected((s) => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n; });
+  const allSelected = orders.length > 0 && orders.every((o) => selected.has(o.id));
+  const toggleAll = () => setSelected(allSelected ? new Set() : new Set(orders.map((o) => o.id)));
+  const batchReject = async () => {
+    const ids = [...selected];
+    if (!ids.length) return;
+    if (!window.confirm(`确认批量驳回选中的 ${ids.length} 笔订单？已支付的将自动跳过，驳回不可恢复。`)) return;
+    setBatchBusy(true);
+    try {
+      const { data } = await api.post("/orders/batch-reject", { ids });
+      toast.success(`批量驳回完成：成功 ${data.success_count} 笔${data.failed_count ? `，跳过/失败 ${data.failed_count} 笔` : ""}`);
+      load();
+    } catch (e) { toast.error(formatApiErrorDetail(e.response?.data?.detail)); }
+    finally { setBatchBusy(false); }
+  };
+  const batchCallback = async () => {
+    const ids = [...selected];
+    if (!ids.length) return;
+    setBatchBusy(true);
+    try {
+      const { data } = await api.post("/orders/batch-resend-callback", { ids });
+      toast.success(`批量手动回调完成：成功 ${data.success_count} 笔${data.failed_count ? `，跳过/失败 ${data.failed_count} 笔` : ""}`);
+      load();
+    } catch (e) { toast.error(formatApiErrorDetail(e.response?.data?.detail)); }
+    finally { setBatchBusy(false); }
+  };
 
   return (
     <div className="space-y-6" data-testid="orders-page">
@@ -190,11 +220,25 @@ export default function OrdersPage() {
         </Select>
       </div>
 
+      {selected.size > 0 && (
+        <div className="glass rounded-xl p-3 flex flex-wrap items-center gap-3 border border-cyan-500/30" data-testid="batch-action-bar">
+          <span className="text-sm text-slate-300">已选 <span className="font-mono font-bold text-cyan-400" data-testid="batch-selected-count">{selected.size}</span> 笔</span>
+          <Button onClick={batchCallback} disabled={batchBusy} size="sm" variant="outline" data-testid="batch-callback-btn" className="border-sky-500/40 text-sky-400 hover:bg-sky-500/10">
+            {batchBusy ? <Loader2 className="w-4 h-4 animate-spin" /> : <><RefreshCw className="w-4 h-4 mr-1" />批量手动回调</>}
+          </Button>
+          <Button onClick={batchReject} disabled={batchBusy} size="sm" variant="outline" data-testid="batch-reject-btn" className="border-red-500/40 text-red-400 hover:bg-red-500/10">
+            {batchBusy ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Ban className="w-4 h-4 mr-1" />批量驳回</>}
+          </Button>
+          <button onClick={() => setSelected(new Set())} data-testid="batch-clear-btn" className="text-xs text-slate-400 hover:text-slate-200 ml-auto">取消选择</button>
+        </div>
+      )}
+
       <div className="glass rounded-xl overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="text-left text-xs text-slate-500 border-b border-slate-800 bg-slate-900/40">
+                <th className="py-3 px-3 w-10"><Checkbox checked={allSelected} onCheckedChange={toggleAll} data-testid="select-all-orders" aria-label="全选" /></th>
                 <th className="py-3 px-3 font-medium">订单号</th>
                 <th className="py-3 px-3 font-medium">商户</th>
                 <th className="py-3 px-3 font-medium">网络</th>
@@ -208,13 +252,14 @@ export default function OrdersPage() {
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={9} className="py-10 text-center"><Loader2 className="w-5 h-5 animate-spin text-cyan-400 inline" /></td></tr>
+                <tr><td colSpan={10} className="py-10 text-center"><Loader2 className="w-5 h-5 animate-spin text-cyan-400 inline" /></td></tr>
               ) : orders.length === 0 ? (
-                <tr><td colSpan={9} className="py-10 text-center text-slate-500">暂无订单</td></tr>
+                <tr><td colSpan={10} className="py-10 text-center text-slate-500">暂无订单</td></tr>
               ) : orders.map((o) => {
                 const s = STATUS_MAP[o.status] || STATUS_MAP.pending;
                 return (
                   <tr key={o.id} className="border-b border-slate-800/50 hover:bg-slate-800/30 transition-colors" data-testid={`order-row-${o.order_no}`}>
+                    <td className="py-3 px-3"><Checkbox checked={selected.has(o.id)} onCheckedChange={() => toggleSel(o.id)} data-testid={`select-order-${o.order_no}`} aria-label="选择订单" /></td>
                     <td className="py-3 px-3 font-mono text-xs text-slate-300">{o.order_no}</td>
                     <td className="py-3 px-3">{o.merchant_name}</td>
                     <td className="py-3 px-3"><span className={`px-2 py-0.5 rounded text-[11px] font-mono border ${NETWORK_COLORS[o.network]}`}>{o.network}</span></td>

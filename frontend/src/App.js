@@ -18,6 +18,7 @@ import OperatorTrailPage from "@/pages/OperatorTrailPage";
 import BalanceLedgerPage from "@/pages/BalanceLedgerPage";
 import SecurityPage from "@/pages/SecurityPage";
 import MerchantStatsPage from "@/pages/MerchantStatsPage";
+import ProfitSnapshotsPage from "@/pages/ProfitSnapshotsPage";
 import { Loader2 } from "lucide-react";
 
 function Protected({ children, roles }) {
@@ -126,6 +127,14 @@ function App() {
                 element={
                   <Protected roles={["admin", "operator"]}>
                     <ApiDocsPage />
+                  </Protected>
+                }
+              />
+              <Route
+                path="profit-snapshots"
+                element={
+                  <Protected roles={["admin"]}>
+                    <ProfitSnapshotsPage />
                   </Protected>
                 }
               />

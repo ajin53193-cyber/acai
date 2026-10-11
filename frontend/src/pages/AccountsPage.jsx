@@ -14,8 +14,9 @@ import {
 } from "@/components/ui/select";
 import { toast } from "sonner";
 import {
-  Plus, Loader2, KeyRound, Lock, Unlock, Copy, SlidersHorizontal, Snowflake, ShieldCheck, Fingerprint,
+  Plus, Loader2, KeyRound, Lock, Unlock, Copy, SlidersHorizontal, Snowflake, ShieldCheck, Fingerprint, Eye,
 } from "lucide-react";
+import { MerchantDrawer } from "@/components/MerchantDrawer";
 
 export default function AccountsPage() {
   const { user } = useAuth();
@@ -28,6 +29,7 @@ export default function AccountsPage() {
   const [perms, setPerms] = useState({});
   const [permEdit, setPermEdit] = useState(null);
   const [permVal, setPermVal] = useState([]);
+  const [drawerId, setDrawerId] = useState(null);
   useEffect(() => { if (user.role === "admin") api.get("/accounts/permissions").then((r) => setPerms(r.data)).catch(() => {}); }, [user.role]);
   const savePerms = async () => {
     try { await api.patch(`/accounts/${permEdit.id}/permissions`, { permissions: permVal }); toast.success("权限已更新"); setPermEdit(null); load(); }
@@ -165,7 +167,11 @@ export default function AccountsPage() {
                 <tr><td colSpan={8} className="py-10 text-center text-slate-500">暂无账户</td></tr>
               ) : accounts.map((a) => (
                 <tr key={a.id} className="border-b border-slate-800/50 hover:bg-slate-800/30 transition-colors" data-testid={`account-row-${a.id}`}>
-                  <td className="py-3 px-3 font-medium">{a.name}</td>
+                  <td className="py-3 px-3 font-medium">
+                    {a.role !== "operator" ? (
+                      <button onClick={() => setDrawerId(a.id)} data-testid={`account-name-${a.id}`} className="hover:text-cyan-400 transition-colors text-left">{a.name}</button>
+                    ) : a.name}
+                  </td>
                   <td className="py-3 px-3 font-mono text-xs text-slate-400">{a.email}</td>
                   <td className="py-3 px-3"><span className="px-2 py-0.5 rounded text-[11px] bg-slate-800 text-slate-300">{ROLE_LABELS[a.role]}</span>
                     {a.role === "operator" && <div className="text-[10px] text-slate-500 mt-0.5 max-w-[220px] truncate" data-testid={`perms-${a.id}`}>{(a.permissions || []).map((p) => perms[p] || p).join("、") || "无权限"}</div>}
@@ -189,7 +195,9 @@ export default function AccountsPage() {
                   </td>
                   <td className="py-3 px-3 text-right">
                     <div className="flex items-center justify-end gap-1">
-                      {user.role === "admin" && a.role === "operator" && (
+                      {a.role !== "operator" && (
+                        <button onClick={() => setDrawerId(a.id)} data-testid={`detail-${a.id}`} title="查看详情" className="p-1.5 rounded-md text-slate-400 hover:bg-slate-700"><Eye className="w-4 h-4" /></button>
+                      )}
                         <button onClick={() => { setPermEdit(a); setPermVal(a.permissions || []); }} data-testid={`edit-perms-${a.id}`} title="编辑权限" className="p-1.5 rounded-md text-cyan-400 hover:bg-cyan-400/10"><ShieldCheck className="w-4 h-4" /></button>
                       )}
                       {user.role === "admin" && a.role === "operator" && (
@@ -251,6 +259,8 @@ export default function AccountsPage() {
           <DialogFooter><Button onClick={doAdjust} disabled={!adjForm.amount} data-testid="adjust-submit-btn" className="bg-cyan-500 text-slate-950 hover:bg-cyan-400">确认调整</Button></DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <MerchantDrawer accountId={drawerId} open={!!drawerId} onClose={() => setDrawerId(null)} isAdmin={user.role === "admin"} onReset={() => load()} />
     </div>
   );
 }

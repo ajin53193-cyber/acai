@@ -1,0 +1,8 @@
+crons:
+  - name: daily-settle
+    description: "每日日终分润对账：生成当日分润快照、补偿未结算订单并推送 Telegram 日报"
+    cron: "5 0 * * *"
+    endpoint: "{{BASE_URL}}/api/cron/daily-settle"
+    method: POST
+    # Cron endpoints must ack 2xx immediately; enqueue/background the actual work.
+    enabled: true
