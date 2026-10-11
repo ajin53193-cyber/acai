@@ -12,7 +12,8 @@ from fastapi import APIRouter, Depends, Request, HTTPException
 from core import db
 from utils import now_utc, iso, canon, sign_payload
 from models import DevTestOrder
-from server import get_current_user, build_order, api_order_view, audit
+from deps import get_current_user
+from server import build_order, api_order_view, audit
 
 router = APIRouter(prefix="/api")
 

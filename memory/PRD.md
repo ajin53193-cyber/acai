@@ -163,9 +163,16 @@
 - [x] 近 30 天收益趋势图：GET /api/profit-snapshots/trend?days=（admin，按 paid_at 日聚合 平台利润/代理分润/金额/单数）；/profit-snapshots 页顶部 recharts 双面积趋势图（平台利润 vs 代理分润）
 - [x] 测试：后端 pytest 28/28（test_iteration14 + test_iteration15，已同步更新订单导出断言到新版式 min_row=5）；dev 域(routes/dev.py)、订单导出、趋势接口 curl 验证通过；前端趋势图截图确认
 
-## Backlog
+## Implemented (2026-06, iteration 19)
+- [x] 路由续拆基础：新增 backend/deps.py，下沉 get_current_user / require_roles / perm_for_path / merchant_ids_for_scope / OPERATOR_PERMS / PERM_RULES / OPERATOR_FORBIDDEN；server.py 改为 `from deps import ...`；routes/dev.py 改用 deps 的 get_current_user（解耦 server）。这为 auth/orders/settlements 域路由迁移铺平道路
+- [x] 商户维度趋势：/api/profit-snapshots/trend 新增可选 merchant_id；分润快照页趋势图加「商户下拉」(全部/单商户) 实时切换
+- [x] 异常波动预警：run_daily_settlement 计算平台利润环比 prev-day pct 存入快照 platform_profit_change_pct；|pct|>=50% 时 Telegram 日报追加 🚨 预警；快照列表对应行高亮 + ▲/▼ 徽标
+- [x] 测试：后端 pytest 28/28（含 operator 权限回归，验证 deps 下沉无回归）；trend 全量/按商户 curl 通过；前端趋势图+下拉截图确认，编译通过
+
+## Backlog (next)
+- P1: routes/ 域迁移续做：把 auth/orders/settlements 的路由处理函数搬入 routes/auth.py、routes/orders.py、routes/settlements.py（沿用 core+deps+晚引入模式，服务函数仍从 server 晚引入或再抽 services.py）
+- P1: 导出任务中心：大批量导出转后台任务（export_jobs 表 + asyncio worker 写盘/对象存储 + 下载端点 + 导出任务页）
 - P1: 获取 ETHERSCAN_API_KEY 后验证 ERC20/BEP20 真实到账
-- P2: routes/ 续拆 auth/orders/settlements/accounts/chain（沿用 core + 晚引入模式），并把 get_current_user/require_roles/perm 规则下沉到 deps.py
 - P2: 剩余散落 Pydantic 模型并入 models.py
 - P2: 代理多级分润（当前单级）
 - P2: server.py 进一步拆分为路由模块（现 ~2389 行，email 已抽出；建议继续拆 auth/orders/settlements/ledger/operators）

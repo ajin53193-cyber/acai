@@ -16,12 +16,19 @@ export default function ProfitSnapshotsPage() {
   const [expanded, setExpanded] = useState(null);
   const [report, setReport] = useState(null);
   const [trend, setTrend] = useState([]);
+  const [merchants, setMerchants] = useState([]);
+  const [trendMerchant, setTrendMerchant] = useState("");
 
   useEffect(() => {
-    api.get("/profit-snapshots/trend?days=30")
+    api.get("/dev/merchants").then((r) => setMerchants(r.data)).catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    const qp = trendMerchant ? `&merchant_id=${trendMerchant}` : "";
+    api.get(`/profit-snapshots/trend?days=30${qp}`)
       .then((r) => setTrend(r.data.map((d) => ({ ...d, label: d.date.slice(5) }))))
       .catch(() => {});
-  }, []);
+  }, [trendMerchant]);
   const [date, setDate] = useState(() => {
     const d = new Date(); d.setUTCDate(d.getUTCDate() - 1); return d.toISOString().slice(0, 10);
   });
@@ -94,7 +101,14 @@ export default function ProfitSnapshotsPage() {
       <div className="glass rounded-xl p-5" data-testid="profit-trend-chart">
         <div className="flex items-center justify-between mb-4">
           <div className="text-sm font-semibold text-slate-200">近 30 天收益趋势</div>
-          <div className="text-[11px] text-slate-500">平台利润 vs 代理分润（USDT）</div>
+          <div className="flex items-center gap-3">
+            <select value={trendMerchant} onChange={(e) => setTrendMerchant(e.target.value)} data-testid="trend-merchant-select"
+              className="h-8 rounded-md bg-slate-900/60 border border-slate-700 text-xs px-2 focus:outline-none focus:border-cyan-500">
+              <option value="">全部商户</option>
+              {merchants.map((m) => (<option key={m.id} value={m.id}>{m.name}</option>))}
+            </select>
+            <div className="text-[11px] text-slate-500">平台利润 vs 代理分润（USDT）</div>
+          </div>
         </div>
         <ResponsiveContainer width="100%" height={240}>
           <AreaChart data={trend} margin={{ top: 5, right: 8, left: -18, bottom: 0 }}>
@@ -142,10 +156,13 @@ export default function ProfitSnapshotsPage() {
                 <tr><td colSpan={9} className="py-10 text-center text-slate-500">暂无快照，点击「生成快照」创建</td></tr>
               ) : rows.map((s) => (
                 <Fragment key={s.id}>
-                  <tr onClick={() => setExpanded(expanded === s.date ? null : s.date)} className="border-b border-slate-800/50 hover:bg-slate-800/30 cursor-pointer" data-testid={`snapshot-row-${s.date}`}>
+                  <tr onClick={() => setExpanded(expanded === s.date ? null : s.date)} className={`border-b border-slate-800/50 hover:bg-slate-800/30 cursor-pointer ${s.platform_profit_change_pct != null && Math.abs(s.platform_profit_change_pct) >= 50 ? "bg-amber-500/5" : ""}`} data-testid={`snapshot-row-${s.date}`}>
                     <td className="py-3 px-3 font-mono text-slate-200 flex items-center gap-1">
                       {expanded === s.date ? <ChevronDown className="w-3.5 h-3.5 text-slate-500" /> : <ChevronRight className="w-3.5 h-3.5 text-slate-500" />}
                       {s.date}{s.backfilled > 0 && <span className="ml-1 text-[10px] text-amber-400">补{s.backfilled}</span>}
+                      {s.platform_profit_change_pct != null && Math.abs(s.platform_profit_change_pct) >= 50 && (
+                        <span className={`ml-1 text-[10px] px-1.5 py-0.5 rounded ${s.platform_profit_change_pct > 0 ? "bg-emerald-500/15 text-emerald-400" : "bg-red-500/15 text-red-400"}`} data-testid={`anomaly-${s.date}`} title="平台利润环比异常波动">{s.platform_profit_change_pct > 0 ? "▲" : "▼"} {Math.abs(s.platform_profit_change_pct)}%</span>
+                      )}
                     </td>
                     <td className="py-3 px-3 text-right font-mono">{s.order_count}</td>
                     <td className="py-3 px-3 text-right font-mono text-slate-200">{fmtUSDT(s.total_amount)}</td>
