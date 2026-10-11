@@ -54,77 +54,13 @@ CALLBACK_RETRY_DELAYS = [15, 60, 300, 1800, 7200]
 
 
 # ---------------------------------------------------------------------------
-# Helpers
+# Helpers — pure/stateless helpers now live in utils.py
 # ---------------------------------------------------------------------------
-def now_utc() -> datetime:
-    return datetime.now(timezone.utc)
-
-
-def iso(dt: datetime) -> str:
-    return dt.astimezone(timezone.utc).isoformat()
-
-
-def hash_password(password: str) -> str:
-    return bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
-
-
-def verify_password(plain: str, hashed: str) -> bool:
-    try:
-        return bcrypt.checkpw(plain.encode("utf-8"), hashed.encode("utf-8"))
-    except Exception:
-        return False
-
-
-def get_jwt_secret() -> str:
-    return os.environ["JWT_SECRET"]
-
-
-def create_access_token(user_id: str, email: str, role: str) -> str:
-    payload = {"sub": user_id, "email": email, "role": role,
-               "exp": now_utc() + timedelta(days=7), "type": "access"}
-    return jwt.encode(payload, get_jwt_secret(), algorithm=JWT_ALGORITHM)
-
-
-def gen_order_no() -> str:
-    return "SF" + now_utc().strftime("%Y%m%d%H%M%S") + "".join(random.choices(string.digits, k=5))
-
-
-def gen_wallet_address(network: str) -> str:
-    if network == "TRC20":
-        return "T" + "".join(random.choices(string.ascii_letters + string.digits, k=33))
-    return "0x" + "".join(random.choices("abcdef" + string.digits, k=40))
-
-
-def gen_txid(network: str) -> str:
-    if network == "TRC20":
-        return "".join(random.choices("abcdef" + string.digits, k=64))
-    return "0x" + "".join(random.choices("abcdef" + string.digits, k=64))
-
-
-def gen_api_key() -> str:
-    return "mk_" + secrets.token_hex(16)
-
-
-def gen_api_secret() -> str:
-    return "sk_" + secrets.token_hex(24)
-
-
-def clean_user(u: dict) -> dict:
-    u = dict(u)
-    u["id"] = str(u.pop("_id"))
-    u.pop("password_hash", None)
-    u["totp_enabled"] = bool(u.get("totp_enabled"))
-    u["totp_required"] = bool(u.get("totp_required"))
-    u.pop("totp_secret", None)
-    u.pop("totp_pending_secret", None)
-    u.pop("login_ips", None)
-    return u
-
-
-def serialize(doc: dict) -> dict:
-    doc = dict(doc)
-    doc["id"] = str(doc.pop("_id"))
-    return doc
+from utils import (
+    now_utc, iso, hash_password, verify_password, get_jwt_secret, create_access_token,
+    gen_order_no, gen_wallet_address, gen_txid, gen_api_key, gen_api_secret,
+    clean_user, serialize, canon, sign_payload, client_ip,
+)
 
 
 async def audit(user: dict, action: str, target_type: str, target_id: str,
@@ -147,20 +83,6 @@ async def record_ledger(account_id: str, category: str, amount: float, balance_a
         "ref_type": ref_type, "ref_id": str(ref_id) if ref_id else None,
         "remark": remark, "operator": operator, "created_at": iso(now_utc()),
     })
-
-
-def canon(v: Any) -> str:
-    if isinstance(v, bool):
-        return "true" if v else "false"
-    if isinstance(v, float) and v == int(v):
-        return str(int(v))
-    return str(v)
-
-
-def sign_payload(payload: dict, secret: str) -> str:
-    items = sorted((k, v) for k, v in payload.items() if k != "sign" and v is not None and v != "")
-    raw = "&".join(f"{k}={canon(v)}" for k, v in items)
-    return hmac.new(secret.encode(), raw.encode(), hashlib.sha256).hexdigest()
 
 
 async def enqueue_callback(order: dict):
@@ -752,13 +674,6 @@ async def record_login_failure(identifier: str, email: str, ip: Optional[str]):
         "ip": ip, "created_at": iso(now_utc()),
     })
     return locked
-
-
-def client_ip(request: Request) -> Optional[str]:
-    xff = request.headers.get("x-forwarded-for")
-    if xff:
-        return xff.split(",")[0].strip()
-    return request.client.host if request.client else None
 
 
 @api_router.post("/auth/login")
@@ -1647,6 +1562,8 @@ async def list_profit_snapshots(user: dict = Depends(require_roles("admin")), li
 @api_router.post("/profit-snapshots/run")
 async def run_profit_snapshot(request: Request, date: Optional[str] = None, user: dict = Depends(require_roles("admin"))):
     day = date or (now_utc() - timedelta(days=1)).strftime("%Y-%m-%d")
+    if day > now_utc().strftime("%Y-%m-%d"):
+        raise HTTPException(status_code=400, detail="不能为未来日期生成快照")
     snap = await run_daily_settlement("manual-" + secrets.token_hex(6), day)
     await audit(user, "settle.snapshot", "snapshot", day, {"order_count": snap.get("order_count")}, request)
     doc = await db.profit_snapshots.find_one({"date": day})

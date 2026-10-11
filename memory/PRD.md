@@ -142,8 +142,16 @@
 - [x] 新增权限规则 ("/api/dev", None, "orders.view")，operator(orders.view) 可访问 dev 接口
 - [x] 测试：后端 curl（dev/merchants、dev/test-order、dev/callback-sample、operator 200、reset-key operator 403/admin 成功）+ 前端截图（菜单、凭证、在线下单成功 toast）全通过
 
+## Implemented (2026-06, iteration 16)
+- [x] 商户详情抽屉（账户权限页 /accounts）：点击商户/代理名称或详情图标打开右侧抽屉 MerchantDrawer，展示余额/冻结/费率、API 凭证(显隐·复制·admin 可重置)、默认回调地址、IP 白名单、最近 12 条资金流水，无需跳转
+- [x] 批量订单操作（订单列表 /orders）：行多选 + 全选复选框，选中后出现批量工具条「批量手动回调」「批量驳回」；后端 POST /api/orders/batch-reject、/api/orders/batch-resend-callback（原子逐单处理 + 审计，返回 success_count/failed_count 与 success[]/failed[] 明细，已支付自动跳过）。权限经 PERM_RULES endswith 复用（batch-reject→orders.verify，batch-resend-callback→callbacks.retry）
+- [x] 自动分润定时任务（分润保持实时 T+0，cron 仅做日终对账）：.emergent/crons.yml daily-settle「5 0 * * *」→ POST /api/cron/daily-settle（Bearer WEBHOOK_CRON_SECRET 鉴权，立即 2xx，asyncio 后台执行）；run_daily_settlement = 兜底补偿(backfill_unsettled 补结算缺失订单) + 日度快照(profit_snapshots 按商户/代理/平台汇总) + Telegram 日报(kind=report 绕过子开关)；GET /api/profit-snapshots、POST /api/profit-snapshots/run?date=（admin，禁未来日期）；前端 /profit-snapshots「分润快照」页（生成快照 + 可展开按商户明细）
+- [x] server.py 模块化 - 阶段一：抽离纯函数到 backend/utils.py（now_utc/iso/hash_password/verify_password/get_jwt_secret/create_access_token/gen_*/clean_user/serialize/canon/sign_payload/client_ip），server.py import 使用；audit/record_ledger 等依赖 db 的保留在 server.py。后续阶段：models.py（Pydantic 分散各处）、routes/ 拆分
+- [x] 测试：后端 pytest 16/16 通过（test_iteration14.py），前端 100%（见 iteration_14.json）；重构后 login/me/dev/batch/snapshot 全回归通过
+
 ## Backlog
 - P1: 获取 ETHERSCAN_API_KEY 后验证 ERC20/BEP20 真实到账
+- P2: server.py 模块化续做（阶段二 models.py 抽离散落 Pydantic 模型；阶段三 routes/ 按域拆分 auth/orders/settlements/ledger/accounts/dev/chain）
 - P2: 代理多级分润（当前单级）
 - P2: server.py 进一步拆分为路由模块（现 ~2389 行，email 已抽出；建议继续拆 auth/orders/settlements/ledger/operators）
 - P2: admin 账户删除接口（清理测试遗留账户 test_2fa_*@demo.com）

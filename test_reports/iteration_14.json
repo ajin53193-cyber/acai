@@ -1,0 +1,28 @@
+{
+  "summary": "Iteration 14 verified all 4 new features + regression. Backend pytest 16/16 PASS (test_iteration14.py): batch-reject (pending OK, skips paid into failed[], operator with orders.verify OK); batch-resend-callback (non-paid go to failed; operator without callbacks.retry → 403); profit-snapshots list + run (/api/profit-snapshots/run?date=2026-10-10 returns totals); cron /api/cron/daily-settle requires Bearer WEBHOOK_CRON_SECRET (401 without, 2xx {ok,date,run_id} with); /api/dev/merchants admin+operator OK, /api/dev/test-order signs & creates real order, /api/dev/callback-sample signed; merchant drawer backing (/api/accounts/{id} + /api/balance/ledger) OK; single reject regression OK. Frontend: admin login → /orders select-all-orders selects 204 rows, batch-action-bar visible with batch-selected-count=204, batch-reject-btn + per-row select-order-* present. /accounts: detail-* opens merchant-drawer with all testids present (drawer-balance, drawer-api-key, drawer-api-secret, drawer-toggle-secret, drawer-notify-url, drawer-ip-whitelist, drawer-ledger, drawer-reset-key-btn), toggle secret works. /profit-snapshots: snapshot-date-input + snapshot-run-btn trigger build; snapshot-row-2026-10-10 expands snapshot-detail-2026-10-10. /developer: merchant-select present, try-submit-btn sends signed POST /api/v1/orders returning {code:0,msg:success,order_no:SF...} shown in try-response and 下单成功 toast. No .error elements on any page.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "/developer ApiDocsPage", "issues": ["React hydration warning: <span> child inside <option> for merchant-select (dynamic rendering wrapper). Harmless but noisy in console."]},
+      {"screen": "Multiple Dialog components (MerchantDrawer etc.)", "issues": ["Radix UI a11y warning: Missing Description or aria-describedby on DialogContent."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_iteration14.py", "/app/test_reports/pytest/iter14.xml"],
+  "action_items": [
+    "(Optional) Add DialogDescription or aria-describedby to MerchantDrawer DialogContent to silence a11y warning.",
+    "(Optional) Fix hydration warning in ApiDocsPage merchant-select <option> content (avoid rendering a <span> inside <option>)."
+  ],
+  "critical_code_review_comments": [
+    "PERM_RULES uses endswith('reject') / endswith('resend-callback') to match both single & batch endpoints — works but implicit; a comment or explicit prefix match would be clearer.",
+    "Profit snapshot /run accepts arbitrary date query param — ensure validation when date is in future to avoid empty writes."
+  ],
+  "updated_files": ["/app/backend/tests/test_iteration14.py"],
+  "success_rate": {"backend": "100% (16/16)", "frontend": "100%"},
+  "test_credentials": "admin ajin53193@gmail.com/admin888; operator operator@demo.com/operator888; WEBHOOK_CRON_SECRET loaded from /app/backend/.env",
+  "seed_data_creation": "Created several TEST pending orders during batch-reject/resend tests via POST /api/orders.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "All iteration-14 features green. The only noise is 2 non-blocking console warnings (Dialog aria-describedby, option>span hydration). Backend endpoints have proper permission gating (operator without callbacks.retry correctly 403s on batch-resend-callback)."
+}

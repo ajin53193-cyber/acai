@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import api, { formatApiErrorDetail } from "@/lib/api";
 import { fmtUSDT, fmtDate, ROLE_LABELS } from "@/lib/format";
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { Copy, Eye, EyeOff, KeyRound, RefreshCw, Loader2, Wallet, Snowflake, Webhook, ShieldCheck } from "lucide-react";
@@ -47,7 +47,9 @@ export function MerchantDrawer({ accountId, open, onClose, isAdmin, onReset }) {
   return (
     <Sheet open={open} onOpenChange={(v) => !v && onClose()}>
       <SheetContent className="bg-[#0B1120] border-slate-800 w-full sm:max-w-md overflow-y-auto" data-testid="merchant-drawer">
-        <SheetHeader><SheetTitle className="text-slate-100">账户详情{acc ? ` · ${acc.name}` : ""}</SheetTitle></SheetHeader>
+        <SheetHeader><SheetTitle className="text-slate-100">账户详情{acc ? ` · ${acc.name}` : ""}</SheetTitle>
+          <SheetDescription className="text-slate-500">查看账户余额、API 凭证、回调配置与最近资金流水</SheetDescription>
+        </SheetHeader>
         {loading || !acc ? (
           <div className="flex items-center justify-center py-20"><Loader2 className="w-6 h-6 animate-spin text-cyan-400" /></div>
         ) : (
