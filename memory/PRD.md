@@ -419,3 +419,4 @@
 - 管理员 ajin53193@gmail.com（生产密码由用户持有）。
 - 复制按钮：新增 lib/clipboard.js copyText()（HTTP 非安全上下文回退 execCommand），替换全部 navigator.clipboard 调用
 - deploy/windows/update.ps1 与 linux/update.sh：一键拉取分支 ZIP、同步代码（保留 .env 等）、装依赖、构建、重启、健康检查，更新前自动备份
+- 付款页文案：自动上分 → 自动到账（简/繁，checkoutI18n.js 共 6 处）
