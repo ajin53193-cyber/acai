@@ -120,6 +120,14 @@
 - [x] 商户后台收敛为「仅报表」：移除 商户 的 数据总览/订单与收款/回调通知 菜单与路由，保留 资金流水(对账)+结算分润+开发者API；商户登录默认首页重定向 /ledger；/orders、/callbacks 对商户做角色保护
 - [x] 代理商不展示每日收款统计
 
+## Implemented (2026-06, iteration 13)
+- [x] 商户统计 Excel 导出：GET /api/reports/merchant-stats（单日/区间）；/merchant-stats 页「导出 Excel」
+- [x] 日期区间汇总：商户统计与资金流水均支持 单日/按月/按区间（start~end）；GET /api/stats/merchants、/api/balance/ledger、对应报表均加 start/end
+- [x] 下钻明细：点击商户统计行跳转 /orders?merchant_id=&date=|start=&end=，GET /api/orders 新增 merchant_id/date/start/end 过滤
+- [x] 导航固定：外层 h-screen overflow-hidden，仅 main 区域滚动，侧栏与顶栏固定不随页面滑动
+- [x] 顶栏不透明修复（iteration 12），商户后台收敛为仅报表（iteration 12）
+- [x] 测试：后端 10/10、前端 100%（iteration_13.json）
+
 ## Backlog
 - P1: 获取 ETHERSCAN_API_KEY 后验证 ERC20/BEP20 真实到账
 - P2: 代理多级分润（当前单级）

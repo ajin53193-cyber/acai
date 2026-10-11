@@ -1,0 +1,15 @@
+{
+  "summary": "Verified all 4 new features + regression. Backend: 10/10 pytest pass (test_iteration13.py) — merchant-stats single/range/invalid, xlsx exports (single & range), orders drill filters (merchant_id + date, merchant_id + start/end), ledger range (merchant), ledger range export, orders no-filter. Frontend (admin login OK): /merchant-stats single-day export downloads merchant_stats.xlsx; mode-range toggle reveals start/end inputs; label '~' present; range export downloads; drill from mstat-row navigates to /orders?merchant_id=<id>&date=2026-10-11 and loads filtered orders page. /ledger: range select has exactly ['全部时间','按月份','按区间']; selecting 按区间 shows ledger-start-input + ledger-end-input; data reloads; export produces ledger xlsx. Sidebar/layout: on /channels at 1920x800, outer div is 'h-screen flex overflow-hidden', main is 'flex-1 overflow-y-auto'. Scrolled main scrollTop=146 while sidebar getBoundingClientRect top stays 0 — sidebar + header remain fixed, only main scrolls. No console errors; no .error elements on any page.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": ["/app/backend/tests/test_iteration13.py", "/app/test_reports/pytest/iter13.xml"],
+  "action_items": [],
+  "critical_code_review_comments": [],
+  "updated_files": ["/app/backend/tests/test_iteration13.py"],
+  "success_rate": {"backend": "100% (10/10)", "frontend": "100%"},
+  "test_credentials": "admin ajin53193@gmail.com/admin888, merchant merchant@demo.com/merchant888",
+  "seed_data_creation": "none",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "All four new features (merchant-stats xlsx export, date-range mode for stats and ledger, drill-down, fixed sidebar layout) verified end-to-end. The admin ledger endpoint returns 400 'please select account' unless account_id is provided — this is expected business logic (admin picks account via ledger-account-select); frontend handles correctly. Merchant ledger works without account_id."
+}
