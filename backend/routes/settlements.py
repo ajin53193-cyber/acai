@@ -65,19 +65,22 @@ async def request_payout(data: PayoutCreate, user: dict = Depends(get_current_us
         raise HTTPException(status_code=403, detail="仅商户/代理可提现")
     if data.amount <= 0 or data.amount > user.get("balance", 0):
         raise HTTPException(status_code=400, detail="余额不足")
+    amt = round(data.amount, 2)
     doc = {
         "merchant_id": str(user["_id"]),
         "merchant_name": user["name"],
-        "amount": round(data.amount, 2),
+        "amount": amt,
         "status": "pending",
         "created_at": iso(now_utc()),
     }
-    await db.users.update_one({"_id": user["_id"]},
-                              {"$inc": {"balance": -data.amount, "frozen_balance": data.amount}})
+    r = await db.users.update_one({"_id": user["_id"], "balance": {"$gte": amt}},
+                                  {"$inc": {"balance": -amt, "frozen_balance": amt}})
+    if r.modified_count != 1:
+        raise HTTPException(status_code=400, detail="余额不足")
     res = await db.payouts.insert_one(doc)
     doc["_id"] = res.inserted_id
     _u = await db.users.find_one({"_id": user["_id"]})
-    await record_ledger(str(user["_id"]), "payout_freeze", -round(data.amount, 2),
+    await record_ledger(str(user["_id"]), "payout_freeze", -amt,
                         _u.get("balance", 0), _u.get("frozen_balance", 0),
                         "payout", res.inserted_id, remark="提现申请，冻结待审核")
     return serialize(doc)
@@ -85,11 +88,10 @@ async def request_payout(data: PayoutCreate, user: dict = Depends(get_current_us
 
 @router.post("/settlements/payouts/{payout_id}/approve")
 async def approve_payout(payout_id: str, request: Request, user: dict = Depends(require_roles("admin"))):
-    p = await db.payouts.find_one({"_id": ObjectId(payout_id)})
-    if not p or p["status"] != "pending":
+    p = await db.payouts.find_one_and_update({"_id": ObjectId(payout_id), "status": "pending"},
+                                             {"$set": {"status": "approved", "approved_at": iso(now_utc())}})
+    if not p:
         raise HTTPException(status_code=400, detail="提现单不存在或已处理")
-    await db.payouts.update_one({"_id": p["_id"]},
-                                {"$set": {"status": "approved", "approved_at": iso(now_utc())}})
     await db.users.update_one({"_id": ObjectId(p["merchant_id"])},
                               {"$inc": {"frozen_balance": -p["amount"]}})
     _u = await db.users.find_one({"_id": ObjectId(p["merchant_id"])})
@@ -103,10 +105,10 @@ async def approve_payout(payout_id: str, request: Request, user: dict = Depends(
 
 @router.post("/settlements/payouts/{payout_id}/reject")
 async def reject_payout(payout_id: str, request: Request, user: dict = Depends(require_roles("admin"))):
-    p = await db.payouts.find_one({"_id": ObjectId(payout_id)})
-    if not p or p["status"] != "pending":
+    p = await db.payouts.find_one_and_update({"_id": ObjectId(payout_id), "status": "pending"},
+                                             {"$set": {"status": "rejected"}})
+    if not p:
         raise HTTPException(status_code=400, detail="提现单不存在或已处理")
-    await db.payouts.update_one({"_id": p["_id"]}, {"$set": {"status": "rejected"}})
     await db.users.update_one({"_id": ObjectId(p["merchant_id"])},
                               {"$inc": {"balance": p["amount"], "frozen_balance": -p["amount"]}})
     _u = await db.users.find_one({"_id": ObjectId(p["merchant_id"])})

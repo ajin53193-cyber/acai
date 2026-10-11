@@ -358,9 +358,11 @@ async def support_typing(order_no: str, request: Request):
 
 @router.get("/support/file/{path:path}")
 async def support_file(path: str):
+    if ".." in path or path.startswith("/"):
+        raise HTTPException(status_code=400, detail="非法路径")
     rec = await db.support_files.find_one({"path": path})
-    if rec and rec.get("is_deleted"):
-        raise HTTPException(status_code=404, detail="文件已删除")
+    if not rec or rec.get("is_deleted"):
+        raise HTTPException(status_code=404, detail="文件不存在")
     try:
         data, ct = await asyncio.to_thread(get_object, path)
     except Exception:

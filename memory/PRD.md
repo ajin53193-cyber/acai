@@ -391,3 +391,11 @@
 - [中] 客服会话 IDOR：/orders/{no}/public 下发 chat_token=HMAC(jwt_secret,"chat:"+order_no)；所有 /support/public/* 需 X-Chat-Token 头或 ?t=。
 - 加固：order_no 随机段 5 位数字 → 8 位大写字母数字（secrets）；订单关键词 re.escape；notify_url（商户设置与下单参数）禁止内网/本机地址（SSRF）；pending+live 订单 (wallet_address,pay_amount) 唯一部分索引 + 下单 DuplicateKeyError 重试 3 次（TOCTOU）；simulate-pay 需 ALLOW_SIMULATE_PAY=true（已在 preview .env 开启，生产请勿设置）。
 - 未处理（低）：cookie SameSite=None 无 CSRF token（Bearer 为主）；JWT 7 天无服务端吊销。
+
+## 2026-06 第二轮安全审计修复
+- [高] 提现并发超额：request_payout 改为条件原子扣减（balance ≥ amount），approve/reject 用 find_one_and_update 按 pending 状态原子流转（防重复放款/驳回）。
+- [中] 导出/审计日志 $regex 未转义 → re.escape + 长度限制（reports.py、server.py list_audit_logs）。
+- [中] 补单竞态：manual-callback / _confirm_with_tx 仅在订单非 paid/confirming 时才重置为 pending，已被链上确认的订单拒绝补单。
+- [中] /support/file/{path} 拒绝 .. 路径，且只提供 support_files 中有记录的文件。
+- 加固：限流器改用 client_ip（受信代理跳数）；reset-api-key 增加二次验证。
+- 残留低风险：JWT localStorage 存储 + 7 天无吊销；return_url_domains 为空时允许任意 http(s) 跳转（可在收银台设置配置白名单）。

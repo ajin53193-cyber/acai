@@ -314,12 +314,13 @@ async def generate_orders_xlsx(user, status=None, network=None, keyword=None, me
         if network:
             q["network"] = network
         if keyword:
-            kw = keyword.strip()
+            raw = keyword.strip()[:64]
+            kw = re.escape(raw)
             q["$or"] = [{"order_no": {"$regex": kw, "$options": "i"}}, {"tx_id": {"$regex": kw, "$options": "i"}},
                         {"out_trade_no": {"$regex": kw, "$options": "i"}}, {"wallet_address": {"$regex": kw, "$options": "i"}},
                         {"merchant_name": {"$regex": kw, "$options": "i"}}]
-            if re.fullmatch(r"\d+(\.\d+)?", kw):
-                q["$or"] += [{"amount_usdt": float(kw)}, {"pay_amount": float(kw)}]
+            if re.fullmatch(r"\d+(\.\d+)?", raw):
+                q["$or"] += [{"amount_usdt": float(raw)}, {"pay_amount": float(raw)}]
     filters = []
     if id_list:
         filters.append(f"所选订单 {len(id_list)} 笔")

@@ -954,9 +954,9 @@ async def list_audit_logs(user: dict = Depends(require_roles("admin")), action: 
                           limit: int = Query(200, le=1000)):
     q: dict = {}
     if action:
-        q["action"] = {"$regex": f"^{action}", "$options": "i"}
+        q["action"] = {"$regex": f"^{re.escape(action[:64])}", "$options": "i"}
     if actor:
-        q["actor_email"] = {"$regex": actor, "$options": "i"}
+        q["actor_email"] = {"$regex": re.escape(actor[:64]), "$options": "i"}
     if actor_id:
         q["actor_id"] = actor_id
     if step_up:
@@ -1270,7 +1270,8 @@ async def toggle_status(account_id: str, request: Request, user: dict = Depends(
 
 
 @api_router.post("/accounts/{account_id}/reset-api-key")
-async def reset_api_key(account_id: str, request: Request, user: dict = Depends(require_roles("admin", "agent"))):
+async def reset_api_key(account_id: str, request: Request, user: dict = Depends(require_roles("admin", "agent")),
+                        _su: dict = Depends(verify_step_up_dep)):
     acc = await db.users.find_one({"_id": ObjectId(account_id), "role": "merchant"})
     if not acc:
         raise HTTPException(status_code=404, detail="商户不存在")
@@ -1648,8 +1649,7 @@ _rl_bucket: dict = {}
 
 @app.middleware("http")
 async def security_middleware(request: Request, call_next):
-    ip = (request.headers.get("x-forwarded-for", "").split(",")[0].strip()
-          or (request.client.host if request.client else "")) or "unknown"
+    ip = client_ip(request) or "unknown"
     path = request.url.path
     if path.startswith("/api") and request.method != "OPTIONS":
         now = now_utc().timestamp()

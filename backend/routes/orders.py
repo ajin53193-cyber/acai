@@ -230,7 +230,8 @@ async def _confirm_with_tx(order: dict, txid: str, addr: str, actual: float,
         "tx_id": txid, "network": order["network"], "to": addr, "from": from_addr,
         "amount": actual, "block_time": iso(ts), "order_no": order["order_no"], "matched": True,
         "manual": True, "created_at": iso(now_utc())}}, upsert=True)
-    await db.orders.update_one({"_id": order["_id"]}, {"$set": {"amount_usdt": actual, "status": "pending",
+    await db.orders.update_one({"_id": order["_id"], "status": {"$nin": ["paid", "confirming"]}},
+                               {"$set": {"amount_usdt": actual, "status": "pending",
         "manual_confirmed": True, "manual_confirmed_by": who, "manual_confirmed_at": iso(now_utc())}})
     order["amount_usdt"] = actual
     order["status"] = "pending"
@@ -277,9 +278,12 @@ async def manual_callback(order_id: str, data: ManualCallbackIn, request: Reques
         "tx_id": txid, "network": order["network"], "to": addr, "from": match.get("from"),
         "amount": actual, "block_time": iso(ts), "order_no": order["order_no"], "matched": True,
         "manual": True, "created_at": iso(now_utc())}}, upsert=True)
-    await db.orders.update_one({"_id": order["_id"]}, {"$set": {"amount_usdt": actual, "status": "pending",
+    r = await db.orders.update_one({"_id": order["_id"], "status": {"$nin": ["paid", "confirming"]}},
+                                   {"$set": {"amount_usdt": actual, "status": "pending",
         "manual_confirmed": True, "manual_confirmed_by": user.get("name") or user.get("email"),
         "manual_confirmed_at": iso(now_utc())}})
+    if r.matched_count != 1:
+        raise HTTPException(status_code=400, detail="订单已被系统确认，无需补单")
     order["amount_usdt"] = actual
     order["status"] = "pending"
     await mark_paid(order, tx_id=txid, paid_at=ts)
