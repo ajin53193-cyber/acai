@@ -32,11 +32,19 @@ export default function SupportPage() {
   const canRefund = user.role === "admin" || (user.permissions || []).includes("orders.manual_callback");
   const [lightbox, setLightbox] = useState(null);
   const [soundOn, setSoundOn] = useState(() => localStorage.getItem("support_sound") !== "0");
+  const [tone, setTone] = useState(() => localStorage.getItem("support_tone") || "dingdong");
   const [totalUnread, setTotalUnread] = useState(0);
   const prevUnreadRef = useRef(null);
   const baseTitleRef = useRef(typeof document !== "undefined" ? document.title : "");
   const audioCtxRef = useRef(null);
-  const playBeep = useCallback(() => {
+  const TONES = {
+    dingdong: { label: "叮咚", notes: [[880, 0], [1180, 0.18]] },
+    crisp: { label: "清脆", notes: [[1568, 0], [2093, 0.1]] },
+    soft: { label: "柔和", notes: [[523, 0], [659, 0.22]] },
+    urgent: { label: "急促", notes: [[1046, 0], [1046, 0.12], [1046, 0.24]] },
+    bell: { label: "铃声", notes: [[1318, 0], [1046, 0.14], [1568, 0.28]] },
+  };
+  const playBeep = useCallback((toneKey) => {
     try {
       const Ctx = window.AudioContext || window.webkitAudioContext;
       if (!Ctx) return;
@@ -50,7 +58,8 @@ export default function SupportPage() {
         g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + start + 0.28);
         o.start(ctx.currentTime + start); o.stop(ctx.currentTime + start + 0.3);
       };
-      mk(880, 0); mk(1180, 0.18);
+      const key = toneKey || localStorage.getItem("support_tone") || "dingdong";
+      (TONES[key] || TONES.dingdong).notes.forEach(([f, s]) => mk(f, s));
     } catch (e) { /* ignore */ }
   }, []);
   const notify = useCallback((n) => {
@@ -70,6 +79,7 @@ export default function SupportPage() {
       return nv;
     });
   };
+  const chooseTone = (k) => { setTone(k); localStorage.setItem("support_tone", k); playBeep(k); };
 
   const loadThreads = useCallback(async () => {
     try {
@@ -194,6 +204,10 @@ export default function SupportPage() {
           <button onClick={toggleSound} data-testid="support-sound-toggle" title={soundOn ? "新消息声音提醒：开（点击静音）" : "新消息声音提醒：关"} className={`flex items-center gap-1.5 text-sm ${soundOn ? "text-cyan-400" : "text-slate-500"} hover:text-cyan-300`}>
             {soundOn ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />} {soundOn ? "提醒开" : "已静音"}
           </button>
+          <select value={tone} onChange={(e) => chooseTone(e.target.value)} disabled={!soundOn} data-testid="support-tone-select" title="新消息提示音效"
+            className="text-xs bg-slate-800 border border-slate-600 rounded px-2 py-1 text-slate-300 outline-none focus:border-cyan-500 disabled:opacity-40">
+            {Object.entries(TONES).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
+          </select>
           <button onClick={loadThreads} data-testid="support-refresh" className="flex items-center gap-1.5 text-sm text-slate-400 hover:text-cyan-400"><RefreshCw className="w-4 h-4" /> 刷新</button>
         </div>
       </div>

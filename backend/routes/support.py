@@ -266,12 +266,43 @@ async def support_public_get(order_no: str):
     # queue notice: a pending customer message with no online seat able to handle it
     th = await db.support_threads.find_one({"_id": order_no}) or {}
     queued = False
+    queue_position = 0
     if th.get("last_sender") == "customer":
         online_ids = {str(s["_id"]) for s in await _online_seats()}
         if th.get("assigned_id") not in online_ids:
             queued = True
+            my_last = th.get("last_at") or ""
+            waiting = await db.support_threads.find(
+                {"status": "open", "last_sender": "customer"}).to_list(2000)
+            ahead = 0
+            for w in waiting:
+                if w["_id"] == order_no:
+                    continue
+                if w.get("assigned_id") in online_ids:
+                    continue
+                if (w.get("last_at") or "") < my_last:
+                    ahead += 1
+            queue_position = ahead + 1
     return {"enabled": enabled, "welcome": to_trad(welcome), "merchant_name": o["merchant_name"],
-            "order_status": o["status"], "queued": queued, "messages": views}
+            "order_status": o["status"], "status": th.get("status", "open"),
+            "queued": queued, "queue_position": queue_position, "messages": views}
+
+
+@router.post("/support/public/{order_no}/close")
+async def support_public_close(order_no: str):
+    """Payer closed the chat after the issue was resolved — purge the thread and
+    its messages/images so no record is kept."""
+    th = await db.support_threads.find_one({"_id": order_no})
+    if not th or th.get("status") != "resolved":
+        return {"ok": True, "deleted": False}
+    for m in await db.support_messages.find({"order_no": order_no, "image": {"$ne": None}}).to_list(1000):
+        p = (m.get("image") or "").replace("/api/support/file/", "")
+        if p:
+            await db.support_files.update_one({"path": p}, {"$set": {"is_deleted": True}})
+    await db.support_messages.delete_many({"order_no": order_no})
+    await db.support_threads.delete_one({"_id": order_no})
+    logger.info(f"support thread purged on payer close order_no={order_no}")
+    return {"ok": True, "deleted": True}
 
 
 @router.post("/support/public/{order_no}")

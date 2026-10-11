@@ -39,6 +39,24 @@ export function SupportChat({ orderNo, t, open, setOpen }) {
     try { const r = await api.get(`/support/public/${orderNo}`); setData(r.data); } catch (e) { /* ignore */ }
   }, [orderNo]);
 
+  const close = useCallback(() => {
+    setOpen(false);
+    if (data?.status === "resolved") {
+      api.post(`/support/public/${orderNo}/close`).catch(() => {});
+    }
+  }, [data, orderNo, setOpen]);
+
+  useEffect(() => {
+    const onUnload = () => {
+      if (data?.status === "resolved" && navigator.sendBeacon) {
+        const url = `${process.env.REACT_APP_BACKEND_URL}/api/support/public/${orderNo}/close`;
+        navigator.sendBeacon(url, new Blob([], { type: "application/json" }));
+      }
+    };
+    window.addEventListener("beforeunload", onUnload);
+    return () => window.removeEventListener("beforeunload", onUnload);
+  }, [data, orderNo]);
+
   useEffect(() => { if (!open) return; load(); const i = setInterval(load, 3000); return () => clearInterval(i); }, [open, load]);
   useEffect(() => {
     if (open) { setFabUnread(0); return; }
@@ -73,17 +91,20 @@ export function SupportChat({ orderNo, t, open, setOpen }) {
         {fabUnread > 0 && <span className="absolute -top-1 -right-1 min-w-[20px] h-5 px-1 rounded-full bg-red-500 text-white text-[11px] font-bold flex items-center justify-center border-2 border-white" data-testid="support-fab-unread">{fabUnread}</span>}
       </button>
       {open && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40" onClick={() => setOpen(false)} data-testid="support-panel">
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40" onClick={close} data-testid="support-panel">
           <div className="bg-white w-full max-w-md h-[72vh] sm:h-[560px] rounded-t-2xl sm:rounded-2xl flex flex-col overflow-hidden" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between px-4 py-3 text-white" style={{ background: "var(--accent)" }}>
               <div className="flex items-center gap-2 font-semibold text-[16px]"><MessageCircle className="w-5 h-5" />{t.supportTitle}</div>
-              <button onClick={() => setOpen(false)} data-testid="support-close" className="p-1"><X className="w-5 h-5" /></button>
+              <button onClick={close} data-testid="support-close" className="p-1"><X className="w-5 h-5" /></button>
             </div>
             <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3 bg-slate-50" data-testid="support-messages">
               <div className="text-[13px] text-slate-500 bg-white rounded-lg px-3 py-2 border border-slate-100">{data?.welcome || t.supportEmpty}</div>
               {data?.queued && (
                 <div className="text-[13px] text-amber-700 bg-amber-50 rounded-lg px-3 py-2 border border-amber-200 text-center" data-testid="support-queued">
                   目前客服繁忙，您的訊息已排隊，我們會盡快回覆您 🙏
+                  {data.queue_position > 0 && (
+                    <div className="mt-1 font-semibold" data-testid="support-queue-position">您前面還有 {data.queue_position - 1} 位訪客在等待（您排第 {data.queue_position} 位）</div>
+                  )}
                 </div>
               )}
               {(data?.messages || []).map((m) => (
