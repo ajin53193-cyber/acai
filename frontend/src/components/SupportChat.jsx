@@ -24,6 +24,7 @@ export function SupportChat({ orderNo, t, open, setOpen }) {
   const [text, setText] = useState("");
   const [pendingImg, setPendingImg] = useState(null);
   const [sending, setSending] = useState(false);
+  const [lightbox, setLightbox] = useState(null);
   const endRef = useRef(null);
   const fileRef = useRef(null);
   const typingRef = useRef(0);
@@ -89,7 +90,7 @@ export function SupportChat({ orderNo, t, open, setOpen }) {
                 <div key={m.id} className={`flex ${m.sender === "customer" ? "justify-end" : "justify-start"}`} data-testid={`support-msg-${m.sender}`}>
                   <div className={`max-w-[78%] px-3 py-2 rounded-2xl text-[14px] whitespace-pre-wrap break-words ${m.sender === "customer" ? "text-white rounded-br-sm" : "bg-white text-slate-800 border border-slate-100 rounded-bl-sm"}`}
                     style={m.sender === "customer" ? { background: "var(--accent)" } : {}}>
-                    {m.image && <a href={imgUrl(m.image)} target="_blank" rel="noreferrer"><img src={imgUrl(m.image)} alt="attach" className="max-w-[200px] rounded-lg mb-1 block" /></a>}
+                    {m.image && <img src={imgUrl(m.image)} alt="attach" onClick={() => setLightbox(imgUrl(m.image))} data-testid="support-chat-msg-image" className="max-w-[200px] rounded-lg mb-1 block cursor-zoom-in" />}
                     {m.text}
                   </div>
                 </div>
@@ -119,6 +120,15 @@ export function SupportChat({ orderNo, t, open, setOpen }) {
             ) : (
               <div className="p-4 text-center text-slate-400 text-sm border-t border-slate-100" data-testid="support-disabled">{t.supportDisabled}</div>
             )}
+          </div>
+        </div>
+      )}
+      {lightbox && (
+        <div className="fixed inset-0 z-[60] flex flex-col items-center justify-center bg-black/85 p-4" data-testid="support-chat-lightbox" onClick={() => setLightbox(null)}>
+          <img src={lightbox} alt="预览" className="max-w-[92vw] max-h-[82vh] rounded-lg shadow-2xl" onClick={(e) => e.stopPropagation()} />
+          <div className="mt-3 flex gap-3" onClick={(e) => e.stopPropagation()}>
+            <a href={lightbox} download data-testid="support-chat-lightbox-download" className="px-4 py-2 rounded-lg text-white text-sm font-semibold" style={{ background: "var(--accent)" }}>下载</a>
+            <button onClick={() => setLightbox(null)} className="px-4 py-2 rounded-lg bg-slate-200 text-slate-700 text-sm">关闭</button>
           </div>
         </div>
       )}

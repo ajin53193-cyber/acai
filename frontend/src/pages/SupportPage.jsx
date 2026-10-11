@@ -32,7 +32,9 @@ export default function SupportPage() {
   const canRefund = user.role === "admin" || (user.permissions || []).includes("orders.manual_callback");
   const [lightbox, setLightbox] = useState(null);
   const [soundOn, setSoundOn] = useState(() => localStorage.getItem("support_sound") !== "0");
+  const [totalUnread, setTotalUnread] = useState(0);
   const prevUnreadRef = useRef(null);
+  const baseTitleRef = useRef(typeof document !== "undefined" ? document.title : "");
   const audioCtxRef = useRef(null);
   const playBeep = useCallback(() => {
     try {
@@ -76,6 +78,7 @@ export default function SupportPage() {
       const total = data.reduce((s, t) => s + (t.unread || 0), 0);
       if (prevUnreadRef.current !== null && total > prevUnreadRef.current) notify(total - prevUnreadRef.current);
       prevUnreadRef.current = total;
+      setTotalUnread(total);
       setThreads(data);
     } catch (e) { /* ignore */ }
     finally { setLoading(false); }
@@ -90,6 +93,15 @@ export default function SupportPage() {
   useEffect(() => { if (user.role === "admin") api.get("/support/settings").then((r) => setMaxSeat(r.data.max_per_seat)).catch(() => {}); }, [user.role]);
   useEffect(() => { const f = () => { api.get("/support/stats").then((r) => setStats(r.data)).catch(() => {}); api.get("/support/seats").then((r) => setSeats(r.data)).catch(() => {}); }; f(); const i = setInterval(f, 8000); return () => clearInterval(i); }, []);
   useEffect(() => { prevUnreadRef.current = null; }, [filter]);
+  useEffect(() => {
+    const base = baseTitleRef.current;
+    if (totalUnread <= 0) { document.title = base; return; }
+    let flip = false;
+    const tick = () => { document.title = flip ? base : `(${totalUnread}) 新消息`; flip = !flip; };
+    tick();
+    const id = setInterval(tick, 1000);
+    return () => { clearInterval(id); document.title = base; };
+  }, [totalUnread]);
   useEffect(() => { loadThreads(); const i = setInterval(loadThreads, 5000); return () => clearInterval(i); }, [loadThreads]);
   useEffect(() => {
     if (!active) return;
