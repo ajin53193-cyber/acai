@@ -20,7 +20,7 @@ from utils import client_ip, verify_password, hash_password, create_access_token
 from models import LoginInput
 from deps import get_current_user
 from email_utils import notify_security
-from shared import audit
+from shared import audit, ip_geo
 from server import check_lockout, record_login_failure, security_policy, verify_step_up_dep, LOCK_MAX_FAILS, LOCK_MINUTES
 
 router = APIRouter(prefix="/api")
@@ -54,15 +54,26 @@ async def login(data: LoginInput, request: Request, response: Response):
             raise HTTPException(status_code=401, detail="两步验证码错误")
     await db.login_attempts.delete_one({"identifier": identifier})
     pol = await security_policy()
+    geo = await ip_geo(ip)
+    city_key = geo and (geo.get("city") or geo.get("region") or geo.get("country"))
+    known_cities = user.get("login_cities") or []
+    new_location = bool(city_key and known_cities and city_key not in known_cities)
+    new_device = False
     if pol.get("login_alert", True) and ip:
         known = user.get("login_ips") or []
         if ip not in known:
+            new_device = bool(known)
             if known:
                 asyncio.create_task(notify_security(user, "login_new_device", ip))
             await db.users.update_one({"_id": user["_id"]},
                                       {"$set": {"login_ips": (known + [ip])[-10:], "last_login_at": iso(now_utc()), "last_login_ip": ip}})
         else:
             await db.users.update_one({"_id": user["_id"]}, {"$set": {"last_login_at": iso(now_utc()), "last_login_ip": ip}})
+    if city_key and city_key not in known_cities:
+        await db.users.update_one({"_id": user["_id"]}, {"$set": {"login_cities": (known_cities + [city_key])[-10:]}})
+    await audit(user, "auth.login", "login", user["email"],
+                {**({"location": geo["label"]} if geo else {}), **({"new_location": True} if new_location else {}),
+                 **({"new_device": True} if new_device else {})}, request, geo=geo)
     token = create_access_token(str(user["_id"]), user["email"], user["role"])
     response.set_cookie("access_token", token, httponly=True, secure=True,
                         samesite="none", max_age=604800, path="/")

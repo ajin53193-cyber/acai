@@ -3,9 +3,11 @@ import api from "@/lib/api";
 import { fmtDate } from "@/lib/format";
 import { Loader2, UserCog, ShieldCheck, Activity, Search } from "lucide-react";
 import { StepUpBadge } from "@/components/StepUpBadge";
+import { GeoLabel } from "@/components/GeoLabel";
 import { Input } from "@/components/ui/input";
 
 const ACTION_LABELS = {
+  "auth.login": "登录成功",
   "balance.credit": "余额加款", "balance.debit": "余额扣款", "balance.freeze": "冻结余额", "balance.unfreeze": "解冻余额",
   "account.create": "创建账户", "account.freeze": "冻结账号", "account.unfreeze": "解冻账号", "account.reset_api_key": "重置API密钥", "account.permissions": "修改操作员权限",
   "account.require_2fa": "强制两步验证", "account.unrequire_2fa": "取消强制两步验证",
@@ -142,6 +144,7 @@ export default function OperatorTrailPage() {
                             <span className="text-[11px] font-mono text-slate-500">{fmtDate(l.created_at)}</span>
                             {l.target_type && <span className="text-[11px] font-mono text-slate-600">{l.target_type}:{String(l.target_id).slice(-8)}</span>}
                             {l.ip && <span className="text-[11px] font-mono text-slate-600">IP {l.ip}</span>}
+                            <GeoLabel geo={l.geo} detail={l.detail} />
                           </div>
                           <Detail d={l.detail} />
                         </div>

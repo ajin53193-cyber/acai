@@ -381,3 +381,4 @@
 ## 2026-06 更新：审计二次验证标注 + 强制操作员安全码
 - 审计日志新增 `step_up: {op_code, totp}` 字段（verify_step_up_dep 成功后写入 request.state，shared.audit 自动落库）；审计页/操作员留痕页显示紫色「安全码/谷歌验证」徽章，审计页支持「仅看已通过二次验证」筛选（`GET /api/audit-logs?step_up=true`）。
 - 安全策略新增 `enforce_operator_op_code`：开启后未设置操作安全码的操作员的 POST/PUT/PATCH/DELETE（/api/auth/*、/api/support/* 除外）返回 403 `{op_code_required:true}`；前端 api.js 拦截弹出 toast 并引导到 /security；安全页显示红色提示。
+- 登录地图提醒：`shared.ip_geo(ip)` 通过 ip-api.com（免费、无需 key，中文结果）解析 IP → 国家/省/市，缓存于 `db.ip_geo`；成功登录新增审计 `auth.login`（detail: location/new_location/new_device，字段 `geo`），登录失败/锁定日志也带 geo。用户记录 `login_cities`，与历史城市不同时标记 `new_location`。审计页/操作员留痕页 IP 下方显示城市标签，异常位置显示琥珀色「异常位置」。

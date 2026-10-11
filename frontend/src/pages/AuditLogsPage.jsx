@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Loader2, Search, ScrollText } from "lucide-react";
 import { StepUpBadge } from "@/components/StepUpBadge";
+import { GeoLabel } from "@/components/GeoLabel";
 
 const ACTION_GROUPS = [
   ["all", "全部操作"], ["balance", "余额调整"], ["account", "账户/冻结/密钥"],
@@ -17,7 +18,7 @@ const ACTION_LABELS = {
   "settings.notify": "Telegram推送设置",
   "payout.approve": "提现通过", "payout.reject": "提现驳回", "channel.create": "新增通道", "channel.update": "修改通道",
   "order.manual_verify": "手动核账", "merchant.notify_url": "设置回调地址",
-  "auth.login_failed": "登录失败", "auth.locked": "账号锁定", "auth.unlock": "解除锁定",
+  "auth.login": "登录成功", "auth.login_failed": "登录失败", "auth.locked": "账号锁定", "auth.unlock": "解除锁定",
   "merchant.ip_whitelist": "设置IP白名单", "api.ip_rejected": "API IP拦截", "settings.checkout": "收银台设置", "settings.alerts": "预警阈值",
   "address.add": "添加地址", "address.remove": "移除地址", "address.update": "地址标签/暂停", "address.sweep": "冷钱包归集",
 };
@@ -33,10 +34,11 @@ const ACTION_COLORS = {
 };
 
 function Detail({ d }) {
-  if (!d || Object.keys(d).length === 0) return <span className="text-slate-600">—</span>;
+  const entries = Object.entries(d || {}).filter(([k]) => !["location", "new_location"].includes(k));
+  if (entries.length === 0) return <span className="text-slate-600">—</span>;
   return (
     <div className="flex flex-wrap gap-x-3 gap-y-0.5">
-      {Object.entries(d).map(([k, v]) => (
+      {entries.map(([k, v]) => (
         <span key={k} className="text-[11px] font-mono"><span className="text-slate-500">{k}=</span><span className="text-slate-300">{typeof v === "object" ? JSON.stringify(v) : String(v)}</span></span>
       ))}
     </div>
@@ -108,7 +110,7 @@ export default function AuditLogsPage() {
                     <td className="py-3 px-3"><div className="flex items-center gap-1.5 flex-wrap"><span className={`px-2 py-0.5 rounded text-[11px] border whitespace-nowrap ${ACTION_COLORS[grp] || ACTION_COLORS.merchant}`}>{ACTION_LABELS[l.action] || l.action}</span><StepUpBadge su={l.step_up} /></div></td>
                     <td className="py-3 px-3 text-[11px] font-mono text-slate-400">{l.target_type}:{String(l.target_id).slice(-8)}</td>
                     <td className="py-3 px-3"><Detail d={l.detail} /></td>
-                    <td className="py-3 px-3 text-[11px] font-mono text-slate-500">{l.ip || "—"}</td>
+                    <td className="py-3 px-3 text-[11px] font-mono text-slate-500"><div>{l.ip || "—"}</div><GeoLabel geo={l.geo} detail={l.detail} /></td>
                   </tr>
                 );
               })}

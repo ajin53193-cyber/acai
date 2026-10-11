@@ -26,14 +26,46 @@ DEFAULT_NOTIFY_SETTINGS = {"telegram_enabled": False, "telegram_bot_token": "", 
                            "export_expiry_notify": True, "notify_support": True}
 
 
+_PRIVATE_IP = ("10.", "192.168.", "127.", "172.16.", "172.17.", "172.18.", "172.19.", "172.2", "172.30.", "172.31.", "::1", "fc", "fd")
+
+
+async def ip_geo(ip: Optional[str]) -> Optional[dict]:
+    """Resolve ip -> {country, region, city, label}; cached in db.ip_geo (ip-api.com free tier)."""
+    if not ip or ip.startswith(_PRIVATE_IP):
+        return None
+    cached = await db.ip_geo.find_one({"_id": ip})
+    if cached:
+        cached.pop("_id", None)
+        return cached
+    try:
+        async with httpx.AsyncClient(timeout=3) as c:
+            r = await c.get(f"http://ip-api.com/json/{ip}", params={"lang": "zh-CN", "fields": "status,country,regionName,city,isp"})
+        d = r.json()
+        if d.get("status") != "success":
+            return None
+        geo = {"country": d.get("country") or "", "region": d.get("regionName") or "", "city": d.get("city") or "", "isp": d.get("isp") or ""}
+        parts = [geo["country"], geo["region"], geo["city"]]
+        geo["label"] = " · ".join(dict.fromkeys(p for p in parts if p))
+        await db.ip_geo.update_one({"_id": ip}, {"$set": {**geo, "cached_at": iso(now_utc())}}, upsert=True)
+        return geo
+    except Exception as e:
+        logging.debug("ip_geo failed for %s: %s", ip, e)
+        return None
+
+
 async def audit(user: dict, action: str, target_type: str, target_id: str,
-                detail: Any = None, request: Optional[Request] = None):
+                detail: Any = None, request: Optional[Request] = None, geo: Optional[dict] = None):
+    ip = client_ip(request) if request else None
     doc = {
         "actor_id": str(user["_id"]), "actor_email": user["email"], "actor_role": user["role"],
         "action": action, "target_type": target_type, "target_id": str(target_id),
-        "detail": detail or {}, "ip": client_ip(request) if request else None,
+        "detail": detail or {}, "ip": ip,
         "created_at": iso(now_utc()),
     }
+    if geo is None and ip and action.startswith("auth."):
+        geo = await ip_geo(ip)
+    if geo:
+        doc["geo"] = geo
     su = getattr(request.state, "step_up", None) if request is not None else None
     if su:
         doc["step_up"] = su

@@ -469,11 +469,13 @@ async def record_login_failure(identifier: str, email: str, ip: Optional[str]):
     if locked:
         upd["locked_until"] = iso(now_utc() + timedelta(minutes=LOCK_MINUTES))
     await db.login_attempts.update_one({"identifier": identifier}, {"$set": upd}, upsert=True)
+    from shared import ip_geo
+    geo = await ip_geo(ip)
     await db.audit_logs.insert_one({
         "actor_id": None, "actor_email": email, "actor_role": "anonymous",
         "action": "auth.locked" if locked else "auth.login_failed", "target_type": "login", "target_id": email,
         "detail": {"fail_count": count, **({"locked_minutes": LOCK_MINUTES} if locked else {})},
-        "ip": ip, "created_at": iso(now_utc()),
+        "ip": ip, **({"geo": geo} if geo else {}), "created_at": iso(now_utc()),
     })
     return locked
 
