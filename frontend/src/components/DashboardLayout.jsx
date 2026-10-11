@@ -22,7 +22,7 @@ const NAV = [
   { to: "/ledger", label: "资金流水", icon: ArrowLeftRight, roles: ["admin"] },
   { to: "/accounts", label: "账户权限", icon: Users, roles: ["admin", "operator"], perm: "accounts.view" },
   { to: "/merchant-stats", label: "商户统计", icon: BarChart3, roles: ["admin", "operator"], perm: "orders.view" },
-  { to: "/support", label: "在线客服", icon: MessageSquare, roles: ["admin", "operator"], perm: "orders.view" },
+  { to: "/support", label: "在线客服", icon: MessageSquare, roles: ["admin", "operator"], perm: "support.manage" },
   { to: "/developer", label: "对接文档", icon: Code2, roles: ["admin", "operator"], perm: "orders.view" },
   { to: "/callbacks", label: "回调通知", icon: Webhook, roles: ["admin", "operator"], perm: "callbacks.retry" },
   { to: "/audit", label: "审计日志", icon: ScrollText, roles: ["admin", "operator"], perm: "audit.view" },
@@ -37,7 +37,7 @@ export default function DashboardLayout() {
   const [open, setOpen] = useState(false);
   const [supportUnread, setSupportUnread] = useState(0);
   useEffect(() => {
-    if (!["admin", "operator"].includes(user.role)) return;
+    if (!(user.role === "admin" || (user.role === "operator" && (user.permissions || []).includes("support.manage")))) return;
     let on = true;
     const fetch = () => api.get("/support/unread-count").then((r) => on && setSupportUnread(r.data.unread || 0)).catch(() => {});
     fetch();

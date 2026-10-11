@@ -23,7 +23,7 @@ DEFAULT_ALERT_SETTINGS = {"pct": 10.0, "min_abs": 100.0, "sync_minutes": 10, "sw
 DEFAULT_NOTIFY_SETTINGS = {"telegram_enabled": False, "telegram_bot_token": "", "telegram_chat_id": "",
                            "notify_alerts": True, "notify_big_payment": True, "notify_sweep": True,
                            "export_notify_threshold": 500, "export_retain_days": 7,
-                           "export_expiry_notify": True}
+                           "export_expiry_notify": True, "notify_support": True}
 
 
 async def audit(user: dict, action: str, target_type: str, target_id: str,
@@ -125,7 +125,7 @@ async def send_telegram(text: str, kind: str = "alert") -> bool:
     cfg = await notify_settings()
     if not cfg["telegram_enabled"] or not cfg["telegram_bot_token"] or not cfg["telegram_chat_id"]:
         return False
-    if kind != "report" and ((kind == "alert" and not cfg["notify_alerts"]) or (kind == "payment" and not cfg["notify_big_payment"]) or (kind == "sweep" and not cfg["notify_sweep"])):
+    if kind != "report" and ((kind == "alert" and not cfg["notify_alerts"]) or (kind == "payment" and not cfg["notify_big_payment"]) or (kind == "sweep" and not cfg["notify_sweep"]) or (kind == "support" and not cfg.get("notify_support", True))):
         return False
     try:
         async with httpx.AsyncClient(timeout=10) as hc:

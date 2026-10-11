@@ -39,6 +39,10 @@ function Protected({ children, roles }) {
 function IndexRoute() {
   const { user } = useAuth();
   if (user && user.role === "merchant") return <Navigate to="/ledger" replace />;
+  if (user && user.role === "operator") {
+    const perms = user.permissions || [];
+    if (perms.includes("support.manage") && !perms.includes("orders.view")) return <Navigate to="/support" replace />;
+  }
   return <DashboardPage />;
 }
 

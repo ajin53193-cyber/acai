@@ -1,31 +1,49 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import api from "@/lib/api";
-import { MessageCircle, X, Send, Loader2 } from "lucide-react";
+import { MessageCircle, X, Send, Loader2, ImagePlus } from "lucide-react";
+
+const compress = (file) => new Promise((res, rej) => {
+  const r = new FileReader();
+  r.onload = () => {
+    const img = new Image();
+    img.onload = () => {
+      const max = 1280; let w = img.width, h = img.height;
+      if (w > max || h > max) { const s = max / Math.max(w, h); w = Math.round(w * s); h = Math.round(h * s); }
+      const c = document.createElement("canvas"); c.width = w; c.height = h;
+      c.getContext("2d").drawImage(img, 0, 0, w, h);
+      res(c.toDataURL("image/jpeg", 0.7));
+    };
+    img.onerror = rej; img.src = r.result;
+  };
+  r.onerror = rej; r.readAsDataURL(file);
+});
 
 export function SupportChat({ orderNo, t, open, setOpen }) {
   const [data, setData] = useState(null);
   const [text, setText] = useState("");
+  const [pendingImg, setPendingImg] = useState(null);
   const [sending, setSending] = useState(false);
   const endRef = useRef(null);
+  const fileRef = useRef(null);
 
   const load = useCallback(async () => {
     try { const r = await api.get(`/support/public/${orderNo}`); setData(r.data); } catch (e) { /* ignore */ }
   }, [orderNo]);
 
-  useEffect(() => {
-    if (!open) return;
-    load();
-    const i = setInterval(load, 3000);
-    return () => clearInterval(i);
-  }, [open, load]);
-
+  useEffect(() => { if (!open) return; load(); const i = setInterval(load, 3000); return () => clearInterval(i); }, [open, load]);
   useEffect(() => { if (open) endRef.current?.scrollIntoView({ behavior: "smooth" }); }, [data, open]);
+
+  const onPick = async (e) => {
+    const f = e.target.files?.[0]; if (!f) return;
+    try { setPendingImg(await compress(f)); } catch (_) { /* ignore */ }
+    e.target.value = "";
+  };
 
   const send = async () => {
     const msg = text.trim();
-    if (!msg || sending) return;
+    if ((!msg && !pendingImg) || sending) return;
     setSending(true);
-    try { await api.post(`/support/public/${orderNo}`, { text: msg }); setText(""); await load(); }
+    try { await api.post(`/support/public/${orderNo}`, { text: msg, image: pendingImg }); setText(""); setPendingImg(null); await load(); }
     catch (e) { /* ignore */ }
     finally { setSending(false); }
   };
@@ -53,6 +71,7 @@ export function SupportChat({ orderNo, t, open, setOpen }) {
                   <div className={`max-w-[78%] px-3 py-2 rounded-2xl text-[14px] whitespace-pre-wrap break-words ${m.sender === "customer" ? "text-white rounded-br-sm" : "bg-white text-slate-800 border border-slate-100 rounded-bl-sm"}`}
                     style={m.sender === "customer" ? { background: "var(--accent)" } : {}}>
                     {m.sender === "agent" && <div className="text-[11px] opacity-70 mb-0.5">{m.sender_name || t.supportTitle}</div>}
+                    {m.image && <a href={m.image} target="_blank" rel="noreferrer"><img src={m.image} alt="attach" className="max-w-[200px] rounded-lg mb-1 block" /></a>}
                     {m.text}
                   </div>
                 </div>
@@ -60,14 +79,24 @@ export function SupportChat({ orderNo, t, open, setOpen }) {
               <div ref={endRef} />
             </div>
             {enabled ? (
-              <div className="flex items-center gap-2 p-3 border-t border-slate-100">
-                <input value={text} onChange={(e) => setText(e.target.value)} onKeyDown={(e) => e.key === "Enter" && send()}
-                  placeholder={t.supportInput} data-testid="support-input"
-                  className="flex-1 h-11 px-3 rounded-xl bg-slate-100 text-[15px] outline-none text-slate-800" />
-                <button onClick={send} disabled={sending || !text.trim()} data-testid="support-send"
-                  className="h-11 w-11 rounded-xl text-white flex items-center justify-center disabled:opacity-40 shrink-0" style={{ background: "var(--accent)" }}>
-                  {sending ? <Loader2 className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5" />}
-                </button>
+              <div className="border-t border-slate-100">
+                {pendingImg && (
+                  <div className="px-3 pt-2 flex items-center gap-2" data-testid="support-pending-img">
+                    <img src={pendingImg} alt="preview" className="w-12 h-12 rounded object-cover" />
+                    <button onClick={() => setPendingImg(null)} className="text-slate-400 text-xs">移除</button>
+                  </div>
+                )}
+                <div className="flex items-center gap-2 p-3">
+                  <input ref={fileRef} type="file" accept="image/*" onChange={onPick} className="hidden" data-testid="support-file-input" />
+                  <button onClick={() => fileRef.current?.click()} data-testid="support-attach" className="h-11 w-11 rounded-xl bg-slate-100 text-slate-500 flex items-center justify-center shrink-0"><ImagePlus className="w-5 h-5" /></button>
+                  <input value={text} onChange={(e) => setText(e.target.value)} onKeyDown={(e) => e.key === "Enter" && send()}
+                    placeholder={t.supportInput} data-testid="support-input"
+                    className="flex-1 h-11 px-3 rounded-xl bg-slate-100 text-[15px] outline-none text-slate-800" />
+                  <button onClick={send} disabled={sending || (!text.trim() && !pendingImg)} data-testid="support-send"
+                    className="h-11 w-11 rounded-xl text-white flex items-center justify-center disabled:opacity-40 shrink-0" style={{ background: "var(--accent)" }}>
+                    {sending ? <Loader2 className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5" />}
+                  </button>
+                </div>
               </div>
             ) : (
               <div className="p-4 text-center text-slate-400 text-sm border-t border-slate-100" data-testid="support-disabled">{t.supportDisabled}</div>

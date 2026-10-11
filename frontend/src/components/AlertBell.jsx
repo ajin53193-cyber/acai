@@ -36,7 +36,7 @@ function TelegramSettings({ onClose }) {
       <div className="space-y-1"><Label className="text-[11px]">Bot Token {s.telegram_bot_token_masked && <span className="text-slate-500">（已保存 {s.telegram_bot_token_masked}，留空不修改）</span>}</Label><Input value={s.telegram_bot_token || ""} onChange={(e) => setS({ ...s, telegram_bot_token: e.target.value })} data-testid="tg-token-input" className={cls} placeholder="123456:ABC-DEF..." /></div>
       <div className="space-y-1"><Label className="text-[11px]">Chat ID（群/频道，如 -1001234567890）</Label><Input value={s.telegram_chat_id} onChange={(e) => setS({ ...s, telegram_chat_id: e.target.value })} data-testid="tg-chat-input" className={cls} /></div>
       <div className="grid grid-cols-3 gap-1 text-[11px]">
-        {[["notify_alerts", "地址预警"], ["notify_big_payment", "大额到账"], ["notify_sweep", "归集提醒"]].map(([k, l]) => (
+        {[["notify_alerts", "地址预警"], ["notify_big_payment", "大额到账"], ["notify_sweep", "归集提醒"], ["notify_support", "客服消息"]].map(([k, l]) => (
           <label key={k} className="flex items-center gap-1 text-slate-300"><input type="checkbox" checked={s[k]} onChange={(e) => setS({ ...s, [k]: e.target.checked })} data-testid={`tg-${k}`} className="accent-cyan-500" />{l}</label>
         ))}
       </div>

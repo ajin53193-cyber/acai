@@ -256,6 +256,16 @@
   - API：`GET/POST /api/support/public/{order_no}`（匿名付款人）、`GET /api/support/threads`、`GET/POST /api/support/threads/{order_no}`、`GET /api/support/unread-count`（admin/operator，operator 需 orders.view，deps.py 已加 PERM_RULE）
   - 验证：curl 全链路（配置/欢迎语/付款人发/客服收未读=2/读后=1/客服回复/付款人收到/禁用→403）+ 付款人与后台双端截图确认
 
+## Implemented (2026-06, iteration 31) — 客服增强：提醒/话术/附件/状态 + 独立坐席后台
+- [x] **Telegram 新消息提醒**：付款人发起新会话（该线程无未读时）触发一次 Telegram 推送（含商户/订单/摘要）；notify 设置新增 `notify_support` 开关（AlertBell UI）。send_telegram 增加 support 类型门控
+- [x] **快捷回复话术**：`GET/PUT /api/support/templates`（admin 可编辑，默认 5 条）；后台会话输入框上方话术 chips 一键插入
+- [x] **付款人附件**：收银台客服面板支持上传转账截图（客户端 canvas 压缩至 ≤1280px/jpeg），消息含 `image`（data URL，后端校验格式/大小 ≤~2.6MB）；双端气泡渲染图片
+- [x] **会话状态 open/resolved + 筛选**：新增 `support_threads` 集合记录线程状态/最近活动；`PATCH /api/support/threads/{order_no}/status`；后台「全部/待处理/已解决」筛选 + 会话内「标记已解决/重新打开」+ 列表已解决勾标
+- [x] **独立客服坐席后台**：新增坐席权限 `support.manage`（operator 可勾选）；`/api/support/*` 鉴权改为 support.manage。仅有该权限的 operator 登录后自动跳转 `/support`，侧栏只见「在线客服」，访问其他后台接口 403 —— 等于独立客服工作台
+- [x] **会话内订单详情**：后台对话顶部展示订单号/状态/金额/应付/网络/创建时间/商户单号/交易哈希/**收款地址**（可复制）
+  - 验证：curl 全链路（坐席 support.manage→/support 200 /orders 403、话术 CRUD、附件存储、线程详情含收款地址、resolve+筛选）+ 后台双截图确认；pytest 并行回归 114 passed/134 skipped
+  - 坐席测试账号：support_seat@demo.com / Seat888!!（见 test_credentials.md）
+
 ## Backlog (next)
 - P2: 散落模型持续并入 models.py
 - P2: 清理测试残留的 TEST_M 商户账户（有余额，需先结清；现可用新删除接口手动清理）
