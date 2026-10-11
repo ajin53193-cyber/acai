@@ -97,3 +97,23 @@ def make_operator(shared_admin_token, worker_id):
     yield _make
     for info in created:
         requests.delete(f"{API}/auth/lockouts/{info['email']}", headers=_hdr(shared_admin_token), timeout=15)
+
+
+@pytest.fixture(scope="session", autouse=True)
+def _cleanup_test_channels():
+    """Safety net: remove any leftover non-live test channels at session end so
+    the strict single-channel (TRC20 极速通道) invariant is preserved even if a
+    test aborts before its own cleanup runs."""
+    yield
+    try:
+        r = requests.post(f"{API}/auth/login", json={"email": ADMIN_EMAIL, "password": ADMIN_PASS}, timeout=15)
+        if r.status_code != 200:
+            return
+        h = {"Authorization": f"Bearer {r.json()['token']}"}
+        for c in requests.get(f"{API}/channels", headers=h, timeout=15).json():
+            name = c.get("name", "") or ""
+            live = bool(c.get("wallet_addresses") or c.get("wallet_address"))
+            if not live and (name.startswith(("TEST", "TMP", "VERIFY")) or name == "x"):
+                requests.delete(f"{API}/channels/{c['id']}", headers=h, timeout=10)
+    except Exception:
+        pass

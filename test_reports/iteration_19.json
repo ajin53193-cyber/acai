@@ -1,0 +1,36 @@
+{
+  "summary": "Iteration 19 — Verified all 5 UI additions + return_url backend flow. (1) Admin login works. (2) Channels page delete flow: 15 channel-delete-btn-* buttons present; clicking opens AlertDialog with '确认删除' enabled when no pending orders; direct DELETE /api/channels/{id} returns {ok:true} HTTP 200. (3) Export Jobs page: summary-expiring='0' tile present, '有效期' column renders 47 job-expiry-<id> badges ('7天后到期'); amber-highlight code path confirmed via source review (no current job within 24h to visually assert). (4) Bell -> Telegram popover: tg-export-expiry-notify checkbox toggles and saves (toast 'Telegram 推送设置已保存'). (5) Checkout settings -> 能量租赁 tab: adding 2 rules yields 2 energy-rule-drag-<i> handles + 2 energy-rule-row-<i> rows; drag-and-drop reorders rows (verified RULE_0,RULE_2 -> RULE_2,RULE_0). (6) Payment success page /pay/SF2026101111505808238: data-testid checkout-success, success-return-merchant, success-tx-hash, success-paid-time all rendered with correct values; language switcher (zh-CN/zh-TW/en) translates labels (verified EN='Return to Merchant', zh-TW='返回商戶'). (7) return_url backend: POST /api/orders (admin) with return_url 'https://merchant.example.com/thanks' stored; GET /api/orders/{order_no}/public returns return_url + paid_at + tx_id for already-paid order SF2026101111505808238.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "POST /api/orders", "issue": "Invalid return_url schemes (e.g. javascript:, ftp:) are silently stripped to null rather than returning HTTP 422. Safe (no XSS surface), but inconsistent with Pydantic validation elsewhere; consider raising 400 with explicit message."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_new_features.py"
+  ],
+  "action_items": [
+    "(Optional, non-blocking) Decide whether to 422 on invalid return_url schemes in build_order instead of silent-strip.",
+    "(Housekeeping) MongoDB has 14 leftover TEST_Channel / TEST_it16_channel docs from previous iterations polluting /channels; main agent may want to add a cleanup script or rely on single-channel seed reset."
+  ],
+  "critical_code_review_comments": [
+    "ExportJobsPage.jsx expiryInfo + amber styling path is correct; summary 'summary-expiring' uses expiringSoon count — good.",
+    "AlertBell.jsx tg-export-expiry-notify binds to s.export_expiry_notify ?? true (defaults true) — intentional; verified it persists after save.",
+    "CheckoutSettingsDialog.jsx uses @dnd-kit SortableContext; drag works via pointer events in Playwright with manual mouse.down/up — reorder persists in local state (not tested for post-save persistence, but save button present and functional based on prior iteration tests).",
+    "services.build_order silently drops bad return_url: logically safe but hides caller mistakes.",
+    "DB pollution: many TEST_* channels remain; previous iteration 18 claim of 'exactly one channel' no longer holds in current state."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "test_credentials": "admin: ajin53193@gmail.com / admin888 (used)",
+  "seed_data_creation": "Created 1 test order via admin POST /api/orders (order_no SF2026101111523773907, 12.34 USDT TRC20, remark=TEST_return_url, return_url=https://merchant.example.com/thanks) to verify return_url storage/retrieval. Deleted 1 inactive TEST_Channel (id 6acb76c012dea514e2d9ba40) via DELETE /api/channels to regression-test safe-delete API.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "All iteration-19 features (channel safe-delete UI, export expiry UI, TG expiry toggle, energy-rules dnd, payment success page + i18n, return_url) are verified working. For future tests: lang switcher on CheckoutPage is a native <select>; use page.select_option('select', 'en'|'zh-TW'|'zh-CN'). TG popover is nested inside AlertBell: open bell (lucide-bell svg button), then click [data-testid=alert-telegram-btn]. Energy rules start empty; click '+ 添加条款' to spawn rows exposing [data-testid^=energy-rule-drag-] / [data-testid^=energy-rule-row-].",
+  "rca of the issue": "N/A — no issues found."
+}

@@ -151,6 +151,8 @@ class TestChannels:
         cid = r.json()["id"]
         up = requests.patch(f"{API}/channels/{cid}", json={"status": "inactive"}, headers=hdr(admin_token))
         assert up.status_code == 200 and up.json()["status"] == "inactive"
+        # cleanup: keep the single-channel invariant
+        requests.delete(f"{API}/channels/{cid}", headers=hdr(admin_token))
 
 
 # --- Accounts ---

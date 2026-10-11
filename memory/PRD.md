@@ -228,10 +228,18 @@
 - [x] **导出中心汇总条**:/exports 顶部新增本月导出次数 / 文件总大小 / 48h 内到期 三项汇总(客户端按 jobs 计算)
 - [x] **模型归并**:SecurityPolicy、CheckoutSettings 从 server.py 迁入 models.py 并 import 复用
 
+## Implemented (2026-06, iteration 29) — CI 并行隔离 + 通道安全删除 + 导出到期提醒 + 能量规则拖拽 + 支付成功页
+- [x] **CI 并行稳定**：新增 `backend/tests/conftest.py`（自动从 frontend/.env 注入 `REACT_APP_BACKEND_URL`，修复 6 处 import-time KeyError；提供 `worker_id`/`uid`/`shared_admin_token`/`make_operator` 隔离工具）。将破坏共享管理员状态的 2FA 全流程用例改为在**一次性抛弃型 operator** 上运行（iteration9 TestAdmin2FA）；`test_login_bad` 改用唯一抛弃邮箱避免污染管理员锁定计数器。连续 3 次 `-n 2 --dist loadscope` 并行全绿：**114 passed / 134 skipped**
+- [x] **通道安全删除**：新增 `DELETE /api/channels/{id}`，若该通道地址仍有 pending 订单→返回 409 阻止（curl 验证 409 阻止 / 200 清空后可删 / 404）。前端 ChannelsPage 每卡片加删除按钮 + AlertDialog 二次确认（有待付时红色警示 + 禁用确认）
+- [x] **导出文件到期提醒**：notify 设置新增 `export_expiry_notify`(默认 True)；新增 `POST /api/cron/export-expiry-reminders` + crons.yml 每日 0:30 运行，对 24h 内到期且未提醒的文件推送一次 Telegram。前端 /exports 汇总改「24h 内到期」、任务表新增「有效期」列、<24h 琥珀高亮+警告图标；Telegram 设置弹窗新增开关
+- [x] **能量规则拖拽排序**：引入 @dnd-kit，结账设置「能量租赁」条款支持拖拽手柄排序，保存按顺序持久化
+- [x] **支付成功页**：订单支付成功后收银台自动切换为专属全屏成功页（动画对勾 + 金额 + 币种/协议/订单号/交易哈希/支付时间 + 查看链上记录 + 返回商户按钮），沿用多语言与品牌主题。新增订单 `return_url` 字段（后台下单 + 开放 API `/api/v1/orders` + dev 测试均支持，仅接受 http/https），public 接口返回 `paid_at`/`return_url`。testing_agent(iteration_19) 前后端 100%
+- [x] **单通道不变量修复**：清理历史测试残留的 13 个 TEST_* 通道（仅保留 live「TRC20 极速通道」）；修复 `backend_test` 通道用例自清理 + conftest 会话级安全网（结束时删除遗留非 live 的 TEST/TMP/VERIFY 通道）。全量 pytest 跑完后仍恰为 1 个通道
+
 ## Backlog (next)
-- P2: 全量并行(-n 2)仍有跨文件状态竞争(通道/告警/策略共享),如需 CI 并行全绿需为用例做独立账号/状态隔离(当前串行全绿)
 - P2: admin 账户删除接口；散落模型持续并入 models.py
-- P3: 能量规则拖拽排序；导出保留天数到期前提醒
+- P3: 导出保留天数可视化倒计时；能量规则移动端拖拽体验微调
+
 
 ## Next Tasks
 - 按需接入真实支付/链上监听，或扩展回调通知与对账自动化。
