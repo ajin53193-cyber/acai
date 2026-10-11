@@ -1,4 +1,4 @@
-# 四方收款平台 - Windows 宝塔一键部署脚本
+﻿# 四方收款平台 - Windows 宝塔一键部署脚本
 # 以管理员身份在 PowerShell 中运行：
 #   Set-ExecutionPolicy Bypass -Scope Process -Force; .\deploy\windows\deploy.ps1
 # 可选参数：-SiteRoot D:\wwwroot\sifang  -Domain print8.8bc8uyz.com  -ResetData

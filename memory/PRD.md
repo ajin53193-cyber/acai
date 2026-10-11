@@ -407,3 +407,4 @@
 - 演示数据种子改为仅 `SEED_DEMO_DATA=true` 时生成（preview .env 已设 true，生产示例为 false）。
 - 预览库测试数据未实际清除（由用户自行触发）。
 - 数据库自动备份：deploy/{windows/backup_db.ps1,restore_db.ps1, linux/backup_db.sh,restore_db.sh}；部署脚本注册每日 02:30 mongodump（gzip archive，保留 14 天）到 <项目>/backups；已验证 dump→restore 完整。
+- Windows .ps1 脚本改为 UTF-8 BOM（PowerShell 5 中文乱码修复）

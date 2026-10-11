@@ -1,4 +1,4 @@
-# 四方收款平台 - MongoDB 每日备份 (Windows)
+﻿# 四方收款平台 - MongoDB 每日备份 (Windows)
 # 用法: powershell -File backup_db.ps1 [-KeepDays 14] [-OutDir D:\backups\sifang]
 # 恢复: mongorestore --uri "<MONGO_URL>" --db <DB_NAME> --drop --gzip --archive=<文件>.gz
 param(
