@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import api from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
+import { toast } from "sonner";
 import { fmtUSDT, STATUS_MAP, NETWORK_COLORS, fmtDate } from "@/lib/format";
 import {
   AreaChart, Area, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
@@ -51,8 +52,15 @@ export default function DashboardPage() {
   const [orders, setOrders] = useState([]);
   const [usage, setUsage] = useState(null);
   const [usageTrend, setUsageTrend] = useState(null);
+  const [alertCfg, setAlertCfg] = useState(null);
   const today = new Date().toISOString().slice(0, 10);
   const [statDate, setStatDate] = useState(today);
+
+  const saveAlertCfg = () => {
+    api.put("/chain/alert-settings", { spike_mult: Number(alertCfg.spike_mult), spike_min: Number(alertCfg.spike_min) })
+      .then((r) => { setAlertCfg(r.data); toast.success("已更新告警阈值"); })
+      .catch(() => toast.error("保存失败"));
+  };
 
   const load = () => {
     api.get("/dashboard/stats", { params: { date: statDate } }).then((r) => setStats(r.data)).catch(() => {});
@@ -69,6 +77,11 @@ export default function DashboardPage() {
     return () => clearInterval(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [statDate]);
+
+  useEffect(() => {
+    if (user.role === "admin") api.get("/chain/alert-settings").then((r) => setAlertCfg(r.data)).catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user.role]);
 
   if (!stats)
     return (
@@ -132,6 +145,16 @@ export default function DashboardPage() {
                   <Bar dataKey="count" fill="#06B6D4" radius={[3, 3, 0, 0]} maxBarSize={16} />
                 </BarChart>
               </ResponsiveContainer>
+            </div>
+          )}
+          {alertCfg && (
+            <div className="mt-4 flex flex-wrap items-center gap-2 text-xs border-t border-slate-800 pt-3" data-testid="chain-alert-settings">
+              <span className="text-slate-400">异常告警：本时段 ≥ 近期均值</span>
+              <input type="number" step="0.5" min="1.5" value={alertCfg.spike_mult} onChange={(e) => setAlertCfg({ ...alertCfg, spike_mult: e.target.value })} data-testid="chain-alert-mult" className="w-16 h-7 px-2 rounded bg-slate-900/60 border border-slate-700 text-slate-100 font-mono outline-none focus:border-cyan-500" />
+              <span className="text-slate-400">倍，且 ≥</span>
+              <input type="number" min="100" value={alertCfg.spike_min} onChange={(e) => setAlertCfg({ ...alertCfg, spike_min: e.target.value })} data-testid="chain-alert-min" className="w-24 h-7 px-2 rounded bg-slate-900/60 border border-slate-700 text-slate-100 font-mono outline-none focus:border-cyan-500" />
+              <span className="text-slate-400">次/时 → Telegram 告警</span>
+              <button onClick={saveAlertCfg} data-testid="chain-alert-save" className="h-7 px-3 rounded bg-cyan-500 text-slate-950 font-semibold">保存</button>
             </div>
           )}
         </div>

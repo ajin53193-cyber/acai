@@ -518,6 +518,38 @@ async def put_templates(data: TemplatesIn, request: Request, user: dict = Depend
     return {"templates": tpls}
 
 
+class BulkEndIn(BaseModel):
+    resolved: bool = False
+    stale_hours: Optional[int] = None
+
+
+@router.post("/support/threads/bulk-end")
+async def bulk_end_threads(data: BulkEndIn, request: Request,
+                           user: dict = Depends(require_roles("admin", "operator"))):
+    """One-click cleanup: purge all resolved and/or stale (no activity for N
+    hours) conversations, freeing their seat slots."""
+    order_nos = set()
+    if data.resolved:
+        for th in await db.support_threads.find({"status": "resolved"}).to_list(5000):
+            order_nos.add(th["_id"])
+    if data.stale_hours and data.stale_hours > 0:
+        cutoff = iso(now_utc() - timedelta(hours=data.stale_hours))
+        for th in await db.support_threads.find({"last_at": {"$lt": cutoff}}).to_list(5000):
+            order_nos.add(th["_id"])
+    purged = 0
+    for ono in order_nos:
+        for m in await db.support_messages.find({"order_no": ono, "image": {"$ne": None}}).to_list(1000):
+            p = (m.get("image") or "").replace("/api/support/file/", "")
+            if p:
+                await db.support_files.update_one({"path": p}, {"$set": {"is_deleted": True}})
+        await db.support_messages.delete_many({"order_no": ono})
+        await db.support_threads.delete_one({"_id": ono})
+        purged += 1
+    await audit(user, "support.bulk_end", "support_thread", "*",
+                {"resolved": data.resolved, "stale_hours": data.stale_hours, "purged": purged}, request)
+    return {"ok": True, "purged": purged}
+
+
 @router.get("/support/threads")
 async def support_threads(status: str = Query("all"), user: dict = Depends(require_roles("admin", "operator"))):
     await _touch_seen(user)

@@ -89,13 +89,16 @@ async def _maybe_alert_spike():
     hours = _chain_usage["hours"]
     cur = now_utc().strftime("%H")
     cnt = hours.get(cur, 0)
-    if cnt < CHAIN_SPIKE_MIN:
+    doc = await db.settings.find_one({"_id": "chain_alert"}) or {}
+    smin = int(doc.get("spike_min", CHAIN_SPIKE_MIN))
+    mult = float(doc.get("spike_mult", CHAIN_SPIKE_MULT))
+    if cnt < smin:
         return
     past = [v for hh, v in hours.items() if hh != cur and v > 0]
     if len(past) < 3:
         return
     avg = sum(past) / len(past)
-    if avg <= 0 or cnt < avg * CHAIN_SPIKE_MULT:
+    if avg <= 0 or cnt < avg * mult:
         return
     hour_key = f"{k} {cur}"
     if _chain_usage.get("alerted_hour") == hour_key:

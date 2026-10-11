@@ -4,7 +4,7 @@ import { useAuth } from "@/context/AuthContext";
 import api, { formatApiErrorDetail } from "@/lib/api";
 import { fmtDate } from "@/lib/format";
 import { toast } from "sonner";
-import { MessageSquare, Send, Loader2, RefreshCw, CheckCircle2, RotateCcw, Copy, Volume2, VolumeX, Trash2 } from "lucide-react";
+import { MessageSquare, Send, Loader2, RefreshCw, CheckCircle2, RotateCcw, Copy, Volume2, VolumeX, Trash2, Eraser } from "lucide-react";
 
 const STATUS_LABEL = { pending: "待支付", paid: "已支付", expired: "已过期", confirming: "确认中", rejected: "已驳回" };
 const FILTERS = [["all", "全部"], ["open", "待处理"], ["resolved", "已解决"]];
@@ -31,6 +31,11 @@ export default function SupportPage() {
   const onlineById = Object.fromEntries(seats.map((s) => [s.id, s.online]));
   const canRefund = user.role === "admin" || (user.permissions || []).includes("orders.manual_callback");
   const [lightbox, setLightbox] = useState(null);
+  const [bulk, setBulk] = useState(false);
+  const [bulkResolved, setBulkResolved] = useState(true);
+  const [bulkStaleOn, setBulkStaleOn] = useState(false);
+  const [bulkStaleHours, setBulkStaleHours] = useState(24);
+  const [bulkBusy, setBulkBusy] = useState(false);
   const [soundOn, setSoundOn] = useState(() => localStorage.getItem("support_sound") !== "0");
   const [tone, setTone] = useState(() => localStorage.getItem("support_tone") || "dingdong");
   const [totalUnread, setTotalUnread] = useState(0);
@@ -186,6 +191,16 @@ export default function SupportPage() {
     } catch (err) { toast.error(formatApiErrorDetail(err.response?.data?.detail)); }
   };
 
+  const submitBulk = async () => {
+    setBulkBusy(true);
+    try {
+      const { data } = await api.post("/support/threads/bulk-end", { resolved: bulkResolved, stale_hours: bulkStaleOn ? Number(bulkStaleHours) : null });
+      toast.success(`已清理 ${data.purged} 个会话`);
+      setBulk(false); setActive(null); setConvo(null); loadThreads();
+    } catch (e) { toast.error(formatApiErrorDetail(e.response?.data?.detail)); }
+    finally { setBulkBusy(false); }
+  };
+
   return (
     <div className="space-y-6" data-testid="support-page">
       <div className="flex items-center justify-between flex-wrap gap-3">
@@ -218,6 +233,7 @@ export default function SupportPage() {
             className="text-xs bg-slate-800 border border-slate-600 rounded px-2 py-1 text-slate-300 outline-none focus:border-cyan-500 disabled:opacity-40">
             {Object.entries(TONES).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
           </select>
+          <button onClick={() => setBulk(true)} data-testid="support-bulk-open" className="flex items-center gap-1.5 text-sm text-slate-400 hover:text-red-400"><Eraser className="w-4 h-4" /> 批量清理</button>
           <button onClick={loadThreads} data-testid="support-refresh" className="flex items-center gap-1.5 text-sm text-slate-400 hover:text-cyan-400"><RefreshCw className="w-4 h-4" /> 刷新</button>
         </div>
       </div>
@@ -337,6 +353,25 @@ export default function SupportPage() {
           )}
         </div>
       </div>
+      {bulk && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" data-testid="support-bulk-dialog" onClick={(e) => e.target === e.currentTarget && setBulk(false)}>
+          <div className="w-full max-w-md glass border border-slate-700 rounded-2xl p-5">
+            <div className="flex items-center justify-between mb-3"><h3 className="font-semibold text-slate-100">批量清理会话</h3><button onClick={() => setBulk(false)} data-testid="support-bulk-close" className="text-slate-400 hover:text-slate-200">✕</button></div>
+            <label className="flex items-center gap-2 text-sm text-slate-200 mb-3 cursor-pointer">
+              <input type="checkbox" checked={bulkResolved} onChange={(e) => setBulkResolved(e.target.checked)} data-testid="support-bulk-resolved" className="w-4 h-4 accent-cyan-500" />
+              清理所有「已解决」会话
+            </label>
+            <label className="flex items-center gap-2 text-sm text-slate-200 mb-2 cursor-pointer flex-wrap">
+              <input type="checkbox" checked={bulkStaleOn} onChange={(e) => setBulkStaleOn(e.target.checked)} data-testid="support-bulk-stale" className="w-4 h-4 accent-cyan-500" />
+              清理超过
+              <input type="number" min="1" value={bulkStaleHours} onChange={(e) => setBulkStaleHours(e.target.value)} data-testid="support-bulk-hours" className="w-16 h-8 px-2 rounded bg-slate-900/60 border border-slate-700 text-slate-100 outline-none focus:border-cyan-500" />
+              小时无活动的会话
+            </label>
+            <p className="text-xs text-amber-400 bg-amber-500/10 border border-amber-500/30 rounded-lg px-3 py-2 my-3">注意：清理即删除会话记录，不可恢复，并立即释放对应坐席名额。</p>
+            <button onClick={submitBulk} disabled={bulkBusy || (!bulkResolved && !bulkStaleOn)} data-testid="support-bulk-submit" className="w-full h-10 rounded-lg bg-red-500 text-white font-semibold disabled:opacity-40 flex items-center justify-center">{bulkBusy ? <Loader2 className="w-4 h-4 animate-spin" /> : "执行清理"}</button>
+          </div>
+        </div>
+      )}
       {mc && convo && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" data-testid="support-mc-dialog" onClick={(e) => e.target === e.currentTarget && setMc(false)}>
           <div className="w-full max-w-md glass border border-slate-700 rounded-2xl p-5 max-h-[85vh] overflow-y-auto">

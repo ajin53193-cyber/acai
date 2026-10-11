@@ -22,10 +22,32 @@ from server import (
     live_address_list, sync_address, set_address_health, check_balance_alert,
     check_sweep_alert, fetch_balance, normalize_addresses, _tx_explorer, NETWORKS,
     chain_usage_snapshot, chain_usage_memory, TRONGRID_DAILY_LIMIT,
+    CHAIN_SPIKE_MULT, CHAIN_SPIKE_MIN,
 )
 from datetime import timedelta
 
 router = APIRouter(prefix="/api")
+
+
+@router.get("/chain/alert-settings")
+async def get_chain_alert(user: dict = Depends(require_roles("admin", "operator"))):
+    doc = await db.settings.find_one({"_id": "chain_alert"}) or {}
+    return {"spike_mult": float(doc.get("spike_mult", CHAIN_SPIKE_MULT)),
+            "spike_min": int(doc.get("spike_min", CHAIN_SPIKE_MIN))}
+
+
+class ChainAlertIn(BaseModel):
+    spike_mult: float
+    spike_min: int
+
+
+@router.put("/chain/alert-settings")
+async def put_chain_alert(data: ChainAlertIn, request: Request, user: dict = Depends(require_roles("admin"))):
+    mult = max(1.5, min(50.0, float(data.spike_mult)))
+    smin = max(100, min(500000, int(data.spike_min)))
+    await db.settings.update_one({"_id": "chain_alert"}, {"$set": {"spike_mult": mult, "spike_min": smin}}, upsert=True)
+    await audit(user, "chain.alert_settings", "settings", "chain_alert", {"spike_mult": mult, "spike_min": smin}, request)
+    return {"spike_mult": mult, "spike_min": smin}
 
 
 @router.get("/chain/usage/trend")
