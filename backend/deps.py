@@ -12,14 +12,14 @@ OPERATOR_PERMS = {
     "orders.view": "订单查看", "orders.verify": "手动核账", "payouts.review": "提现审核",
     "accounts.view": "商户/代理查看", "balance.adjust": "余额调整", "channels.manage": "通道/地址管理",
     "callbacks.retry": "回调重试", "audit.view": "审计日志", "reports.export": "报表导出",
-    "support.manage": "在线客服坐席",
+    "support.manage": "在线客服坐席", "orders.manual_callback": "客服可补单",
 }
 PERM_RULES = [
     ("/api/orders/", "resend-callback", "callbacks.retry"),
     ("/api/orders/", "reject", "orders.verify"),
     ("/api/orders/", "verify", "orders.verify"),
     ("/api/orders/", "recent-arrivals", "support.manage"),
-    ("/api/orders/", "manual-callback", "support.manage"),
+    ("/api/orders/", "manual-callback", "orders.manual_callback"),
     ("/api/orders", None, "orders.view"),
     ("/api/settlements/payouts", None, "payouts.review"), ("/api/settlements", None, "orders.view"),
     ("/api/accounts/", "adjust", "balance.adjust"), ("/api/accounts", None, "accounts.view"),

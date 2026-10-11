@@ -351,6 +351,13 @@
 - [x] **客服收不到图片修复**：`_store_image` 改为**内联 base64 存储**，不再依赖对象存储检索，保证坐席在任意环境都能看到图片；旧的对象存储路径图片仍通过 `/support/file` 正常显示。
   - 验证：curl（operator recent-arrivals 200 / manual-callback 400 非 403 / batch 403；内联图片 data: URL 落库；thread 返回 order_id；模板置顶）+ 截图（客服端核对补单弹窗显示可用/已占用到账）。
 
+## Implemented (2026-06, iteration 43) — 客服可补单权限 / 去除代理商 / 图片放大
+- [x] **「客服可补单」独立权限**：新增 operator 权限 `orders.manual_callback`（标签“客服可补单”）。`/api/orders/{id}/manual-callback` 改映射此权限（recent-arrivals 仍 support.manage）。账户权限页自动渲染该开关（权限列表来自后端 OPERATOR_PERMS）。坐席无此权限→403，有→放行。前端客服台「核对到账/手动补单」按钮按此权限显隐。
+- [x] **去除代理商角色（UI）**：账户权限页新增账户角色下拉仅保留「商户 / 操作员」，顶部分页仅「商户 / 操作员」（移除“代理商”）。后端仍兼容 agent（API-only）。
+- [x] **客服端图片放大查看**：客服台点击付款截图弹出全屏灯箱，支持「下载 / 关闭」。
+- 客服坐席添加位置：账户权限 → 新增账户 → 角色=操作员 → 勾选「在线客服坐席」(+可选「客服可补单」)。
+  - 验证：curl（权限列表含 orders.manual_callback=客服可补单；无权限 403、授权后 400 放行）+ 截图（账户页仅商户/操作员、客服台图片灯箱下载/关闭）。
+
 ## Backlog (next)
 - P2: 散落模型持续并入 models.py
 - P2: 清理测试残留的 TEST_M 商户账户（有余额，需先结清；现可用新删除接口手动清理）

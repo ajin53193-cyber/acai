@@ -146,7 +146,7 @@ export default function AccountsPage() {
                 <div className="space-y-1.5"><Label>账户类型</Label>
                   <Select value={form.role} onValueChange={(v) => setForm({ ...form, role: v })}>
                     <SelectTrigger data-testid="account-role-select" className="bg-slate-900/60 border-slate-700"><SelectValue /></SelectTrigger>
-                    <SelectContent><SelectItem value="merchant">商户</SelectItem><SelectItem value="agent">代理商</SelectItem><SelectItem value="operator">操作员（员工）</SelectItem></SelectContent>
+                    <SelectContent><SelectItem value="merchant">商户</SelectItem><SelectItem value="operator">操作员（员工）</SelectItem></SelectContent>
                   </Select></div>
               )}
               {form.role === "operator" && (
@@ -174,7 +174,6 @@ export default function AccountsPage() {
         <Tabs value={tab} onValueChange={setTab}>
           <TabsList className="bg-slate-900/60 border border-slate-800">
             <TabsTrigger value="merchant" data-testid="tab-merchants">商户</TabsTrigger>
-            <TabsTrigger value="agent" data-testid="tab-agents">代理商</TabsTrigger>
             <TabsTrigger value="operator" data-testid="tab-operators">操作员</TabsTrigger>
           </TabsList>
         </Tabs>

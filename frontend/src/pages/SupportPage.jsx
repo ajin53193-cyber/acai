@@ -29,6 +29,8 @@ export default function SupportPage() {
   const fmtDur = (s) => s == null ? "—" : s < 60 ? `${s}秒` : s < 3600 ? `${Math.round(s / 60)}分` : `${(s / 3600).toFixed(1)}时`;
   const onlineByName = Object.fromEntries(seats.map((s) => [s.name, s.online]));
   const onlineById = Object.fromEntries(seats.map((s) => [s.id, s.online]));
+  const canRefund = user.role === "admin" || (user.permissions || []).includes("orders.manual_callback");
+  const [lightbox, setLightbox] = useState(null);
 
   const loadThreads = useCallback(async () => {
     try { const r = await api.get("/support/threads", { params: { status: filter } }); setThreads(r.data); } catch (e) { /* ignore */ }
@@ -206,7 +208,7 @@ export default function SupportPage() {
                   {convo.out_trade_no && <Detail k="商户单号" v={convo.out_trade_no} onCopy={copy} />}
                   {convo.tx_id && <Detail k="交易哈希" v={convo.tx_id} onCopy={copy} />}
                   <div className="col-span-2"><Detail k="收款地址" v={convo.wallet_address} onCopy={copy} mono /></div>
-                  {convo.order_id && ["pending", "confirming", "expired"].includes(convo.order_status) && (
+                  {convo.order_id && canRefund && ["pending", "confirming", "expired"].includes(convo.order_status) && (
                     <button onClick={openMc} data-testid="support-mc-open" className="col-span-2 mt-1 text-[12px] px-2.5 py-1.5 rounded-lg bg-emerald-500/15 border border-emerald-500/40 text-emerald-300 hover:bg-emerald-500/25 flex items-center justify-center gap-1">
                       <CheckCircle2 className="w-3.5 h-3.5" />核对到账 / 手动补单
                     </button>
@@ -221,7 +223,7 @@ export default function SupportPage() {
                   <div key={m.id} className={`flex ${m.sender === "agent" ? "justify-end" : "justify-start"}`}>
                     <div className={`max-w-[75%] px-3 py-2 rounded-2xl text-[14px] whitespace-pre-wrap break-words ${m.sender === "agent" ? "bg-cyan-500 text-slate-950 rounded-br-sm" : "bg-slate-800 text-slate-100 rounded-bl-sm"}`}>
                       <div className="text-[11px] opacity-70 mb-0.5">{m.sender === "agent" ? (m.sender_name || "客服") : "访客"} · {fmtDate(m.created_at)}</div>
-                      {m.image && <a href={imgUrl(m.image)} target="_blank" rel="noreferrer"><img src={imgUrl(m.image)} alt="attach" className="max-w-[220px] rounded-lg mb-1 block" /></a>}
+                      {m.image && <img src={imgUrl(m.image)} alt="attach" onClick={() => setLightbox(imgUrl(m.image))} data-testid="support-msg-image" className="max-w-[220px] rounded-lg mb-1 block cursor-zoom-in" />}
                       {m.text}
                     </div>
                   </div>
@@ -275,6 +277,15 @@ export default function SupportPage() {
               </div>
             )}
             <button onClick={submitMc} disabled={mcBusy || !mcTx.trim() || !mcAmt} data-testid="support-mc-submit" className="w-full h-10 rounded-lg bg-emerald-500 text-slate-950 font-semibold disabled:opacity-40 flex items-center justify-center">{mcBusy ? <Loader2 className="w-4 h-4 animate-spin" /> : "核对并确认"}</button>
+          </div>
+        </div>
+      )}
+      {lightbox && (
+        <div className="fixed inset-0 z-[60] flex flex-col items-center justify-center bg-black/85 p-4" data-testid="support-lightbox" onClick={() => setLightbox(null)}>
+          <img src={lightbox} alt="预览" className="max-w-[92vw] max-h-[82vh] rounded-lg shadow-2xl" onClick={(e) => e.stopPropagation()} />
+          <div className="mt-3 flex gap-3" onClick={(e) => e.stopPropagation()}>
+            <a href={lightbox} download data-testid="support-lightbox-download" className="px-4 py-2 rounded-lg bg-cyan-500 text-slate-950 text-sm font-semibold">下载</a>
+            <button onClick={() => setLightbox(null)} className="px-4 py-2 rounded-lg bg-slate-700 text-slate-200 text-sm">关闭</button>
           </div>
         </div>
       )}
