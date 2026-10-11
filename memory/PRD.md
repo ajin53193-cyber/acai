@@ -410,3 +410,4 @@
 - Windows .ps1 脚本改为 UTF-8 BOM（PowerShell 5 中文乱码修复）
 - requirements-prod.txt（剔除 emergentintegrations/litellm 平台专用包）；deploy.ps1 用 corepack 启用 yarn
 - deploy.ps1: cron 任务改用 cron_call.bat（修复 schtasks 引号）、自动下载便携版 mongotools、服务健康等待 12s
+- deploy.ps1 新增 -Port 参数（用户服务器 8001 被其他项目占用，改用 8011）

@@ -6,6 +6,7 @@ param(
   [string]$SiteRoot = (Resolve-Path "$PSScriptRoot\..\..").Path,
   [string]$Domain = "print8.8bc8uyz.com",
   [string]$Python = "",
+  [int]$Port = 8001,
   [switch]$ResetData
 )
 $ErrorActionPreference = "Stop"
@@ -81,7 +82,7 @@ Step "生成启动脚本 start_backend.bat"
 $bat = @"
 @echo off
 cd /d "$backend"
-".venv\Scripts\python.exe" -m uvicorn server:app --host 127.0.0.1 --port 8001 --workers 1
+".venv\Scripts\python.exe" -m uvicorn server:app --host 127.0.0.1 --port $Port --workers 1
 "@
 Set-Content (Join-Path $SiteRoot "deploy\windows\start_backend.bat") $bat -Encoding ASCII
 
@@ -100,7 +101,7 @@ if (-not $nssm) {
 } else { $nssmExe = $nssm.Source }
 $svc = "SifangPayBackend"
 if (Get-Service $svc -ErrorAction SilentlyContinue) { & $nssmExe stop $svc | Out-Null; & $nssmExe remove $svc confirm | Out-Null }
-& $nssmExe install $svc "$backend\.venv\Scripts\python.exe" "-m uvicorn server:app --host 127.0.0.1 --port 8001"
+& $nssmExe install $svc "$backend\.venv\Scripts\python.exe" "-m uvicorn server:app --host 127.0.0.1 --port $Port"
 & $nssmExe set $svc AppDirectory $backend
 & $nssmExe set $svc AppStdout "$backend\logs\backend.out.log"
 & $nssmExe set $svc AppStderr "$backend\logs\backend.err.log"
@@ -109,7 +110,7 @@ if (Get-Service $svc -ErrorAction SilentlyContinue) { & $nssmExe stop $svc | Out
 New-Item -ItemType Directory -Force "$backend\logs" | Out-Null
 & $nssmExe start $svc
 Start-Sleep 12
-try { $r = Invoke-WebRequest "http://127.0.0.1:8001/api/health" -UseBasicParsing -TimeoutSec 10; Write-Host "后端健康: HTTP $($r.StatusCode)" -ForegroundColor Green }
+try { $r = Invoke-WebRequest "http://127.0.0.1:$Port/api/health" -UseBasicParsing -TimeoutSec 10; Write-Host "后端健康: HTTP $($r.StatusCode)" -ForegroundColor Green }
 catch { Write-Warning "后端未响应，请查看 $backend\logs\backend.err.log" }
 
 Step "注册定时任务 (替代平台 cron)"
@@ -121,7 +122,7 @@ $jobs = @(
   @{n="SifangSupportClean"; t="03:00"; p="/api/cron/support-cleanup"}
 )
 foreach ($j in $jobs) {
-  schtasks /Create /F /SC DAILY /ST $j.t /TN $j.n /TR "`"$cronBat`" $($j.p)" /RU SYSTEM | Out-Null
+  schtasks /Create /F /SC DAILY /ST $j.t /TN $j.n /TR "`"$cronBat`" $($j.p) $Port" /RU SYSTEM | Out-Null
 }
 Write-Host "已创建 4 个 Windows 计划任务。"
 
@@ -144,7 +145,7 @@ Write-Host @"
 后续在宝塔面板中：
  1. 网站 -> 添加站点：域名填 print8.8bc8uyz.com, print8.1bc8uyz.com, print8.2bc8uyz.com
     根目录： $frontend\build
- 2. 站点 -> 配置文件：用 deploy\nginx.conf 的 server 块替换（root 改为上面的 build 路径，Windows 路径用 / 分隔）
+ 2. 站点 -> 配置文件：用 deploy\nginx.conf 的 server 块替换（root 改为上面的 build 路径，Windows 路径用 / 分隔；proxy_pass 端口改为 $Port）
  3. 站点 -> SSL：为三个域名申请 Let's Encrypt 证书并开启强制 HTTPS
  4. 浏览器访问 https://$Domain 用 .env 中的 ADMIN_EMAIL / ADMIN_PASSWORD 登录
  服务管理：nssm start|stop|restart SifangPayBackend     日志：$backend\logs
