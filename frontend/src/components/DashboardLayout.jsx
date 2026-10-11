@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Outlet, NavLink, useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import api from "@/lib/api";
@@ -36,12 +36,23 @@ export default function DashboardLayout() {
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const [supportUnread, setSupportUnread] = useState(0);
+  const prevUnread = useRef(0);
   useEffect(() => {
     if (!(user.role === "admin" || (user.role === "operator" && (user.permissions || []).includes("support.manage")))) return;
     let on = true;
-    const fetch = () => api.get("/support/unread-count").then((r) => on && setSupportUnread(r.data.unread || 0)).catch(() => {});
-    fetch();
-    const i = setInterval(fetch, 10000);
+    if (window.Notification && Notification.permission === "default") { try { Notification.requestPermission(); } catch (e) { /* ignore */ } }
+    const beep = () => { try { const a = new (window.AudioContext || window.webkitAudioContext)(); const o = a.createOscillator(); o.connect(a.destination); o.frequency.value = 880; o.start(); o.stop(a.currentTime + 0.15); } catch (e) { /* ignore */ } };
+    const poll = () => api.get("/support/unread-count").then((r) => {
+      if (!on) return;
+      const n = r.data.unread || 0;
+      if (n > prevUnread.current) {
+        beep();
+        if (window.Notification && Notification.permission === "granted") { try { new Notification("新的客服消息", { body: `有 ${n} 条未读消息待回复` }); } catch (e) { /* ignore */ } }
+      }
+      prevUnread.current = n; setSupportUnread(n);
+    }).catch(() => {});
+    poll();
+    const i = setInterval(poll, 10000);
     return () => { on = false; clearInterval(i); };
   }, [user.role]);
   const items = NAV.filter((n) => n.roles.includes(user.role) && (user.role !== "operator" || (user.permissions || []).includes(n.perm)));

@@ -25,6 +25,13 @@ export function SupportChat({ orderNo, t, open, setOpen }) {
   const [sending, setSending] = useState(false);
   const endRef = useRef(null);
   const fileRef = useRef(null);
+  const typingRef = useRef(0);
+  const imgUrl = (p) => (p && !p.startsWith("http") && !p.startsWith("data:")) ? (process.env.REACT_APP_BACKEND_URL || "") + p : p;
+  const onType = (e) => {
+    setText(e.target.value);
+    const n = Date.now();
+    if (n - typingRef.current > 2500) { typingRef.current = n; api.post(`/support/public/${orderNo}/typing`).catch(() => {}); }
+  };
 
   const load = useCallback(async () => {
     try { const r = await api.get(`/support/public/${orderNo}`); setData(r.data); } catch (e) { /* ignore */ }
@@ -71,7 +78,7 @@ export function SupportChat({ orderNo, t, open, setOpen }) {
                   <div className={`max-w-[78%] px-3 py-2 rounded-2xl text-[14px] whitespace-pre-wrap break-words ${m.sender === "customer" ? "text-white rounded-br-sm" : "bg-white text-slate-800 border border-slate-100 rounded-bl-sm"}`}
                     style={m.sender === "customer" ? { background: "var(--accent)" } : {}}>
                     {m.sender === "agent" && <div className="text-[11px] opacity-70 mb-0.5">{m.sender_name || t.supportTitle}</div>}
-                    {m.image && <a href={m.image} target="_blank" rel="noreferrer"><img src={m.image} alt="attach" className="max-w-[200px] rounded-lg mb-1 block" /></a>}
+                    {m.image && <a href={imgUrl(m.image)} target="_blank" rel="noreferrer"><img src={imgUrl(m.image)} alt="attach" className="max-w-[200px] rounded-lg mb-1 block" /></a>}
                     {m.text}
                   </div>
                 </div>
@@ -89,7 +96,7 @@ export function SupportChat({ orderNo, t, open, setOpen }) {
                 <div className="flex items-center gap-2 p-3">
                   <input ref={fileRef} type="file" accept="image/*" onChange={onPick} className="hidden" data-testid="support-file-input" />
                   <button onClick={() => fileRef.current?.click()} data-testid="support-attach" className="h-11 w-11 rounded-xl bg-slate-100 text-slate-500 flex items-center justify-center shrink-0"><ImagePlus className="w-5 h-5" /></button>
-                  <input value={text} onChange={(e) => setText(e.target.value)} onKeyDown={(e) => e.key === "Enter" && send()}
+                  <input value={text} onChange={onType} onKeyDown={(e) => e.key === "Enter" && send()}
                     placeholder={t.supportInput} data-testid="support-input"
                     className="flex-1 h-11 px-3 rounded-xl bg-slate-100 text-[15px] outline-none text-slate-800" />
                   <button onClick={send} disabled={sending || (!text.trim() && !pendingImg)} data-testid="support-send"

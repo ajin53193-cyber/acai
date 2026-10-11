@@ -16,7 +16,10 @@ export default function SupportPage() {
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState(null);
   const endRef = useRef(null);
+  const imgUrl = (p) => (p && !p.startsWith("http") && !p.startsWith("data:")) ? (process.env.REACT_APP_BACKEND_URL || "") + p : p;
+  const fmtDur = (s) => s == null ? "—" : s < 60 ? `${s}秒` : s < 3600 ? `${Math.round(s / 60)}分` : `${(s / 3600).toFixed(1)}时`;
 
   const loadThreads = useCallback(async () => {
     try { const r = await api.get("/support/threads", { params: { status: filter } }); setThreads(r.data); } catch (e) { /* ignore */ }
@@ -29,6 +32,7 @@ export default function SupportPage() {
   }, []);
 
   useEffect(() => { api.get("/support/templates").then((r) => setTemplates(r.data.templates || [])).catch(() => {}); }, []);
+  useEffect(() => { const f = () => api.get("/support/stats").then((r) => setStats(r.data)).catch(() => {}); f(); const i = setInterval(f, 8000); return () => clearInterval(i); }, []);
   useEffect(() => { loadThreads(); const i = setInterval(loadThreads, 5000); return () => clearInterval(i); }, [loadThreads]);
   useEffect(() => {
     if (!active) return;
@@ -51,8 +55,12 @@ export default function SupportPage() {
   };
 
   const setStatus = async (status) => {
-    try { await api.patch(`/support/threads/${active}/status`, { status }); toast.success(status === "resolved" ? "已标记为已解决" : "已重新打开"); loadConvo(active); loadThreads(); }
-    catch (err) { toast.error(formatApiErrorDetail(err.response?.data?.detail)); }
+    try {
+      const { data } = await api.patch(`/support/threads/${active}/status`, { status });
+      if (data.deleted) { toast.success("订单已完成，会话已结束并清除数据"); setActive(null); setConvo(null); }
+      else { toast.success(status === "resolved" ? "已标记为已解决" : "已重新打开"); loadConvo(active); }
+      loadThreads();
+    } catch (err) { toast.error(formatApiErrorDetail(err.response?.data?.detail)); }
   };
 
   return (
@@ -73,7 +81,20 @@ export default function SupportPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4" style={{ height: "calc(100vh - 230px)" }}>
+      {stats && (
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3" data-testid="support-stats">
+          <div className="glass rounded-xl p-3"><div className="text-xs text-slate-400">待处理</div><div className="text-2xl font-bold text-amber-400">{stats.open}</div></div>
+          <div className="glass rounded-xl p-3"><div className="text-xs text-slate-400">已解决</div><div className="text-2xl font-bold text-emerald-400">{stats.resolved}</div></div>
+          <div className="glass rounded-xl p-3"><div className="text-xs text-slate-400">会话总数</div><div className="text-2xl font-bold text-slate-200">{stats.total}</div></div>
+          <div className="glass rounded-xl p-3 overflow-hidden"><div className="text-xs text-slate-400 mb-1">坐席平均响应</div>
+            {stats.by_seat.length === 0 ? <div className="text-slate-500 text-sm">暂无</div> : stats.by_seat.slice(0, 3).map((s) => (
+              <div key={s.name} className="flex items-center justify-between text-[11px]"><span className="text-slate-300 truncate">{s.name}</span><span className="text-cyan-400 font-mono shrink-0">{fmtDur(s.avg_seconds)}·{s.replies}条</span></div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4" style={{ height: "calc(100vh - 320px)" }}>
         {/* Threads list */}
         <div className="glass rounded-xl overflow-y-auto" data-testid="support-threads">
           {loading ? (
@@ -90,6 +111,7 @@ export default function SupportPage() {
                 {th.unread > 0 && <span className="shrink-0 min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[11px] flex items-center justify-center" data-testid={`thread-unread-${th.order_no}`}>{th.unread}</span>}
               </div>
               <div className="text-[11px] font-mono text-slate-500 truncate">{th.order_no}</div>
+              {th.assigned_to && <div className="text-[10px] text-cyan-400/80 truncate">负责：{th.assigned_to}</div>}
               <div className="text-[12px] text-slate-400 truncate mt-0.5">{th.last_sender === "agent" ? "我：" : ""}{th.last_text}</div>
               <div className="text-[10px] text-slate-600 mt-0.5">{fmtDate(th.last_at)}</div>
             </button>
@@ -106,7 +128,9 @@ export default function SupportPage() {
             <>
               <div className="px-4 py-3 border-b border-slate-800 space-y-2" data-testid="support-order-detail">
                 <div className="flex items-center justify-between gap-2">
-                  <div className="font-medium text-slate-200">{convo.merchant_name}</div>
+                  <div className="font-medium text-slate-200 flex items-center gap-2">{convo.merchant_name}
+                    {convo.assigned_to && <span className="text-[11px] px-1.5 py-0.5 rounded bg-slate-700 text-slate-300" data-testid="support-assigned">负责：{convo.assigned_to}</span>}
+                  </div>
                   {convo.status === "resolved"
                     ? <button onClick={() => setStatus("open")} data-testid="support-reopen" className="flex items-center gap-1 text-xs px-2 py-1 rounded border border-slate-600 text-slate-300 hover:bg-slate-700"><RotateCcw className="w-3.5 h-3.5" /> 重新打开</button>
                     : <button onClick={() => setStatus("resolved")} data-testid="support-resolve" className="flex items-center gap-1 text-xs px-2 py-1 rounded border border-emerald-500/40 text-emerald-400 hover:bg-emerald-500/10"><CheckCircle2 className="w-3.5 h-3.5" /> 标记已解决</button>}
@@ -129,11 +153,12 @@ export default function SupportPage() {
                   <div key={m.id} className={`flex ${m.sender === "agent" ? "justify-end" : "justify-start"}`}>
                     <div className={`max-w-[75%] px-3 py-2 rounded-2xl text-[14px] whitespace-pre-wrap break-words ${m.sender === "agent" ? "bg-cyan-500 text-slate-950 rounded-br-sm" : "bg-slate-800 text-slate-100 rounded-bl-sm"}`}>
                       <div className="text-[11px] opacity-70 mb-0.5">{m.sender === "agent" ? (m.sender_name || "客服") : "访客"} · {fmtDate(m.created_at)}</div>
-                      {m.image && <a href={m.image} target="_blank" rel="noreferrer"><img src={m.image} alt="attach" className="max-w-[220px] rounded-lg mb-1 block" /></a>}
+                      {m.image && <a href={imgUrl(m.image)} target="_blank" rel="noreferrer"><img src={imgUrl(m.image)} alt="attach" className="max-w-[220px] rounded-lg mb-1 block" /></a>}
                       {m.text}
                     </div>
                   </div>
                 ))}
+                {convo.customer_typing && <div className="text-xs text-slate-400 italic" data-testid="support-typing">访客正在输入…</div>}
                 <div ref={endRef} />
               </div>
               {templates.length > 0 && (

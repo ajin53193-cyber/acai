@@ -266,6 +266,14 @@
   - 验证：curl 全链路（坐席 support.manage→/support 200 /orders 403、话术 CRUD、附件存储、线程详情含收款地址、resolve+筛选）+ 后台双截图确认；pytest 并行回归 114 passed/134 skipped
   - 坐席测试账号：support_seat@demo.com / Seat888!!（见 test_credentials.md）
 
+## Implemented (2026-06, iteration 32) — 客服高级能力
+- [x] **坐席工作量看板**：`GET /api/support/stats`（open/resolved/total + 每坐席平均响应时长/回复数）；SupportPage 顶部统计卡
+- [x] **会话自动分配**：首个回复的坐席自动成为负责人（`assigned_to`/`assigned_id`），会话列表与详情显示「负责：X」，避免两名坐席重复回复
+- [x] **访客输入提示 + 新消息通知**：付款人输入时 `POST /support/public/{order}/typing`，后台会话显示「访客正在输入…」；后台未读增加时 WebAudio 提示音 + 浏览器桌面通知（首次请求授权）
+- [x] **附件改用对象存储**：接入 Emergent 对象存储（`storage.py`，EMERGENT_LLM_KEY），图片存储返回 `/api/support/file/{path}` 代替 base64 入库；`support_files` 记录+软删除；对象存储不可用时自动回退内联（功能不中断）。全链路验证：上传→对象存储→`GET /api/support/file/...` 200 image/png
+- [x] **会话数据自动清除**：订单已完成(paid)且会话标记已解决时，自动删除该会话消息/线程并软删附件（`support.purge` 审计）。验证：paid+resolve→deleted:true，线程消失
+  - pytest 并行回归 114 passed/134 skipped
+
 ## Backlog (next)
 - P2: 散落模型持续并入 models.py
 - P2: 清理测试残留的 TEST_M 商户账户（有余额，需先结清；现可用新删除接口手动清理）
