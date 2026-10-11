@@ -148,7 +148,7 @@ export default function ApiDocsPage() {
           <div className="space-y-3 text-sm">
             <div>
               <div className="text-xs text-slate-400 mb-1">1. 创建订单</div>
-              <Code>{`POST ${BASE}/api/v1/orders\nContent-Type: application/json\n\n{\n  "api_key": "mk_xxx",\n  "timestamp": 1718000000,        // Unix 秒，±300s 内有效\n  "nonce": "随机字符串",            // 10 分钟内不可重复\n  "amount_usdt": 100.00,\n  "network": "TRC20",             // TRC20 | ERC20 | BEP20\n  "out_trade_no": "您的订单号",     // 幂等键，重复返回原订单\n  "notify_url": "https://...",    // 可选，默认用商户设置\n  "remark": "可选",\n  "sign": "HMAC-SHA256 签名"\n}`}</Code>
+              <Code>{`POST ${BASE}/api/v1/orders\nContent-Type: application/json\n\n{\n  "api_key": "mk_xxx",\n  "timestamp": 1718000000,        // Unix 秒，±300s 内有效\n  "nonce": "随机字符串",            // 10 分钟内不可重复\n  "amount_usdt": 100.00,\n  "network": "TRC20",             // 仅支持 TRC20\n  "out_trade_no": "您的订单号",     // 幂等键，重复返回原订单\n  "notify_url": "https://...",    // 可选，默认用商户设置\n  "remark": "可选",\n  "sign": "HMAC-SHA256 签名"\n}`}</Code>
             </div>
             <div>
               <div className="text-xs text-slate-400 mb-1">2. 查询订单</div>

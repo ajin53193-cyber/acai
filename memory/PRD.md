@@ -186,14 +186,21 @@
 - [x] 导出完成通知：后台导出完成且行数≥500 时，Telegram 推送「导出完成（类型/行数/大小/操作人）」(kind=report)
 - [x] 测试：后端 pytest 28/28；三类导出 curl 全通过（orders 279 行 done、snapshots done、ledger done；ledger 缺 account_id→400、非法 kind→400；GridFS 落库+下载正常）；前端编译通过 + 导出任务页截图确认
 
+## Implemented (2026-06, iteration 23) — 仅保留 TRC20
+- [x] 彻底移除 ERC20/BEP20：NETWORKS=["TRC20"]；删除 EVM_CHAINS/rpc_call/fetch_evm_transfers(_rpc)/ETHERSCAN 逻辑；fetch_transfers/fetch_balance 仅 TRC20；build_order 强制 network="TRC20"（忽略客户端传值）；validate_wallet 仅校验 TRC20；explorer 链接仅 tronscan；seed 仅建 2 条 TRC20 通道
+- [x] 数据清理（不可逆）：删除所有非 TRC20 的 channels/orders/chain_txs/address_health/alerts/sweeps（cleanup_non_trc20.py，已执行：channels 2、orders 101、chain_txs 5491、address_health 1、alerts 2）
+- [x] 前端锁定 TRC20：通道/订单创建对话框网络改为固定「USDT · TRC20」展示（testid channel-network-fixed / order-network-fixed）；移除订单页网络筛选、地址健康页网络筛选、开发者文档网络下拉；DashboardLayout 延迟标仅 TRC20
+- [x] 台账后台导出：资金流水页新增「后台导出」按钮（testid ledger-bg-export-btn），POST /api/export/ledger（带 account_id + month/range），任务进导出任务中心
+- [x] Telegram bot token 已写入 DB notify 设置（_id=notify）；**注意：chat_id 仍需管理员在安全/通知设置页填写后 Telegram 才会推送**
+- [x] 测试：iteration_16 testing_agent 后端 7/7 + 前端 100% 通过；canonical pytest iteration14/15 全通过（36 passed）。遗留 iteration3/4/5/7/new_features 为历史陈旧用例（硬编码 ObjectId + 已移除的 EVM + 商户后台登录已禁用），非本次改动导致
+
 ## Backlog (next)
 - P1: orders 域迁移 routes/orders.py（抽 services.py 承载 build_order/settle_order/pick_*，需专轮全回归——涉核心资金流程）
 - P1: settlements 域迁移 routes/settlements.py
-- P1: 获取 ETHERSCAN_API_KEY 后验证 ERC20/BEP20 真实到账
-- P2: 导出可选切换平台对象存储；定时导出；剩余散落 Pydantic 模型并入 models.py
-- P2: 代理多级分润（当前单级）
-- P2: server.py 进一步拆分为路由模块（现 ~2389 行，email 已抽出；建议继续拆 auth/orders/settlements/ledger/operators）
-- P2: admin 账户删除接口（清理测试遗留账户 test_2fa_*@demo.com）
+- P2: 定时自动导出（每日/每周静默生成入导出中心）；导出通知阈值可配置 + 可选邮件送达
+- P2: 清理/迁移遗留 pytest（iteration3/4/5/7/new_features 改 TRC20 或移除）
+- P2: 剩余散落 Pydantic 模型并入 models.py；server.py 进一步拆分
+- P2: 代理多级分润（当前单级）；admin 账户删除接口
 
 ## Next Tasks
 - 按需接入真实支付/链上监听，或扩展回调通知与对账自动化。

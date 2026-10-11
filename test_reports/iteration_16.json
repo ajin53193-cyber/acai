@@ -1,0 +1,29 @@
+{
+  "summary": "Iteration 16: Validated TRC20-only enforcement and new /ledger background export button. Backend pytest 7/7 PASS (test_iteration16.py): channels/chain addresses are TRC20-only; POST /api/orders with network='ERC20' is correctly forced to TRC20 server-side (build_order line 641); POST /api/export/ledger returns job id, job completes with status='done', xlsx (PK) downloadable, missing account_id -> 400; /api/dashboard/stats OK. Frontend: /channels add dialog shows data-testid='channel-network-fixed' = 'USDT · TRC20' with no network select; /orders has NO filter-network and create dialog shows data-testid='order-network-fixed' = 'USDT · TRC20' and creation succeeds (toast + new SF order visible as TRC20); /addresses has no network filter and shows no ERC20/BEP20 text; /developer try-network-fixed = TRC20 and live POST /api/v1/orders returns {code:0, network:'TRC20'}; /ledger shows data-testid='ledger-bg-export-btn' which posts /api/export/ledger and displays '已加入后台导出' toast; /exports lists '资金流水' (ledger) jobs with status 已完成 and download icons.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "/developer ApiDocsPage", "issues": ["Code example at ApiDocsPage.jsx:151 still has inline comment '// TRC20 | ERC20 | BEP20' for the network field, even though only TRC20 is supported. Misleading for integrators — update comment to 'TRC20'."]},
+      {"screen": "/developer ApiDocsPage", "issues": ["React hydration warning persists: <span> rendered inside <option> for merchant-select. Noisy but harmless (also flagged in iteration 14)."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_iteration16.py", "/app/test_reports/pytest/iter16.xml"],
+  "action_items": [
+    "(Minor) Update ApiDocsPage.jsx line 151 code example comment: '// TRC20 | ERC20 | BEP20' -> '// TRC20 (only supported)' to match the enforced UI/backend behavior.",
+    "(Optional, from iter14) Resolve <span> inside <option> hydration warning on /developer merchant-select."
+  ],
+  "critical_code_review_comments": [
+    "server.py build_order() unconditionally sets network='TRC20' (line 641) — correctly ignores client-supplied value. The orders POST endpoint does NOT reject ERC20/BEP20 input but silently coerces; consider logging a WARN or returning 400 for explicit non-TRC20 input so integrators get fast feedback instead of a confusing silent conversion.",
+    "server.py export_jobs download endpoint returns 410 'file expired' on GridFS miss — good UX; ledger kind requires account_id (400 enforced).",
+    "/exports page shows the historical 分润快照 and 订单 jobs alongside 资金流水 (same table) which is correct and consistent."
+  ],
+  "updated_files": ["/app/backend/tests/test_iteration16.py"],
+  "success_rate": {"backend": "100% (7/7)", "frontend": "100%"},
+  "test_credentials": "admin ajin53193@gmail.com/admin888",
+  "seed_data_creation": "Created 2 TEST orders during test_create_order_forces_trc20_even_if_erc20_sent and 2 ledger export jobs (both completed and downloadable).",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Routes: ledger page is /ledger (NOT /balance-ledger), exports page is /exports (NOT /export-jobs) — the review request used wrong URLs, but testids and behavior all match. Orders create button text is '创建收款单'. Channels create button is '新增收款通道'. All networks across backend+frontend are TRC20-only; POST /api/orders silently coerces non-TRC20 requests. Fresh backend test suite at /app/backend/tests/test_iteration16.py covers both TRC20 enforcement and ledger background export flow."
+}
