@@ -1,0 +1,25 @@
+{
+  "summary": "Verified TRC20-only single-channel state end-to-end. Backend GET /api/channels returns EXACTLY ONE channel named 'TRC20 极速通道' (network TRC20, status=active, wallet_addresses=[TN3W4H6rK2ce4vX9YnFQHwKENnHjoxb3m9], 1 address in pool, 8 pending). Admin login works. POST /api/orders succeeds and routes to network TRC20 (single channel is used). Channel count remains 1 after order creation. Frontend /channels renders exactly one channel card with correct metadata; no '大额通道', no TEST_ channels. 5/5 backend pytest assertions pass.",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": { "ui_bugs": [], "integration_issues": [], "design_issues": [] },
+  "test_report_links": [
+    "/app/backend/tests/test_single_channel.py",
+    "/app/test_reports/pytest/single_channel.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "GET /api/channels returns channel objects with field 'status' ('active') rather than boolean 'active'; frontend/tests should rely on this.",
+    "Address pool is exposed as 'wallet_addresses' (list) plus singular 'wallet_address'; no /api/channels/{id}/addresses endpoint (returns 404). Documentation/consumers should use the embedded list.",
+    "Order creation (POST /api/orders) response did not include an explicit routed channel_name field; only network was returned. Consider including routed channel id/name in the response for traceability (helpful for dashboards)."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_single_channel.py"
+  ],
+  "success_rate": { "backend": "100%", "frontend": "100%" },
+  "test_credentials": "admin: ajin53193@gmail.com / admin888 (used)",
+  "seed_data_creation": "Created 1 test order via POST /api/orders with remark='TEST_single_channel' (amount 123.45 USDT, TRC20) to verify routing. No channels were created; single-channel state preserved.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Channel is identified by name 'TRC20 极速通道', network TRC20, status 'active'. Address pool via wallet_addresses list on the channel object. Order routing confirmed. If backend seed re-runs on a fresh DB it should only create this one channel.",
+  "rca of the issue": "N/A — fix verified. Previous multi-channel seed was replaced with single 'TRC20 极速通道' seed; MongoDB cleaned up correctly."
+}

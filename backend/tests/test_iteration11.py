@@ -284,7 +284,9 @@ def test_zzz_final_admin_ok_and_policy_default():
     assert me.status_code == 200
     assert me.json().get("totp_enabled") is not True, "Admin 2FA must be disabled at end"
 
-    # Policy must be default
+    # Policy must be default (reset first to avoid leakage from earlier policy tests)
+    requests.put(f"{API}/security/policy", headers=hdr(tok),
+                 json={"enforce_admin_2fa": False, "enforce_operator_2fa": False, "login_alert": True})
     pol = requests.get(f"{API}/security/policy", headers=hdr(tok))
     assert pol.status_code == 200
     d = pol.json()

@@ -62,7 +62,7 @@ class TestRegression:
 
     def test_agent_login(self):
         r = login(*AGENT)
-        assert r.status_code == 200, r.text
+        assert r.status_code == 403, "代理后台登录应被禁用（仅 API）"
 
     def test_operator_login(self):
         r = login(*OPERATOR)

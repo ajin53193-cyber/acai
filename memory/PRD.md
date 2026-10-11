@@ -221,10 +221,17 @@
 - [x] **遗留测试归整**：iteration3/4/5/7 针对已下线功能(商户后台登录/EVM/旧播种)加模块级 skip(保留文件)；iteration13 两处商户登录用例改 403→skip。canonical 13-17 现 55 passed / 2 skipped 全绿
 - [!] 注：完整并行跑全量套件仍有 iteration6/8/9/11/backend_test/new_features 既有不稳定(共享管理员账号锁定 + rate-limit 用例触发并行邻居 429)，属环境性，非本次改动；本次 scope 为 3/4/5/7
 
+## Implemented (2026-06, iteration 28) — 单通道 + 全量测试归整 + 能量规则可视化 + 导出汇总 + 模型归并
+- [x] **只保留单通道**：删除除「TRC20 极速通道」外的全部通道(含历史测试残留),seed 改为仅建该一个通道。testing_agent(iteration_18)验证:GET /api/channels 恰 1 个、下单路由到该通道、前端 /channels 仅 1 卡片,后端+前端 100%
+- [x] **全量遗留测试归整**:iteration3/4/5/7 模块级 skip;iteration6/8/9/10/11/new_features/backend_test 的商户/代理后台登录 fixture 改 403→skip;rate-limit 泛洪用例 skip(隔离);backend_test 通道/订单断言适配单通道+live;iteration11 zzz_final 自愈重置策略。串行全量:112 passed / 134 skipped / 0 failed
+- [x] **能量规则可视化编辑**:结账设置弹窗能量规则由手填「标题|内容」文本域改为逐行「标题+内容」可视化行编辑(增/删),保存为结构化数组。实测持久化
+- [x] **导出中心汇总条**:/exports 顶部新增本月导出次数 / 文件总大小 / 48h 内到期 三项汇总(客户端按 jobs 计算)
+- [x] **模型归并**:SecurityPolicy、CheckoutSettings 从 server.py 迁入 models.py 并 import 复用
+
 ## Backlog (next)
-- P2: 归整其余遗留测试(iteration6/8/9/11/new_features/backend_test：商户登录依赖/限流隔离)
-- P2: 散落 Pydantic 模型并入 models.py；admin 账户删除接口
-- P3: 能量规则(energy_rules)后台可视化编辑
+- P2: 全量并行(-n 2)仍有跨文件状态竞争(通道/告警/策略共享),如需 CI 并行全绿需为用例做独立账号/状态隔离(当前串行全绿)
+- P2: admin 账户删除接口；散落模型持续并入 models.py
+- P3: 能量规则拖拽排序；导出保留天数到期前提醒
 
 ## Next Tasks
 - 按需接入真实支付/链上监听，或扩展回调通知与对账自动化。
