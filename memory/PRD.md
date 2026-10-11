@@ -149,9 +149,17 @@
 - [x] server.py 模块化 - 阶段一：抽离纯函数到 backend/utils.py（now_utc/iso/hash_password/verify_password/get_jwt_secret/create_access_token/gen_*/clean_user/serialize/canon/sign_payload/client_ip），server.py import 使用；audit/record_ledger 等依赖 db 的保留在 server.py。后续阶段：models.py（Pydantic 分散各处）、routes/ 拆分
 - [x] 测试：后端 pytest 16/16 通过（test_iteration14.py），前端 100%（见 iteration_14.json）；重构后 login/me/dev/batch/snapshot 全回归通过
 
+## Implemented (2026-06, iteration 17)
+- [x] 分润快照 Excel 导出：GET /api/reports/profit-snapshot?date=（admin，2 Sheet：日度汇总 + 按商户明细）；/profit-snapshots 每行「导出」按钮
+- [x] 订单 Excel 导出：GET /api/reports/orders（支持 status/network/keyword/merchant_id/date/start+end 过滤，或 ids=逗号分隔导出所选；遵守商户数据域）；/orders 顶部「导出 Excel」按钮（有勾选则导所选，否则按当前筛选）
+- [x] Telegram 日报预览/发送：POST /api/notify/daily-report?date=（admin，返回 {text, telegram_configured, sent, date}，未配置 Telegram 时仅生成预览）；snapshot_report_text 抽为公共函数，cron 与预览共用；/profit-snapshots「发送今日日报」按钮 + 预览卡片
+- [x] server.py 模块化 - 阶段二：请求模型抽离至 backend/models.py（LoginInput/AccountCreate/.../IpWhitelist 共 12 个契约模型），server.py import 使用（散落在路由旁的其余模型 TotpCode/SecurityPolicy/CheckoutSettings/BatchOrderIds/Address*/Alert*/Notify*/PayoutCreate 待后续阶段）
+- [x] 测试：后端 pytest 12/12（test_iteration15.py）+ 前端 100%（iteration_15.json）；重构后 auth/下单结算/批量/抽屉/dev/快照全回归通过；operator 无 reports.export → /api/reports/* 403 验证通过
+
 ## Backlog
 - P1: 获取 ETHERSCAN_API_KEY 后验证 ERC20/BEP20 真实到账
-- P2: server.py 模块化续做（阶段二 models.py 抽离散落 Pydantic 模型；阶段三 routes/ 按域拆分 auth/orders/settlements/ledger/accounts/dev/chain）
+- P2: server.py 模块化续做（阶段三：剩余散落模型并入 models.py；阶段四：routes/ 按域拆分 auth/orders/settlements/dev/accounts/chain，需引入 core/deps 共享 db 与依赖以避免循环引用）
+- P2: orders_report 大数据量改游标流式导出（当前 to_list(100000)）
 - P2: 代理多级分润（当前单级）
 - P2: server.py 进一步拆分为路由模块（现 ~2389 行，email 已抽出；建议继续拆 auth/orders/settlements/ledger/operators）
 - P2: admin 账户删除接口（清理测试遗留账户 test_2fa_*@demo.com）

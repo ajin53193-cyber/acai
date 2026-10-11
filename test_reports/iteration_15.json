@@ -1,0 +1,24 @@
+{
+  "summary": "Iteration 15: Validated the new Excel reports (profit-snapshot + orders), Telegram daily-report preview endpoint, and verified the server.py refactor (utils.py / models.py) did not regress auth or order settlement. Backend: 12/12 pytest cases pass. Frontend: /orders exports (filtered + selected), /profit-snapshots preview badge + per-row snapshot export all work end-to-end via downloaded .xlsx with PK signatures and correct content-type.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_iteration15.py",
+    "/app/test_reports/pytest/iter15.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "server.py is still ~2800 lines; recommend splitting routers (reports, notify, orders, accounts) into submodules in next refactor pass.",
+    "orders_report scans up to 100k docs with .to_list(100000) and no streaming; for larger datasets consider cursor-based xlsx streaming to cap memory.",
+    "orders_report accepts 'ids' as comma-separated; if a non-admin merchant passes an id outside their scope, the merchant_id {'$in': scope} filter still protects, which is correct — good.",
+    "Operator 403 is enforced via /api/reports middleware (reports.export perm). Verified: operator@demo.com -> 403 on both /api/reports/profit-snapshot and /api/reports/orders.",
+    "Telegram daily-report preview correctly short-circuits when creds missing; response schema {text, telegram_configured, sent, date} is consistent."
+  ],
+  "updated_files": ["/app/backend/tests/test_iteration15.py"],
+  "success_rate": {"backend": "100% (12/12)", "frontend": "100%"},
+  "test_credentials": "admin ajin53193@gmail.com/admin888; operator operator@demo.com/operator888",
+  "seed_data_creation": "Created 1 test order (TEST_it15, 12.34 USDT TRC20) during regression settlement test. Merchant balance verified credited.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Backend reports endpoints are /api/reports/profit-snapshot?date=YYYY-MM-DD (admin only) and /api/reports/orders (supports status/network/keyword/merchant_id/date/start+end/ids filters, respects merchant scope). Telegram daily-report at POST /api/notify/daily-report?date=... returns preview with telegram_configured=false in this env. xlsx validation strategy: content-type contains 'spreadsheetml.sheet' and body[:2]==b'PK'. Frontend testids: export-orders-btn, select-order-<order_no>, send-daily-report-btn, daily-report-preview, daily-report-text, snapshot-export-<date>. Snapshot for 2026-10-10 = 111 orders / platform 3110.84 USDT (matches)."
+}
