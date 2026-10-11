@@ -2,7 +2,9 @@ import { useEffect, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
-import { MessageSquare, Headphones, RefreshCw, ArrowRight, Inbox, CheckCircle2, Users } from "lucide-react";
+import { MessageSquare, Headphones, RefreshCw, ArrowRight, Inbox, CheckCircle2, Users, Clock } from "lucide-react";
+
+const fmtDur = (s) => s == null ? null : s < 60 ? `${Math.round(s)}秒` : s < 3600 ? `${Math.round(s / 60)}分` : `${(s / 3600).toFixed(1)}时`;
 
 export default function SupportHomePage() {
   const { user } = useAuth();
@@ -95,6 +97,11 @@ export default function SupportHomePage() {
                     <div className={`h-full ${barColor} transition-all`} style={{ width: `${pct}%` }} />
                   </div>
                   <span className="shrink-0 text-xs font-mono text-slate-400 w-16 text-right">{s.open_count}/{max}</span>
+                  {s.max_wait_seconds != null && (
+                    <span className={`shrink-0 flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded ${s.max_wait_seconds >= 300 ? "bg-red-500/20 text-red-400" : s.max_wait_seconds >= 120 ? "bg-amber-500/20 text-amber-400" : "bg-slate-700 text-slate-400"}`} data-testid={`home-seat-wait-${s.id}`} title="最久未回复时长">
+                      <Clock className="w-3 h-3" />{fmtDur(s.max_wait_seconds)}
+                    </span>
+                  )}
                   {s.full && <span className="shrink-0 text-[10px] px-1.5 py-0.5 rounded bg-red-500/20 text-red-400" data-testid={`home-seat-full-${s.id}`}>已满</span>}
                 </div>
               );

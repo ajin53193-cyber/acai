@@ -148,6 +148,57 @@ async def _auto_assign(order_no: str, order: dict) -> Optional[str]:
     return sname
 
 
+async def _waiting_since(order_no: str):
+    """ISO time of the oldest customer message not yet followed by an agent reply."""
+    msgs = await db.support_messages.find({"order_no": order_no}).sort("created_at", 1).to_list(1000)
+    last_agent = None
+    for m in msgs:
+        if m["sender"] == "agent":
+            last_agent = m["created_at"]
+    for m in msgs:
+        if m["sender"] == "customer" and (last_agent is None or m["created_at"] > last_agent):
+            return m["created_at"]
+    return None
+
+
+async def _reassign_offline():
+    """Move unanswered open conversations off offline seats onto online, non-full
+    seats. Throttled to ~30s so concurrent agent polling stays cheap."""
+    doc = await db.settings.find_one({"_id": "support"}) or {}
+    now = now_utc()
+    last = doc.get("reassign_at")
+    if last:
+        try:
+            if (now - datetime.fromisoformat(last)).total_seconds() < 30:
+                return
+        except Exception:
+            pass
+    await db.settings.update_one({"_id": "support"}, {"$set": {"reassign_at": iso(now)}}, upsert=True)
+    online = await _online_seats()
+    if not online:
+        return
+    online_ids = {str(s["_id"]) for s in online}
+    load = await _open_load_map()
+    cap = await _max_per_seat()
+    rows = await db.support_threads.find(
+        {"status": "open", "assigned_id": {"$ne": None}, "last_sender": "customer"}).to_list(1000)
+    for th in rows:
+        if th.get("assigned_id") in online_ids:
+            continue
+        avail = [s for s in online if load.get(str(s["_id"]), 0) < cap]
+        if not avail:
+            break
+        seat = min(avail, key=lambda s: load.get(str(s["_id"]), 0))
+        sid = str(seat["_id"]); sname = seat.get("name") or seat["email"]
+        prev = th.get("assigned_to") or "原坐席"
+        await db.support_threads.update_one({"_id": th["_id"]}, {"$set": {"assigned_id": sid, "assigned_to": sname}})
+        load[sid] = load.get(sid, 0) + 1
+        await db.support_messages.insert_one({"order_no": th["_id"], "merchant_id": th.get("merchant_id"),
+            "merchant_name": th.get("merchant_name", ""), "sender": "system", "sender_name": "系统",
+            "text": f"{prev} 已离线，会话自动转交给 {sname}", "image": None, "created_at": iso(now_utc()),
+            "read_agent": True, "read_customer": True})
+
+
 def _msg_view(m: dict) -> dict:
     return {"id": str(m["_id"]), "sender": m["sender"], "sender_name": m.get("sender_name", ""),
             "text": m.get("text", ""), "image": m.get("image"), "created_at": m["created_at"]}
@@ -218,8 +269,15 @@ async def support_public_get(order_no: str):
         if v["sender"] == "agent":
             v["text"] = to_trad(v["text"])  # agents type Simplified; payer sees Traditional
         views.append(v)
+    # queue notice: a pending customer message with no online seat able to handle it
+    th = await db.support_threads.find_one({"_id": order_no}) or {}
+    queued = False
+    if th.get("last_sender") == "customer":
+        online_ids = {str(s["_id"]) for s in await _online_seats()}
+        if th.get("assigned_id") not in online_ids:
+            queued = True
     return {"enabled": enabled, "welcome": to_trad(welcome), "merchant_name": o["merchant_name"],
-            "order_status": o["status"], "messages": views}
+            "order_status": o["status"], "queued": queued, "messages": views}
 
 
 @router.post("/support/public/{order_no}")
@@ -325,6 +383,22 @@ async def support_seats(user: dict = Depends(require_roles("admin", "operator"))
     cutoff = now_utc() - timedelta(seconds=SEAT_ONLINE_SECS)
     load = await _open_load_map()
     cap = await _max_per_seat()
+    now = now_utc()
+    # longest unanswered wait per seat
+    wait_by_seat = {}
+    unanswered = await db.support_threads.find(
+        {"status": "open", "assigned_id": {"$ne": None}, "last_sender": "customer"}).to_list(1000)
+    for th in unanswered:
+        since = await _waiting_since(th["_id"])
+        if not since:
+            continue
+        try:
+            secs = (now - datetime.fromisoformat(since)).total_seconds()
+        except Exception:
+            continue
+        aid = th["assigned_id"]
+        if secs > wait_by_seat.get(aid, 0):
+            wait_by_seat[aid] = secs
     out = []
     for s in await db.users.find(_seat_query()).to_list(200):
         ls = s.get("support_last_seen"); online = False
@@ -332,9 +406,10 @@ async def support_seats(user: dict = Depends(require_roles("admin", "operator"))
             online = bool(ls) and datetime.fromisoformat(ls) >= cutoff
         except Exception:
             online = False
-        n = load.get(str(s["_id"]), 0)
-        out.append({"id": str(s["_id"]), "name": s.get("name") or s["email"], "role": s["role"],
-                    "online": online, "open_count": n, "max": cap, "full": n >= cap})
+        sid = str(s["_id"]); n = load.get(sid, 0)
+        out.append({"id": sid, "name": s.get("name") or s["email"], "role": s["role"],
+                    "online": online, "open_count": n, "max": cap, "full": n >= cap,
+                    "max_wait_seconds": int(wait_by_seat.get(sid, 0)) or None})
     out.sort(key=lambda x: (not x["online"], x["name"]))
     return out
 
@@ -420,6 +495,7 @@ async def put_templates(data: TemplatesIn, request: Request, user: dict = Depend
 @router.get("/support/threads")
 async def support_threads(status: str = Query("all"), user: dict = Depends(require_roles("admin", "operator"))):
     await _touch_seen(user)
+    asyncio.create_task(_reassign_offline())
     q = {}
     if status in ("open", "resolved"):
         q["status"] = status

@@ -80,6 +80,11 @@ export function SupportChat({ orderNo, t, open, setOpen }) {
             </div>
             <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3 bg-slate-50" data-testid="support-messages">
               <div className="text-[13px] text-slate-500 bg-white rounded-lg px-3 py-2 border border-slate-100">{data?.welcome || t.supportEmpty}</div>
+              {data?.queued && (
+                <div className="text-[13px] text-amber-700 bg-amber-50 rounded-lg px-3 py-2 border border-amber-200 text-center" data-testid="support-queued">
+                  目前客服繁忙，您的訊息已排隊，我們會盡快回覆您 🙏
+                </div>
+              )}
               {(data?.messages || []).map((m) => (
                 <div key={m.id} className={`flex ${m.sender === "customer" ? "justify-end" : "justify-start"}`} data-testid={`support-msg-${m.sender}`}>
                   <div className={`max-w-[78%] px-3 py-2 rounded-2xl text-[14px] whitespace-pre-wrap break-words ${m.sender === "customer" ? "text-white rounded-br-sm" : "bg-white text-slate-800 border border-slate-100 rounded-bl-sm"}`}

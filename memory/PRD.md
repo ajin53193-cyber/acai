@@ -302,6 +302,12 @@
 - [x] **达上限 Telegram 兜底**：新会话未被分配（无人在线或全部已满）时发 Telegram，文案区分「无坐席在线」/「所有在线坐席已达会话上限」。
   - 验证：curl（cap=1 两坐席已满 → 新会话 assigned=None；PUT 设置生效）+ 截图（首页负载看板 5/5 已满红条、admin 控制台上限输入框）。
 
+## Implemented (2026-06, iteration 38) — 负载倒计时 / 离线自动转接 / 排队提示
+- [x] **坐席最久未回时长**：`/support/seats` 每项新增 `max_wait_seconds`（该坐席名下 open 且 last_sender=customer 的会话中，距最早未回复客户消息的最长等待）。工作台首页负载看板显示时钟徽标（≥5分红 / ≥2分黄 / 其余灰），一眼识别拖单。
+- [x] **离线自动转接**：新增 `_reassign_offline()`（30s 节流），当坐席调用 `/support/threads` 轮询时后台触发；将「分配给已离线坐席且 last_sender=customer」的会话转给在线且未满的最少负载坐席，写入系统提示「X 已离线，会话自动转交给 Y」。
+- [x] **超额排队提示**：`support_public_get` 返回 `queued`（待回复且无在线坐席可接：未分配或所属坐席离线）。收银台客服面板显示温和繁体提示「目前客服繁忙，您的訊息已排隊，我們會盡快回覆您 🙏」。
+  - 验证：curl（queued=True；离线坐席会话被转交给在线坐席+系统消息；seats 返回 max_wait_seconds=2981）+ 截图（首页 50分 红色时钟徽标、收银台排队横幅）。
+
 ## Backlog (next)
 - P2: 散落模型持续并入 models.py
 - P2: 清理测试残留的 TEST_M 商户账户（有余额，需先结清；现可用新删除接口手动清理）
