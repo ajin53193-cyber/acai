@@ -8,8 +8,10 @@ visitor typing indicator, workload stats, and auto-purge of a resolved+paid
 conversation's data.
 """
 import asyncio
+import hmac
 import logging
-from datetime import datetime
+import os
+from datetime import datetime, timedelta
 from typing import List, Optional
 
 from bson import ObjectId
@@ -48,6 +50,34 @@ class ThreadStatusIn(BaseModel):
 
 class TemplatesIn(BaseModel):
     templates: List[str]
+
+
+class AssignIn(BaseModel):
+    assigned_id: str
+
+
+SEAT_ONLINE_SECS = 120
+
+
+def _seat_query():
+    return {"$or": [{"role": "admin"}, {"role": "operator", "permissions": "support.manage"}]}
+
+
+async def _touch_seen(user: dict):
+    await db.users.update_one({"_id": user["_id"]}, {"$set": {"support_last_seen": iso(now_utc())}})
+
+
+async def _online_count() -> int:
+    cutoff = now_utc() - timedelta(seconds=SEAT_ONLINE_SECS)
+    n = 0
+    for s in await db.users.find(_seat_query()).to_list(200):
+        ls = s.get("support_last_seen")
+        try:
+            if ls and datetime.fromisoformat(ls) >= cutoff:
+                n += 1
+        except Exception:
+            pass
+    return n
 
 
 def _msg_view(m: dict) -> dict:
@@ -113,7 +143,7 @@ async def support_public_get(order_no: str):
     await db.support_messages.update_many(
         {"order_no": order_no, "sender": "agent", "read_customer": False}, {"$set": {"read_customer": True}})
     return {"enabled": enabled, "welcome": welcome, "merchant_name": o["merchant_name"],
-            "order_status": o["status"], "messages": [_msg_view(m) for m in msgs]}
+            "order_status": o["status"], "messages": [_msg_view(m) for m in msgs if m["sender"] != "system"]}
 
 
 @router.post("/support/public/{order_no}")
@@ -134,11 +164,17 @@ async def support_public_post(order_no: str, data: SupportMessageIn):
     r = await db.support_messages.insert_one(doc)
     doc["_id"] = r.inserted_id
     await _touch_thread(o, text, "customer", reopen=True)
-    if prior_unread == 0:
+    if prior_unread == 0 and await _online_count() == 0:
         snippet = (text or "[图片]")[:80]
         asyncio.create_task(send_telegram(
-            f"💬 <b>新的客服咨询</b>\n商户：{o['merchant_name']}\n订单：{order_no}\n内容：{snippet}\n请到后台「在线客服」及时回复", "support"))
+            f"💬 <b>新的客服咨询</b>\n商户：{o['merchant_name']}\n订单：{order_no}\n内容：{snippet}\n（当前无坐席在线）请尽快到后台「在线客服」回复", "support"))
     return _msg_view(doc)
+
+
+@router.get("/support/public/{order_no}/unread")
+async def support_public_unread(order_no: str):
+    n = await db.support_messages.count_documents({"order_no": order_no, "sender": "agent", "read_customer": False})
+    return {"unread": n}
 
 
 @router.post("/support/public/{order_no}/typing")
@@ -162,6 +198,7 @@ async def support_file(path: str):
 # ---------------- Agent side (admin / support seat) ----------------
 @router.get("/support/unread-count")
 async def support_unread(user: dict = Depends(require_roles("admin", "operator"))):
+    await _touch_seen(user)
     n = await db.support_messages.count_documents({"sender": "customer", "read_agent": False})
     threads = await db.support_messages.distinct("order_no", {"sender": "customer", "read_agent": False})
     return {"unread": n, "threads": len(threads)}
@@ -201,6 +238,70 @@ async def support_stats(user: dict = Depends(require_roles("admin", "operator"))
     return {"open": open_n, "resolved": resolved_n, "total": total, "by_seat": by_seat}
 
 
+@router.get("/support/seats")
+async def support_seats(user: dict = Depends(require_roles("admin", "operator"))):
+    cutoff = now_utc() - timedelta(seconds=SEAT_ONLINE_SECS)
+    out = []
+    for s in await db.users.find(_seat_query()).to_list(200):
+        ls = s.get("support_last_seen"); online = False
+        try:
+            online = bool(ls) and datetime.fromisoformat(ls) >= cutoff
+        except Exception:
+            online = False
+        out.append({"id": str(s["_id"]), "name": s.get("name") or s["email"], "role": s["role"], "online": online})
+    out.sort(key=lambda x: (not x["online"], x["name"]))
+    return out
+
+
+@router.patch("/support/threads/{order_no}/assign")
+async def assign_thread(order_no: str, data: AssignIn, request: Request,
+                        user: dict = Depends(require_roles("admin", "operator"))):
+    o = await _get_order(order_no)
+    try:
+        target = await db.users.find_one({"_id": ObjectId(data.assigned_id)})
+    except Exception:
+        target = None
+    ok = target and (target["role"] == "admin" or (target["role"] == "operator" and "support.manage" in (target.get("permissions") or [])))
+    if not ok:
+        raise HTTPException(status_code=400, detail="目标坐席无效")
+    th = await db.support_threads.find_one({"_id": order_no}) or {}
+    tname = target.get("name") or target["email"]
+    await db.support_threads.update_one({"_id": order_no},
+        {"$set": {"assigned_id": str(target["_id"]), "assigned_to": tname, "merchant_name": o["merchant_name"]},
+         "$setOnInsert": {"created_at": iso(now_utc()), "status": "open", "last_at": iso(now_utc())}}, upsert=True)
+    sys_text = (f"会话由 {user.get('name') or '客服'} 转交给 {tname}" if th.get("assigned_to")
+               else f"{user.get('name') or '客服'} 将会话分配给 {tname}")
+    await db.support_messages.insert_one({"order_no": order_no, "merchant_id": o.get("merchant_id"),
+        "merchant_name": o["merchant_name"], "sender": "system", "sender_name": "系统", "text": sys_text,
+        "image": None, "created_at": iso(now_utc()), "read_agent": True, "read_customer": True})
+    await audit(user, "support.assign", "support_thread", order_no, {"to": tname}, request)
+    return {"ok": True, "assigned_to": tname}
+
+
+@router.post("/cron/support-cleanup")
+async def cron_support_cleanup(request: Request):
+    secret = os.environ.get("WEBHOOK_CRON_SECRET", "")
+    auth = request.headers.get("Authorization", ""); token = auth[7:] if auth.startswith("Bearer ") else ""
+    if not secret or not hmac.compare_digest(token, secret):
+        raise HTTPException(status_code=401, detail="unauthorized")
+    doc = await db.settings.find_one({"_id": "support"}) or {}
+    days = int(doc.get("retain_days", 7))
+    cutoff = iso(now_utc() - timedelta(days=days))
+    purged = 0
+    for th in await db.support_threads.find({"status": "resolved", "last_at": {"$lt": cutoff}}).to_list(2000):
+        o = await db.orders.find_one({"order_no": th["_id"]})
+        if o and o.get("status") == "paid":
+            for m in await db.support_messages.find({"order_no": th["_id"], "image": {"$ne": None}}).to_list(1000):
+                p = (m.get("image") or "").replace("/api/support/file/", "")
+                if p:
+                    await db.support_files.update_one({"path": p}, {"$set": {"is_deleted": True}})
+            await db.support_messages.delete_many({"order_no": th["_id"]})
+            await db.support_threads.delete_one({"_id": th["_id"]})
+            purged += 1
+    logger.info(f"support cleanup purged={purged} retain_days={days}")
+    return {"ok": True, "purged": purged, "retain_days": days}
+
+
 @router.get("/support/templates")
 async def get_templates(user: dict = Depends(require_roles("admin", "operator"))):
     doc = await db.settings.find_one({"_id": "support"}) or {}
@@ -217,6 +318,7 @@ async def put_templates(data: TemplatesIn, request: Request, user: dict = Depend
 
 @router.get("/support/threads")
 async def support_threads(status: str = Query("all"), user: dict = Depends(require_roles("admin", "operator"))):
+    await _touch_seen(user)
     q = {}
     if status in ("open", "resolved"):
         q["status"] = status

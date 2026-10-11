@@ -17,6 +17,7 @@ export default function SupportPage() {
   const [sending, setSending] = useState(false);
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState(null);
+  const [seats, setSeats] = useState([]);
   const endRef = useRef(null);
   const imgUrl = (p) => (p && !p.startsWith("http") && !p.startsWith("data:")) ? (process.env.REACT_APP_BACKEND_URL || "") + p : p;
   const fmtDur = (s) => s == null ? "—" : s < 60 ? `${s}秒` : s < 3600 ? `${Math.round(s / 60)}分` : `${(s / 3600).toFixed(1)}时`;
@@ -32,7 +33,7 @@ export default function SupportPage() {
   }, []);
 
   useEffect(() => { api.get("/support/templates").then((r) => setTemplates(r.data.templates || [])).catch(() => {}); }, []);
-  useEffect(() => { const f = () => api.get("/support/stats").then((r) => setStats(r.data)).catch(() => {}); f(); const i = setInterval(f, 8000); return () => clearInterval(i); }, []);
+  useEffect(() => { const f = () => { api.get("/support/stats").then((r) => setStats(r.data)).catch(() => {}); api.get("/support/seats").then((r) => setSeats(r.data)).catch(() => {}); }; f(); const i = setInterval(f, 8000); return () => clearInterval(i); }, []);
   useEffect(() => { loadThreads(); const i = setInterval(loadThreads, 5000); return () => clearInterval(i); }, [loadThreads]);
   useEffect(() => {
     if (!active) return;
@@ -52,6 +53,12 @@ export default function SupportPage() {
     try { await api.post(`/support/threads/${active}`, { text: msg }); setText(""); await loadConvo(active); loadThreads(); }
     catch (err) { toast.error(formatApiErrorDetail(err.response?.data?.detail)); }
     finally { setSending(false); }
+  };
+
+  const assign = async (id) => {
+    if (!id) return;
+    try { const { data } = await api.patch(`/support/threads/${active}/assign`, { assigned_id: id }); toast.success(`已转交给 ${data.assigned_to}`); loadConvo(active); loadThreads(); }
+    catch (err) { toast.error(formatApiErrorDetail(err.response?.data?.detail)); }
   };
 
   const setStatus = async (status) => {
@@ -131,9 +138,15 @@ export default function SupportPage() {
                   <div className="font-medium text-slate-200 flex items-center gap-2">{convo.merchant_name}
                     {convo.assigned_to && <span className="text-[11px] px-1.5 py-0.5 rounded bg-slate-700 text-slate-300" data-testid="support-assigned">负责：{convo.assigned_to}</span>}
                   </div>
-                  {convo.status === "resolved"
-                    ? <button onClick={() => setStatus("open")} data-testid="support-reopen" className="flex items-center gap-1 text-xs px-2 py-1 rounded border border-slate-600 text-slate-300 hover:bg-slate-700"><RotateCcw className="w-3.5 h-3.5" /> 重新打开</button>
-                    : <button onClick={() => setStatus("resolved")} data-testid="support-resolve" className="flex items-center gap-1 text-xs px-2 py-1 rounded border border-emerald-500/40 text-emerald-400 hover:bg-emerald-500/10"><CheckCircle2 className="w-3.5 h-3.5" /> 标记已解决</button>}
+                  <div className="flex items-center gap-2">
+                    <select onChange={(e) => { assign(e.target.value); e.target.value = ""; }} data-testid="support-assign-select" className="text-xs bg-slate-800 border border-slate-600 rounded px-2 py-1 text-slate-300">
+                      <option value="">转交坐席…</option>
+                      {seats.map((s) => <option key={s.id} value={s.id}>{s.online ? "🟢" : "⚪"} {s.name}</option>)}
+                    </select>
+                    {convo.status === "resolved"
+                      ? <button onClick={() => setStatus("open")} data-testid="support-reopen" className="flex items-center gap-1 text-xs px-2 py-1 rounded border border-slate-600 text-slate-300 hover:bg-slate-700"><RotateCcw className="w-3.5 h-3.5" /> 重新打开</button>
+                      : <button onClick={() => setStatus("resolved")} data-testid="support-resolve" className="flex items-center gap-1 text-xs px-2 py-1 rounded border border-emerald-500/40 text-emerald-400 hover:bg-emerald-500/10"><CheckCircle2 className="w-3.5 h-3.5" /> 标记已解决</button>}
+                  </div>
                 </div>
                 <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-[11px]">
                   <Detail k="订单号" v={convo.order_no} onCopy={copy} />
@@ -149,7 +162,9 @@ export default function SupportPage() {
               </div>
               <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3" data-testid="support-convo-messages">
                 {convo.messages.length === 0 && <div className="text-center text-slate-500 text-sm py-8">暂无消息</div>}
-                {convo.messages.map((m) => (
+                {convo.messages.map((m) => m.sender === "system" ? (
+                  <div key={m.id} className="flex justify-center" data-testid="support-system-msg"><div className="text-[11px] text-slate-500 bg-slate-800/50 rounded-full px-3 py-1">{m.text}</div></div>
+                ) : (
                   <div key={m.id} className={`flex ${m.sender === "agent" ? "justify-end" : "justify-start"}`}>
                     <div className={`max-w-[75%] px-3 py-2 rounded-2xl text-[14px] whitespace-pre-wrap break-words ${m.sender === "agent" ? "bg-cyan-500 text-slate-950 rounded-br-sm" : "bg-slate-800 text-slate-100 rounded-bl-sm"}`}>
                       <div className="text-[11px] opacity-70 mb-0.5">{m.sender === "agent" ? (m.sender_name || "客服") : "访客"} · {fmtDate(m.created_at)}</div>

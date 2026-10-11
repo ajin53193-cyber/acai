@@ -20,3 +20,10 @@ crons:
     method: POST
     # Cron endpoints must ack 2xx immediately; enqueue/background the actual work.
     enabled: true
+  - name: support-cleanup
+    description: "每日清理已解决且订单已完成、超过保留天数的客服会话数据（安全网，防止数据堆积）"
+    cron: "40 0 * * *"
+    endpoint: "{{BASE_URL}}/api/cron/support-cleanup"
+    method: POST
+    # Cron endpoints must ack 2xx immediately; enqueue/background the actual work.
+    enabled: true

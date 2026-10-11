@@ -274,6 +274,13 @@
 - [x] **会话数据自动清除**：订单已完成(paid)且会话标记已解决时，自动删除该会话消息/线程并软删附件（`support.purge` 审计）。验证：paid+resolve→deleted:true，线程消失
   - pytest 并行回归 114 passed/134 skipped
 
+## Implemented (2026-06, iteration 33) — 客服：转交/访客未读/定时清理/坐席在线
+- [x] **坐席转交（交接）**：`GET /api/support/seats`（坐席+在线状态）、`PATCH /api/support/threads/{order_no}/assign`；后台会话头「转交坐席…」下拉，转交后写入居中系统提示「会话由 A 转交给 B」（付款人侧不可见）。即独立客服后台可随时分配/交接坐席
+- [x] **访客未读提示**：`GET /api/support/public/{order_no}/unread`；收银台悬浮按钮在面板关闭时轮询并显示红色未读角标，打开即清零
+- [x] **定时清理**：`POST /api/cron/support-cleanup` + crons.yml 每日 0:40；清理「已解决 + 订单已完成(paid) + 超过保留天数(默认7，support 设置 retain_days)」的会话（删除消息/线程、软删附件），作为即时清理之外的安全网
+- [x] **坐席在线状态 + 通知路由**：坐席调用 unread-count/threads 时更新 `support_last_seen`（120s 窗口判定在线）；seats 列表显示在线；新客户消息仅在「无坐席在线」时才发 Telegram（在线时以站内提示音/桌面通知覆盖）
+  - 验证：curl 全链路（seats 在线、payer 未读 0→1、转交+系统提示、payer 不可见系统消息、cron 401/purge）+ 后台截图确认；pytest 并行回归 114 passed/134 skipped
+
 ## Backlog (next)
 - P2: 散落模型持续并入 models.py
 - P2: 清理测试残留的 TEST_M 商户账户（有余额，需先结清；现可用新删除接口手动清理）

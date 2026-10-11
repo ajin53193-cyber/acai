@@ -20,6 +20,7 @@ const compress = (file) => new Promise((res, rej) => {
 
 export function SupportChat({ orderNo, t, open, setOpen }) {
   const [data, setData] = useState(null);
+  const [fabUnread, setFabUnread] = useState(0);
   const [text, setText] = useState("");
   const [pendingImg, setPendingImg] = useState(null);
   const [sending, setSending] = useState(false);
@@ -38,6 +39,11 @@ export function SupportChat({ orderNo, t, open, setOpen }) {
   }, [orderNo]);
 
   useEffect(() => { if (!open) return; load(); const i = setInterval(load, 3000); return () => clearInterval(i); }, [open, load]);
+  useEffect(() => {
+    if (open) { setFabUnread(0); return; }
+    const f = () => api.get(`/support/public/${orderNo}/unread`).then((r) => setFabUnread(r.data.unread || 0)).catch(() => {});
+    f(); const i = setInterval(f, 8000); return () => clearInterval(i);
+  }, [open, orderNo]);
   useEffect(() => { if (open) endRef.current?.scrollIntoView({ behavior: "smooth" }); }, [data, open]);
 
   const onPick = async (e) => {
@@ -63,6 +69,7 @@ export function SupportChat({ orderNo, t, open, setOpen }) {
         className="fixed bottom-5 right-5 z-40 w-14 h-14 rounded-full text-white shadow-xl flex items-center justify-center active:scale-95 transition-transform"
         style={{ background: "var(--accent)" }}>
         <MessageCircle className="w-7 h-7" />
+        {fabUnread > 0 && <span className="absolute -top-1 -right-1 min-w-[20px] h-5 px-1 rounded-full bg-red-500 text-white text-[11px] font-bold flex items-center justify-center border-2 border-white" data-testid="support-fab-unread">{fabUnread}</span>}
       </button>
       {open && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40" onClick={() => setOpen(false)} data-testid="support-panel">
