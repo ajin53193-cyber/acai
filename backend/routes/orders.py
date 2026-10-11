@@ -236,7 +236,7 @@ class ManualCallbackIn(BaseModel):
 
 @router.post("/orders/{order_id}/manual-callback")
 async def manual_callback(order_id: str, data: ManualCallbackIn, request: Request,
-                          user: dict = Depends(require_roles("admin"))):
+                          user: dict = Depends(require_roles("admin", "operator"))):
     """Admin enters a TxID + amount; verify it on-chain against the order's
     receiving address, and on match confirm the order with the ACTUAL received
     amount and fire the merchant callback."""

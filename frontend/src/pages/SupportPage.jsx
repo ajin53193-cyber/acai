@@ -55,6 +55,27 @@ export default function SupportPage() {
   const openThread = (orderNo) => { setActive(orderNo); setConvo(null); loadThreads(); };
   const copy = (v) => { navigator.clipboard.writeText(v); toast.success("已复制"); };
 
+  const [mc, setMc] = useState(false);
+  const [mcTx, setMcTx] = useState("");
+  const [mcAmt, setMcAmt] = useState("");
+  const [mcBusy, setMcBusy] = useState(false);
+  const [mcArr, setMcArr] = useState(null);
+  const openMc = () => {
+    if (!convo?.order_id) return;
+    setMc(true); setMcTx(""); setMcAmt(String(convo.pay_amount ?? convo.amount_usdt ?? "")); setMcArr(null);
+    api.get(`/orders/${convo.order_id}/recent-arrivals`).then((r) => setMcArr(r.data)).catch(() => setMcArr([]));
+  };
+  const submitMc = async () => {
+    if (!mcTx.trim() || !mcAmt) { toast.error("请填写交易哈希和金额"); return; }
+    setMcBusy(true);
+    try {
+      const { data } = await api.post(`/orders/${convo.order_id}/manual-callback`, { tx_id: mcTx.trim(), amount: Number(mcAmt) });
+      toast.success(`核对成功：实际到账 ${data.amount} USDT，已确认并回调`);
+      setMc(false); loadConvo(active); loadThreads();
+    } catch (e) { toast.error(formatApiErrorDetail(e.response?.data?.detail)); }
+    finally { setMcBusy(false); }
+  };
+
   const saveMax = async () => {
     const v = parseInt(maxSeat, 10);
     if (!v || v < 1) return;
@@ -185,6 +206,11 @@ export default function SupportPage() {
                   {convo.out_trade_no && <Detail k="商户单号" v={convo.out_trade_no} onCopy={copy} />}
                   {convo.tx_id && <Detail k="交易哈希" v={convo.tx_id} onCopy={copy} />}
                   <div className="col-span-2"><Detail k="收款地址" v={convo.wallet_address} onCopy={copy} mono /></div>
+                  {convo.order_id && ["pending", "confirming", "expired"].includes(convo.order_status) && (
+                    <button onClick={openMc} data-testid="support-mc-open" className="col-span-2 mt-1 text-[12px] px-2.5 py-1.5 rounded-lg bg-emerald-500/15 border border-emerald-500/40 text-emerald-300 hover:bg-emerald-500/25 flex items-center justify-center gap-1">
+                      <CheckCircle2 className="w-3.5 h-3.5" />核对到账 / 手动补单
+                    </button>
+                  )}
                 </div>
               </div>
               <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3" data-testid="support-convo-messages">
@@ -224,6 +250,34 @@ export default function SupportPage() {
           )}
         </div>
       </div>
+      {mc && convo && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" data-testid="support-mc-dialog" onClick={(e) => e.target === e.currentTarget && setMc(false)}>
+          <div className="w-full max-w-md glass border border-slate-700 rounded-2xl p-5 max-h-[85vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-3"><h3 className="font-semibold text-slate-100">核对到账 / 手动补单</h3><button onClick={() => setMc(false)} data-testid="support-mc-close" className="text-slate-400 hover:text-slate-200">✕</button></div>
+            <div className="text-xs text-slate-400 mb-1">订单 <span className="font-mono text-slate-200">{convo.order_no}</span></div>
+            <div className="text-xs text-slate-400 break-all mb-3">收款地址 <span className="font-mono text-slate-300">{convo.wallet_address}</span></div>
+            <label className="text-xs text-slate-400">交易哈希 TxID</label>
+            <input value={mcTx} onChange={(e) => setMcTx(e.target.value)} data-testid="support-mc-tx" placeholder="链上转账哈希" className="w-full mb-2 mt-1 h-10 px-3 rounded-lg bg-slate-900/60 border border-slate-700 font-mono text-xs text-slate-100 outline-none focus:border-cyan-500" />
+            <label className="text-xs text-slate-400">到账金额 USDT</label>
+            <input type="number" value={mcAmt} onChange={(e) => setMcAmt(e.target.value)} data-testid="support-mc-amt" className="w-full mb-2 mt-1 h-10 px-3 rounded-lg bg-slate-900/60 border border-slate-700 font-mono text-slate-100 outline-none focus:border-cyan-500" />
+            {mcArr === null ? <div className="text-xs text-slate-500 py-2">加载最近到账…</div> : mcArr.length === 0 ? <div className="text-xs text-slate-500 py-2">该地址暂无最近链上到账</div> : (
+              <div className="mb-2">
+                <div className="text-xs text-slate-400 mb-1">最近到账（点击带入，已占用不可选）</div>
+                <div className="space-y-1 max-h-40 overflow-y-auto pr-1">
+                  {mcArr.map((a) => (
+                    <button key={a.tx_id} disabled={a.used} onClick={() => { setMcTx(a.tx_id); setMcAmt(String(a.amount)); }} data-testid={`support-mc-arrival-${a.tx_id}`}
+                      className={`w-full text-left text-xs rounded border px-2 py-1.5 flex items-center justify-between gap-2 ${a.used ? "border-slate-800 text-slate-600 cursor-not-allowed" : "border-slate-700 hover:border-cyan-500/50 text-slate-300"}`}>
+                      <span className="font-mono truncate">{a.tx_id.slice(0, 10)}…{a.tx_id.slice(-6)}</span>
+                      <span className="flex items-center gap-2 shrink-0"><span className="font-mono text-emerald-400">{a.amount}</span>{a.used ? <span className="text-[10px] text-slate-500">已占用</span> : <span className="text-[10px] text-emerald-500">可用</span>}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+            <button onClick={submitMc} disabled={mcBusy || !mcTx.trim() || !mcAmt} data-testid="support-mc-submit" className="w-full h-10 rounded-lg bg-emerald-500 text-slate-950 font-semibold disabled:opacity-40 flex items-center justify-center">{mcBusy ? <Loader2 className="w-4 h-4 animate-spin" /> : "核对并确认"}</button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

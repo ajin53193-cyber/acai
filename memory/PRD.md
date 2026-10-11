@@ -344,6 +344,13 @@
 ## 待办（item 4）
 - [ ] **TronHook Webhook 秒级到账**：需用户提供 TronHook API Key + 回调注册。按集成规范接入：注册收款地址→到账回调→验签→匹配订单→确认（与轮询互为兜底）。
 
+## Implemented (2026-06, iteration 42) — 客服手动补单 / 收款地址核对 / 快捷回复 / 图片修复
+- [x] **客服（坐席）可手动补单**：`deps.py` PERM_RULES 将 `/api/orders/{id}/recent-arrivals` 与 `/api/orders/{id}/manual-callback` 映射到 `support.manage` 权限；`manual_callback` 角色放开 admin+operator。批量补单仍仅 admin。`support_thread_get` 返回 `order_id`。
+- [x] **聊天页点击收款地址核对哈希**：在线客服会话信息区新增「核对到账/手动补单」按钮（待支付/确认中/超时可见）→ 弹窗列出该地址最近链上到账并标注「已占用/可用」，点击带入哈希+金额，确认后按实际到账金额确认订单并回调。
+- [x] **快捷回复新增**：「你好，请提供您的付款截图及交易哈希值（交易号）。」已加入客服快捷话术（置顶）。
+- [x] **客服收不到图片修复**：`_store_image` 改为**内联 base64 存储**，不再依赖对象存储检索，保证坐席在任意环境都能看到图片；旧的对象存储路径图片仍通过 `/support/file` 正常显示。
+  - 验证：curl（operator recent-arrivals 200 / manual-callback 400 非 403 / batch 403；内联图片 data: URL 落库；thread 返回 order_id；模板置顶）+ 截图（客服端核对补单弹窗显示可用/已占用到账）。
+
 ## Backlog (next)
 - P2: 散落模型持续并入 models.py
 - P2: 清理测试残留的 TEST_M 商户账户（有余额，需先结清；现可用新删除接口手动清理）

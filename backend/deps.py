@@ -17,7 +17,10 @@ OPERATOR_PERMS = {
 PERM_RULES = [
     ("/api/orders/", "resend-callback", "callbacks.retry"),
     ("/api/orders/", "reject", "orders.verify"),
-    ("/api/orders/", "verify", "orders.verify"), ("/api/orders", None, "orders.view"),
+    ("/api/orders/", "verify", "orders.verify"),
+    ("/api/orders/", "recent-arrivals", "support.manage"),
+    ("/api/orders/", "manual-callback", "support.manage"),
+    ("/api/orders", None, "orders.view"),
     ("/api/settlements/payouts", None, "payouts.review"), ("/api/settlements", None, "orders.view"),
     ("/api/accounts/", "adjust", "balance.adjust"), ("/api/accounts", None, "accounts.view"),
     ("/api/channels", None, "channels.manage"), ("/api/chain", None, "channels.manage"), ("/api/alerts", None, "channels.manage"),

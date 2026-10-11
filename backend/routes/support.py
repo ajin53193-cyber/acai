@@ -41,6 +41,7 @@ MAX_LEN = 2000
 MAX_IMG = 3_600_000
 TYPING_WINDOW = 8
 DEFAULT_TEMPLATES = [
+    "你好，请提供您的付款截图及交易哈希值（交易号）。",
     "您好，请提供您的转账哈希（TxID），我们帮您核实。",
     "已收到，正在为您查询，请稍候。",
     "您的订单已成功到账，感谢您的支付。",
@@ -227,16 +228,9 @@ async def _store_image(img: Optional[str]) -> Optional[str]:
         raise HTTPException(status_code=400, detail="图片格式无效")
     if len(img) > MAX_IMG:
         raise HTTPException(status_code=400, detail="图片过大，请压缩后重试")
-    try:
-        res = await asyncio.to_thread(upload_data_url, img)
-        await db.support_files.insert_one({"path": res["path"], "content_type": res["content_type"],
-                                           "is_deleted": False, "created_at": iso(now_utc())})
-        return "/api/support/file/" + res["path"]
-    except Exception as e:
-        # Object storage unavailable in this environment — keep the feature working
-        # by storing the (already client-compressed) image inline.
-        logger.warning(f"support image object-storage failed, storing inline: {e}")
-        return img
+    # Store inline (base64) so images always render for agents regardless of
+    # object-storage availability across preview/production environments.
+    return img
 
 
 async def _touch_thread(order: dict, text: str, sender: str, reopen: bool):
@@ -524,7 +518,7 @@ async def support_thread_get(order_no: str, user: dict = Depends(require_roles("
             typing = False
     return {"order_no": order_no, "merchant_name": o["merchant_name"], "order_status": o["status"],
             "status": th.get("status", "open"), "assigned_to": th.get("assigned_to"), "assigned_id": th.get("assigned_id"),
-            "customer_typing": typing, "amount_usdt": o["amount_usdt"], "pay_amount": o.get("pay_amount"),
+            "customer_typing": typing, "order_id": str(o["_id"]), "amount_usdt": o["amount_usdt"], "pay_amount": o.get("pay_amount"),
             "wallet_address": o["wallet_address"], "network": o["network"], "created_at": o["created_at"],
             "expires_at": o.get("expires_at"), "tx_id": o.get("tx_id"), "out_trade_no": o.get("out_trade_no"),
             "messages": [_msg_view(m) for m in msgs]}
