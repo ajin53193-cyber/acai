@@ -5,7 +5,7 @@ import { ROLE_LABELS, fmtUSDT } from "@/lib/format";
 import {
   LayoutDashboard, Receipt, Network, Wallet, Users, LogOut, ShieldCheck,
   Activity, ChevronRight, Menu, X, Webhook, ScrollText, Code2, HeartPulse,
-  ArrowLeftRight, UserCog, Fingerprint,
+  ArrowLeftRight, UserCog, Fingerprint, BarChart3,
 } from "lucide-react";
 import { PaymentAlerts } from "@/components/PaymentAlerts";
 import { AlertBell } from "@/components/AlertBell";
@@ -18,6 +18,7 @@ const NAV = [
   { to: "/settlements", label: "结算分润", icon: Wallet, roles: ["admin", "agent", "merchant", "operator"], perm: "payouts.review" },
   { to: "/ledger", label: "资金流水", icon: ArrowLeftRight, roles: ["admin", "agent", "merchant"] },
   { to: "/accounts", label: "账户权限", icon: Users, roles: ["admin", "agent", "operator"], perm: "accounts.view" },
+  { to: "/merchant-stats", label: "商户统计", icon: BarChart3, roles: ["admin", "operator"], perm: "orders.view" },
   { to: "/callbacks", label: "回调通知", icon: Webhook, roles: ["admin", "agent", "operator"], perm: "callbacks.retry" },
   { to: "/api", label: "开发者 API", icon: Code2, roles: ["merchant"] },
   { to: "/audit", label: "审计日志", icon: ScrollText, roles: ["admin", "operator"], perm: "audit.view" },

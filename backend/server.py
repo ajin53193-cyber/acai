@@ -574,6 +574,7 @@ PERM_RULES = [
     ("/api/channels", None, "channels.manage"), ("/api/chain", None, "channels.manage"), ("/api/alerts", None, "channels.manage"),
     ("/api/callbacks", None, "callbacks.retry"), ("/api/audit-logs", None, "audit.view"), ("/api/reports", None, "reports.export"),
     ("/api/dashboard", None, "orders.view"), ("/api/notifications", None, "orders.view"),
+    ("/api/stats", None, "orders.view"),
 ]
 OPERATOR_FORBIDDEN = ("/api/accounts/me", "/api/auth/lockouts", "/api/checkout/settings", "/api/notify/settings")
 
@@ -952,6 +953,42 @@ async def dashboard_stats(user: dict = Depends(get_current_user), date: Optional
         "today_success_rate": today_success_rate,
         "stat_date": today_start.strftime("%Y-%m-%d"),
     }
+
+
+@api_router.get("/stats/merchants")
+async def merchant_stats(date: Optional[str] = None, user: dict = Depends(require_roles("admin"))):
+    day_start = now_utc().replace(hour=0, minute=0, second=0, microsecond=0)
+    if date:
+        try:
+            day_start = datetime.strptime(date, "%Y-%m-%d").replace(tzinfo=timezone.utc)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="date 格式应为 YYYY-MM-DD")
+    day_end = day_start + timedelta(days=1)
+    merchants = await db.users.find({"role": "merchant"}).to_list(1000)
+    orders = await db.orders.find({"created_at": {"$gte": iso(day_start), "$lt": iso(day_end)}}).to_list(100000)
+    by_m: dict = {}
+    for o in orders:
+        s = by_m.setdefault(o["merchant_id"], {"orders": 0, "paid": 0, "volume": 0.0, "fee": 0.0, "receive": 0.0})
+        s["orders"] += 1
+        if o["status"] == "paid":
+            s["paid"] += 1
+            s["volume"] += o.get("amount_usdt", 0)
+            s["fee"] += o.get("fee", 0)
+            s["receive"] += o.get("merchant_receive", 0)
+    result = []
+    for mer in merchants:
+        mid = str(mer["_id"])
+        s = by_m.get(mid, {"orders": 0, "paid": 0, "volume": 0.0, "fee": 0.0, "receive": 0.0})
+        result.append({
+            "id": mid, "name": mer.get("name"), "email": mer.get("email"),
+            "status": mer.get("status", "active"),
+            "balance": round(mer.get("balance", 0), 2), "frozen_balance": round(mer.get("frozen_balance", 0), 2),
+            "orders": s["orders"], "paid": s["paid"],
+            "success_rate": round(s["paid"] / s["orders"] * 100, 1) if s["orders"] else 0.0,
+            "volume": round(s["volume"], 2), "fee": round(s["fee"], 2), "receive": round(s["receive"], 2),
+        })
+    result.sort(key=lambda x: (x["volume"], x["paid"]), reverse=True)
+    return {"date": day_start.strftime("%Y-%m-%d"), "count": len(result), "merchants": result}
 
 
 # ---------------------------------------------------------------------------
