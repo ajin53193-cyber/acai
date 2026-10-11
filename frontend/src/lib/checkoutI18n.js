@@ -11,7 +11,7 @@ const zhCN = {
   payWithin: "请在", payWithinSuffix: "内完成付款",
   depositAddr: (n) => `${n}充币地址`, checkChain: (n) => `请认准${n}公链+仔细核对，以免造成损失！`,
   saveQr: "保存二维码", coin: "币种", protocol: "公链协议", amount: "充币数量", orderNo: "订单号", merchant: "收款商户",
-  energyTitle: "能量租赁，节省70%矿工费", rentFee: "租赁费用：", trxAddr: "TRX地址", trxHint: "(先向下方地址转TRX购买能量，后再转U不扣矿工费)",
+  energyTitle: "能量租赁，节省70%矿工费", energyBuyAmount: "快捷购买金额：", rentFee: "租赁费用：", trxAddr: "TRX地址", trxHint: "(先向下方地址转TRX购买能量，后再转U不扣矿工费)",
   trxOnly: "此地址只收 TRX，请勿转 USDT！请勿转 USDT！请勿转 USDT！",
   rentDesc: "租赁说明：因任何一笔 TRC20 转账支出都要支付矿工费（例如：冷钱包转账需消耗 TRX，而交易所一般收取 1U 手续费），但矿工费可以用能量替代（即地址有能量时优先使用能量）。",
   energyRules: [
@@ -42,7 +42,7 @@ const zhTW = {
   payWithin: "請在", payWithinSuffix: "內完成付款",
   depositAddr: (n) => `${n}充幣地址`, checkChain: (n) => `請認準${n}公鏈+仔細核對，以免造成損失！`,
   saveQr: "保存二維碼", coin: "幣種", protocol: "公鏈協議", amount: "充幣數量", orderNo: "訂單號", merchant: "收款商戶",
-  energyTitle: "能量租賃，節省 70% 礦工費", rentFee: "租賃費用：", trxAddr: "TRX 地址", trxHint: "（先向下方地址轉 TRX 購買能量，後再轉 U 不扣礦工費）",
+  energyTitle: "能量租賃，節省 70% 礦工費", energyBuyAmount: "快捷購買金額：", rentFee: "租賃費用：", trxAddr: "TRX 地址", trxHint: "（先向下方地址轉 TRX 購買能量，後再轉 U 不扣礦工費）",
   trxOnly: "此地址只收 TRX，請勿轉 USDT！請勿轉 USDT！請勿轉 USDT！",
   rentDesc: "租賃說明：因任何一筆 TRC20 轉賬支出都要支付礦工費（例如：冷錢包轉賬需消耗 TRX，而交易所一般收取 1U 手續費），但礦工費可以用能量替代（即地址有能量時優先使用能量）。",
   energyRules: [
@@ -72,7 +72,7 @@ const en = {
   payWithin: "Complete payment within", payWithinSuffix: "",
   depositAddr: (n) => `${n} Deposit Address`, checkChain: (n) => `Make sure you use the ${n} network and double-check the address!`,
   saveQr: "Save QR", coin: "Coin", protocol: "Network", amount: "Amount", orderNo: "Order No.", merchant: "Merchant",
-  energyTitle: "Energy rental — save 70% on gas", rentFee: "Rental fee: ", trxAddr: "TRX Address", trxHint: "(Send TRX to the address below to buy energy first, then transfer USDT without gas)",
+  energyTitle: "Energy rental — save 70% on gas", energyBuyAmount: "Quick buy amount: ", rentFee: "Rental fee: ", trxAddr: "TRX Address", trxHint: "(Send TRX to the address below to buy energy first, then transfer USDT without gas)",
   trxOnly: "This address accepts TRX ONLY. Do NOT send USDT here!",
   rentDesc: "About rental: every TRC20 transfer costs gas (e.g. cold wallets burn TRX, exchanges charge ~1 USDT). Gas can be replaced by Energy — if the address has energy, it will be used first.",
   energyRules: [

@@ -22,7 +22,7 @@ CALLBACK_RETRY_DELAYS = [15, 60, 300, 1800, 7200]
 DEFAULT_ALERT_SETTINGS = {"pct": 10.0, "min_abs": 100.0, "sync_minutes": 10, "sweep_threshold": 10000.0, "big_payment": 1000.0}
 DEFAULT_NOTIFY_SETTINGS = {"telegram_enabled": False, "telegram_bot_token": "", "telegram_chat_id": "",
                            "notify_alerts": True, "notify_big_payment": True, "notify_sweep": True,
-                           "export_notify_threshold": 500}
+                           "export_notify_threshold": 500, "export_retain_days": 7}
 
 
 async def audit(user: dict, action: str, target_type: str, target_id: str,

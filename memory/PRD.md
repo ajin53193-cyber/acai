@@ -207,11 +207,18 @@
 - [x] **收银台能量引导**：TRC20 待付页「能量租赁，节省70%矿工费」默认展开 + 绿色高亮描边 + 跳动「省70%」徽标（仅在管理员已配置能量地址时展示）
 - [x] 测试：canonical pytest 31 passed；settlements/排程+cron curl 全通过；前端编译成功、/exports 200
 
+## Implemented (2026-06, iteration 26) — 通知/告警/链域拆分 + 导出保留天数 + 排程失败告警 + 能量引导
+- [x] **域拆分**：notify(设置/测试/日报/日志)→`routes/notify.py`，alerts(列表/已读/阈值设置)→`routes/alerts.py`，chain(txs/sync/addresses/meta/sweeps/refresh)→`routes/chain.py`。server.py 再减 227 行(→1970)；链上 worker 与底层 helper 仍在 server，经 late-import 复用。全部迁移端点实测 200，pytest 31 passed
+- [x] **导出文件保留天数可配**：notify 设置新增 `export_retain_days`(默认 7)；`_run_export` 按此计算 GridFS 文件 expires_at(TTL);Telegram 设置弹窗新增「保留天数」输入。实测持久化
+- [x] **定时导出失败告警**：`_run_export` 失败时写入 job.error(记录),且当为定时任务(created_email 以「定时导出」开头)时发送 Telegram「⚠️ 定时导出失败」(受开关约束,可选)
+- [x] **收银台能量下单引导**：TRC20 待付页能量区新增「快捷购买金额」2 TRX / 4 TRX 一键复制按钮(data-testid energy-copy-2 / energy-copy-4),三语文案
+- [x] 测试：canonical pytest 31 passed；notify/alerts/chain 7 端点 200；retain/threshold 持久化验证；前端编译成功
+
 ## Backlog (next)
-- P2: 清理/迁移遗留 pytest（iteration3/4/5/7/new_features：硬编码 ObjectId + 已移除 EVM + 商户后台登录）
-- P2: 剩余散落 Pydantic 模型并入 models.py；server.py 继续拆分(notify/chain/reports 域)
+- P2: 清理/迁移遗留 pytest(iteration3/4/5/7/new_features)
+- P2: server.py 继续拆分(reports 域)；散落 Pydantic 模型并入 models.py
 - P2: admin 账户删除接口
-- P3: 导出保留天数可配；定时导出失败重试/告警
+- P3: 导出失败自动重试；能量金额从后台可配(当前固定 2/4 TRX)
 
 ## Next Tasks
 - 按需接入真实支付/链上监听，或扩展回调通知与对账自动化。

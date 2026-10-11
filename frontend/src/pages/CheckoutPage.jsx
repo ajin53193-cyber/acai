@@ -213,6 +213,12 @@ export default function CheckoutPage() {
                 <button onClick={() => copy(settings.energy_trx_address)} className="text-[var(--accent)] p-1 shrink-0"><Copy className="w-5 h-5" /></button>
               </div>
               <p className="mt-2 text-orange-500 font-semibold text-[14px]">{t.trxOnly}</p>
+              <div className="mt-3 flex items-center gap-2 flex-wrap" data-testid="energy-buy-amounts">
+                <span className="text-[14px] font-semibold text-slate-800">{t.energyBuyAmount}</span>
+                {["2", "4"].map((a) => (
+                  <button key={a} onClick={() => copy(a)} data-testid={`energy-copy-${a}`} className="inline-flex items-center gap-1 rounded-full bg-emerald-500 hover:bg-emerald-600 text-white px-3 py-1 text-[13px] font-semibold"><Copy className="w-3.5 h-3.5" />{a} TRX</button>
+                ))}
+              </div>
             </div>
             <ol className="space-y-2 text-[14px] text-slate-700 leading-relaxed" data-testid="energy-rules">
               {(settings.energy_rules?.length ? settings.energy_rules.map((r) => [r.title, r.text]) : t.energyRules).map(([k, v], i) => (
