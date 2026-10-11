@@ -47,8 +47,12 @@ NETWORKS = ["TRC20"]
 TRONGRID_API = os.environ.get("TRONGRID_API", "https://api.trongrid.io")
 TRONGRID_API_KEY = os.environ.get("TRONGRID_API_KEY", "")
 USDT_TRC20_CONTRACT = "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t"
-CHAIN_POLL_SECONDS = 20
+CHAIN_POLL_SECONDS = int(os.environ.get("CHAIN_POLL_SECONDS", "20"))
+CHAIN_MIN_INTERVAL = float(os.environ.get("CHAIN_MIN_INTERVAL", "0.08"))  # global QPS cap (~12/s)
+CHAIN_CURSOR_OVERLAP_MS = 180000  # re-scan a 3-min overlap so no tx slips past the cursor
 CALLBACK_RETRY_DELAYS = [15, 60, 300, 1800, 7200]
+_chain_rate_lock = asyncio.Lock()
+_chain_last_call = 0.0
 
 
 # ---------------------------------------------------------------------------
@@ -68,10 +72,41 @@ from shared import (
     DEFAULT_ALERT_SETTINGS, DEFAULT_NOTIFY_SETTINGS,
 )
 from services import (
-    channel_addresses, pick_address, unique_pay_amount, pick_channel,
+    channel_addresses, pick_address, pick_channel,
     build_order, settle_order, mark_paid,
 )
 from models import SecurityPolicy, CheckoutSettings  # consolidated into models.py
+
+
+async def _chain_throttle():
+    global _chain_last_call
+    import time
+    async with _chain_rate_lock:
+        wait = CHAIN_MIN_INTERVAL - (time.monotonic() - _chain_last_call)
+        if wait > 0:
+            await asyncio.sleep(wait)
+        _chain_last_call = time.monotonic()
+
+
+async def _chain_get(client, url, **kw):
+    """GET with a global QPS throttle + exponential backoff on 403/429/5xx/timeouts."""
+    import random
+    last = None
+    for attempt in range(5):
+        await _chain_throttle()
+        try:
+            r = await client.get(url, **kw)
+            if r.status_code in (403, 429, 500, 502, 503):
+                last = httpx.HTTPStatusError(f"chain {r.status_code}", request=r.request, response=r)
+                raise last
+            r.raise_for_status()
+            return r
+        except (httpx.HTTPStatusError, httpx.TransportError, httpx.TimeoutException) as e:
+            last = e
+            if attempt == 4:
+                break
+            await asyncio.sleep(min(8.0, 0.5 * (2 ** attempt)) + random.random() * 0.3)
+    raise last
 
 
 async def fetch_trc20_transfers(address: str, since_ms: int) -> List[dict]:
@@ -79,8 +114,7 @@ async def fetch_trc20_transfers(address: str, since_ms: int) -> List[dict]:
     params = {"only_confirmed": "true", "only_to": "true", "limit": 100,
               "contract_address": USDT_TRC20_CONTRACT, "min_timestamp": since_ms}
     async with httpx.AsyncClient(timeout=15) as hc:
-        r = await hc.get(f"{TRONGRID_API}/v1/accounts/{address}/transactions/trc20", params=params, headers=headers)
-        r.raise_for_status()
+        r = await _chain_get(hc, f"{TRONGRID_API}/v1/accounts/{address}/transactions/trc20", params=params, headers=headers)
         return [{"transaction_id": t["transaction_id"], "from": t.get("from"), "value": t["value"],
                  "decimals": t.get("token_info", {}).get("decimals", 6), "block_timestamp": t["block_timestamp"]}
                 for t in r.json().get("data", [])]
@@ -93,8 +127,7 @@ async def fetch_transfers(network: str, address: str, since_ms: int) -> List[dic
 async def fetch_balance(network: str, address: str) -> float:
     headers = {"TRON-PRO-API-KEY": TRONGRID_API_KEY} if TRONGRID_API_KEY else {}
     async with httpx.AsyncClient(timeout=15) as hc:
-        r = await hc.get(f"{TRONGRID_API}/v1/accounts/{address}", headers=headers)
-        r.raise_for_status()
+        r = await _chain_get(hc, f"{TRONGRID_API}/v1/accounts/{address}", headers=headers)
         data = r.json().get("data") or [{}]
     for item in data[0].get("trc20", []):
         if USDT_TRC20_CONTRACT in item:
@@ -184,10 +217,14 @@ async def sync_address(ch: dict, addr: str, since_ms: int) -> int:
     network = ch["network"]
     try:
         txs = await fetch_transfers(network, addr, since_ms)
+        max_ts = since_ms
         for tx in txs:
             await match_chain_tx(tx, addr, network)
+            if tx.get("block_timestamp", 0) > max_ts:
+                max_ts = tx["block_timestamp"]
         await db.channels.update_one({"_id": ch["_id"]}, {"$set": {"last_sync_at": iso(now_utc()), "sync_error": None}})
-        await set_address_health(network, addr, ch, last_sync_at=iso(now_utc()), sync_error=None, last_tx_count=len(txs), first_error_at=None)
+        await set_address_health(network, addr, ch, last_sync_at=iso(now_utc()), sync_error=None,
+                                 last_tx_count=len(txs), first_error_at=None, cursor_ms=max_ts)
         return len(txs)
     except Exception as e:
         await db.channels.update_one({"_id": ch["_id"]}, {"$set": {"sync_error": str(e)[:200]}})
@@ -205,7 +242,10 @@ async def chain_listener():
                 has_pending = await db.orders.count_documents({"status": "pending", "wallet_address": addr}) > 0
                 if not has_pending:
                     continue
-                since = int((now_utc() - timedelta(hours=2)).timestamp() * 1000)
+                floor = int((now_utc() - timedelta(hours=2)).timestamp() * 1000)
+                h = await db.address_health.find_one({"address": addr, "network": ch["network"]}) or {}
+                cursor = h.get("cursor_ms")
+                since = max(floor, cursor - CHAIN_CURSOR_OVERLAP_MS) if cursor else floor
                 try:
                     await sync_address(ch, addr, since)
                 except Exception:
@@ -1224,6 +1264,10 @@ async def seed():
     await db.api_nonces.create_index([("api_key", 1), ("nonce", 1)])
     await db.orders.create_index([("status", 1), ("wallet_address", 1), ("pay_amount", 1)])
     await db.orders.create_index([("merchant_id", 1), ("out_trade_no", 1)])
+    await db.orders.create_index("order_no")
+    await db.orders.create_index([("status", 1), ("expires_at", 1)])
+    await db.orders.create_index([("merchant_id", 1), ("created_at", -1)])
+    await db.orders.create_index([("created_at", -1)])
     await db.alerts.create_index([("read", 1), ("created_at", -1)])
     await db.balance_ledger.create_index([("account_id", 1), ("created_at", -1)])
     await db.audit_logs.create_index([("actor_id", 1), ("created_at", -1)])

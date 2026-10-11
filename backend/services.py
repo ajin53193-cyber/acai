@@ -21,27 +21,37 @@ def channel_addresses(ch: dict) -> List[str]:
     return [a for a in addrs if a]
 
 
-async def pick_address(ch: dict) -> str:
+async def ordered_addresses(ch: dict) -> List[str]:
+    """Channel addresses sorted by current pending load (least busy first)."""
     addrs = channel_addresses(ch)
+    if not addrs:
+        return []
     paused = {m["address"] async for m in db.address_meta.find({"address": {"$in": addrs}, "status": "paused"})}
-    addrs = [a for a in addrs if a not in paused] or addrs
-    if len(addrs) == 1:
-        return addrs[0]
-    pipeline = [{"$match": {"status": "pending", "wallet_address": {"$in": addrs}}},
+    active = [a for a in addrs if a not in paused] or addrs
+    if len(active) == 1:
+        return active
+    pipeline = [{"$match": {"status": "pending", "wallet_address": {"$in": active}}},
                 {"$group": {"_id": "$wallet_address", "n": {"$sum": 1}}}]
     counts = {r["_id"]: r["n"] async for r in db.orders.aggregate(pipeline)}
-    return min(addrs, key=lambda a: (counts.get(a, 0), random.random()))
+    return sorted(active, key=lambda a: (counts.get(a, 0), random.random()))
 
 
-async def unique_pay_amount(amount: float, address: str) -> float:
+async def pick_address(ch: dict) -> str:
+    addrs = await ordered_addresses(ch)
+    return addrs[0] if addrs else ""
+
+
+async def free_pay_amount(amount: float, address: str) -> Optional[float]:
+    """A 2-decimal pay amount unique among this address's pending orders, or None
+    when all 100 cent-variants are currently taken (address saturated)."""
     base = round(amount, 2)
-    for _ in range(300):
-        cents = random.randint(1, 9999) / 10000
-        cand = round(base + cents, 4)
-        exists = await db.orders.find_one({"status": "pending", "wallet_address": address, "pay_amount": cand})
-        if not exists:
+    cents = list(range(0, 100))
+    random.shuffle(cents)
+    for c in cents:
+        cand = round(base + c / 100, 2)
+        if not await db.orders.find_one({"status": "pending", "wallet_address": address, "pay_amount": cand}):
             return cand
-    raise HTTPException(status_code=409, detail="该地址待支付订单过多，请稍后再试")
+    return None
 
 
 async def pick_channel(network: Optional[str], amount: float) -> Optional[dict]:
@@ -74,9 +84,19 @@ async def build_order(merchant: dict, amount_usdt: float, network: Optional[str]
         raise HTTPException(status_code=400, detail="没有可用的收款通道")
     expires = now_utc() + timedelta(minutes=15)
     live = bool(channel_addresses(channel))
-    address = await pick_address(channel) if live else gen_wallet_address(network)
     amount = round(amount_usdt, 2)
-    pay_amount = await unique_pay_amount(amount, address) if live else amount
+    if live:
+        address, pay_amount = None, None
+        for a in await ordered_addresses(channel):
+            cand = await free_pay_amount(amount, a)
+            if cand is not None:
+                address, pay_amount = a, cand
+                break
+        if address is None:
+            raise HTTPException(status_code=409, detail="当前收款地址繁忙，请稍后再试，或联系客服增配地址")
+    else:
+        address = gen_wallet_address(network)
+        pay_amount = amount
     clean_return = return_url.strip() if return_url else ""
     if clean_return:
         if not clean_return.startswith(("http://", "https://")):

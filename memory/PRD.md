@@ -308,6 +308,25 @@
 - [x] **超额排队提示**：`support_public_get` 返回 `queued`（待回复且无在线坐席可接：未分配或所属坐席离线）。收银台客服面板显示温和繁体提示「目前客服繁忙，您的訊息已排隊，我們會盡快回覆您 🙏」。
   - 验证：curl（queued=True；离线坐席会话被转交给在线坐席+系统消息；seats 返回 max_wait_seconds=2981）+ 截图（首页 50分 红色时钟徽标、收银台排队横幅）。
 
+## Implemented (2026-06, iteration 39) — 2位小数 / 多地址分摊 / 链上监听加固 / 高并发索引
+- [x] **付款金额 2 位小数**：`services.py` 防撞单改为 2 位（同地址 100 个金额变体），`free_pay_amount` 返回唯一 2 位金额。已验证（25.00→25.38/25.00/25.32）。
+- [x] **收款地址自动分摊**：`ordered_addresses`（最少待支付优先）+ `build_order` 在某地址 100 个金额用尽时自动切换下一地址，全部用尽才返回 409。沿用「最少待支付优先」轮询。
+- [x] **链上监听生产级加固**（TronGrid，TRC20）：
+  - 仅轮询「有待支付订单」的地址（原有）；
+  - **按地址增量时间游标** `cursor_ms`（+3 分钟重叠防漏），不再每次回扫 2 小时；
+  - **全局 QPS 限流**（`CHAIN_MIN_INTERVAL`，默认 ~12/s）+ **403/429/5xx/超时 指数退避重试**（`_chain_get`）；
+  - 轮询间隔 `CHAIN_POLL_SECONDS`、QPS 均可用环境变量调；
+  - TronGrid 免费无 Key 即可运行；填 `TRONGRID_API_KEY`（环境变量）即提额，代码已就绪。
+- [x] **8 万笔/天 索引**：orders 新增 `order_no`、`status+expires_at`、`merchant_id+created_at`、`created_at` 索引。
+- [x] **能量租赁板块**：后台「能量租赁」标签页已可开关并填真实 TRX 代购地址/价格/文案/规则（配置即用，无需改码）。
+- 验证：curl（2 位唯一金额）+ 后台日志（min_timestamp 游标递增、200 OK）+ `pytest -n 2` 114 passed/134 skipped。
+
+## 待用户提供
+- 链上数据源凭证（二选一，均可随时热接，不阻塞现有 TronGrid 免费监听）：
+  - `TRONGRID_API_KEY`（提额）；或
+  - 换源（Chainstack 节点 URL / TronHook Webhook Key / 自建节点 URL）——届时按集成规范接入多数据源。
+- 真实 TRC20 收款地址（多个，用于 2 位小数并发分摊）。
+
 ## Backlog (next)
 - P2: 散落模型持续并入 models.py
 - P2: 清理测试残留的 TEST_M 商户账户（有余额，需先结清；现可用新删除接口手动清理）
