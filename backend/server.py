@@ -825,6 +825,22 @@ async def update_channel(channel_id: str, data: ChannelUpdate, request: Request,
     return await channel_view(c)
 
 
+@api_router.delete("/channels/{channel_id}")
+async def delete_channel(channel_id: str, request: Request, user: dict = Depends(require_roles("admin"))):
+    ch = await db.channels.find_one({"_id": ObjectId(channel_id)})
+    if not ch:
+        raise HTTPException(status_code=404, detail="通道不存在")
+    pending = await channel_pending_counts(ch)
+    total_pending = sum(pending.values())
+    if total_pending > 0:
+        raise HTTPException(status_code=409,
+                            detail=f"该通道仍有 {total_pending} 笔待付款订单，无法删除；请等待订单完成/过期或迁移地址后再试")
+    await db.channels.delete_one({"_id": ch["_id"]})
+    await audit(user, "channel.delete", "channel", channel_id,
+                {"name": ch.get("name"), "network": ch.get("network")}, request)
+    return {"ok": True}
+
+
 # ---------------------------------------------------------------------------
 # Accounts (merchants & agents)
 # ---------------------------------------------------------------------------

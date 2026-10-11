@@ -64,7 +64,8 @@ async def pick_channel(network: Optional[str], amount: float) -> Optional[dict]:
 
 
 async def build_order(merchant: dict, amount_usdt: float, network: Optional[str], remark: str,
-                      notify_url: Optional[str], out_trade_no: Optional[str] = None) -> dict:
+                      notify_url: Optional[str], out_trade_no: Optional[str] = None,
+                      return_url: Optional[str] = None) -> dict:
     network = "TRC20"
     if amount_usdt <= 0:
         raise HTTPException(status_code=400, detail="金额必须大于 0")
@@ -76,6 +77,9 @@ async def build_order(merchant: dict, amount_usdt: float, network: Optional[str]
     address = await pick_address(channel) if live else gen_wallet_address(network)
     amount = round(amount_usdt, 2)
     pay_amount = await unique_pay_amount(amount, address) if live else amount
+    clean_return = return_url.strip() if return_url else ""
+    if clean_return and not clean_return.startswith(("http://", "https://")):
+        clean_return = ""
     order = {
         "order_no": gen_order_no(),
         "out_trade_no": out_trade_no or None,
@@ -92,6 +96,7 @@ async def build_order(merchant: dict, amount_usdt: float, network: Optional[str]
         "channel_name": channel["name"],
         "remark": remark or "",
         "notify_url": notify_url or merchant.get("notify_url") or None,
+        "return_url": clean_return or None,
         "callback_status": None,
         "created_at": iso(now_utc()),
         "paid_at": None,

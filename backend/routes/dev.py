@@ -58,7 +58,7 @@ async def dev_test_order(data: DevTestOrder, request: Request, user: dict = Depe
         resp = {"code": 0, "msg": "duplicate", "data": api_order_view(dup)}
     else:
         order = await build_order(merchant, data.amount_usdt, data.network, data.remark or "",
-                                  data.notify_url, out_no)
+                                  data.notify_url, out_no, data.return_url)
         resp = {"code": 0, "msg": "success", "data": api_order_view(order)}
     await audit(user, "dev.test_order", "user", str(merchant["_id"]),
                 {"merchant": merchant["name"], "out_trade_no": out_no, "amount_usdt": data.amount_usdt}, request)

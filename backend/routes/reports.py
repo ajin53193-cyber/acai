@@ -647,3 +647,52 @@ async def cron_run_exports(request: Request):
     run_id = request.headers.get("X-Webhook-Id") or (body or {}).get("run_id") or secrets.token_hex(8)
     asyncio.create_task(run_scheduled_exports(run_id))
     return {"ok": True, "accepted": True, "run_id": run_id}
+
+
+# --- Export expiry reminders (24h ahead) -----------------------------------
+async def run_export_expiry_reminders(run_id: str) -> dict:
+    """Find completed export files expiring within the next 24h and push one
+    Telegram reminder per file (once), so operators can re-download in time."""
+    cfg = await notify_settings()
+    if not cfg.get("export_expiry_notify", True):
+        logger.info(f"export expiry reminders {run_id}: disabled")
+        return {"notified": 0, "disabled": True}
+    now = now_utc()
+    soon = now + timedelta(hours=24)
+    jobs = await db.export_jobs.find({
+        "status": "done",
+        "expiry_notified": {"$ne": True},
+        "expires_at": {"$gte": iso(now), "$lt": iso(soon)},
+    }).to_list(200)
+    notified = 0
+    kind_labels = {"orders": "订单", "snapshots": "分润快照", "ledger": "资金流水"}
+    for j in jobs:
+        try:
+            exp = datetime.fromisoformat(j["expires_at"])
+            hrs = max(0, int((exp - now).total_seconds() // 3600))
+        except Exception:
+            hrs = 0
+        await send_telegram(
+            f"⏳ <b>导出文件即将到期</b>\n类型：{kind_labels.get(j.get('kind'), j.get('kind'))}\n"
+            f"文件：{j.get('filename', '')}\n行数：{j.get('row_count', '—')}\n"
+            f"剩余约 {hrs} 小时后清理，请及时下载", "report")
+        await db.export_jobs.update_one({"_id": j["_id"]}, {"$set": {"expiry_notified": True}})
+        notified += 1
+    logger.info(f"export expiry reminders {run_id}: notified={notified}")
+    return {"notified": notified}
+
+
+@router.post("/cron/export-expiry-reminders")
+async def cron_export_expiry_reminders(request: Request):
+    secret = os.environ.get("WEBHOOK_CRON_SECRET", "")
+    auth = request.headers.get("Authorization", "")
+    token = auth[7:] if auth.startswith("Bearer ") else ""
+    if not secret or not hmac.compare_digest(token, secret):
+        raise HTTPException(status_code=401, detail="unauthorized")
+    try:
+        body = await request.json()
+    except Exception:
+        body = {}
+    run_id = request.headers.get("X-Webhook-Id") or (body or {}).get("run_id") or secrets.token_hex(8)
+    asyncio.create_task(run_export_expiry_reminders(run_id))
+    return {"ok": True, "accepted": True, "run_id": run_id}

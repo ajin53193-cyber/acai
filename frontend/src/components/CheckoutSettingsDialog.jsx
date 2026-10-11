@@ -8,7 +8,10 @@ import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { toast } from "sonner";
-import { Settings2, Loader2, Plus, Trash2, ChevronUp, ChevronDown } from "lucide-react";
+import { Settings2, Loader2, Plus, Trash2, ChevronUp, ChevronDown, GripVertical } from "lucide-react";
+import { DndContext, closestCenter, PointerSensor, KeyboardSensor, useSensor, useSensors } from "@dnd-kit/core";
+import { SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy, arrayMove, useSortable } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 
 const inputCls = "bg-slate-900/60 border-slate-700";
 const taCls = "w-full rounded-md bg-slate-900/60 border border-slate-700 text-xs p-2 text-slate-200 focus:outline-none focus:border-cyan-500";
@@ -49,10 +52,31 @@ function TutorialEditor({ items, onChange }) {
   );
 }
 
+function SortableEnergyRule({ id, rule, index, onChange, onDelete }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
+  const style = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.6 : 1 };
+  return (
+    <div ref={setNodeRef} style={style} className="flex gap-2 items-start" data-testid={`energy-rule-row-${index}`}>
+      <button type="button" {...attributes} {...listeners} data-testid={`energy-rule-drag-${index}`} className="p-2 text-slate-500 hover:text-slate-200 cursor-grab active:cursor-grabbing shrink-0 touch-none"><GripVertical className="w-4 h-4" /></button>
+      <Input value={rule.title} onChange={(e) => onChange({ title: e.target.value })} data-testid={`energy-rule-title-${index}`} className={`${inputCls} w-36`} placeholder="标题" />
+      <Input value={rule.text} onChange={(e) => onChange({ text: e.target.value })} data-testid={`energy-rule-text-${index}`} className={`${inputCls} flex-1`} placeholder="内容" />
+      <button onClick={onDelete} data-testid={`energy-rule-del-${index}`} className="p-2 text-red-400 hover:bg-red-400/10 rounded shrink-0"><Trash2 className="w-4 h-4" /></button>
+    </div>
+  );
+}
+
 export function CheckoutSettingsDialog() {
   const [open, setOpen] = useState(false);
   const [s, setS] = useState(null);
   const [saving, setSaving] = useState(false);
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+                             useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }));
+  const onEnergyDragEnd = ({ active, over }) => {
+    if (!over || active.id === over.id) return;
+    const oldI = Number(String(active.id).split("-")[1]);
+    const newI = Number(String(over.id).split("-")[1]);
+    setS((prev) => ({ ...prev, energy_rules: arrayMove(prev.energy_rules, oldI, newI) }));
+  };
 
   useEffect(() => {
     if (!open) return;
@@ -113,14 +137,17 @@ export function CheckoutSettingsDialog() {
               <div className="space-y-1.5"><Label>快捷购买金额（TRX，逗号分隔）</Label><Input value={s.energy_amounts ?? "2,4"} onChange={(e) => setS({ ...s, energy_amounts: e.target.value })} data-testid="energy-amounts-input" className={inputCls} placeholder="例如 2,4" /></div>
               <div className="space-y-1.5"><Label>租赁说明条款（标题 + 内容，留空则用内置 4 条默认文案，自动跟随语言）</Label>
                 <div className="space-y-2" data-testid="energy-rules-editor">
-                  {(s.energy_rules || []).map((r, i) => (
-                    <div key={i} className="flex gap-2 items-start">
-                      <Input value={r.title} onChange={(e) => { const a = [...s.energy_rules]; a[i] = { ...a[i], title: e.target.value }; setS({ ...s, energy_rules: a }); }} data-testid={`energy-rule-title-${i}`} className={`${inputCls} w-36`} placeholder="标题" />
-                      <Input value={r.text} onChange={(e) => { const a = [...s.energy_rules]; a[i] = { ...a[i], text: e.target.value }; setS({ ...s, energy_rules: a }); }} data-testid={`energy-rule-text-${i}`} className={`${inputCls} flex-1`} placeholder="内容" />
-                      <button onClick={() => setS({ ...s, energy_rules: s.energy_rules.filter((_, j) => j !== i) })} data-testid={`energy-rule-del-${i}`} className="p-2 text-red-400 hover:bg-red-400/10 rounded shrink-0"><Trash2 className="w-4 h-4" /></button>
-                    </div>
-                  ))}
+                  <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onEnergyDragEnd}>
+                    <SortableContext items={(s.energy_rules || []).map((_, i) => `rule-${i}`)} strategy={verticalListSortingStrategy}>
+                      {(s.energy_rules || []).map((r, i) => (
+                        <SortableEnergyRule key={`rule-${i}`} id={`rule-${i}`} rule={r} index={i}
+                          onChange={(patch) => { const a = [...s.energy_rules]; a[i] = { ...a[i], ...patch }; setS({ ...s, energy_rules: a }); }}
+                          onDelete={() => setS({ ...s, energy_rules: s.energy_rules.filter((_, j) => j !== i) })} />
+                      ))}
+                    </SortableContext>
+                  </DndContext>
                   <button onClick={() => setS({ ...s, energy_rules: [...(s.energy_rules || []), { title: "", text: "" }] })} data-testid="energy-rule-add" className="text-xs text-cyan-400 hover:text-cyan-300 flex items-center gap-1"><Plus className="w-3.5 h-3.5" /> 添加条款</button>
+                  <p className="text-[10px] text-slate-500">拖动左侧手柄可调整条款顺序，保存后按此顺序在收银台展示</p>
                 </div></div>
             </TabsContent>
             <TabsContent value="tutorials" className="pt-3">

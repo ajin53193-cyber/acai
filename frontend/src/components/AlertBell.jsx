@@ -42,6 +42,7 @@ function TelegramSettings({ onClose }) {
       </div>
       <div className="space-y-1"><Label className="text-[11px]">导出完成提醒阈值（行数 ≥ 此值才推送）</Label><Input type="number" min={1} value={s.export_notify_threshold ?? 500} onChange={(e) => setS({ ...s, export_notify_threshold: Number(e.target.value) })} data-testid="tg-export-threshold-input" className={cls} /></div>
       <div className="space-y-1"><Label className="text-[11px]">导出文件保留天数（到期自动清理）</Label><Input type="number" min={1} value={s.export_retain_days ?? 7} onChange={(e) => setS({ ...s, export_retain_days: Number(e.target.value) })} data-testid="tg-export-retain-input" className={cls} /></div>
+      <label className="flex items-center justify-between text-xs"><span>导出文件到期前 24h Telegram 提醒</span><input type="checkbox" checked={s.export_expiry_notify ?? true} onChange={(e) => setS({ ...s, export_expiry_notify: e.target.checked })} data-testid="tg-export-expiry-notify" className="accent-cyan-500" /></label>
       <div className="flex justify-end gap-2"><Button size="sm" variant="ghost" onClick={onClose}>返回</Button><Button size="sm" variant="outline" onClick={test} disabled={busy} data-testid="tg-test-btn" className="border-slate-700">发送测试</Button><Button size="sm" onClick={save} data-testid="tg-save-btn" className="bg-cyan-500 text-slate-950 hover:bg-cyan-400">保存</Button></div>
     </div>
   );

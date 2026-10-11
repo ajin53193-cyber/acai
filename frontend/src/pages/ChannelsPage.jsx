@@ -11,8 +11,12 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
-import { Plus, Network, Gauge, Loader2, Wallet, Radio, Pencil, Check, X, RefreshCw } from "lucide-react";
+import { Plus, Network, Gauge, Loader2, Wallet, Radio, Pencil, Check, X, RefreshCw, Trash2, ShieldAlert } from "lucide-react";
 import { CheckoutSettingsDialog } from "@/components/CheckoutSettingsDialog";
 
 function WalletField({ channel, onSaved }) {
@@ -59,6 +63,58 @@ function WalletField({ channel, onSaved }) {
       ))}
       {addrs.length > 4 && <div className="text-[10px] text-slate-500">… 另 {addrs.length - 4} 个地址</div>}
     </div>
+  );
+}
+
+function DeleteChannel({ channel, onDeleted }) {
+  const [open, setOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const pending = Object.values(channel.pending_by_address || {}).reduce((a, b) => a + b, 0);
+  const blocked = pending > 0;
+  const remove = async () => {
+    setDeleting(true);
+    try {
+      await api.delete(`/channels/${channel.id}`);
+      toast.success(`通道「${channel.name}」已删除`);
+      setOpen(false); onDeleted();
+    } catch (err) { toast.error(formatApiErrorDetail(err.response?.data?.detail)); }
+    finally { setDeleting(false); }
+  };
+  return (
+    <AlertDialog open={open} onOpenChange={setOpen}>
+      <button onClick={() => setOpen(true)} data-testid={`channel-delete-btn-${channel.id}`}
+        className="p-1.5 rounded text-slate-500 hover:text-red-400 hover:bg-red-400/10" title="删除通道">
+        <Trash2 className="w-3.5 h-3.5" />
+      </button>
+      <AlertDialogContent className="glass border-slate-700" data-testid={`channel-delete-dialog-${channel.id}`}>
+        <AlertDialogHeader>
+          <AlertDialogTitle className="flex items-center gap-2">
+            <ShieldAlert className={`w-5 h-5 ${blocked ? "text-red-400" : "text-amber-400"}`} /> 删除收款通道
+          </AlertDialogTitle>
+          <AlertDialogDescription asChild>
+            <div className="text-sm text-slate-400 space-y-2">
+              <div>确认删除通道 <span className="text-slate-200 font-medium">「{channel.name}」</span>（{channel.network}）？此操作不可撤销。</div>
+              {blocked ? (
+                <div data-testid={`channel-delete-blocked-${channel.id}`} className="rounded-md border border-red-400/30 bg-red-400/10 px-3 py-2 text-red-300">
+                  该通道仍有 <b>{pending}</b> 笔待付款订单，<b>安全删除已阻止</b>。请等待订单完成/过期，或先清空收款地址后再删除。
+                </div>
+              ) : (
+                <div className="rounded-md border border-emerald-400/30 bg-emerald-400/10 px-3 py-2 text-emerald-300">
+                  当前无待付款订单，可安全删除。
+                </div>
+              )}
+            </div>
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel data-testid={`channel-delete-cancel-${channel.id}`} className="border-slate-700">取消</AlertDialogCancel>
+          <AlertDialogAction onClick={(e) => { e.preventDefault(); remove(); }} disabled={blocked || deleting}
+            data-testid={`channel-delete-confirm-${channel.id}`} className="bg-red-500 text-white hover:bg-red-600 disabled:opacity-40">
+            {deleting ? <Loader2 className="w-4 h-4 animate-spin" /> : "确认删除"}
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   );
 }
 
@@ -170,7 +226,10 @@ export default function ChannelsPage() {
                     </div>
                   </div>
                 </div>
-                <Switch checked={c.status === "active"} onCheckedChange={() => toggle(c)} data-testid={`channel-toggle-${c.id}`} />
+                <div className="flex items-center gap-1">
+                  <Switch checked={c.status === "active"} onCheckedChange={() => toggle(c)} data-testid={`channel-toggle-${c.id}`} />
+                  <DeleteChannel channel={c} onDeleted={load} />
+                </div>
               </div>
               <div className="grid grid-cols-2 gap-y-3 gap-x-4 text-sm">
                 <div><div className="text-[11px] text-slate-500">费率</div><div className="font-mono font-semibold">{(c.fee_rate * 100).toFixed(2)}%</div></div>

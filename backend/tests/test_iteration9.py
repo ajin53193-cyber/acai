@@ -104,13 +104,17 @@ class TestOperatorTrail:
             assert l.get("actor_id") == operator_id
 
 
-# ============== 2FA Self-Service on Admin ==============
+# ============== 2FA Self-Service (isolated throwaway operator) ==============
 class TestAdmin2FA:
-    """CRITICAL: Must restore admin to no-2FA state after."""
+    """Runs the full 2FA cycle on a throwaway operator so the shared admin is
+    never put into a 2FA-required state (parallel-safe)."""
 
-    def test_full_2fa_cycle(self, admin_token):
+    def test_full_2fa_cycle(self, make_operator):
+        op = make_operator()
+        email, password, tok = op["email"], op["password"], op["token"]
+
         # Setup
-        r = requests.post(f"{API}/auth/2fa/setup", headers=hdr(admin_token))
+        r = requests.post(f"{API}/auth/2fa/setup", headers=hdr(tok))
         assert r.status_code == 200, r.text
         data = r.json()
         assert "secret" in data and "otpauth_uri" in data and "qr" in data
@@ -119,41 +123,41 @@ class TestAdmin2FA:
 
         # Enable with valid code
         code = pyotp.TOTP(secret).now()
-        r = requests.post(f"{API}/auth/2fa/enable", json={"code": code}, headers=hdr(admin_token))
+        r = requests.post(f"{API}/auth/2fa/enable", json={"code": code}, headers=hdr(tok))
         assert r.status_code == 200, r.text
         assert r.json()["totp_enabled"] is True
 
         # /auth/me reflects
-        me = requests.get(f"{API}/auth/me", headers=hdr(admin_token)).json()
+        me = requests.get(f"{API}/auth/me", headers=hdr(tok)).json()
         assert me["totp_enabled"] is True
         assert "totp_secret" not in me  # never leaked
 
         # Login without code -> requires_2fa
-        r = login(*ADMIN)
+        r = login(email, password)
         assert r.status_code == 200
         body = r.json()
         assert body.get("requires_2fa") is True
         assert "token" not in body
 
         # Login with wrong code
-        r = login(ADMIN[0], ADMIN[1], code="000000")
+        r = login(email, password, code="000000")
         assert r.status_code in (400, 401), r.text
 
         # Login with valid code
         valid_code = pyotp.TOTP(secret).now()
-        r = login(ADMIN[0], ADMIN[1], code=valid_code)
+        r = login(email, password, code=valid_code)
         assert r.status_code == 200, r.text
         assert "token" in r.json()
 
         # Disable 2FA
         disable_code = pyotp.TOTP(secret).now()
         r = requests.post(f"{API}/auth/2fa/disable", json={"code": disable_code},
-                          headers=hdr(admin_token))
+                          headers=hdr(tok))
         assert r.status_code == 200, r.text
         assert r.json()["totp_enabled"] is False
 
         # Password-only login works again
-        r = login(*ADMIN)
+        r = login(email, password)
         assert r.status_code == 200
         assert "token" in r.json()
         assert not r.json().get("requires_2fa")
@@ -331,9 +335,10 @@ class TestRegression:
 
 # ============== Final safety check ==============
 def test_zz_admin_2fa_is_disabled():
-    """Last test (zz prefix): verify admin can still login without 2FA."""
+    """Admin must always be able to password-login (2FA flows are isolated to
+    throwaway operators, so the shared admin is never 2FA-gated)."""
     r = login(*ADMIN)
     assert r.status_code == 200, r.text
     body = r.json()
-    assert "token" in body, f"Admin needs code - 2FA leaked! {body}"
-    assert not body.get("requires_2fa"), "Admin 2FA still enabled!"
+    assert "token" in body, f"Admin password login broken! {body}"
+    assert not body.get("requires_2fa"), "Admin 2FA must stay disabled!"

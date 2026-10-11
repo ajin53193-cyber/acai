@@ -4,7 +4,7 @@ import { fmtDate } from "@/lib/format";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Download, Loader2, FolderDown, CheckCircle2, XCircle, Clock, CalendarClock, Plus, Trash2, Power } from "lucide-react";
+import { Download, Loader2, FolderDown, CheckCircle2, XCircle, Clock, CalendarClock, Plus, Trash2, Power, AlertTriangle } from "lucide-react";
 
 const STATUS = {
   pending: { label: "生成中", cls: "text-amber-400 border-amber-400/30", Icon: Clock },
@@ -76,6 +76,14 @@ export default function ExportJobsPage() {
   };
 
   const fmtSize = (b) => (!b ? "—" : b > 1048576 ? `${(b / 1048576).toFixed(1)}MB` : `${(b / 1024).toFixed(0)}KB`);
+  const expiryInfo = (j) => {
+    if (!j.expires_at) return null;
+    const ms = new Date(j.expires_at) - new Date();
+    if (ms <= 0) return { label: "已过期", soon: false, expired: true };
+    const hrs = ms / 3600000;
+    const text = hrs < 24 ? `${Math.max(1, Math.round(hrs))}h 后` : `${Math.round(hrs / 24)}天后`;
+    return { label: `${text}到期`, soon: hrs < 24, expired: false };
+  };
   const fmtParams = (p) => {
     if (!p || Object.keys(p).length === 0) return "全部订单";
     const map = { status: "状态", network: "网络", keyword: "关键词", merchant_id: "商户", date: "日期", start: "起", end: "止", ids: "所选" };
@@ -87,7 +95,7 @@ export default function ExportJobsPage() {
   const _now = new Date();
   const monthCount = jobs.filter((j) => { const d = new Date(j.created_at); return d.getFullYear() === _now.getFullYear() && d.getMonth() === _now.getMonth(); }).length;
   const totalBytes = jobs.reduce((a, j) => a + (j.size_bytes || 0), 0);
-  const expiringSoon = jobs.filter((j) => j.expires_at && new Date(j.expires_at) > _now && (new Date(j.expires_at) - _now) < 2 * 86400000).length;
+  const expiringSoon = jobs.filter((j) => j.expires_at && new Date(j.expires_at) > _now && (new Date(j.expires_at) - _now) < 86400000).length;
 
   return (
     <div className="space-y-6" data-testid="export-jobs-page">
@@ -102,7 +110,7 @@ export default function ExportJobsPage() {
       <div className="grid grid-cols-3 gap-3" data-testid="export-summary-bar">
         <div className="glass rounded-xl p-4"><div className="text-xs text-slate-400">本月导出</div><div className="text-2xl font-bold text-cyan-400" data-testid="summary-month-count">{monthCount}</div></div>
         <div className="glass rounded-xl p-4"><div className="text-xs text-slate-400">文件总大小</div><div className="text-2xl font-bold text-cyan-400" data-testid="summary-total-size">{fmtSize(totalBytes)}</div></div>
-        <div className="glass rounded-xl p-4"><div className="text-xs text-slate-400">48h 内到期</div><div className="text-2xl font-bold text-amber-400" data-testid="summary-expiring">{expiringSoon}</div></div>
+        <div className="glass rounded-xl p-4"><div className="text-xs text-slate-400">24h 内到期</div><div className="text-2xl font-bold text-amber-400" data-testid="summary-expiring">{expiringSoon}</div></div>
       </div>
 
       <div className="glass rounded-xl p-4 space-y-3" data-testid="export-schedules-card">
@@ -164,17 +172,19 @@ export default function ExportJobsPage() {
               <th className="py-3 px-3 font-medium text-right">大小</th>
               <th className="py-3 px-3 font-medium">创建人</th>
               <th className="py-3 px-3 font-medium">状态</th>
+              <th className="py-3 px-3 font-medium">有效期</th>
               <th className="py-3 px-3 font-medium text-right">操作</th>
             </tr>
           </thead>
           <tbody>
             {jobs.length === 0 ? (
-              <tr><td colSpan={8} className="py-10 text-center text-slate-500">暂无导出任务，在「订单与收款」页点击「后台导出」创建</td></tr>
+              <tr><td colSpan={9} className="py-10 text-center text-slate-500">暂无导出任务，在「订单与收款」页点击「后台导出」创建</td></tr>
             ) : jobs.map((j) => {
               const s = STATUS[j.status] || STATUS.pending; const Icon = s.Icon;
               const kindLabel = { orders: "订单", snapshots: "分润快照", ledger: "资金流水" }[j.kind] || j.kind;
+              const exp = expiryInfo(j);
               return (
-                <tr key={j.id} className="border-b border-slate-800/50 hover:bg-slate-800/30" data-testid={`export-job-${j.id}`}>
+                <tr key={j.id} className={`border-b border-slate-800/50 hover:bg-slate-800/30 ${exp?.soon ? "bg-amber-400/5" : ""}`} data-testid={`export-job-${j.id}`}>
                   <td className="py-3 px-3 font-mono text-[11px] text-slate-400">{fmtDate(j.created_at)}</td>
                   <td className="py-3 px-3"><span className="text-[11px] px-2 py-0.5 rounded bg-slate-800 text-slate-300">{kindLabel}</span></td>
                   <td className="py-3 px-3 text-xs text-slate-300">{fmtParams(j.params)}</td>
@@ -186,6 +196,13 @@ export default function ExportJobsPage() {
                       <Icon className={`w-3 h-3 ${j.status === "pending" ? "animate-pulse" : ""}`} /> {s.label}{j.status === "pending" && j.expected ? ` ${j.processed || 0}/${j.expected}` : ""}
                     </span>
                     {j.status === "failed" && j.error && <div className="text-[10px] text-red-400/70 mt-0.5 max-w-[200px] truncate" title={j.error}>{j.error}</div>}
+                  </td>
+                  <td className="py-3 px-3">
+                    {exp ? (
+                      <span data-testid={`job-expiry-${j.id}`} className={`inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full border ${exp.expired ? "text-slate-500 border-slate-700" : exp.soon ? "text-amber-400 border-amber-400/40 bg-amber-400/10" : "text-slate-400 border-slate-700"}`}>
+                        {exp.soon && <AlertTriangle className="w-3 h-3" />}{exp.label}
+                      </span>
+                    ) : <span className="text-slate-600 text-xs">—</span>}
                   </td>
                   <td className="py-3 px-3 text-right">
                     {j.status === "done" ? (

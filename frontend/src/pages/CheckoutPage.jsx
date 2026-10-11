@@ -3,7 +3,7 @@ import { useParams } from "react-router-dom";
 import api, { formatApiErrorDetail } from "@/lib/api";
 import { LANGS, I18N, TUTORIAL_CONTENT } from "@/lib/checkoutI18n";
 import { toast } from "sonner";
-import { Copy, Clock, CheckCircle2, XCircle, Loader2, Zap, ChevronDown, ChevronUp, Leaf, X } from "lucide-react";
+import { Copy, Clock, CheckCircle2, XCircle, Loader2, Zap, ChevronDown, ChevronUp, Leaf, X, ExternalLink } from "lucide-react";
 
 function Linkify({ text }) {
   const parts = text.split(/(https?:\/\/[^\s，。）)]+)/g);
@@ -133,6 +133,40 @@ export default function CheckoutPage() {
 
   const amount = order.pay_amount;
   const st = order.status;
+
+  if (st === "paid") return shell(
+    <div className="pt-4">
+      <style>{`@keyframes sfPop{0%{transform:scale(0);opacity:0}60%{transform:scale(1.15)}100%{transform:scale(1);opacity:1}}@keyframes sfRing{0%{transform:scale(.7);opacity:.55}100%{transform:scale(1.7);opacity:0}}`}</style>
+      <section className="bg-white rounded-2xl shadow-sm px-5 pt-8 pb-6 flex flex-col items-center" data-testid="checkout-success">
+        <div className="relative">
+          <span className="absolute inset-0 rounded-full bg-emerald-400" style={{ animation: "sfRing 1.3s ease-out infinite" }} />
+          <div className="relative w-20 h-20 rounded-full bg-emerald-500 flex items-center justify-center shadow-lg" style={{ animation: "sfPop .55s ease-out" }}>
+            <CheckCircle2 className="w-11 h-11 text-white" strokeWidth={2.5} />
+          </div>
+        </div>
+        <div className="mt-4 text-emerald-600 font-bold text-[24px]" data-testid="checkout-status">{t.paid}</div>
+        <p className="mt-1 text-slate-500 text-[15px] text-center px-2">{t.successSubtitle}</p>
+        <div className="mt-4 flex items-end gap-2">
+          <Tether size={26} />
+          <span className="text-[40px] font-bold tabular-nums leading-none" data-testid="checkout-pay-amount">{amount}</span>
+          <span className="text-slate-400 text-[16px] mb-1">USDT</span>
+        </div>
+        <div className="mt-5 w-full border-t border-slate-100 pt-0.5">
+          <Row k={t.coin} v={<><Tether size={20} /> USDT</>} onCopy={copy} />
+          <Row k={t.protocol} v={<><NetBadge n={order.network} /> {order.network}</>} onCopy={copy} />
+          <Row k={t.orderNo} v={<span className="font-normal text-slate-500 text-[15px]">{order.order_no}</span>} copyVal={order.order_no} onCopy={copy} testid="success-order-no" />
+          {order.tx_id && <Row k={t.txHash} v={<span className="font-mono text-[13px] text-slate-600 max-w-[170px] truncate inline-block align-bottom">{order.tx_id}</span>} copyVal={order.tx_id} onCopy={copy} testid="success-tx-hash" />}
+          {order.paid_at && <Row k={t.paidTime} v={<span className="text-[15px] text-slate-600 tabular-nums">{new Date(order.paid_at).toLocaleString(lang === "en" ? "en-US" : "zh-CN")}</span>} onCopy={copy} testid="success-paid-time" />}
+        </div>
+        {order.tx_url && <a href={order.tx_url} target="_blank" rel="noreferrer" data-testid="success-view-tx" className="mt-4 inline-flex items-center gap-1 text-[var(--accent)] text-[15px] font-medium">{t.viewOnChain} <ExternalLink className="w-4 h-4" /></a>}
+        {order.return_url ? (
+          <a href={order.return_url} data-testid="success-return-merchant" className="mt-5 w-full h-12 rounded-xl text-white font-semibold flex items-center justify-center text-[16px] shadow-sm active:opacity-90" style={{ background: "var(--accent)" }}>{t.returnMerchant}</a>
+        ) : (
+          <p className="mt-5 text-center text-slate-400 text-[14px]" data-testid="success-close-hint">{t.closeHint}</p>
+        )}
+      </section>
+    </div>
+  );
   const notes = t.notes(order.network, amount, order.explorer_url);
   const tutorials = settings?.tutorial_links?.length
     ? settings.tutorial_links.map((tu, i) => ({ ...tu, content: tu.content || TUTORIAL_CONTENT[i] || "" }))

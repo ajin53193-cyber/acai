@@ -34,7 +34,7 @@ async def create_order(data: OrderCreate, user: dict = Depends(get_current_user)
         merchant = await db.users.find_one({"_id": ObjectId(data.merchant_id), "role": "merchant"})
         if not merchant:
             raise HTTPException(status_code=404, detail="商户不存在")
-    order = await build_order(merchant, data.amount_usdt, data.network, data.remark, data.notify_url, data.out_trade_no)
+    order = await build_order(merchant, data.amount_usdt, data.network, data.remark, data.notify_url, data.out_trade_no, data.return_url)
     return serialize(order)
 
 
@@ -45,7 +45,7 @@ async def api_create_order(data: ApiOrderCreate, request: Request):
     dup = await db.orders.find_one({"merchant_id": str(merchant["_id"]), "out_trade_no": data.out_trade_no})
     if dup:
         return {"code": 0, "msg": "duplicate", "data": api_order_view(dup)}
-    order = await build_order(merchant, data.amount_usdt, data.network, data.remark, data.notify_url, data.out_trade_no)
+    order = await build_order(merchant, data.amount_usdt, data.network, data.remark, data.notify_url, data.out_trade_no, data.return_url)
     return {"code": 0, "msg": "success", "data": api_order_view(order)}
 
 
@@ -148,6 +148,8 @@ async def get_order_public(order_no: str):
         "tx_id": order.get("tx_id"),
         "explorer_url": explorer,
         "tx_url": tx_url,
+        "paid_at": order.get("paid_at"),
+        "return_url": order.get("return_url") or None,
     }
 
 

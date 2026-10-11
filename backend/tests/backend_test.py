@@ -46,7 +46,11 @@ class TestAuth:
         assert "token" in d and d["user"]["role"] == "admin"
 
     def test_login_bad(self):
-        r = requests.post(f"{API}/auth/login", json={"email": "ajin53193@gmail.com", "password": "wrong"})
+        import uuid
+        # Throwaway email so a wrong-password attempt never increments the
+        # shared admin's lockout counter (parallel-safe).
+        r = requests.post(f"{API}/auth/login",
+                          json={"email": f"nouser_{uuid.uuid4().hex[:8]}@citest.com", "password": "wrong"})
         assert r.status_code == 401
 
     def test_me(self, admin_token):

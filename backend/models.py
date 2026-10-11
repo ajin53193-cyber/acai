@@ -81,6 +81,7 @@ class OrderCreate(BaseModel):
     remark: Optional[str] = ""
     notify_url: Optional[str] = None
     out_trade_no: Optional[str] = None
+    return_url: Optional[str] = None
 
 
 class ApiOrderCreate(BaseModel):
@@ -92,6 +93,7 @@ class ApiOrderCreate(BaseModel):
     network: Optional[str] = "TRC20"
     out_trade_no: str
     notify_url: Optional[str] = None
+    return_url: Optional[str] = None
     remark: Optional[str] = ""
 
 
@@ -111,6 +113,7 @@ class DevTestOrder(BaseModel):
     out_trade_no: Optional[str] = None
     remark: Optional[str] = ""
     notify_url: Optional[str] = None
+    return_url: Optional[str] = None
 
 
 class NotifySettings(BaseModel):

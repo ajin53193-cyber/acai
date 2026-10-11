@@ -32,6 +32,7 @@ const zhCN = {
   tutorials: "常见教程：", defaultTutorials: ["什么是USDT", "如何购买", "充币多久能到账/如何查询", "充/提币需要手续费吗", "充币没到账要怎么处理"],
   listening: "正在监听链上到账…", simulate: "模拟支付（演示）", viewTx: "查看链上交易", copied: "已复制", contact: "联系客服",
   demo: "演示订单：此地址为模拟地址，请勿真实转账",
+  successSubtitle: "您的付款已确认，感谢您的支付", txHash: "交易哈希", paidTime: "支付时间", returnMerchant: "返回商户", viewOnChain: "查看链上记录", done: "完成", closeHint: "交易已完成，您可以安全关闭此页面",
 };
 
 const zhTW = {
@@ -63,6 +64,7 @@ const zhTW = {
   tutorials: "常見教程：", defaultTutorials: ["什麼是 USDT", "如何購買", "充幣多久能到賬 / 如何查詢", "充 / 提幣需要手續費嗎", "充幣沒到賬要怎麼處理"],
   listening: "正在監聽鏈上到賬…", simulate: "模擬支付（演示）", viewTx: "查看鏈上交易", copied: "已複製", contact: "聯繫客服",
   demo: "演示訂單：此地址為模擬地址，請勿真實轉賬",
+  successSubtitle: "您的付款已確認，感謝您的支付", txHash: "交易哈希", paidTime: "支付時間", returnMerchant: "返回商戶", viewOnChain: "查看鏈上記錄", done: "完成", closeHint: "交易已完成，您可以安全關閉此頁面",
 };
 
 const en = {
@@ -93,6 +95,7 @@ const en = {
   tutorials: "Guides:", defaultTutorials: ["What is USDT", "How to buy", "How long does a deposit take / how to check", "Are there fees", "Deposit not arrived?"],
   listening: "Listening for on-chain payment…", simulate: "Simulate payment (demo)", viewTx: "View on-chain tx", copied: "Copied", contact: "Support",
   demo: "Demo order: this is a simulated address, do not send real funds",
+  successSubtitle: "Your payment has been confirmed. Thank you!", txHash: "Tx Hash", paidTime: "Paid At", returnMerchant: "Return to Merchant", viewOnChain: "View on-chain record", done: "Done", closeHint: "Payment complete — you can safely close this page.",
 };
 
 export const TUTORIAL_CONTENT = [

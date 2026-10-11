@@ -21,6 +21,7 @@ class NotifySettingsIn(BaseModel):
     notify_sweep: bool = True
     export_notify_threshold: int = 500
     export_retain_days: int = 7
+    export_expiry_notify: bool = True
 
 
 @router.get("/notify/settings")
