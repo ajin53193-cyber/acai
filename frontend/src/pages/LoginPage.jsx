@@ -10,8 +10,7 @@ import { ShieldCheck, Loader2, ArrowRight, KeyRound, ArrowLeft } from "lucide-re
 
 const DEMO = [
   { label: "平台管理员", email: "ajin53193@gmail.com", password: "admin888" },
-  { label: "代理商", email: "agent@demo.com", password: "agent888" },
-  { label: "商户", email: "merchant@demo.com", password: "merchant888" },
+  { label: "操作员", email: "operator@demo.com", password: "operator888" },
 ];
 
 export default function LoginPage() {
@@ -137,7 +136,7 @@ export default function LoginPage() {
           {!need2fa && (
           <div className="mt-6 pt-5 border-t border-slate-800">
             <p className="text-[11px] uppercase tracking-wider text-slate-500 mb-3 font-mono">演示账号 · 点击快速填充</p>
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-2 gap-2">
               {DEMO.map((d) => (
                 <button
                   key={d.email}

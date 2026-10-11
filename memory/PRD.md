@@ -128,6 +128,12 @@
 - [x] 顶栏不透明修复（iteration 12），商户后台收敛为仅报表（iteration 12）
 - [x] 测试：后端 10/10、前端 100%（iteration_13.json）
 
+## Implemented (2026-06, iteration 14)
+- [x] 仅保留总后台：后端登录拦截 merchant/agent（返回 403），仅 admin/operator 可登录后台
+- [x] 导航精简为总后台菜单：移除 开发者API，资金流水限 admin；商户/代理相关入口移除
+- [x] 登录页演示账号改为 管理员/操作员
+- [x] 商户/代理为纯数据实体，由管理员在总后台管理（商户经收银台与开放 API 对接）
+
 ## Backlog
 - P1: 获取 ETHERSCAN_API_KEY 后验证 ERC20/BEP20 真实到账
 - P2: 代理多级分润（当前单级）

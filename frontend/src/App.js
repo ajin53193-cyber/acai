@@ -76,7 +76,7 @@ function App() {
               <Route
                 path="ledger"
                 element={
-                  <Protected roles={["admin", "agent", "merchant"]}>
+                  <Protected roles={["admin"]}>
                     <BalanceLedgerPage />
                   </Protected>
                 }

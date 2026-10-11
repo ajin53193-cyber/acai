@@ -765,6 +765,8 @@ async def login(data: LoginInput, request: Request, response: Response):
         raise HTTPException(status_code=401, detail="邮箱或密码错误")
     if user.get("status") == "frozen":
         raise HTTPException(status_code=403, detail="账号已被冻结")
+    if user["role"] not in ("admin", "operator"):
+        raise HTTPException(status_code=403, detail="该账号无后台登录权限，请使用商户 API 或联系平台管理员")
     if user.get("totp_enabled") and user["role"] in ("admin", "operator"):
         if not data.code:
             return {"requires_2fa": True}
