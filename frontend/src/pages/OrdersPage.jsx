@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/select";
 import { toast } from "sonner";
 import {
-  Plus, Search, Copy, ExternalLink, Zap, Loader2, CheckCircle2, Activity, Link2,
+  Plus, Search, Copy, ExternalLink, Zap, Loader2, CheckCircle2, Activity, Link2, RefreshCw, Ban,
 } from "lucide-react";
 import { ChainTxDialog } from "@/components/ChainTxDialog";
 
@@ -28,6 +28,22 @@ export default function OrdersPage() {
   const [createOpen, setCreateOpen] = useState(false);
   const [detail, setDetail] = useState(null);
   const [chainView, setChainView] = useState(null);
+
+  const resendCallback = async (o) => {
+    try {
+      await api.post(`/orders/${o.id}/resend-callback`);
+      toast.success("已触发手动回调推送");
+      load(); setDetail(null);
+    } catch (e) { toast.error(formatApiErrorDetail(e.response?.data?.detail)); }
+  };
+  const rejectOrder = async (o) => {
+    if (!window.confirm(`确认驳回订单 ${o.order_no}？驳回后不可恢复。`)) return;
+    try {
+      await api.post(`/orders/${o.id}/reject`);
+      toast.success("订单已驳回");
+      load(); setDetail(null);
+    } catch (e) { toast.error(formatApiErrorDetail(e.response?.data?.detail)); }
+  };
 
   const [amount, setAmount] = useState("");
   const [network, setNetwork] = useState("TRC20");
@@ -153,6 +169,7 @@ export default function OrdersPage() {
             <SelectItem value="pending">待支付</SelectItem>
             <SelectItem value="paid">已支付</SelectItem>
             <SelectItem value="expired">超时未付</SelectItem>
+            <SelectItem value="rejected">已驳回</SelectItem>
           </SelectContent>
         </Select>
         <Select value={networkFilter} onValueChange={setNetworkFilter}>
@@ -230,6 +247,16 @@ export default function OrdersPage() {
                         <button onClick={() => copyPayLink(o)} data-testid={`copy-link-${o.order_no}`} title="复制收银台链接" className="p-1.5 rounded-md text-slate-400 hover:bg-slate-700 transition-colors">
                           <Copy className="w-4 h-4" />
                         </button>
+                        {(user.role === "admin" || user.role === "operator") && o.status === "paid" && o.notify_url && (
+                          <button onClick={() => resendCallback(o)} data-testid={`resend-cb-${o.order_no}`} title="手动回调" className="p-1.5 rounded-md text-sky-400 hover:bg-sky-400/10 transition-colors">
+                            <RefreshCw className="w-4 h-4" />
+                          </button>
+                        )}
+                        {(user.role === "admin" || user.role === "operator") && ["pending", "confirming", "expired"].includes(o.status) && (
+                          <button onClick={() => rejectOrder(o)} data-testid={`reject-${o.order_no}`} title="驳回订单" className="p-1.5 rounded-md text-red-400 hover:bg-red-400/10 transition-colors">
+                            <Ban className="w-4 h-4" />
+                          </button>
+                        )}
                         <button onClick={() => setDetail(o)} data-testid={`detail-${o.order_no}`} title="详情" className="p-1.5 rounded-md text-slate-400 hover:bg-slate-700 transition-colors">
                           <ExternalLink className="w-4 h-4" />
                         </button>
@@ -296,6 +323,16 @@ export default function OrdersPage() {
                 <Button variant="outline" onClick={() => setChainView({ address: detail.wallet_address })} data-testid="view-chain-txs-btn" className="w-full border-slate-700 hover:bg-slate-800">
                   <Activity className="w-4 h-4 mr-1" /> 查看该收款地址链上到账记录
                 </Button>
+              )}
+              {(user.role === "admin" || user.role === "operator") && (detail.notify_url && detail.status === "paid" || ["pending", "confirming", "expired"].includes(detail.status)) && (
+                <div className="flex gap-2">
+                  {detail.status === "paid" && detail.notify_url && (
+                    <Button variant="outline" onClick={() => resendCallback(detail)} data-testid="detail-resend-cb-btn" className="flex-1 border-sky-500/40 text-sky-400 hover:bg-sky-500/10"><RefreshCw className="w-4 h-4 mr-1" />手动回调</Button>
+                  )}
+                  {["pending", "confirming", "expired"].includes(detail.status) && (
+                    <Button variant="outline" onClick={() => rejectOrder(detail)} data-testid="detail-reject-btn" className="flex-1 border-red-500/40 text-red-400 hover:bg-red-500/10"><Ban className="w-4 h-4 mr-1" />驳回订单</Button>
+                  )}
+                </div>
               )}
               {detail.status === "pending" && detail.live && (
                 <div className="text-center text-xs text-slate-400 py-2 flex items-center justify-center gap-2"><span className="w-1.5 h-1.5 rounded-full bg-cyan-400 pulse-dot" />正在通过 TronGrid 监听链上到账…</div>

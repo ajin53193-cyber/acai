@@ -566,6 +566,8 @@ OPERATOR_PERMS = {
     "callbacks.retry": "回调重试", "audit.view": "审计日志", "reports.export": "报表导出",
 }
 PERM_RULES = [
+    ("/api/orders/", "resend-callback", "callbacks.retry"),
+    ("/api/orders/", "reject", "orders.verify"),
     ("/api/orders/", "verify", "orders.verify"), ("/api/orders", None, "orders.view"),
     ("/api/settlements/payouts", None, "payouts.review"), ("/api/settlements", None, "orders.view"),
     ("/api/accounts/", "adjust", "balance.adjust"), ("/api/accounts", None, "accounts.view"),
@@ -1296,6 +1298,38 @@ async def manual_verify(order_id: str, request: Request, user: dict = Depends(re
     await audit(user, "order.manual_verify", "order", order["order_no"],
                 {"amount_usdt": order["amount_usdt"]}, request)
     return {"ok": True}
+
+
+@api_router.post("/orders/{order_id}/reject")
+async def reject_order(order_id: str, request: Request, user: dict = Depends(require_roles("admin"))):
+    order = await db.orders.find_one({"_id": ObjectId(order_id)})
+    if not order:
+        raise HTTPException(status_code=404, detail="订单不存在")
+    if order["status"] == "paid":
+        raise HTTPException(status_code=400, detail="订单已支付，无法驳回")
+    if order["status"] == "rejected":
+        return {"ok": True, "status": "rejected"}
+    await db.orders.update_one({"_id": order["_id"]}, {"$set": {"status": "rejected", "rejected_at": iso(now_utc())}})
+    await audit(user, "order.reject", "order", order["order_no"], {"amount_usdt": order["amount_usdt"]}, request)
+    return {"ok": True, "status": "rejected"}
+
+
+@api_router.post("/orders/{order_id}/resend-callback")
+async def resend_callback(order_id: str, request: Request, user: dict = Depends(require_roles("admin"))):
+    order = await db.orders.find_one({"_id": ObjectId(order_id)})
+    if not order:
+        raise HTTPException(status_code=404, detail="订单不存在")
+    if order["status"] != "paid":
+        raise HTTPException(status_code=400, detail="仅已支付订单可手动回调")
+    if not order.get("notify_url"):
+        raise HTTPException(status_code=400, detail="该订单未配置回调地址")
+    await enqueue_callback(order)
+    cb = await db.callbacks.find_one({"order_no": order["order_no"]}, sort=[("created_at", -1)])
+    if cb:
+        await deliver_callback(cb)
+        cb = await db.callbacks.find_one({"_id": cb["_id"]})
+    await audit(user, "order.resend_callback", "order", order["order_no"], {}, request)
+    return {"ok": True, "callback": serialize(cb) if cb else None}
 
 
 def _tx_explorer(network: str, txid: str) -> str:

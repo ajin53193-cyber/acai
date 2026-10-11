@@ -9,6 +9,8 @@ export const STATUS_MAP = {
   pending: { label: "待支付", color: "text-amber-400", bg: "bg-amber-400/10 border-amber-400/30", dot: "bg-amber-400" },
   paid: { label: "已支付", color: "text-emerald-400", bg: "bg-emerald-400/10 border-emerald-400/30", dot: "bg-emerald-400" },
   expired: { label: "超时未付", color: "text-slate-400", bg: "bg-slate-400/10 border-slate-500/30", dot: "bg-slate-500" },
+  confirming: { label: "确认中", color: "text-cyan-400", bg: "bg-cyan-400/10 border-cyan-400/30", dot: "bg-cyan-400" },
+  rejected: { label: "已驳回", color: "text-red-400", bg: "bg-red-400/10 border-red-400/30", dot: "bg-red-400" },
   abnormal: { label: "异常调账", color: "text-red-400", bg: "bg-red-400/10 border-red-400/30", dot: "bg-red-400" },
 };
 

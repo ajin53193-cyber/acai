@@ -9,7 +9,7 @@ const ACTION_LABELS = {
   "account.create": "创建账户", "account.freeze": "冻结账号", "account.unfreeze": "解冻账号", "account.reset_api_key": "重置API密钥", "account.permissions": "修改操作员权限",
   "account.require_2fa": "强制两步验证", "account.unrequire_2fa": "取消强制两步验证",
   "settings.notify": "Telegram推送设置", "payout.approve": "提现通过", "payout.reject": "提现驳回",
-  "channel.create": "新增通道", "channel.update": "修改通道", "order.manual_verify": "手动核账", "merchant.notify_url": "设置回调地址",
+  "channel.create": "新增通道", "channel.update": "修改通道", "order.manual_verify": "手动核账", "order.reject": "驳回订单", "order.resend_callback": "手动回调", "merchant.notify_url": "设置回调地址",
   "auth.login_failed": "登录失败", "auth.locked": "账号锁定", "auth.unlock": "解除锁定", "auth.2fa_enable": "启用两步验证", "auth.2fa_disable": "关闭两步验证",
   "merchant.ip_whitelist": "设置IP白名单", "api.ip_rejected": "API IP拦截", "settings.checkout": "收银台设置", "settings.alerts": "预警阈值",
   "address.add": "添加地址", "address.remove": "移除地址", "address.update": "地址标签/暂停", "address.sweep": "冷钱包归集",
