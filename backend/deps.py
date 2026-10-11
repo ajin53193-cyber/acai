@@ -71,6 +71,12 @@ async def get_current_user(request: Request) -> dict:
                 perm = perm_for_path(path, request.method)
                 if not perm or perm not in (user.get("permissions") or []):
                     raise HTTPException(status_code=403, detail="操作员无此权限")
+            if request.method in ("POST", "PUT", "PATCH", "DELETE") and not user.get("op_code_hash") \
+                    and not path.startswith(("/api/auth/", "/api/support/")):
+                pol = await db.settings.find_one({"_id": "security"}, {"enforce_operator_op_code": 1}) or {}
+                if pol.get("enforce_operator_op_code"):
+                    raise HTTPException(status_code=403, detail={"op_code_required": True,
+                                                                 "msg": "平台要求操作员先设置操作安全码后才能执行操作"})
         return user
     except jwt.ExpiredSignatureError:
         raise HTTPException(status_code=401, detail="登录已过期")

@@ -1,5 +1,6 @@
 import axios from "axios";
 import { requestStepUp } from "./stepup";
+import { toast } from "sonner";
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 export const API = `${BACKEND_URL}/api`;
@@ -29,6 +30,11 @@ api.interceptors.response.use(
         return Promise.reject(error);
       }
     }
+    if (response && response.status === 403 && detail && detail.op_code_required) {
+      toast.error(detail.msg, {
+        action: { label: "去设置", onClick: () => { window.location.href = "/security"; } },
+      });
+    }
     return Promise.reject(error);
   }
 );
@@ -39,6 +45,7 @@ export function formatApiErrorDetail(detail) {
   if (Array.isArray(detail))
     return detail.map((e) => (e && typeof e.msg === "string" ? e.msg : JSON.stringify(e))).filter(Boolean).join(" ");
   if (detail && typeof detail.msg === "string") return detail.msg;
+  if (detail && typeof detail.error === "string") return detail.error;
   return String(detail);
 }
 

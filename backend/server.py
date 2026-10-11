@@ -489,7 +489,7 @@ async def record_login_failure(identifier: str, email: str, ip: Optional[str]):
 async def security_policy() -> dict:
     doc = await db.settings.find_one({"_id": "security"}) or {}
     doc.pop("_id", None)
-    return {"enforce_admin_2fa": False, "enforce_operator_2fa": False, "login_alert": True, **doc}
+    return {"enforce_admin_2fa": False, "enforce_operator_2fa": False, "enforce_operator_op_code": False, "login_alert": True, **doc}
 
 
 # ---------------------------------------------------------------------------
@@ -541,6 +541,7 @@ async def verify_step_up_dep(request: Request, x_op_code: Optional[str] = Header
         raise challenge("谷歌验证码错误")
     if need_op and user.get("op_code_fails"):
         await db.users.update_one({"_id": user["_id"]}, {"$set": {"op_code_fails": 0}})
+    request.state.step_up = {"op_code": need_op, "totp": need_totp}
     return user
 
 
@@ -548,7 +549,8 @@ async def verify_step_up_dep(request: Request, x_op_code: Optional[str] = Header
 async def get_security_policy(user: dict = Depends(get_current_user)):
     pol = await security_policy()
     enforced = (user["role"] == "admin" and pol["enforce_admin_2fa"]) or (user["role"] == "operator" and pol["enforce_operator_2fa"])
-    return {**pol, "enforced_for_me": bool(enforced)}
+    op_enforced = user["role"] == "operator" and pol["enforce_operator_op_code"] and not user.get("op_code_hash")
+    return {**pol, "enforced_for_me": bool(enforced), "op_code_required_for_me": bool(op_enforced)}
 
 
 @api_router.put("/security/policy")
@@ -945,7 +947,8 @@ async def callback_sign_preview(user: dict = Depends(require_roles("merchant")))
 # ---------------------------------------------------------------------------
 @api_router.get("/audit-logs")
 async def list_audit_logs(user: dict = Depends(require_roles("admin")), action: Optional[str] = None,
-                          actor: Optional[str] = None, actor_id: Optional[str] = None, limit: int = Query(200, le=1000)):
+                          actor: Optional[str] = None, actor_id: Optional[str] = None, step_up: bool = False,
+                          limit: int = Query(200, le=1000)):
     q: dict = {}
     if action:
         q["action"] = {"$regex": f"^{action}", "$options": "i"}
@@ -953,6 +956,8 @@ async def list_audit_logs(user: dict = Depends(require_roles("admin")), action: 
         q["actor_email"] = {"$regex": actor, "$options": "i"}
     if actor_id:
         q["actor_id"] = actor_id
+    if step_up:
+        q["step_up"] = {"$exists": True}
     logs = await db.audit_logs.find(q).sort("created_at", -1).to_list(limit)
     return [serialize(l) for l in logs]
 

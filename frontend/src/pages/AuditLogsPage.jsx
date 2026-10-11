@@ -4,6 +4,7 @@ import { fmtDate } from "@/lib/format";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Loader2, Search, ScrollText } from "lucide-react";
+import { StepUpBadge } from "@/components/StepUpBadge";
 
 const ACTION_GROUPS = [
   ["all", "全部操作"], ["balance", "余额调整"], ["account", "账户/冻结/密钥"],
@@ -47,13 +48,15 @@ export default function AuditLogsPage() {
   const [loading, setLoading] = useState(true);
   const [action, setAction] = useState("all");
   const [actor, setActor] = useState("");
+  const [stepUpOnly, setStepUpOnly] = useState(false);
 
   const load = useCallback(() => {
     const params = {};
     if (action !== "all") params.action = action;
     if (actor) params.actor = actor;
+    if (stepUpOnly) params.step_up = true;
     api.get("/audit-logs", { params }).then((r) => { setLogs(r.data); setLoading(false); }).catch(() => setLoading(false));
-  }, [action, actor]);
+  }, [action, actor, stepUpOnly]);
   useEffect(() => { load(); }, [load]);
 
   return (
@@ -72,6 +75,9 @@ export default function AuditLogsPage() {
           <SelectTrigger data-testid="audit-action-filter" className="w-[170px] bg-slate-900/60 border-slate-700"><SelectValue /></SelectTrigger>
           <SelectContent>{ACTION_GROUPS.map(([v, l]) => <SelectItem key={v} value={v}>{l}</SelectItem>)}</SelectContent>
         </Select>
+        <label className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-xs cursor-pointer ${stepUpOnly ? "border-violet-400/40 bg-violet-400/10 text-violet-300" : "border-slate-700 text-slate-400"}`}>
+          <input type="checkbox" checked={stepUpOnly} onChange={(e) => setStepUpOnly(e.target.checked)} data-testid="audit-stepup-filter" className="accent-violet-400" />仅看已通过二次验证
+        </label>
         <div className="text-xs text-slate-500 font-mono flex items-center gap-1"><ScrollText className="w-3.5 h-3.5" />{logs.length} 条</div>
       </div>
 
@@ -99,7 +105,7 @@ export default function AuditLogsPage() {
                   <tr key={l.id} className="border-b border-slate-800/50 hover:bg-slate-800/30 align-top" data-testid={`audit-row-${l.id}`}>
                     <td className="py-3 px-3 text-xs font-mono text-slate-500 whitespace-nowrap">{fmtDate(l.created_at)}</td>
                     <td className="py-3 px-3 text-xs"><div>{l.actor_email}</div><div className="text-[10px] text-slate-500">{l.actor_role === "anonymous" ? "未登录" : l.actor_role}</div></td>
-                    <td className="py-3 px-3"><span className={`px-2 py-0.5 rounded text-[11px] border whitespace-nowrap ${ACTION_COLORS[grp] || ACTION_COLORS.merchant}`}>{ACTION_LABELS[l.action] || l.action}</span></td>
+                    <td className="py-3 px-3"><div className="flex items-center gap-1.5 flex-wrap"><span className={`px-2 py-0.5 rounded text-[11px] border whitespace-nowrap ${ACTION_COLORS[grp] || ACTION_COLORS.merchant}`}>{ACTION_LABELS[l.action] || l.action}</span><StepUpBadge su={l.step_up} /></div></td>
                     <td className="py-3 px-3 text-[11px] font-mono text-slate-400">{l.target_type}:{String(l.target_id).slice(-8)}</td>
                     <td className="py-3 px-3"><Detail d={l.detail} /></td>
                     <td className="py-3 px-3 text-[11px] font-mono text-slate-500">{l.ip || "—"}</td>

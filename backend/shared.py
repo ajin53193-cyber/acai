@@ -28,12 +28,16 @@ DEFAULT_NOTIFY_SETTINGS = {"telegram_enabled": False, "telegram_bot_token": "", 
 
 async def audit(user: dict, action: str, target_type: str, target_id: str,
                 detail: Any = None, request: Optional[Request] = None):
-    await db.audit_logs.insert_one({
+    doc = {
         "actor_id": str(user["_id"]), "actor_email": user["email"], "actor_role": user["role"],
         "action": action, "target_type": target_type, "target_id": str(target_id),
         "detail": detail or {}, "ip": client_ip(request) if request else None,
         "created_at": iso(now_utc()),
-    })
+    }
+    su = getattr(request.state, "step_up", None) if request is not None else None
+    if su:
+        doc["step_up"] = su
+    await db.audit_logs.insert_one(doc)
 
 
 async def record_ledger(account_id: str, category: str, amount: float, balance_after: float,

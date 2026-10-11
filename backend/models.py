@@ -32,6 +32,7 @@ class BalanceAdjust(BaseModel):
 class SecurityPolicy(BaseModel):
     enforce_admin_2fa: bool = False
     enforce_operator_2fa: bool = False
+    enforce_operator_op_code: bool = False
     login_alert: bool = True
 
 

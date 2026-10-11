@@ -211,8 +211,8 @@ function SecurityPolicyCard({ user }) {
   const save = async () => {
     setSaving(true);
     try {
-      const { enforce_admin_2fa, enforce_operator_2fa, login_alert } = pol;
-      await api.put("/security/policy", { enforce_admin_2fa, enforce_operator_2fa, login_alert });
+      const { enforce_admin_2fa, enforce_operator_2fa, enforce_operator_op_code, login_alert } = pol;
+      await api.put("/security/policy", { enforce_admin_2fa, enforce_operator_2fa, enforce_operator_op_code, login_alert });
       toast.success("安全策略已保存");
     } catch (e) { toast.error("保存失败"); } finally { setSaving(false); }
   };
@@ -230,9 +230,13 @@ function SecurityPolicyCard({ user }) {
       {pol.enforced_for_me && !user.totp_enabled && (
         <div className="mb-3 px-3 py-2 rounded-lg bg-amber-400/10 border border-amber-400/30 text-amber-300 text-xs" data-testid="policy-enforced-note">平台已要求你的角色开启两步验证，请尽快完成上方绑定。</div>
       )}
+      {pol.op_code_required_for_me && (
+        <div className="mb-3 px-3 py-2 rounded-lg bg-rose-400/10 border border-rose-400/30 text-rose-300 text-xs" data-testid="policy-opcode-required-note">平台已要求操作员设置操作安全码，设置完成前所有写操作将被拒绝，请在上方「操作安全码」卡片完成设置。</div>
+      )}
       <div className="space-y-2">
         <Row k="enforce_admin_2fa" label="要求管理员开启两步验证" desc="开启后管理员在安全页收到强制绑定提示" />
         <Row k="enforce_operator_2fa" label="要求操作员开启两步验证" desc="开启后操作员在安全页收到强制绑定提示" />
+        <Row k="enforce_operator_op_code" label="强制操作员设置操作安全码" desc="开启后未设置操作安全码的操作员无法执行任何写操作（客服会话除外），直到完成设置" />
         <Row k="login_alert" label="新设备 / 新 IP 登录邮件提醒" desc="账户从陌生 IP 成功登录时发送安全邮件" />
       </div>
       {isAdmin && <Button onClick={save} disabled={saving} data-testid="policy-save-btn" className="mt-4 bg-cyan-500 text-slate-950 hover:bg-cyan-400">{saving ? <Loader2 className="w-4 h-4 animate-spin" /> : "保存策略"}</Button>}

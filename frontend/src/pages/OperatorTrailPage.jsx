@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback } from "react";
 import api from "@/lib/api";
 import { fmtDate } from "@/lib/format";
 import { Loader2, UserCog, ShieldCheck, Activity, Search } from "lucide-react";
+import { StepUpBadge } from "@/components/StepUpBadge";
 import { Input } from "@/components/ui/input";
 
 const ACTION_LABELS = {
@@ -137,6 +138,7 @@ export default function OperatorTrailPage() {
                           <div className={`absolute -left-[22px] top-1 w-3.5 h-3.5 rounded-full border-2 ${(GROUP_COLOR[grp] || "text-slate-400 border-slate-500/40 bg-slate-500/10")}`} />
                           <div className="flex items-start gap-3 flex-wrap">
                             <span className={`px-2 py-0.5 rounded text-[11px] border whitespace-nowrap ${GROUP_COLOR[grp] || "text-slate-300 border-slate-600 bg-slate-700/30"}`}>{ACTION_LABELS[l.action] || l.action}</span>
+                            <StepUpBadge su={l.step_up} />
                             <span className="text-[11px] font-mono text-slate-500">{fmtDate(l.created_at)}</span>
                             {l.target_type && <span className="text-[11px] font-mono text-slate-600">{l.target_type}:{String(l.target_id).slice(-8)}</span>}
                             {l.ip && <span className="text-[11px] font-mono text-slate-600">IP {l.ip}</span>}
