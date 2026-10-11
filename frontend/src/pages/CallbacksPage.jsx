@@ -1,3 +1,4 @@
+import { copyText } from "@/lib/clipboard";
 import { useEffect, useState, useCallback } from "react";
 import api, { formatApiErrorDetail } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
@@ -51,7 +52,7 @@ function NotifySettings({ user }) {
         <div className="rounded-lg bg-slate-900/70 border border-slate-800 p-3 space-y-2 text-[11px] font-mono" data-testid="sign-preview">
           <div className="text-slate-400">sign_string:</div>
           <div className="break-all text-slate-300">{preview.sign_string}</div>
-          <div className="text-slate-400 flex items-center gap-2">payload JSON <button onClick={() => { navigator.clipboard.writeText(JSON.stringify(preview.payload, null, 2)); toast.success("已复制"); }} className="text-cyan-400"><Copy className="w-3 h-3" /></button></div>
+          <div className="text-slate-400 flex items-center gap-2">payload JSON <button onClick={() => { copyText(JSON.stringify(preview.payload, null, 2)); toast.success("已复制"); }} className="text-cyan-400"><Copy className="w-3 h-3" /></button></div>
           <pre className="whitespace-pre-wrap break-all text-slate-300">{JSON.stringify(preview.payload, null, 2)}</pre>
         </div>
       )}

@@ -417,3 +417,4 @@
 - 后端 NSSM 服务 SifangPayBackend，端口 **8011**（8001 被同机另一项目 eztyv.com 占用）；Nginx 站点 print8.8bc8uyz.com(+1/+2 备用) → root D:/wwwroot/sifang/frontend/build，/api → 127.0.0.1:8011。
 - 踩坑：ps1 需 UTF-8 BOM；宝塔建站会用默认页覆盖 build/index.html（重新 yarn build）；Let's Encrypt 被宝塔反复申请触发注册限流，改用 win-acme (D:\wacs) 签发后粘到宝塔「其他证书」。
 - 管理员 ajin53193@gmail.com（生产密码由用户持有）。
+- 复制按钮：新增 lib/clipboard.js copyText()（HTTP 非安全上下文回退 execCommand），替换全部 navigator.clipboard 调用

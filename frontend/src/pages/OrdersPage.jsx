@@ -1,3 +1,4 @@
+import { copyText } from "@/lib/clipboard";
 import { useEffect, useState, useCallback } from "react";
 import { useSearchParams } from "react-router-dom";
 import api, { formatApiErrorDetail } from "@/lib/api";
@@ -142,7 +143,7 @@ export default function OrdersPage() {
   };
 
   const copy = (text, msg) => {
-    navigator.clipboard.writeText(text);
+    copyText(text);
     toast.success(msg || "已复制");
   };
 

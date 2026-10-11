@@ -1,3 +1,4 @@
+import { copyText } from "@/lib/clipboard";
 import { useEffect, useState } from "react";
 import api, { formatApiErrorDetail } from "@/lib/api";
 import { fmtUSDT, fmtDate, ROLE_LABELS } from "@/lib/format";
@@ -41,7 +42,7 @@ export function MerchantDrawer({ accountId, open, onClose, isAdmin, onReset }) {
       .finally(() => setLoading(false));
   }, [open, accountId]);
 
-  const copy = (t) => { navigator.clipboard.writeText(t); toast.success("已复制"); };
+  const copy = (t) => { copyText(t); toast.success("已复制"); };
   const reset = async () => {
     if (!window.confirm(`确定重置「${acc.name}」的 API 密钥？旧密钥将立即失效。`)) return;
     setResetting(true);

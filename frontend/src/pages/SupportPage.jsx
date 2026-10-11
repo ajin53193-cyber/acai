@@ -1,3 +1,4 @@
+import { copyText } from "@/lib/clipboard";
 import { useEffect, useRef, useState, useCallback } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
@@ -127,7 +128,7 @@ export default function SupportPage() {
   useEffect(() => { endRef.current?.scrollIntoView({ behavior: "smooth" }); }, [convo?.messages?.length]);
 
   const openThread = (orderNo) => { setActive(orderNo); setConvo(null); loadThreads(); };
-  const copy = (v) => { navigator.clipboard.writeText(v); toast.success("已复制"); };
+  const copy = (v) => { copyText(v); toast.success("已复制"); };
 
   const [mc, setMc] = useState(false);
   const [mcTx, setMcTx] = useState("");

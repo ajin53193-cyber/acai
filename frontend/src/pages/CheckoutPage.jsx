@@ -1,3 +1,4 @@
+import { copyText } from "@/lib/clipboard";
 import { useEffect, useState, useCallback, useMemo } from "react";
 import { useParams } from "react-router-dom";
 import api, { formatApiErrorDetail } from "@/lib/api";
@@ -103,7 +104,7 @@ export default function CheckoutPage() {
   }, [order, settings]);
 
   const changeLang = (v) => { setLang(v); localStorage.setItem("sf_pay_lang", v); };
-  const copy = (v) => { navigator.clipboard.writeText(String(v)); toast.success(t.copied); };
+  const copy = (v) => { copyText(String(v)); toast.success(t.copied); };
   const simulate = async () => {
     setPaying(true);
     try { await api.post(`/orders/${orderNo}/simulate-pay`); load(); } catch (err) { toast.error(formatApiErrorDetail(err.response?.data?.detail)); } finally { setPaying(false); }

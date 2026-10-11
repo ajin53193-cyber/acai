@@ -1,3 +1,4 @@
+import { copyText } from "@/lib/clipboard";
 import { useState, useEffect, useCallback } from "react";
 import api, { formatApiErrorDetail } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
@@ -10,7 +11,7 @@ import { Copy, Eye, EyeOff, KeyRound, Loader2, PlayCircle, Code2, RefreshCw, Web
 const BASE = process.env.REACT_APP_BACKEND_URL || window.location.origin;
 
 function Code({ children, testid }) {
-  const copy = () => { navigator.clipboard.writeText(children); toast.success("已复制"); };
+  const copy = () => { copyText(children); toast.success("已复制"); };
   return (
     <div className="relative group">
       <pre data-testid={testid} className="rounded-lg bg-slate-950/80 border border-slate-800 p-3 text-[11px] font-mono text-slate-300 whitespace-pre-wrap break-all">{children}</pre>
@@ -23,7 +24,7 @@ function Credentials({ merchant, isAdmin, onReset }) {
   const [show, setShow] = useState(false);
   const [secret, setSecret] = useState(null);
   const [resetting, setResetting] = useState(false);
-  const copy = (t) => { navigator.clipboard.writeText(t); toast.success("已复制"); };
+  const copy = (t) => { copyText(t); toast.success("已复制"); };
   const reveal = async () => {
     if (show) { setShow(false); return; }
     try { const { data } = await api.get(`/accounts/${merchant.id}/credentials`); setSecret(data.api_secret); setShow(true); }

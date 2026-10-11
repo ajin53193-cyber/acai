@@ -1,3 +1,4 @@
+import { copyText } from "@/lib/clipboard";
 import { useEffect, useState } from "react";
 import api, { formatApiErrorDetail } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
@@ -86,13 +87,13 @@ export default function AccountsPage() {
 
   const resetKey = async (a) => {    try {
       const { data } = await api.post(`/accounts/${a.id}/reset-api-key`);
-      navigator.clipboard.writeText(`API Key: ${data.api_key}\nSecret: ${data.api_secret}`);
+      copyText(`API Key: ${data.api_key}\nSecret: ${data.api_secret}`);
       toast.success("密钥已重置并复制到剪贴板");
       load();
     } catch (err) { toast.error(formatApiErrorDetail(err.response?.data?.detail)); }
   };
 
-  const copy = (t) => { navigator.clipboard.writeText(t); toast.success("已复制"); };
+  const copy = (t) => { copyText(t); toast.success("已复制"); };
 
   const toggleRequire2fa = async (a) => {
     try {

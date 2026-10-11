@@ -1,3 +1,4 @@
+import { copyText } from "@/lib/clipboard";
 import { useState, useEffect } from "react";
 import api, { formatApiErrorDetail } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
@@ -46,7 +47,7 @@ export default function SecurityPage() {
     finally { setBusy(false); }
   };
 
-  const copy = (t) => { navigator.clipboard.writeText(t); toast.success("已复制"); };
+  const copy = (t) => { copyText(t); toast.success("已复制"); };
 
   return (
     <div className="space-y-6 max-w-2xl" data-testid="security-page">
