@@ -19,6 +19,7 @@ import BalanceLedgerPage from "@/pages/BalanceLedgerPage";
 import SecurityPage from "@/pages/SecurityPage";
 import MerchantStatsPage from "@/pages/MerchantStatsPage";
 import ProfitSnapshotsPage from "@/pages/ProfitSnapshotsPage";
+import ExportJobsPage from "@/pages/ExportJobsPage";
 import { Loader2 } from "lucide-react";
 
 function Protected({ children, roles }) {
@@ -135,6 +136,14 @@ function App() {
                 element={
                   <Protected roles={["admin"]}>
                     <ProfitSnapshotsPage />
+                  </Protected>
+                }
+              />
+              <Route
+                path="exports"
+                element={
+                  <Protected roles={["admin", "operator"]}>
+                    <ExportJobsPage />
                   </Protected>
                 }
               />

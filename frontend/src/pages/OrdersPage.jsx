@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/select";
 import { toast } from "sonner";
 import {
-  Plus, Search, Copy, ExternalLink, Zap, Loader2, CheckCircle2, Activity, Link2, RefreshCw, Ban, FileSpreadsheet,
+  Plus, Search, Copy, ExternalLink, Zap, Loader2, CheckCircle2, Activity, Link2, RefreshCw, Ban, FileSpreadsheet, FolderDown,
 } from "lucide-react";
 import { ChainTxDialog } from "@/components/ChainTxDialog";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -164,6 +164,27 @@ export default function OrdersPage() {
     } finally { setExporting(false); }
   };
 
+  const buildExportParams = () => {
+    const params = {};
+    if (selected.size > 0) { params.ids = [...selected].join(","); return params; }
+    if (statusFilter !== "all") params.status = statusFilter;
+    if (networkFilter !== "all") params.network = networkFilter;
+    if (keyword) params.keyword = keyword;
+    const mId = searchParams.get("merchant_id"); const d = searchParams.get("date");
+    const s = searchParams.get("start"); const e = searchParams.get("end");
+    if (mId) params.merchant_id = mId;
+    if (d) params.date = d;
+    if (s && e) { params.start = s; params.end = e; }
+    return params;
+  };
+
+  const bgExport = async () => {
+    try {
+      await api.post("/export/orders", buildExportParams());
+      toast.success("已加入后台导出，请前往『导出任务』页下载");
+    } catch (err) { toast.error(formatApiErrorDetail(err.response?.data?.detail)); }
+  };
+
   return (
     <div className="space-y-6" data-testid="orders-page">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -174,6 +195,9 @@ export default function OrdersPage() {
         <div className="flex items-center gap-2">
           <Button onClick={exportOrders} disabled={exporting} variant="outline" data-testid="export-orders-btn" className="border-slate-700 hover:bg-slate-800">
             {exporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <><FileSpreadsheet className="w-4 h-4 mr-1" /> 导出 Excel</>}
+          </Button>
+          <Button onClick={bgExport} variant="outline" data-testid="bg-export-orders-btn" className="border-slate-700 hover:bg-slate-800">
+            <FolderDown className="w-4 h-4 mr-1" /> 后台导出
           </Button>
         <Dialog open={createOpen} onOpenChange={setCreateOpen}>
           <DialogTrigger asChild>

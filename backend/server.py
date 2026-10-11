@@ -499,108 +499,9 @@ async def record_login_failure(identifier: str, email: str, ip: Optional[str]):
     return locked
 
 
-@api_router.post("/auth/login")
-async def login(data: LoginInput, request: Request, response: Response):
-    email = data.email.lower()
-    ip = client_ip(request)
-    identifier = email
-    await check_lockout(identifier)
-    user = await db.users.find_one({"email": email})
-    if not user or not verify_password(data.password, user["password_hash"]):
-        locked = await record_login_failure(identifier, email, ip)
-        if locked:
-            raise HTTPException(status_code=423, detail=f"连续 {LOCK_MAX_FAILS} 次密码错误，账号已锁定 {LOCK_MINUTES} 分钟")
-        raise HTTPException(status_code=401, detail="邮箱或密码错误")
-    if user.get("status") == "frozen":
-        raise HTTPException(status_code=403, detail="账号已被冻结")
-    if user["role"] not in ("admin", "operator"):
-        raise HTTPException(status_code=403, detail="该账号无后台登录权限，请使用商户 API 或联系平台管理员")
-    if user.get("totp_enabled") and user["role"] in ("admin", "operator"):
-        if not data.code:
-            return {"requires_2fa": True}
-        secret = user.get("totp_secret")
-        if not secret or not pyotp.TOTP(secret).verify(str(data.code).strip().replace(" ", ""), valid_window=1):
-            locked = await record_login_failure(identifier, email, ip)
-            asyncio.create_task(notify_security(user, "fail", ip))
-            if locked:
-                raise HTTPException(status_code=423, detail=f"连续 {LOCK_MAX_FAILS} 次验证失败，账号已锁定 {LOCK_MINUTES} 分钟")
-            raise HTTPException(status_code=401, detail="两步验证码错误")
-    await db.login_attempts.delete_one({"identifier": identifier})
-    pol = await security_policy()
-    if pol.get("login_alert", True) and ip:
-        known = user.get("login_ips") or []
-        if ip not in known:
-            if known:
-                asyncio.create_task(notify_security(user, "login_new_device", ip))
-            await db.users.update_one({"_id": user["_id"]},
-                                      {"$set": {"login_ips": (known + [ip])[-10:], "last_login_at": iso(now_utc()), "last_login_ip": ip}})
-        else:
-            await db.users.update_one({"_id": user["_id"]}, {"$set": {"last_login_at": iso(now_utc()), "last_login_ip": ip}})
-    token = create_access_token(str(user["_id"]), user["email"], user["role"])
-    response.set_cookie("access_token", token, httponly=True, secure=True,
-                        samesite="none", max_age=604800, path="/")
-    return {"token": token, "user": clean_user(user)}
-
-
-@api_router.post("/auth/logout")
-async def logout(response: Response, user: dict = Depends(get_current_user)):
-    response.delete_cookie("access_token", path="/")
-    return {"ok": True}
-
-
-@api_router.get("/auth/me")
-async def me(user: dict = Depends(get_current_user)):
-    return clean_user(user)
-
-
-class TotpCode(BaseModel):
-    code: str
-
-
-@api_router.post("/auth/2fa/setup")
-async def totp_setup(user: dict = Depends(get_current_user)):
-    if user["role"] not in ("admin", "operator"):
-        raise HTTPException(status_code=403, detail="当前角色无需两步验证")
-    if user.get("totp_enabled"):
-        raise HTTPException(status_code=400, detail="两步验证已启用，请先关闭再重新绑定")
-    secret = pyotp.random_base32()
-    await db.users.update_one({"_id": user["_id"]}, {"$set": {"totp_pending_secret": secret}})
-    uri = pyotp.TOTP(secret).provisioning_uri(name=user["email"], issuer_name="四方收款平台")
-    img = qrcode.make(uri)
-    buf = _io.BytesIO(); img.save(buf, format="PNG"); buf.seek(0)
-    qr_data = "data:image/png;base64," + base64.b64encode(buf.read()).decode()
-    return {"secret": secret, "otpauth_uri": uri, "qr": qr_data}
-
-
-@api_router.post("/auth/2fa/enable")
-async def totp_enable(data: TotpCode, request: Request, user: dict = Depends(get_current_user)):
-    secret = user.get("totp_pending_secret")
-    if not secret:
-        raise HTTPException(status_code=400, detail="请先获取绑定二维码")
-    if not pyotp.TOTP(secret).verify(data.code.strip().replace(" ", ""), valid_window=1):
-        raise HTTPException(status_code=400, detail="验证码错误，请重试")
-    await db.users.update_one({"_id": user["_id"]},
-                              {"$set": {"totp_secret": secret, "totp_enabled": True},
-                               "$unset": {"totp_pending_secret": ""}})
-    await audit(user, "auth.2fa_enable", "user", user["_id"], {}, request)
-    asyncio.create_task(notify_security(user, "enable", client_ip(request)))
-    return {"ok": True, "totp_enabled": True}
-
-
-@api_router.post("/auth/2fa/disable")
-async def totp_disable(data: TotpCode, request: Request, user: dict = Depends(get_current_user)):
-    if not user.get("totp_enabled"):
-        raise HTTPException(status_code=400, detail="两步验证未启用")
-    if user.get("totp_required"):
-        raise HTTPException(status_code=403, detail="管理员已强制开启两步验证，无法关闭")
-    secret = user.get("totp_secret")
-    if not secret or not pyotp.TOTP(secret).verify(data.code.strip().replace(" ", ""), valid_window=1):
-        raise HTTPException(status_code=400, detail="验证码错误")
-    await db.users.update_one({"_id": user["_id"]},
-                              {"$set": {"totp_enabled": False}, "$unset": {"totp_secret": "", "totp_pending_secret": ""}})
-    await audit(user, "auth.2fa_disable", "user", user["_id"], {}, request)
-    asyncio.create_task(notify_security(user, "disable", client_ip(request)))
-    return {"ok": True, "totp_enabled": False}
+# ---------------------------------------------------------------------------
+# Auth routes (login / logout / me / 2FA) moved to routes/auth.py
+# ---------------------------------------------------------------------------
 
 
 # ---------------------------------------------------------------------------
@@ -2418,17 +2319,12 @@ async def profit_snapshot_report(date: str, user: dict = Depends(require_roles("
 ORDER_STATUS_LABELS = {"pending": "待支付", "confirming": "确认中", "paid": "已支付", "expired": "超时未付", "rejected": "已驳回"}
 
 
-@api_router.get("/reports/orders")
-async def orders_report(user: dict = Depends(get_current_user),
-                        status: Optional[str] = None, network: Optional[str] = None,
-                        keyword: Optional[str] = None, merchant_id: Optional[str] = None,
-                        date: Optional[str] = None, start: Optional[str] = None, end: Optional[str] = None,
-                        ids: Optional[str] = None):
+async def generate_orders_xlsx(user, status=None, network=None, keyword=None, merchant_id=None,
+                               date=None, start=None, end=None, ids=None):
     from openpyxl import Workbook
+    from openpyxl.cell import WriteOnlyCell
     from openpyxl.styles import Font, PatternFill, Alignment
     from openpyxl.utils import get_column_letter
-    from fastapi.responses import StreamingResponse
-    from urllib.parse import quote
     import io
     scope = await merchant_ids_for_scope(user)
     q: dict = {}
@@ -2478,8 +2374,6 @@ async def orders_report(user: dict = Depends(get_current_user),
         if keyword:
             filters.append(f"关键词={keyword}")
     summary = "、".join(filters) or "全部订单"
-
-    from openpyxl.cell import WriteOnlyCell
     wb = Workbook(write_only=True)
     ws = wb.create_sheet("订单明细")
     for i, w in enumerate([22, 16, 18, 8, 12, 12, 10, 36, 40, 10, 12, 10, 20, 20], 1):
@@ -2507,9 +2401,88 @@ async def orders_report(user: dict = Depends(get_current_user),
     ws.freeze_panes = "A5"
     buf = io.BytesIO(); wb.save(buf); buf.seek(0)
     tag = "selected" if id_list else (date or (f"{start}_{end}" if start and end else "all"))
-    fname = f"orders_{tag}.xlsx"
+    return buf, count, f"orders_{tag}.xlsx"
+
+
+@api_router.get("/reports/orders")
+async def orders_report(user: dict = Depends(get_current_user),
+                        status: Optional[str] = None, network: Optional[str] = None,
+                        keyword: Optional[str] = None, merchant_id: Optional[str] = None,
+                        date: Optional[str] = None, start: Optional[str] = None, end: Optional[str] = None,
+                        ids: Optional[str] = None):
+    from fastapi.responses import StreamingResponse
+    from urllib.parse import quote
+    buf, _count, fname = await generate_orders_xlsx(user, status, network, keyword, merchant_id, date, start, end, ids)
     return StreamingResponse(buf, media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                              headers={"Content-Disposition": f"attachment; filename*=UTF-8''{quote(fname)}"})
+
+
+# ---------------------------------------------------------------------------
+# Background export jobs (large exports -> async job + download link)
+# ---------------------------------------------------------------------------
+EXPORT_DIR = os.path.join(os.path.dirname(__file__), "exports")
+os.makedirs(EXPORT_DIR, exist_ok=True)
+
+
+def _require_export(user: dict):
+    if user["role"] == "operator" and "reports.export" not in (user.get("permissions") or []):
+        raise HTTPException(status_code=403, detail="无报表导出权限")
+
+
+async def _run_order_export(job_id: str, user: dict, params: dict):
+    try:
+        buf, count, fname = await generate_orders_xlsx(user, **params)
+        path = os.path.join(EXPORT_DIR, f"{job_id}.xlsx")
+        with open(path, "wb") as f:
+            f.write(buf.getvalue())
+        await db.export_jobs.update_one({"_id": ObjectId(job_id)},
+            {"$set": {"status": "done", "row_count": count, "filename": fname,
+                      "size_bytes": os.path.getsize(path), "finished_at": iso(now_utc())}})
+    except Exception as e:
+        await db.export_jobs.update_one({"_id": ObjectId(job_id)},
+            {"$set": {"status": "failed", "error": str(e)[:300], "finished_at": iso(now_utc())}})
+
+
+@api_router.post("/export/orders")
+async def create_order_export(request: Request, user: dict = Depends(get_current_user)):
+    _require_export(user)
+    try:
+        params = await request.json()
+    except Exception:
+        params = {}
+    allowed = {k: params.get(k) for k in ("status", "network", "keyword", "merchant_id", "date", "start", "end", "ids")
+               if params.get(k)}
+    doc = {"kind": "orders", "status": "pending", "params": allowed,
+           "created_by": str(user["_id"]), "created_email": user["email"], "created_at": iso(now_utc())}
+    res = await db.export_jobs.insert_one(doc)
+    jid = str(res.inserted_id)
+    asyncio.create_task(_run_order_export(jid, user, allowed))
+    await audit(user, "export.create", "export", jid, {"kind": "orders", "params": allowed}, request)
+    return {"id": jid, "status": "pending"}
+
+
+@api_router.get("/export/jobs")
+async def list_export_jobs(user: dict = Depends(get_current_user)):
+    _require_export(user)
+    q = {} if user["role"] == "admin" else {"created_by": str(user["_id"])}
+    rows = await db.export_jobs.find(q).sort("created_at", -1).to_list(50)
+    return [serialize(r) for r in rows]
+
+
+@api_router.get("/export/jobs/{job_id}/download")
+async def download_export_job(job_id: str, user: dict = Depends(get_current_user)):
+    from fastapi.responses import FileResponse
+    _require_export(user)
+    job = await db.export_jobs.find_one({"_id": ObjectId(job_id)})
+    if not job or job.get("status") != "done":
+        raise HTTPException(status_code=404, detail="文件未就绪")
+    if user["role"] != "admin" and job.get("created_by") != str(user["_id"]):
+        raise HTTPException(status_code=403, detail="无权下载")
+    path = os.path.join(EXPORT_DIR, f"{job_id}.xlsx")
+    if not os.path.exists(path):
+        raise HTTPException(status_code=410, detail="导出文件已过期，请重新导出")
+    return FileResponse(path, media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                        filename=job.get("filename", "orders.xlsx"))
 
 
 @api_router.get("/profit-snapshots/trend")
@@ -2679,6 +2652,8 @@ app.include_router(api_router)
 # Extracted domain routers (late import avoids circular dependency with server defs)
 from routes.dev import router as dev_router  # noqa: E402
 app.include_router(dev_router)
+from routes.auth import router as auth_router  # noqa: E402
+app.include_router(auth_router)
 
 
 RATE_LIMIT_MAX = int(os.environ.get("RATE_LIMIT_MAX", "300"))

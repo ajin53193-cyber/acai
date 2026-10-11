@@ -24,6 +24,7 @@ PERM_RULES = [
     ("/api/dashboard", None, "orders.view"), ("/api/notifications", None, "orders.view"),
     ("/api/stats", None, "orders.view"),
     ("/api/dev", None, "orders.view"),
+    ("/api/export", None, "reports.export"),
 ]
 OPERATOR_FORBIDDEN = ("/api/accounts/me", "/api/auth/lockouts", "/api/checkout/settings", "/api/notify/settings")
 

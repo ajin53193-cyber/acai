@@ -169,9 +169,16 @@
 - [x] 异常波动预警：run_daily_settlement 计算平台利润环比 prev-day pct 存入快照 platform_profit_change_pct；|pct|>=50% 时 Telegram 日报追加 🚨 预警；快照列表对应行高亮 + ▲/▼ 徽标
 - [x] 测试：后端 pytest 28/28（含 operator 权限回归，验证 deps 下沉无回归）；trend 全量/按商户 curl 通过；前端趋势图+下拉截图确认，编译通过
 
+## Implemented (2026-06, iteration 20)
+- [x] auth 域迁移：login/logout/me/2FA(setup/enable/disable) 全部搬入 backend/routes/auth.py（prefix /api），用 core(db)+deps(get_current_user)+晚引入 server(check_lockout/record_login_failure/security_policy/audit) 与 email_utils(notify_security)；server 底部 include auth_router。server.py 进一步瘦身
+- [x] 导出任务中心：orders_report 抽出可复用 generate_orders_xlsx(游标+write_only)；新增 POST /api/export/orders（建任务→asyncio 后台生成写 /app/backend/exports→done/failed）、GET /api/export/jobs（admin 全部 / operator 仅自己）、GET /api/export/jobs/{id}/download（FileResponse，含权限与过期校验）；deps PERM_RULES 增 ("/api/export", reports.export)；前端新增「导出任务」页(轮询状态+下载) + 订单页「后台导出」按钮
+- [x] 商户趋势对比：/profit-snapshots/trend 支持 merchant_id；分润快照页趋势图加「商户对比」多选 chips(最多 5)，选中后切换为多商户平台利润折线叠加图，未选则显示聚合面积图
+- [x] 测试：后端 pytest 28/28；curl 全通过（auth 路由登录/me/2FA、export 建任务→done 117/261 行→下载有效 xlsx、operator 登录+export 403、merchant 登录 403）；前端编译通过 + 导出任务页/对比图截图确认
+
 ## Backlog (next)
-- P1: routes/ 域迁移续做：把 auth/orders/settlements 的路由处理函数搬入 routes/auth.py、routes/orders.py、routes/settlements.py（沿用 core+deps+晚引入模式，服务函数仍从 server 晚引入或再抽 services.py）
-- P1: 导出任务中心：大批量导出转后台任务（export_jobs 表 + asyncio worker 写盘/对象存储 + 下载端点 + 导出任务页）
+- P1: orders 域迁移：把订单相关路由搬入 routes/orders.py（服务函数 build_order/settle_order/pick_* 可再抽 services.py），server.py 继续瘦身
+- P1: settlements 域迁移 routes/settlements.py
+- P2: 导出文件改对象存储（当前落本地盘 /app/backend/exports，Pod 重启不持久；需定期清理/TTL）
 - P1: 获取 ETHERSCAN_API_KEY 后验证 ERC20/BEP20 真实到账
 - P2: 剩余散落 Pydantic 模型并入 models.py
 - P2: 代理多级分润（当前单级）
