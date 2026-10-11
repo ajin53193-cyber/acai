@@ -26,6 +26,13 @@ sudo bash deploy/linux/deploy.sh --reset-data
 
 保留：管理员账号、系统设置、通道与收款地址。删除：订单、链上记录、流水、提现、回调、客服、审计、导出、商户/代理/操作员账号。
 
+## 日常更新（一键）
+在聊天框点 **Save to GitHub** 后，服务器执行：
+- Windows：`powershell -NoProfile -ExecutionPolicy Bypass -File D:\wwwroot\sifang\deploy\windows\update.ps1 -Port 8011`
+- Linux：`sudo bash deploy/linux/update.sh z-hzhi-fzhi-fu 8001`
+
+流程：更新前自动备份数据库 → 下载分支 ZIP → 覆盖代码（保留 `.env`、`.venv`、`node_modules`、`logs`、`backups`）→ 安装依赖 → 构建前端 → 重启服务 → `/api/health` 健康检查。可加 `-SkipFrontend` / `-SkipBackend` / `-NoBackup` 跳过对应步骤。
+
 ## 数据库自动备份
 部署脚本会注册每日 **02:30** 的 `mongodump` 任务（Windows 计划任务 `SifangDbBackup` / Linux crontab），输出到 `<项目>/backups/<DB_NAME>_日期.archive.gz`，自动保留最近 14 天。需安装 [MongoDB Database Tools](https://www.mongodb.com/try/download/database-tools)（提供 `mongodump` / `mongorestore`）。
 - 手动备份：`deploy\windows\backup_db.ps1 -KeepDays 14` / `bash deploy/linux/backup_db.sh 14`
