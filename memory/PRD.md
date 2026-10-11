@@ -292,6 +292,10 @@
 - [x] **简→繁自动转换**：后端 `routes/support.py` 引入 OpenCC(`s2twp`，台湾正体+词汇)。付款人侧接口 `support_public_get` 将 **agent 消息文本与 welcome** 转换为繁体；坐席后台 `support_thread_get` 保留原简体。即坐席用简体回复，访客自动看到繁体。依赖 `opencc-python-reimplemented`（已写入 requirements.txt）。
   - 验证：curl（坐席发简体「订单已成功到账…网络…」→ 付款人收到繁体「訂單已成功到賬…網路…」，后台仍为简体）+ 收银台截图（繁体气泡、无坐席名）。
 
+## Implemented (2026-06, iteration 36) — 坐席忙闲均衡分配
+- [x] **忙闲均衡分配**：`_auto_assign` 由纯 round-robin 改为「最少负载优先」——无人负责的新会话分配给**当前 open 会话数最少**的在线坐席；负载相同时用 `rr_last` 轮转打平，保证公平。避免忙的坐席更忙。
+  - 验证：curl（两坐席均在线、初始负载 3/3，连发 4 个新会话 → 交替分配、结束 5/5 保持均衡）。
+
 ## Backlog (next)
 - P2: 散落模型持续并入 models.py
 - P2: 清理测试残留的 TEST_M 商户账户（有余额，需先结清；现可用新删除接口手动清理）

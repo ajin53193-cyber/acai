@@ -96,22 +96,30 @@ async def _online_count() -> int:
 
 
 async def _auto_assign(order_no: str, order: dict):
-    """Round-robin assign an unassigned thread to the next online seat."""
+    """Assign an unassigned thread to the least-busy online seat (fewest open threads)."""
     th = await db.support_threads.find_one({"_id": order_no}) or {}
     if th.get("assigned_id"):
         return
     seats = await _online_seats()
     if not seats:
         return
-    ids = [str(s["_id"]) for s in seats]
+    # current open workload per seat
+    agg = await db.support_threads.aggregate([
+        {"$match": {"status": "open", "assigned_id": {"$ne": None}}},
+        {"$group": {"_id": "$assigned_id", "n": {"$sum": 1}}}]).to_list(1000)
+    load = {a["_id"]: a["n"] for a in agg}
+    # rotate seat order by last pick so equal-load seats are chosen fairly
     doc = await db.settings.find_one({"_id": "support"}) or {}
     last = doc.get("rr_last")
-    idx = (ids.index(last) + 1) % len(ids) if last in ids else 0
-    seat = seats[idx]
+    ids = [str(s["_id"]) for s in seats]
+    start = (ids.index(last) + 1) % len(ids) if last in ids else 0
+    ordered = seats[start:] + seats[:start]
+    seat = min(ordered, key=lambda s: load.get(str(s["_id"]), 0))
+    sid = str(seat["_id"])
     sname = seat.get("name") or seat["email"]
     await db.support_threads.update_one({"_id": order_no},
-        {"$set": {"assigned_id": ids[idx], "assigned_to": sname}})
-    await db.settings.update_one({"_id": "support"}, {"$set": {"rr_last": ids[idx]}}, upsert=True)
+        {"$set": {"assigned_id": sid, "assigned_to": sname}})
+    await db.settings.update_one({"_id": "support"}, {"$set": {"rr_last": sid}}, upsert=True)
     await db.support_messages.insert_one({"order_no": order_no, "merchant_id": order.get("merchant_id"),
         "merchant_name": order["merchant_name"], "sender": "system", "sender_name": "系统",
         "text": f"系统已自动分配给 {sname}", "image": None, "created_at": iso(now_utc()),
