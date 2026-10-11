@@ -65,7 +65,7 @@ export default function DashboardLayout() {
 
   const handleLogout = async () => {
     await logout();
-    navigate("/login");
+    navigate(`/${process.env.REACT_APP_ADMIN_PATH}`);
   };
 
   return (

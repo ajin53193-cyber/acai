@@ -7,7 +7,8 @@ param(
   [string]$Domain = "print8.8bc8uyz.com",
   [string]$Python = "",
   [int]$Port = 8001,
-  [switch]$ResetData
+  [switch]$ResetData,
+  [string]$AdminPath = "sf-admin-k9x2m7"
 )
 $ErrorActionPreference = "Stop"
 function Step($m) { Write-Host "`n==> $m" -ForegroundColor Cyan }
@@ -67,6 +68,7 @@ Invoke-Expression "$yarn install --frozen-lockfile"
 if ($LASTEXITCODE -ne 0) { throw "前端依赖安装失败" }
 $env:REACT_APP_BACKEND_URL = ""   # 留空 => 前端自动使用当前访问域名（主域/备用域均可）
 $env:GENERATE_SOURCEMAP = "false"
+$env:REACT_APP_ADMIN_PATH = $AdminPath
 Invoke-Expression "$yarn build"
 if ($LASTEXITCODE -ne 0) { throw "前端构建失败" }
 Pop-Location

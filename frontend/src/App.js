@@ -23,7 +23,10 @@ import ProfitSnapshotsPage from "@/pages/ProfitSnapshotsPage";
 import ExportJobsPage from "@/pages/ExportJobsPage";
 import SupportPage from "@/pages/SupportPage";
 import SupportHomePage from "@/pages/SupportHomePage";
+import NotFoundPage from "@/pages/NotFoundPage";
 import { Loader2 } from "lucide-react";
+
+export const ADMIN_PATH = `/${process.env.REACT_APP_ADMIN_PATH}`;
 
 function Protected({ children, roles }) {
   const { user } = useAuth();
@@ -33,7 +36,7 @@ function Protected({ children, roles }) {
         <Loader2 className="w-8 h-8 animate-spin text-primary" />
       </div>
     );
-  if (user === false) return <Navigate to="/login" replace />;
+  if (user === false) return <NotFoundPage />;
   if (roles && !roles.includes(user.role)) return <Navigate to="/" replace />;
   return children;
 }
@@ -55,7 +58,7 @@ function App() {
         <StepUpModal />
         <BrowserRouter>
           <Routes>
-            <Route path="/login" element={<LoginPage />} />
+            <Route path={ADMIN_PATH} element={<LoginPage />} />
             <Route path="/pay/:orderNo" element={<CheckoutPage />} />
             <Route
               path="/"
@@ -188,7 +191,7 @@ function App() {
                 }
               />
             </Route>
-            <Route path="*" element={<Navigate to="/" replace />} />
+            <Route path="*" element={<NotFoundPage />} />
           </Routes>
         </BrowserRouter>
         <Toaster position="top-right" theme="dark" richColors />

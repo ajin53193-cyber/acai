@@ -8,7 +8,8 @@ param(
   [int]$Port = 8011,
   [switch]$SkipBackend,
   [switch]$SkipFrontend,
-  [switch]$NoBackup
+  [switch]$NoBackup,
+  [string]$AdminPath = "sf-admin-k9x2m7"
 )
 $ErrorActionPreference = "Stop"
 function Step($m) { Write-Host "`n==> $m" -ForegroundColor Cyan }
@@ -59,7 +60,7 @@ if (-not $SkipFrontend) {
   $yarn = if (Get-Command yarn -ErrorAction SilentlyContinue) { "yarn" } else { "npx --yes yarn@1.22.22" }
   Invoke-Expression "$yarn install --frozen-lockfile"
   if ($LASTEXITCODE -ne 0) { Pop-Location; throw "前端依赖安装失败" }
-  $env:REACT_APP_BACKEND_URL = ""; $env:GENERATE_SOURCEMAP = "false"
+  $env:REACT_APP_BACKEND_URL = ""; $env:GENERATE_SOURCEMAP = "false"; $env:REACT_APP_ADMIN_PATH = $AdminPath
   Invoke-Expression "$yarn build"
   if ($LASTEXITCODE -ne 0) { Pop-Location; throw "前端构建失败" }
   Pop-Location
@@ -77,3 +78,4 @@ else { Write-Warning "后端未在 30 秒内响应，请查看 $backend\logs\bac
 
 Step "完成"
 Write-Host "更新完成。浏览器 Ctrl+F5 刷新即可看到新版本。" -ForegroundColor Green
+Write-Host "后台登录地址: https://<域名>/$AdminPath （/login 已关闭）" -ForegroundColor Yellow

@@ -432,3 +432,7 @@
 - 手机付款页(CheckoutPage.jsx)整体缩小：字号13-14px、金额32px、二维码170px、间距收紧。
 - 生产域名 print8.8bc8uyz.com 已通过宝塔签发 Let's Encrypt 证书(到期2027-01-09)，外网 HTTPS 验证通过；旧 win-acme 证书作废。
 - 预览环境 frontend .env 为 sifang-collect 域名。
+
+## 后台隐藏入口 (2026-10-11)
+- 后台登录路径改为 `/sf-admin-k9x2m7`（由 frontend .env `REACT_APP_ADMIN_PATH` 控制；生产由 update.ps1/deploy.ps1 的 -AdminPath 参数注入，默认同值）。
+- `/login`、`/` 及任何未登录访问均显示 404 页面，不再跳转到登录页。付款页 `/pay/:orderNo` 不受影响。
