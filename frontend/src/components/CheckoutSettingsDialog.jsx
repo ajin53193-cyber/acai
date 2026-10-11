@@ -53,21 +53,19 @@ export function CheckoutSettingsDialog() {
   const [open, setOpen] = useState(false);
   const [s, setS] = useState(null);
   const [saving, setSaving] = useState(false);
-  const [rules, setRules] = useState("");
 
   useEffect(() => {
     if (!open) return;
     api.get("/checkout/settings").then((r) => {
       const d = r.data;
-      setS({ ...d, tutorial_links: d.tutorial_links?.length ? d.tutorial_links.map((t, i) => ({ title: t.title || "", url: t.url || "", content: t.content ?? TUTORIAL_CONTENT[i] ?? "" })) : defaultTutorials() });
-      setRules((d.energy_rules || []).map((t) => `${t.title}|${t.text}`).join("\n"));
+      setS({ ...d, tutorial_links: d.tutorial_links?.length ? d.tutorial_links.map((t, i) => ({ title: t.title || "", url: t.url || "", content: t.content ?? TUTORIAL_CONTENT[i] ?? "" })) : defaultTutorials(), energy_rules: (d.energy_rules || []).map((t) => ({ title: t.title || "", text: t.text || "" })) });
     });
   }, [open]);
 
   const save = async () => {
     setSaving(true);
     try {
-      const energy_rules = rules.split("\n").map((l) => l.trim()).filter(Boolean).map((l) => { const i = l.indexOf("|"); return i < 0 ? { title: "", text: l } : { title: l.slice(0, i).trim(), text: l.slice(i + 1).trim() }; });
+      const energy_rules = (s.energy_rules || []).filter((r) => (r.title || r.text || "").trim());
       await api.put("/checkout/settings", { ...s, energy_rules, tutorial_links: s.tutorial_links.filter((t) => t.title.trim()) });
       toast.success("收银台设置已保存"); setOpen(false);
     } catch (err) { toast.error(formatApiErrorDetail(err.response?.data?.detail)); }
@@ -113,8 +111,17 @@ export function CheckoutSettingsDialog() {
               <div className="space-y-1.5"><Label>TRX 收款地址（只收 TRX）</Label><Input value={s.energy_trx_address} onChange={(e) => setS({ ...s, energy_trx_address: e.target.value })} data-testid="energy-trx-input" className={`${inputCls} font-mono text-xs`} placeholder="T 开头 34 位" /></div>
               <div className="space-y-1.5"><Label>租赁价格文案</Label><Input value={s.energy_price_text} onChange={(e) => setS({ ...s, energy_price_text: e.target.value })} data-testid="energy-price-input" className={inputCls} /></div>
               <div className="space-y-1.5"><Label>快捷购买金额（TRX，逗号分隔）</Label><Input value={s.energy_amounts ?? "2,4"} onChange={(e) => setS({ ...s, energy_amounts: e.target.value })} data-testid="energy-amounts-input" className={inputCls} placeholder="例如 2,4" /></div>
-              <div className="space-y-1.5"><Label>租赁说明条款（每行：标题|内容，留空用内置 4 条默认文案，自动跟随语言）</Label>
-                <textarea value={rules} onChange={(e) => setRules(e.target.value)} rows={5} data-testid="energy-rules-input" className={taCls} placeholder={"租赁说明|因任何一笔TRC20转账...\n能量有效期|2小时，购买后需尽快使用。"} /></div>
+              <div className="space-y-1.5"><Label>租赁说明条款（标题 + 内容，留空则用内置 4 条默认文案，自动跟随语言）</Label>
+                <div className="space-y-2" data-testid="energy-rules-editor">
+                  {(s.energy_rules || []).map((r, i) => (
+                    <div key={i} className="flex gap-2 items-start">
+                      <Input value={r.title} onChange={(e) => { const a = [...s.energy_rules]; a[i] = { ...a[i], title: e.target.value }; setS({ ...s, energy_rules: a }); }} data-testid={`energy-rule-title-${i}`} className={`${inputCls} w-36`} placeholder="标题" />
+                      <Input value={r.text} onChange={(e) => { const a = [...s.energy_rules]; a[i] = { ...a[i], text: e.target.value }; setS({ ...s, energy_rules: a }); }} data-testid={`energy-rule-text-${i}`} className={`${inputCls} flex-1`} placeholder="内容" />
+                      <button onClick={() => setS({ ...s, energy_rules: s.energy_rules.filter((_, j) => j !== i) })} data-testid={`energy-rule-del-${i}`} className="p-2 text-red-400 hover:bg-red-400/10 rounded shrink-0"><Trash2 className="w-4 h-4" /></button>
+                    </div>
+                  ))}
+                  <button onClick={() => setS({ ...s, energy_rules: [...(s.energy_rules || []), { title: "", text: "" }] })} data-testid="energy-rule-add" className="text-xs text-cyan-400 hover:text-cyan-300 flex items-center gap-1"><Plus className="w-3.5 h-3.5" /> 添加条款</button>
+                </div></div>
             </TabsContent>
             <TabsContent value="tutorials" className="pt-3">
               <TutorialEditor items={s.tutorial_links} onChange={(tutorial_links) => setS({ ...s, tutorial_links })} />

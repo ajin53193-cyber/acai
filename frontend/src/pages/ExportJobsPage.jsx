@@ -84,6 +84,11 @@ export default function ExportJobsPage() {
 
   if (loading) return <div className="flex items-center justify-center py-20"><Loader2 className="w-6 h-6 animate-spin text-cyan-400" /></div>;
 
+  const _now = new Date();
+  const monthCount = jobs.filter((j) => { const d = new Date(j.created_at); return d.getFullYear() === _now.getFullYear() && d.getMonth() === _now.getMonth(); }).length;
+  const totalBytes = jobs.reduce((a, j) => a + (j.size_bytes || 0), 0);
+  const expiringSoon = jobs.filter((j) => j.expires_at && new Date(j.expires_at) > _now && (new Date(j.expires_at) - _now) < 2 * 86400000).length;
+
   return (
     <div className="space-y-6" data-testid="export-jobs-page">
       <div className="flex items-center justify-between">
@@ -92,6 +97,12 @@ export default function ExportJobsPage() {
           <p className="text-sm text-slate-400 mt-1">大批量订单导出在后台生成，完成后在此下载（无需长时间等待）</p>
         </div>
         <Button onClick={load} variant="outline" data-testid="refresh-jobs-btn" className="border-slate-700 hover:bg-slate-800"><Loader2 className="w-4 h-4 mr-1" /> 刷新</Button>
+      </div>
+
+      <div className="grid grid-cols-3 gap-3" data-testid="export-summary-bar">
+        <div className="glass rounded-xl p-4"><div className="text-xs text-slate-400">本月导出</div><div className="text-2xl font-bold text-cyan-400" data-testid="summary-month-count">{monthCount}</div></div>
+        <div className="glass rounded-xl p-4"><div className="text-xs text-slate-400">文件总大小</div><div className="text-2xl font-bold text-cyan-400" data-testid="summary-total-size">{fmtSize(totalBytes)}</div></div>
+        <div className="glass rounded-xl p-4"><div className="text-xs text-slate-400">48h 内到期</div><div className="text-2xl font-bold text-amber-400" data-testid="summary-expiring">{expiringSoon}</div></div>
       </div>
 
       <div className="glass rounded-xl p-4 space-y-3" data-testid="export-schedules-card">

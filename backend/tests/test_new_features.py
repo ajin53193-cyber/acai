@@ -24,6 +24,8 @@ def admin_token():
 @pytest.fixture(scope="module")
 def merchant_token():
     r = requests.post(f"{API}/auth/login", json={"email": "merchant@demo.com", "password": "merchant888"})
+    if r.status_code == 403:
+        pytest.skip("商户后台登录已禁用（仅 API）")
     assert r.status_code == 200, r.text
     return r.json()["token"]
 
@@ -31,6 +33,8 @@ def merchant_token():
 @pytest.fixture(scope="module")
 def agent_token():
     r = requests.post(f"{API}/auth/login", json={"email": "agent@demo.com", "password": "agent888"})
+    if r.status_code == 403:
+        pytest.skip("代理后台登录已禁用（仅 API）")
     assert r.status_code == 200, r.text
     return r.json()["token"]
 

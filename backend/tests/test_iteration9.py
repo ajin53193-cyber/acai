@@ -37,6 +37,8 @@ def admin_token():
 @pytest.fixture(scope="module")
 def merchant_token():
     r = login(*MERCHANT)
+    if r.status_code == 403:
+        pytest.skip("商户后台登录已禁用（仅 API）")
     assert r.status_code == 200, r.text
     return r.json()["token"]
 
@@ -44,6 +46,8 @@ def merchant_token():
 @pytest.fixture(scope="module")
 def agent_token():
     r = login(*AGENT)
+    if r.status_code == 403:
+        pytest.skip("代理后台登录已禁用（仅 API）")
     assert r.status_code == 200, r.text
     return r.json()["token"]
 
@@ -306,7 +310,7 @@ class TestRegression:
 
     def test_merchant_login(self):
         r = login(*MERCHANT)
-        assert r.status_code == 200
+        assert r.status_code == 403, "商户后台登录应被禁用（仅 API）"
 
     def test_operator_login(self):
         r = login(*OPERATOR)

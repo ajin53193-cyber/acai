@@ -44,6 +44,8 @@ def admin_token():
 @pytest.fixture(scope="module")
 def merchant_token():
     r = login(*MERCHANT)
+    if r.status_code == 403:
+        pytest.skip("商户后台登录已禁用（仅 API）")
     assert r.status_code == 200, r.text
     return r.json()["token"]
 

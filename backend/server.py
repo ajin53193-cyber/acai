@@ -71,6 +71,7 @@ from services import (
     channel_addresses, pick_address, unique_pay_amount, pick_channel,
     build_order, settle_order, mark_paid,
 )
+from models import SecurityPolicy, CheckoutSettings  # consolidated into models.py
 
 
 async def fetch_trc20_transfers(address: str, since_ms: int) -> List[dict]:
@@ -295,12 +296,6 @@ async def record_login_failure(identifier: str, email: str, ip: Optional[str]):
 # ---------------------------------------------------------------------------
 # Security policy
 # ---------------------------------------------------------------------------
-class SecurityPolicy(BaseModel):
-    enforce_admin_2fa: bool = False
-    enforce_operator_2fa: bool = False
-    login_alert: bool = True
-
-
 async def security_policy() -> dict:
     doc = await db.settings.find_one({"_id": "security"}) or {}
     doc.pop("_id", None)
@@ -510,21 +505,6 @@ async def get_checkout_settings():
     doc = await db.settings.find_one({"_id": "checkout"}) or {}
     doc.pop("_id", None)
     return {**DEFAULT_CHECKOUT_SETTINGS, **doc}
-
-
-class CheckoutSettings(BaseModel):
-    energy_enabled: bool = False
-    energy_trx_address: str = ""
-    energy_price_text: str = ""
-    energy_amounts: str = "2,4"
-    support_url: str = ""
-    tutorial_links: List[dict] = []
-    energy_rules: List[dict] = []
-    logo_url: str = ""
-    brand_subtitle: str = ""
-    brand_subtitle_tw: str = ""
-    brand_subtitle_en: str = ""
-    theme_color: str = "#26A17B"
 
 
 @api_router.put("/checkout/settings")
@@ -1194,8 +1174,6 @@ async def seed():
         base = [
             {"name": "TRC20 极速通道", "network": "TRC20", "fee_rate": 0.02, "weight": 50,
              "min_amount": 10, "max_amount": 50000, "status": "active"},
-            {"name": "TRC20 大额通道", "network": "TRC20", "fee_rate": 0.015, "weight": 30,
-             "min_amount": 50, "max_amount": 100000, "status": "active"},
         ]
         for c in base:
             c["success_rate"] = round(random.uniform(96, 99.5), 1)

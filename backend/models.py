@@ -29,6 +29,28 @@ class BalanceAdjust(BaseModel):
     remark: Optional[str] = ""
 
 
+class SecurityPolicy(BaseModel):
+    enforce_admin_2fa: bool = False
+    enforce_operator_2fa: bool = False
+    login_alert: bool = True
+
+
+class CheckoutSettings(BaseModel):
+    energy_enabled: bool = False
+    energy_trx_address: str = ""
+    energy_price_text: str = ""
+    energy_amounts: str = "2,4"
+    support_url: str = ""
+    tutorial_links: List[dict] = []
+    energy_rules: List[dict] = []
+    logo_url: str = ""
+    brand_subtitle: str = ""
+    brand_subtitle_tw: str = ""
+    brand_subtitle_en: str = ""
+    theme_color: str = "#26A17B"
+
+
+
 class ChannelCreate(BaseModel):
     name: str
     network: str
