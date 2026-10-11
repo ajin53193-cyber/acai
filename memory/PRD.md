@@ -364,6 +364,11 @@
 - [x] **审计**：`order.manual_callback` / `order.manual_callback_batch` 已记录操作员，审计日志页可查。
   - 验证：curl（`/orders?manual=1` count=2 全部 manual_confirmed=true）+ 截图（列表琥珀「手动补单」标签）。
 
+## Implemented (2026-06, iteration 45) — 客服新消息声音+弹窗提醒
+- [x] **新消息提醒**：`SupportPage` 轮询（5s）计算全部会话未读总数，较上次增加时触发：Web Audio 双音提示音 + 应用内 toast「🔔 收到 N 条新客户消息」+ 浏览器桌面通知（Notification，后台标签页也弹）。
+- [x] **开关与持久化**：头部「🔊 提醒开 / 🔇 已静音」按钮，存 localStorage；开启时响一声并申请通知权限。切换筛选时重置计数避免误报。
+  - 验证：前端编译通过；截图确认头部「提醒开」按钮；toggle 标签读取为「提醒开」。
+
 ## Backlog (next)
 - P2: 散落模型持续并入 models.py
 - P2: 清理测试残留的 TEST_M 商户账户（有余额，需先结清；现可用新删除接口手动清理）

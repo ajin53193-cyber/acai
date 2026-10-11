@@ -4,7 +4,7 @@ import { useAuth } from "@/context/AuthContext";
 import api, { formatApiErrorDetail } from "@/lib/api";
 import { fmtDate } from "@/lib/format";
 import { toast } from "sonner";
-import { MessageSquare, Send, Loader2, RefreshCw, CheckCircle2, RotateCcw, Copy } from "lucide-react";
+import { MessageSquare, Send, Loader2, RefreshCw, CheckCircle2, RotateCcw, Copy, Volume2, VolumeX } from "lucide-react";
 
 const STATUS_LABEL = { pending: "待支付", paid: "已支付", expired: "已过期", confirming: "确认中", rejected: "已驳回" };
 const FILTERS = [["all", "全部"], ["open", "待处理"], ["resolved", "已解决"]];
@@ -31,11 +31,55 @@ export default function SupportPage() {
   const onlineById = Object.fromEntries(seats.map((s) => [s.id, s.online]));
   const canRefund = user.role === "admin" || (user.permissions || []).includes("orders.manual_callback");
   const [lightbox, setLightbox] = useState(null);
+  const [soundOn, setSoundOn] = useState(() => localStorage.getItem("support_sound") !== "0");
+  const prevUnreadRef = useRef(null);
+  const audioCtxRef = useRef(null);
+  const playBeep = useCallback(() => {
+    try {
+      const Ctx = window.AudioContext || window.webkitAudioContext;
+      if (!Ctx) return;
+      const ctx = audioCtxRef.current || (audioCtxRef.current = new Ctx());
+      if (ctx.state === "suspended") ctx.resume();
+      const mk = (freq, start) => {
+        const o = ctx.createOscillator(); const g = ctx.createGain();
+        o.connect(g); g.connect(ctx.destination); o.type = "sine"; o.frequency.value = freq;
+        g.gain.setValueAtTime(0.0001, ctx.currentTime + start);
+        g.gain.exponentialRampToValueAtTime(0.3, ctx.currentTime + start + 0.02);
+        g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + start + 0.28);
+        o.start(ctx.currentTime + start); o.stop(ctx.currentTime + start + 0.3);
+      };
+      mk(880, 0); mk(1180, 0.18);
+    } catch (e) { /* ignore */ }
+  }, []);
+  const notify = useCallback((n) => {
+    toast(`🔔 收到 ${n} 条新客户消息`, { duration: 4000 });
+    if (soundOn) playBeep();
+    try {
+      if ("Notification" in window && Notification.permission === "granted") {
+        new Notification("在线客服 · 新消息", { body: `有 ${n} 条新的客户消息待处理` });
+      }
+    } catch (e) { /* ignore */ }
+  }, [soundOn, playBeep]);
+  const toggleSound = () => {
+    setSoundOn((v) => {
+      const nv = !v;
+      localStorage.setItem("support_sound", nv ? "1" : "0");
+      if (nv) { playBeep(); if ("Notification" in window && Notification.permission === "default") Notification.requestPermission(); }
+      return nv;
+    });
+  };
 
   const loadThreads = useCallback(async () => {
-    try { const r = await api.get("/support/threads", { params: { status: filter } }); setThreads(r.data); } catch (e) { /* ignore */ }
+    try {
+      const r = await api.get("/support/threads", { params: { status: filter } });
+      const data = r.data;
+      const total = data.reduce((s, t) => s + (t.unread || 0), 0);
+      if (prevUnreadRef.current !== null && total > prevUnreadRef.current) notify(total - prevUnreadRef.current);
+      prevUnreadRef.current = total;
+      setThreads(data);
+    } catch (e) { /* ignore */ }
     finally { setLoading(false); }
-  }, [filter]);
+  }, [filter, notify]);
 
   const loadConvo = useCallback(async (orderNo) => {
     if (!orderNo) return;
@@ -45,6 +89,7 @@ export default function SupportPage() {
   useEffect(() => { api.get("/support/templates").then((r) => setTemplates(r.data.templates || [])).catch(() => {}); }, []);
   useEffect(() => { if (user.role === "admin") api.get("/support/settings").then((r) => setMaxSeat(r.data.max_per_seat)).catch(() => {}); }, [user.role]);
   useEffect(() => { const f = () => { api.get("/support/stats").then((r) => setStats(r.data)).catch(() => {}); api.get("/support/seats").then((r) => setSeats(r.data)).catch(() => {}); }; f(); const i = setInterval(f, 8000); return () => clearInterval(i); }, []);
+  useEffect(() => { prevUnreadRef.current = null; }, [filter]);
   useEffect(() => { loadThreads(); const i = setInterval(loadThreads, 5000); return () => clearInterval(i); }, [loadThreads]);
   useEffect(() => {
     if (!active) return;
@@ -134,6 +179,9 @@ export default function SupportPage() {
                 className="w-14 h-7 px-2 rounded bg-slate-800 border border-slate-600 text-slate-200 outline-none focus:border-cyan-500" />
             </div>
           )}
+          <button onClick={toggleSound} data-testid="support-sound-toggle" title={soundOn ? "新消息声音提醒：开（点击静音）" : "新消息声音提醒：关"} className={`flex items-center gap-1.5 text-sm ${soundOn ? "text-cyan-400" : "text-slate-500"} hover:text-cyan-300`}>
+            {soundOn ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />} {soundOn ? "提醒开" : "已静音"}
+          </button>
           <button onClick={loadThreads} data-testid="support-refresh" className="flex items-center gap-1.5 text-sm text-slate-400 hover:text-cyan-400"><RefreshCw className="w-4 h-4" /> 刷新</button>
         </div>
       </div>
