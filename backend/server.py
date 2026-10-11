@@ -55,7 +55,9 @@ CALLBACK_RETRY_DELAYS = [15, 60, 300, 1800, 7200]
 _chain_rate_lock = asyncio.Lock()
 _chain_last_call = 0.0
 TRONGRID_DAILY_LIMIT = int(os.environ.get("TRONGRID_DAILY_LIMIT", "500000"))
-_chain_usage = {"date": "", "count": 0, "hours": {}}
+CHAIN_SPIKE_MULT = float(os.environ.get("CHAIN_SPIKE_MULT", "3"))
+CHAIN_SPIKE_MIN = int(os.environ.get("CHAIN_SPIKE_MIN", "2000"))
+_chain_usage = {"date": "", "count": 0, "hours": {}, "alerted_hour": ""}
 
 
 def _usage_today_key():
@@ -75,6 +77,38 @@ def _bump_usage(n: int = 1):
 
 def chain_usage_memory() -> dict:
     return {"date": _chain_usage["date"], "hours": dict(_chain_usage["hours"])}
+
+
+async def _maybe_alert_spike():
+    """Telegram-alert (once per hour) when the current UTC hour's TronGrid request
+    count is abnormally higher than the recent hourly average — catches runaway
+    polling / abuse before it drains the daily quota."""
+    k = _usage_today_key()
+    if _chain_usage["date"] != k:
+        return
+    hours = _chain_usage["hours"]
+    cur = now_utc().strftime("%H")
+    cnt = hours.get(cur, 0)
+    if cnt < CHAIN_SPIKE_MIN:
+        return
+    past = [v for hh, v in hours.items() if hh != cur and v > 0]
+    if len(past) < 3:
+        return
+    avg = sum(past) / len(past)
+    if avg <= 0 or cnt < avg * CHAIN_SPIKE_MULT:
+        return
+    hour_key = f"{k} {cur}"
+    if _chain_usage.get("alerted_hour") == hour_key:
+        return
+    _chain_usage["alerted_hour"] = hour_key
+    snap = chain_usage_snapshot()
+    pct = round(snap["used"] / snap["limit"] * 100, 2) if snap["limit"] else 0
+    await send_telegram(
+        f"🚨 <b>TronGrid 请求异常激增</b>\n"
+        f"时段：{cur}:00 (UTC)\n"
+        f"本时段请求：{cnt} 次（约为近期均值 {avg:.0f} 的 {cnt / avg:.1f} 倍）\n"
+        f"今日累计：{snap['used']}/{snap['limit']}（{pct}%）\n"
+        f"请检查是否存在异常轮询或攻击，避免额度被提前耗尽。", "alert")
 
 
 def chain_usage_snapshot() -> dict:
@@ -298,6 +332,10 @@ async def chain_listener():
             await db.chain_usage.update_one({"_id": _chain_usage["date"] or _usage_today_key()},
                 {"$set": {"count": _chain_usage["count"], "hours": _chain_usage["hours"],
                           "updated_at": iso(now_utc())}}, upsert=True)
+        except Exception:
+            pass
+        try:
+            await _maybe_alert_spike()
         except Exception:
             pass
         await asyncio.sleep(chain_usage_snapshot()["poll_seconds"])
