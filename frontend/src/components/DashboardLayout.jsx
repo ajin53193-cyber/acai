@@ -12,6 +12,7 @@ import { PaymentAlerts } from "@/components/PaymentAlerts";
 import { AlertBell } from "@/components/AlertBell";
 
 const NAV = [
+  { to: "/home", label: "坐席工作台", icon: LayoutDashboard, roles: ["operator"], perm: "support.manage", supportOnly: true, end: true },
   { to: "/", label: "数据总览", icon: LayoutDashboard, roles: ["admin", "operator"], perm: "orders.view", end: true },
   { to: "/orders", label: "订单与收款", icon: Receipt, roles: ["admin", "operator"], perm: "orders.view" },
   { to: "/channels", label: "通道路由", icon: Network, roles: ["admin", "operator"], perm: "channels.manage" },
@@ -55,7 +56,12 @@ export default function DashboardLayout() {
     const i = setInterval(poll, 10000);
     return () => { on = false; clearInterval(i); };
   }, [user.role]);
-  const items = NAV.filter((n) => n.roles.includes(user.role) && (user.role !== "operator" || (user.permissions || []).includes(n.perm)));
+  const perms = user.permissions || [];
+  const supportOnly = user.role === "operator" && perms.includes("support.manage") && !perms.includes("orders.view");
+  const items = NAV.filter((n) => {
+    if (n.supportOnly) return supportOnly;
+    return n.roles.includes(user.role) && (user.role !== "operator" || perms.includes(n.perm));
+  });
 
   const handleLogout = async () => {
     await logout();

@@ -281,6 +281,12 @@
 - [x] **坐席在线状态 + 通知路由**：坐席调用 unread-count/threads 时更新 `support_last_seen`（120s 窗口判定在线）；seats 列表显示在线；新客户消息仅在「无坐席在线」时才发 Telegram（在线时以站内提示音/桌面通知覆盖）
   - 验证：curl 全链路（seats 在线、payer 未读 0→1、转交+系统提示、payer 不可见系统消息、cron 401/purge）+ 后台截图确认；pytest 并行回归 114 passed/134 skipped
 
+## Implemented (2026-06, iteration 34) — 坐席工作台首页 / 在线指示灯 / 轮询分配
+- [x] **坐席工作台 mini 首页**：新增路由 `/home`（`SupportHomePage.jsx`）。仅「support.manage 且无 orders.view」的专席登录后进入此页（App.js IndexRoute 重定向 `/home`）。展示：在线状态圆点、我负责的待处理数(`mine_open`)、全部待处理/已解决/在线坐席数、快捷入口（进入在线客服、我负责的会话 `/support?mine=1`）。侧栏新增「坐席工作台」项（仅专席可见，`supportOnly` 过滤）。
+- [x] **坐席在线/离线指示灯**：会话列表「负责：xxx」与会话头部「负责：xxx」均显示绿/灰圆点（复用 `/support/seats` 在线数据，列表按名字匹配、头部按 assigned_id 匹配），不再局限于转交下拉。SupportPage 新增「仅我负责」过滤。
+- [x] **新会话轮询分配坐席**：`support_public_post` 对**无人负责**的新会话按 round-robin 自动分配给在线坐席（`_online_seats` + settings.rr_last 指针），写入系统提示「系统已自动分配给 X」；无人在线时保持未分配并发 Telegram（原逻辑）。`/support/stats` 新增 `mine_open`、`online`。
+  - 验证：curl（stats 含 mine_open/online、新 payer 消息触发自动分配+系统消息）+ 截图（专席落 `/home`、控制台在线圆点显示）。
+
 ## Backlog (next)
 - P2: 散落模型持续并入 models.py
 - P2: 清理测试残留的 TEST_M 商户账户（有余额，需先结清；现可用新删除接口手动清理）

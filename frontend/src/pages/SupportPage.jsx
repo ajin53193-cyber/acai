@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from "react";
+import { useSearchParams } from "react-router-dom";
+import { useAuth } from "@/context/AuthContext";
 import api, { formatApiErrorDetail } from "@/lib/api";
 import { fmtDate } from "@/lib/format";
 import { toast } from "sonner";
@@ -8,8 +10,11 @@ const STATUS_LABEL = { pending: "待支付", paid: "已支付", expired: "已过
 const FILTERS = [["all", "全部"], ["open", "待处理"], ["resolved", "已解决"]];
 
 export default function SupportPage() {
+  const { user } = useAuth();
+  const [searchParams] = useSearchParams();
   const [threads, setThreads] = useState([]);
   const [filter, setFilter] = useState("all");
+  const [mineOnly, setMineOnly] = useState(searchParams.get("mine") === "1");
   const [active, setActive] = useState(null);
   const [convo, setConvo] = useState(null);
   const [templates, setTemplates] = useState([]);
@@ -21,6 +26,8 @@ export default function SupportPage() {
   const endRef = useRef(null);
   const imgUrl = (p) => (p && !p.startsWith("http") && !p.startsWith("data:")) ? (process.env.REACT_APP_BACKEND_URL || "") + p : p;
   const fmtDur = (s) => s == null ? "—" : s < 60 ? `${s}秒` : s < 3600 ? `${Math.round(s / 60)}分` : `${(s / 3600).toFixed(1)}时`;
+  const onlineByName = Object.fromEntries(seats.map((s) => [s.name, s.online]));
+  const onlineById = Object.fromEntries(seats.map((s) => [s.id, s.online]));
 
   const loadThreads = useCallback(async () => {
     try { const r = await api.get("/support/threads", { params: { status: filter } }); setThreads(r.data); } catch (e) { /* ignore */ }
@@ -84,6 +91,8 @@ export default function SupportPage() {
                 className={`px-3 py-1.5 text-xs ${filter === k ? "bg-cyan-500/20 text-cyan-300" : "text-slate-400 hover:text-slate-200"}`}>{l}</button>
             ))}
           </div>
+          <button onClick={() => setMineOnly((v) => !v)} data-testid="support-filter-mine"
+            className={`px-3 py-1.5 text-xs rounded-lg border ${mineOnly ? "bg-cyan-500/20 text-cyan-300 border-cyan-500/50" : "text-slate-400 border-slate-700 hover:text-slate-200"}`}>仅我负责</button>
           <button onClick={loadThreads} data-testid="support-refresh" className="flex items-center gap-1.5 text-sm text-slate-400 hover:text-cyan-400"><RefreshCw className="w-4 h-4" /> 刷新</button>
         </div>
       </div>
@@ -106,9 +115,9 @@ export default function SupportPage() {
         <div className="glass rounded-xl overflow-y-auto" data-testid="support-threads">
           {loading ? (
             <div className="flex items-center justify-center py-20"><Loader2 className="w-6 h-6 animate-spin text-cyan-400" /></div>
-          ) : threads.length === 0 ? (
+          ) : (mineOnly ? threads.filter((t) => t.assigned_to === user.name) : threads).length === 0 ? (
             <div className="text-center text-slate-500 py-20 text-sm">暂无会话</div>
-          ) : threads.map((th) => (
+          ) : (mineOnly ? threads.filter((t) => t.assigned_to === user.name) : threads).map((th) => (
             <button key={th.order_no} onClick={() => openThread(th.order_no)} data-testid={`support-thread-${th.order_no}`}
               className={`w-full text-left px-4 py-3 border-b border-slate-800/60 hover:bg-slate-800/40 transition-colors ${active === th.order_no ? "bg-slate-800/60" : ""}`}>
               <div className="flex items-center justify-between gap-2">
@@ -118,7 +127,7 @@ export default function SupportPage() {
                 {th.unread > 0 && <span className="shrink-0 min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[11px] flex items-center justify-center" data-testid={`thread-unread-${th.order_no}`}>{th.unread}</span>}
               </div>
               <div className="text-[11px] font-mono text-slate-500 truncate">{th.order_no}</div>
-              {th.assigned_to && <div className="text-[10px] text-cyan-400/80 truncate">负责：{th.assigned_to}</div>}
+              {th.assigned_to && <div className="text-[10px] text-cyan-400/80 truncate flex items-center gap-1"><Dot online={onlineByName[th.assigned_to]} />负责：{th.assigned_to}</div>}
               <div className="text-[12px] text-slate-400 truncate mt-0.5">{th.last_sender === "agent" ? "我：" : ""}{th.last_text}</div>
               <div className="text-[10px] text-slate-600 mt-0.5">{fmtDate(th.last_at)}</div>
             </button>
@@ -136,7 +145,7 @@ export default function SupportPage() {
               <div className="px-4 py-3 border-b border-slate-800 space-y-2" data-testid="support-order-detail">
                 <div className="flex items-center justify-between gap-2">
                   <div className="font-medium text-slate-200 flex items-center gap-2">{convo.merchant_name}
-                    {convo.assigned_to && <span className="text-[11px] px-1.5 py-0.5 rounded bg-slate-700 text-slate-300" data-testid="support-assigned">负责：{convo.assigned_to}</span>}
+                    {convo.assigned_to && <span className="text-[11px] px-1.5 py-0.5 rounded bg-slate-700 text-slate-300 flex items-center gap-1" data-testid="support-assigned"><Dot online={onlineById[convo.assigned_id]} />负责：{convo.assigned_to}</span>}
                   </div>
                   <div className="flex items-center gap-2">
                     <select onChange={(e) => { assign(e.target.value); e.target.value = ""; }} data-testid="support-assign-select" className="text-xs bg-slate-800 border border-slate-600 rounded px-2 py-1 text-slate-300">
@@ -199,6 +208,10 @@ export default function SupportPage() {
       </div>
     </div>
   );
+}
+
+function Dot({ online }) {
+  return <span className={`inline-block w-2 h-2 rounded-full shrink-0 ${online ? "bg-emerald-400" : "bg-slate-500"}`} title={online ? "在线" : "离线"} />;
 }
 
 function Detail({ k, v, onCopy, mono }) {

@@ -67,17 +67,45 @@ async def _touch_seen(user: dict):
     await db.users.update_one({"_id": user["_id"]}, {"$set": {"support_last_seen": iso(now_utc())}})
 
 
-async def _online_count() -> int:
+async def _online_seats() -> list:
     cutoff = now_utc() - timedelta(seconds=SEAT_ONLINE_SECS)
-    n = 0
+    out = []
     for s in await db.users.find(_seat_query()).to_list(200):
         ls = s.get("support_last_seen")
         try:
             if ls and datetime.fromisoformat(ls) >= cutoff:
-                n += 1
+                out.append(s)
         except Exception:
             pass
-    return n
+    out.sort(key=lambda s: str(s["_id"]))
+    return out
+
+
+async def _online_count() -> int:
+    return len(await _online_seats())
+
+
+async def _auto_assign(order_no: str, order: dict):
+    """Round-robin assign an unassigned thread to the next online seat."""
+    th = await db.support_threads.find_one({"_id": order_no}) or {}
+    if th.get("assigned_id"):
+        return
+    seats = await _online_seats()
+    if not seats:
+        return
+    ids = [str(s["_id"]) for s in seats]
+    doc = await db.settings.find_one({"_id": "support"}) or {}
+    last = doc.get("rr_last")
+    idx = (ids.index(last) + 1) % len(ids) if last in ids else 0
+    seat = seats[idx]
+    sname = seat.get("name") or seat["email"]
+    await db.support_threads.update_one({"_id": order_no},
+        {"$set": {"assigned_id": ids[idx], "assigned_to": sname}})
+    await db.settings.update_one({"_id": "support"}, {"$set": {"rr_last": ids[idx]}}, upsert=True)
+    await db.support_messages.insert_one({"order_no": order_no, "merchant_id": order.get("merchant_id"),
+        "merchant_name": order["merchant_name"], "sender": "system", "sender_name": "系统",
+        "text": f"系统已自动分配给 {sname}", "image": None, "created_at": iso(now_utc()),
+        "read_agent": True, "read_customer": True})
 
 
 def _msg_view(m: dict) -> dict:
@@ -164,6 +192,7 @@ async def support_public_post(order_no: str, data: SupportMessageIn):
     r = await db.support_messages.insert_one(doc)
     doc["_id"] = r.inserted_id
     await _touch_thread(o, text, "customer", reopen=True)
+    await _auto_assign(order_no, o)
     if prior_unread == 0 and await _online_count() == 0:
         snippet = (text or "[图片]")[:80]
         asyncio.create_task(send_telegram(
@@ -209,6 +238,8 @@ async def support_stats(user: dict = Depends(require_roles("admin", "operator"))
     open_n = await db.support_threads.count_documents({"status": "open"})
     resolved_n = await db.support_threads.count_documents({"status": "resolved"})
     total = await db.support_threads.count_documents({})
+    mine_open = await db.support_threads.count_documents({"status": "open", "assigned_id": str(user["_id"])})
+    online_n = await _online_count()
     # avg response time per seat: delta between a customer msg and the next agent reply
     seats = {}
     order_nos = await db.support_messages.distinct("order_no")
@@ -235,7 +266,8 @@ async def support_stats(user: dict = Depends(require_roles("admin", "operator"))
     by_seat = [{"name": s["name"], "replies": s["replies"],
                 "avg_seconds": int(s["sum"] / s["cnt"]) if s["cnt"] else None}
                for s in sorted(seats.values(), key=lambda x: -x["replies"])]
-    return {"open": open_n, "resolved": resolved_n, "total": total, "by_seat": by_seat}
+    return {"open": open_n, "resolved": resolved_n, "total": total, "mine_open": mine_open,
+            "online": online_n, "by_seat": by_seat}
 
 
 @router.get("/support/seats")

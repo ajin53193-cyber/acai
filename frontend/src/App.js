@@ -21,6 +21,7 @@ import MerchantStatsPage from "@/pages/MerchantStatsPage";
 import ProfitSnapshotsPage from "@/pages/ProfitSnapshotsPage";
 import ExportJobsPage from "@/pages/ExportJobsPage";
 import SupportPage from "@/pages/SupportPage";
+import SupportHomePage from "@/pages/SupportHomePage";
 import { Loader2 } from "lucide-react";
 
 function Protected({ children, roles }) {
@@ -41,7 +42,7 @@ function IndexRoute() {
   if (user && user.role === "merchant") return <Navigate to="/ledger" replace />;
   if (user && user.role === "operator") {
     const perms = user.permissions || [];
-    if (perms.includes("support.manage") && !perms.includes("orders.view")) return <Navigate to="/support" replace />;
+    if (perms.includes("support.manage") && !perms.includes("orders.view")) return <Navigate to="/home" replace />;
   }
   return <DashboardPage />;
 }
@@ -133,6 +134,14 @@ function App() {
                 element={
                   <Protected roles={["admin", "operator"]}>
                     <ApiDocsPage />
+                  </Protected>
+                }
+              />
+              <Route
+                path="home"
+                element={
+                  <Protected roles={["admin", "operator"]}>
+                    <SupportHomePage />
                   </Protected>
                 }
               />
