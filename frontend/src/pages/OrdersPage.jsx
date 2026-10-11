@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/select";
 import { toast } from "sonner";
 import {
-  Plus, Search, Copy, ExternalLink, Zap, Loader2, CheckCircle2, Activity,
+  Plus, Search, Copy, ExternalLink, Zap, Loader2, CheckCircle2, Activity, Link2,
 } from "lucide-react";
 import { ChainTxDialog } from "@/components/ChainTxDialog";
 
@@ -176,6 +176,7 @@ export default function OrdersPage() {
                 <th className="py-3 px-3 font-medium">网络</th>
                 <th className="py-3 px-3 font-medium text-right">金额</th>
                 <th className="py-3 px-3 font-medium">TxID</th>
+                <th className="py-3 px-3 font-medium">收款地址</th>
                 <th className="py-3 px-3 font-medium">状态</th>
                 <th className="py-3 px-3 font-medium">创建时间</th>
                 <th className="py-3 px-3 font-medium text-right">操作</th>
@@ -183,9 +184,9 @@ export default function OrdersPage() {
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={8} className="py-10 text-center"><Loader2 className="w-5 h-5 animate-spin text-cyan-400 inline" /></td></tr>
+                <tr><td colSpan={9} className="py-10 text-center"><Loader2 className="w-5 h-5 animate-spin text-cyan-400 inline" /></td></tr>
               ) : orders.length === 0 ? (
-                <tr><td colSpan={8} className="py-10 text-center text-slate-500">暂无订单</td></tr>
+                <tr><td colSpan={9} className="py-10 text-center text-slate-500">暂无订单</td></tr>
               ) : orders.map((o) => {
                 const s = STATUS_MAP[o.status] || STATUS_MAP.pending;
                 return (
@@ -198,6 +199,15 @@ export default function OrdersPage() {
                       {o.live && <div className="text-[10px] text-slate-500 font-normal" title="链上精确匹配金额">到账 {o.pay_amount}</div>}
                     </td>
                     <td className="py-3 px-3 font-mono text-xs text-slate-400">{shortHash(o.tx_id)}</td>
+                    <td className="py-3 px-3 font-mono text-xs">
+                      {o.wallet_address ? (
+                        (user.role === "admin" || user.role === "operator") ? (
+                          <button onClick={() => setChainView({ address: o.wallet_address })} data-testid={`addr-chain-${o.order_no}`} title="查看该地址链上收款记录" className="inline-flex items-center gap-1 text-cyan-400 hover:text-cyan-300">
+                            {shortHash(o.wallet_address)}<Link2 className="w-3 h-3" />
+                          </button>
+                        ) : <span className="text-slate-400">{shortHash(o.wallet_address)}</span>
+                      ) : <span className="text-slate-600">—</span>}
+                    </td>
                     <td className="py-3 px-3">
                       <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] border ${s.bg} ${s.color}`}>
                         <span className={`w-1.5 h-1.5 rounded-full ${s.dot} ${o.status === "pending" ? "pulse-dot" : ""}`} />{s.label}
