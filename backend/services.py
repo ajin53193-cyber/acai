@@ -10,9 +10,10 @@ from typing import List, Optional
 
 from bson import ObjectId
 from fastapi import HTTPException
+from pymongo.errors import DuplicateKeyError
 
 from core import db
-from utils import iso, now_utc, gen_order_no, gen_wallet_address, gen_txid
+from utils import iso, now_utc, gen_order_no, gen_wallet_address, gen_txid, is_private_host
 from shared import record_ledger, enqueue_callback, send_telegram, alert_settings
 
 
@@ -79,60 +80,74 @@ async def build_order(merchant: dict, amount_usdt: float, network: Optional[str]
     network = "TRC20"
     if amount_usdt <= 0:
         raise HTTPException(status_code=400, detail="金额必须大于 0")
+    from urllib.parse import urlparse
+    if notify_url:
+        if not notify_url.startswith(("http://", "https://")) or is_private_host(urlparse(notify_url).hostname or ""):
+            raise HTTPException(status_code=422, detail="notify_url 必须为公网 http(s) 地址")
     channel = await pick_channel(network, amount_usdt)
     if not channel:
         raise HTTPException(status_code=400, detail="没有可用的收款通道")
     expires = now_utc() + timedelta(minutes=15)
     live = bool(channel_addresses(channel))
     amount = round(amount_usdt, 2)
-    if live:
-        address, pay_amount = None, None
-        for a in await ordered_addresses(channel):
-            cand = await free_pay_amount(amount, a)
-            if cand is not None:
-                address, pay_amount = a, cand
-                break
-        if address is None:
-            raise HTTPException(status_code=409, detail="当前收款地址繁忙，请稍后再试，或联系客服增配地址")
-    else:
-        address = gen_wallet_address(network)
-        pay_amount = amount
+    for _attempt in range(3):
+        if live:
+            address, pay_amount = None, None
+            for a in await ordered_addresses(channel):
+                cand = await free_pay_amount(amount, a)
+                if cand is not None:
+                    address, pay_amount = a, cand
+                    break
+            if address is None:
+                raise HTTPException(status_code=409, detail="当前收款地址繁忙，请稍后再试，或联系客服增配地址")
+        else:
+            address = gen_wallet_address(network)
+            pay_amount = amount
+        clean_return = _clean_return_url(return_url, await db.settings.find_one({"_id": "checkout"}) or {})
+        order = {
+            "order_no": gen_order_no(),
+            "out_trade_no": out_trade_no or None,
+            "merchant_id": str(merchant["_id"]),
+            "merchant_name": merchant["name"],
+            "amount_usdt": amount,
+            "pay_amount": pay_amount,
+            "live": live,
+            "network": network,
+            "wallet_address": address,
+            "tx_id": None,
+            "status": "pending",
+            "channel_id": str(channel["_id"]),
+            "channel_name": channel["name"],
+            "remark": remark or "",
+            "notify_url": notify_url or merchant.get("notify_url") or None,
+            "return_url": clean_return or None,
+            "callback_status": None,
+            "created_at": iso(now_utc()),
+            "paid_at": None,
+            "expires_at": iso(expires),
+        }
+        try:
+            res = await db.orders.insert_one(order)
+        except DuplicateKeyError:
+            continue  # another concurrent order grabbed this address+pay_amount; re-pick
+        order["_id"] = res.inserted_id
+        return order
+    raise HTTPException(status_code=409, detail="当前收款地址繁忙，请稍后再试")
+
+
+def _clean_return_url(return_url: Optional[str], cfg: dict) -> str:
     clean_return = return_url.strip() if return_url else ""
-    if clean_return:
-        if not clean_return.startswith(("http://", "https://")):
-            raise HTTPException(status_code=422, detail="return_url 必须以 http:// 或 https:// 开头")
-        cfg = await db.settings.find_one({"_id": "checkout"}) or {}
-        allow = [d.strip().lower() for d in (cfg.get("return_url_domains") or "").replace("\n", ",").split(",") if d.strip()]
-        if allow:
-            from urllib.parse import urlparse
-            host = (urlparse(clean_return).hostname or "").lower()
-            if not any(host == d or host.endswith("." + d) for d in allow):
-                raise HTTPException(status_code=422, detail="return_url 域名不在允许白名单内")
-    order = {
-        "order_no": gen_order_no(),
-        "out_trade_no": out_trade_no or None,
-        "merchant_id": str(merchant["_id"]),
-        "merchant_name": merchant["name"],
-        "amount_usdt": amount,
-        "pay_amount": pay_amount,
-        "live": live,
-        "network": network,
-        "wallet_address": address,
-        "tx_id": None,
-        "status": "pending",
-        "channel_id": str(channel["_id"]),
-        "channel_name": channel["name"],
-        "remark": remark or "",
-        "notify_url": notify_url or merchant.get("notify_url") or None,
-        "return_url": clean_return or None,
-        "callback_status": None,
-        "created_at": iso(now_utc()),
-        "paid_at": None,
-        "expires_at": iso(expires),
-    }
-    res = await db.orders.insert_one(order)
-    order["_id"] = res.inserted_id
-    return order
+    if not clean_return:
+        return ""
+    if not clean_return.startswith(("http://", "https://")):
+        raise HTTPException(status_code=422, detail="return_url 必须以 http:// 或 https:// 开头")
+    allow = [d.strip().lower() for d in (cfg.get("return_url_domains") or "").replace("\n", ",").split(",") if d.strip()]
+    if allow:
+        from urllib.parse import urlparse
+        host = (urlparse(clean_return).hostname or "").lower()
+        if not any(host == d or host.endswith("." + d) for d in allow):
+            raise HTTPException(status_code=422, detail="return_url 域名不在允许白名单内")
+    return clean_return
 
 
 async def settle_order(order: dict):

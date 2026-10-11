@@ -20,6 +20,7 @@ PERM_RULES = [
     ("/api/orders/", "verify", "orders.verify"),
     ("/api/orders/", "recent-arrivals", "support.manage"),
     ("/api/orders/", "manual-callback", "orders.manual_callback"),
+    ("/api/orders/", "manual-callback-batch", "orders.manual_callback"),
     ("/api/orders", None, "orders.view"),
     ("/api/settlements/payouts", None, "payouts.review"), ("/api/settlements", None, "orders.view"),
     ("/api/accounts/", "adjust", "balance.adjust"), ("/api/accounts", None, "accounts.view"),
@@ -40,7 +41,10 @@ def perm_for_path(path: str, method: str) -> Optional[str]:
             return None
     if path == "/api/accounts" and method == "POST":
         return None
-    if path.startswith("/api/accounts/") and (path.endswith("toggle-status") or path.endswith("reset-api-key") or path.endswith("require-2fa")):
+    if path.startswith("/api/accounts/") and (path.endswith("toggle-status") or path.endswith("reset-api-key") or path.endswith("require-2fa") or path.endswith("credentials")):
+        return None
+    if method in ("POST", "PUT", "PATCH", "DELETE") and path.startswith("/api/orders/") and \
+            not path.endswith(("resend-callback", "reject", "verify", "manual-callback", "manual-callback-batch")):
         return None
     for prefix, suffix, perm in PERM_RULES:
         if path.startswith(prefix) and (suffix is None or path.endswith(suffix)):

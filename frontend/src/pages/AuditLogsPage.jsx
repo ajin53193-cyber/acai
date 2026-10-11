@@ -14,7 +14,7 @@ const ACTION_GROUPS = [
 
 const ACTION_LABELS = {
   "balance.credit": "余额加款", "balance.debit": "余额扣款", "balance.freeze": "冻结余额", "balance.unfreeze": "解冻余额",
-  "account.create": "创建账户", "account.freeze": "冻结账号", "account.unfreeze": "解冻账号", "account.reset_api_key": "重置API密钥", "account.permissions": "修改操作员权限",
+  "account.create": "创建账户", "account.freeze": "冻结账号", "account.unfreeze": "解冻账号", "account.reset_api_key": "重置API密钥", "account.reveal_secret": "查看API密钥", "export.create": "创建导出", "account.permissions": "修改操作员权限",
   "settings.notify": "Telegram推送设置",
   "payout.approve": "提现通过", "payout.reject": "提现驳回", "channel.create": "新增通道", "channel.update": "修改通道",
   "order.manual_verify": "手动核账", "merchant.notify_url": "设置回调地址",

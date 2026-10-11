@@ -31,7 +31,7 @@ async def dev_list_merchants(user: dict = Depends(get_current_user)):
     ms = await db.users.find({"role": "merchant"}).sort("created_at", -1).to_list(500)
     return [{"id": str(m["_id"]), "name": m["name"], "email": m["email"],
              "status": m.get("status", "active"),
-             "api_key": m.get("api_key", ""), "api_secret": m.get("api_secret", ""),
+             "api_key": m.get("api_key", ""),
              "notify_url": m.get("notify_url") or "", "ip_whitelist": m.get("ip_whitelist") or []}
             for m in ms]
 

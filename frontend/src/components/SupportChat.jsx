@@ -18,7 +18,7 @@ const compress = (file) => new Promise((res, rej) => {
   r.onerror = rej; r.readAsDataURL(file);
 });
 
-export function SupportChat({ orderNo, t, open, setOpen }) {
+export function SupportChat({ orderNo, t, open, setOpen, chatToken }) {
   const [data, setData] = useState(null);
   const [fabUnread, setFabUnread] = useState(0);
   const [text, setText] = useState("");
@@ -28,41 +28,42 @@ export function SupportChat({ orderNo, t, open, setOpen }) {
   const endRef = useRef(null);
   const fileRef = useRef(null);
   const typingRef = useRef(0);
+  const hdr = { headers: { "X-Chat-Token": chatToken || "" } };
   const imgUrl = (p) => (p && !p.startsWith("http") && !p.startsWith("data:")) ? (process.env.REACT_APP_BACKEND_URL || "") + p : p;
   const onType = (e) => {
     setText(e.target.value);
     const n = Date.now();
-    if (n - typingRef.current > 2500) { typingRef.current = n; api.post(`/support/public/${orderNo}/typing`).catch(() => {}); }
+    if (n - typingRef.current > 2500) { typingRef.current = n; api.post(`/support/public/${orderNo}/typing`, null, hdr).catch(() => {}); }
   };
 
   const load = useCallback(async () => {
-    try { const r = await api.get(`/support/public/${orderNo}`); setData(r.data); } catch (e) { /* ignore */ }
-  }, [orderNo]);
+    try { const r = await api.get(`/support/public/${orderNo}`, { headers: { "X-Chat-Token": chatToken || "" } }); setData(r.data); } catch (e) { /* ignore */ }
+  }, [orderNo, chatToken]);
 
   const close = useCallback(() => {
     setOpen(false);
     if (data?.status === "resolved") {
-      api.post(`/support/public/${orderNo}/close`).catch(() => {});
+      api.post(`/support/public/${orderNo}/close`, null, { headers: { "X-Chat-Token": chatToken || "" } }).catch(() => {});
     }
-  }, [data, orderNo, setOpen]);
+  }, [data, orderNo, setOpen, chatToken]);
 
   useEffect(() => {
     const onUnload = () => {
       if (data?.status === "resolved" && navigator.sendBeacon) {
-        const url = `${process.env.REACT_APP_BACKEND_URL}/api/support/public/${orderNo}/close`;
+        const url = `${process.env.REACT_APP_BACKEND_URL}/api/support/public/${orderNo}/close?t=${chatToken || ""}`;
         navigator.sendBeacon(url, new Blob([], { type: "application/json" }));
       }
     };
     window.addEventListener("beforeunload", onUnload);
     return () => window.removeEventListener("beforeunload", onUnload);
-  }, [data, orderNo]);
+  }, [data, orderNo, chatToken]);
 
   useEffect(() => { if (!open) return; load(); const i = setInterval(load, 3000); return () => clearInterval(i); }, [open, load]);
   useEffect(() => {
     if (open) { setFabUnread(0); return; }
-    const f = () => api.get(`/support/public/${orderNo}/unread`).then((r) => setFabUnread(r.data.unread || 0)).catch(() => {});
+    const f = () => api.get(`/support/public/${orderNo}/unread`, { headers: { "X-Chat-Token": chatToken || "" } }).then((r) => setFabUnread(r.data.unread || 0)).catch(() => {});
     f(); const i = setInterval(f, 8000); return () => clearInterval(i);
-  }, [open, orderNo]);
+  }, [open, orderNo, chatToken]);
   useEffect(() => { if (open) endRef.current?.scrollIntoView({ behavior: "smooth" }); }, [data, open]);
 
   const onPick = async (e) => {
@@ -75,7 +76,7 @@ export function SupportChat({ orderNo, t, open, setOpen }) {
     const msg = text.trim();
     if ((!msg && !pendingImg) || sending) return;
     setSending(true);
-    try { await api.post(`/support/public/${orderNo}`, { text: msg, image: pendingImg }); setText(""); setPendingImg(null); await load(); }
+    try { await api.post(`/support/public/${orderNo}`, { text: msg, image: pendingImg }, hdr); setText(""); setPendingImg(null); await load(); }
     catch (e) { /* ignore */ }
     finally { setSending(false); }
   };

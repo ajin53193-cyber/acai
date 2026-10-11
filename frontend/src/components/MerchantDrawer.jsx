@@ -18,6 +18,12 @@ export function MerchantDrawer({ accountId, open, onClose, isAdmin, onReset }) {
   const [entries, setEntries] = useState([]);
   const [loading, setLoading] = useState(false);
   const [show, setShow] = useState(false);
+  const [secret, setSecret] = useState(null);
+  const reveal = async () => {
+    if (show) { setShow(false); return; }
+    try { const { data } = await api.get(`/accounts/${acc.id}/credentials`); setSecret(data.api_secret); setShow(true); }
+    catch (e) { toast.error(formatApiErrorDetail(e.response?.data?.detail)); }
+  };
   const [resetting, setResetting] = useState(false);
   const [sup, setSup] = useState({ support_enabled: true, support_welcome: "" });
   const [savingSup, setSavingSup] = useState(false);
@@ -102,9 +108,9 @@ export function MerchantDrawer({ accountId, open, onClose, isAdmin, onReset }) {
                 </div>
                 <div className="space-y-1">
                   <div className="text-[11px] text-slate-500">api_secret</div>
-                  <div className="flex items-center gap-2 p-2 rounded bg-slate-900/60 border border-slate-700 font-mono text-[11px]"><span className="flex-1 truncate" data-testid="drawer-api-secret">{show ? acc.api_secret : "•".repeat(32)}</span>
-                    <button onClick={() => setShow(!show)} data-testid="drawer-toggle-secret" className="text-slate-400">{show ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}</button>
-                    <button onClick={() => copy(acc.api_secret)} className="text-cyan-400"><Copy className="w-3 h-3" /></button></div>
+                  <div className="flex items-center gap-2 p-2 rounded bg-slate-900/60 border border-slate-700 font-mono text-[11px]"><span className="flex-1 truncate" data-testid="drawer-api-secret">{show && secret ? secret : "•".repeat(32)}</span>
+                    <button onClick={reveal} data-testid="drawer-toggle-secret" className="text-slate-400">{show ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}</button>
+                    {show && secret && <button onClick={() => copy(secret)} className="text-cyan-400"><Copy className="w-3 h-3" /></button>}</div>
                 </div>
                 <div className="grid grid-cols-1 gap-1 text-[11px] pt-1">
                   <div className="flex items-start gap-1.5"><Webhook className="w-3.5 h-3.5 text-slate-500 mt-0.5" /><span className="text-slate-400">回调地址：</span><span className="font-mono text-slate-200 break-all flex-1" data-testid="drawer-notify-url">{acc.notify_url || "未设置"}</span></div>

@@ -6,6 +6,7 @@ Open-API signing helpers stay in server.py and are imported late (this router is
 included at the bottom of server.py, after server is fully defined).
 """
 import re
+import os
 from datetime import datetime, timezone, timedelta
 from typing import List, Optional
 
@@ -14,7 +15,7 @@ from fastapi import APIRouter, Depends, Request, Query, HTTPException
 from pydantic import BaseModel
 
 from core import db
-from utils import iso, now_utc, serialize
+from utils import iso, now_utc, serialize, chat_token
 from deps import get_current_user, require_roles, merchant_ids_for_scope
 from models import OrderCreate, ApiOrderCreate, ApiOrderQuery
 from services import build_order, mark_paid
@@ -111,14 +112,15 @@ async def list_orders(user: dict = Depends(get_current_user),
     if network:
         q["network"] = network
     if keyword:
-        kw = keyword.strip()
+        raw = keyword.strip()[:64]
+        kw = re.escape(raw)
         q["$or"] = [{"order_no": {"$regex": kw, "$options": "i"}},
                     {"tx_id": {"$regex": kw, "$options": "i"}},
                     {"out_trade_no": {"$regex": kw, "$options": "i"}},
                     {"wallet_address": {"$regex": kw, "$options": "i"}},
                     {"merchant_name": {"$regex": kw, "$options": "i"}}]
-        if re.fullmatch(r"\d+(\.\d+)?", kw):
-            q["$or"] += [{"amount_usdt": float(kw)}, {"pay_amount": float(kw)}]
+        if re.fullmatch(r"\d+(\.\d+)?", raw):
+            q["$or"] += [{"amount_usdt": float(raw)}, {"pay_amount": float(raw)}]
     orders = await db.orders.find(q).sort("created_at", -1).to_list(limit)
     return [serialize(o) for o in orders]
 
@@ -153,6 +155,7 @@ async def get_order_public(order_no: str):
         "tx_url": tx_url,
         "paid_at": order.get("paid_at"),
         "return_url": order.get("return_url") or None,
+        "chat_token": chat_token(order["order_no"]),
     }
 
 
@@ -167,6 +170,8 @@ async def simulate_pay(order_no: str):
         raise HTTPException(status_code=400, detail="订单状态不可支付")
     if order.get("live"):
         raise HTTPException(status_code=400, detail="真实链上订单不支持模拟支付，请向收款地址转账")
+    if os.environ.get("ALLOW_SIMULATE_PAY", "false").lower() != "true":
+        raise HTTPException(status_code=403, detail="模拟支付已在当前环境禁用")
     await mark_paid(order)
     return {"ok": True, "status": "paid"}
 

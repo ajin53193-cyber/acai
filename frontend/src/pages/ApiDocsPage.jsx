@@ -21,14 +21,21 @@ function Code({ children, testid }) {
 
 function Credentials({ merchant, isAdmin, onReset }) {
   const [show, setShow] = useState(false);
+  const [secret, setSecret] = useState(null);
   const [resetting, setResetting] = useState(false);
   const copy = (t) => { navigator.clipboard.writeText(t); toast.success("已复制"); };
+  const reveal = async () => {
+    if (show) { setShow(false); return; }
+    try { const { data } = await api.get(`/accounts/${merchant.id}/credentials`); setSecret(data.api_secret); setShow(true); }
+    catch (err) { toast.error(formatApiErrorDetail(err.response?.data?.detail)); }
+  };
   const reset = async () => {
     if (!window.confirm(`确定重置「${merchant.name}」的 API 密钥？旧密钥将立即失效。`)) return;
     setResetting(true);
     try {
       const { data } = await api.post(`/accounts/${merchant.id}/reset-api-key`);
       onReset(merchant.id, data);
+      setSecret(data.api_secret);
       setShow(true);
       toast.success("已重置，新 api_secret 已显示，请妥善保管");
     } catch (err) { toast.error(formatApiErrorDetail(err.response?.data?.detail)); }
@@ -49,9 +56,9 @@ function Credentials({ merchant, isAdmin, onReset }) {
         <div className="space-y-1"><Label className="text-xs text-slate-400">api_key</Label>
           <div className="flex items-center gap-2 p-2.5 rounded-lg bg-slate-900/60 border border-slate-700 font-mono text-xs"><span className="flex-1 truncate" data-testid="api-key-value">{merchant.api_key}</span><button onClick={() => copy(merchant.api_key)} className="text-cyan-400"><Copy className="w-3.5 h-3.5" /></button></div></div>
         <div className="space-y-1"><Label className="text-xs text-slate-400">api_secret（请妥善保管）</Label>
-          <div className="flex items-center gap-2 p-2.5 rounded-lg bg-slate-900/60 border border-slate-700 font-mono text-xs"><span className="flex-1 truncate" data-testid="api-secret-value">{show ? merchant.api_secret : "•".repeat(40)}</span>
-            <button onClick={() => setShow(!show)} data-testid="toggle-secret-btn" className="text-slate-400">{show ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}</button>
-            <button onClick={() => copy(merchant.api_secret)} className="text-cyan-400"><Copy className="w-3.5 h-3.5" /></button></div></div>
+          <div className="flex items-center gap-2 p-2.5 rounded-lg bg-slate-900/60 border border-slate-700 font-mono text-xs"><span className="flex-1 truncate" data-testid="api-secret-value">{show && secret ? secret : "•".repeat(40)}</span>
+            <button onClick={reveal} data-testid="toggle-secret-btn" className="text-slate-400">{show ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}</button>
+            {show && secret && <button onClick={() => copy(secret)} className="text-cyan-400"><Copy className="w-3.5 h-3.5" /></button>}</div></div>
       </div>
       <div className="grid md:grid-cols-2 gap-3 text-xs">
         <div><span className="text-slate-400">默认回调地址 (notify_url)：</span><span className="font-mono text-slate-200 break-all" data-testid="merchant-notify-url">{merchant.notify_url || "未设置"}</span></div>

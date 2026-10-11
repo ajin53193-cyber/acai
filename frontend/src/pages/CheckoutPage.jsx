@@ -159,7 +159,7 @@ export default function CheckoutPage() {
         </div>
       </header>
       <main className="max-w-md mx-auto px-3 py-3 space-y-3 pb-10">{inner}</main>
-      <SupportChat orderNo={orderNo} t={t} open={supportOpen} setOpen={setSupportOpen} />
+      <SupportChat orderNo={orderNo} t={t} open={supportOpen} setOpen={setSupportOpen} chatToken={order?.chat_token} />
     </div>
   );
 

@@ -19,7 +19,7 @@ from fastapi import APIRouter, Depends, Request, HTTPException, Query, Response
 from pydantic import BaseModel
 
 from core import db
-from utils import iso, now_utc
+from utils import iso, now_utc, chat_token
 from deps import require_roles
 from shared import audit, send_telegram
 from storage import upload_data_url, get_object
@@ -246,10 +246,17 @@ async def _touch_thread(order: dict, text: str, sender: str, reopen: bool):
     await db.support_threads.update_one({"_id": order["order_no"]}, upd, upsert=True)
 
 
-# ---------------- Payer side (public, no auth) ----------------
+# ---------------- Payer side (public, bound to checkout chat_token) ----------------
+async def _public_order(order_no: str, request: Request) -> dict:
+    tok = request.headers.get("x-chat-token") or request.query_params.get("t") or ""
+    if not hmac.compare_digest(tok, chat_token(order_no)):
+        raise HTTPException(status_code=403, detail="会话凭证无效")
+    return await _get_order(order_no)
+
+
 @router.get("/support/public/{order_no}")
-async def support_public_get(order_no: str):
-    o = await _get_order(order_no)
+async def support_public_get(order_no: str, request: Request):
+    o = await _public_order(order_no, request)
     merchant = await _merchant_of(o)
     enabled = True if merchant is None else merchant.get("support_enabled", True)
     welcome = (merchant or {}).get("support_welcome") or ""
@@ -290,9 +297,10 @@ async def support_public_get(order_no: str):
 
 
 @router.post("/support/public/{order_no}/close")
-async def support_public_close(order_no: str):
+async def support_public_close(order_no: str, request: Request):
     """Payer closed the chat after the issue was resolved — purge the thread and
     its messages/images so no record is kept."""
+    await _public_order(order_no, request)
     th = await db.support_threads.find_one({"_id": order_no})
     if not th or th.get("status") != "resolved":
         return {"ok": True, "deleted": False}
@@ -307,8 +315,8 @@ async def support_public_close(order_no: str):
 
 
 @router.post("/support/public/{order_no}")
-async def support_public_post(order_no: str, data: SupportMessageIn):
-    o = await _get_order(order_no)
+async def support_public_post(order_no: str, data: SupportMessageIn, request: Request):
+    o = await _public_order(order_no, request)
     merchant = await _merchant_of(o)
     if merchant is not None and not merchant.get("support_enabled", True):
         raise HTTPException(status_code=403, detail="该商户未开启在线客服")
@@ -335,13 +343,15 @@ async def support_public_post(order_no: str, data: SupportMessageIn):
 
 
 @router.get("/support/public/{order_no}/unread")
-async def support_public_unread(order_no: str):
+async def support_public_unread(order_no: str, request: Request):
+    await _public_order(order_no, request)
     n = await db.support_messages.count_documents({"order_no": order_no, "sender": "agent", "read_customer": False})
     return {"unread": n}
 
 
 @router.post("/support/public/{order_no}/typing")
-async def support_typing(order_no: str):
+async def support_typing(order_no: str, request: Request):
+    await _public_order(order_no, request)
     await db.support_threads.update_one({"_id": order_no}, {"$set": {"customer_typing_at": iso(now_utc())}})
     return {"ok": True}
 

@@ -24,6 +24,7 @@ import hmac
 import hashlib
 import json
 import re
+from urllib.parse import urlparse
 import httpx
 import pyotp
 import qrcode
@@ -188,7 +189,7 @@ def chain_usage_snapshot() -> dict:
 # ---------------------------------------------------------------------------
 from utils import (
     now_utc, iso, hash_password, verify_password, get_jwt_secret, create_access_token,
-    gen_order_no, gen_wallet_address, gen_txid, gen_api_key, gen_api_secret,
+    gen_order_no, gen_wallet_address, gen_txid, gen_api_key, gen_api_secret, is_private_host,
     clean_user, serialize, canon, sign_payload, client_ip,
 )
 
@@ -1140,6 +1141,8 @@ async def update_my_notify(data: NotifySettings, request: Request, user: dict = 
     url = (data.notify_url or "").strip()
     if url and not url.startswith(("http://", "https://")):
         raise HTTPException(status_code=400, detail="回调地址必须以 http:// 或 https:// 开头")
+    if url and is_private_host(urlparse(url).hostname or ""):
+        raise HTTPException(status_code=400, detail="回调地址不能指向内网或本机地址")
     await db.users.update_one({"_id": user["_id"]}, {"$set": {"notify_url": url}})
     await audit(user, "merchant.notify_url", "user", user["_id"], {"notify_url": url}, request)
     return {"notify_url": url}
@@ -1277,6 +1280,18 @@ async def reset_api_key(account_id: str, request: Request, user: dict = Depends(
     await db.users.update_one({"_id": acc["_id"]}, {"$set": {"api_key": key, "api_secret": sec}})
     await audit(user, "account.reset_api_key", "user", account_id, {"target_email": acc["email"]}, request)
     return {"api_key": key, "api_secret": sec}
+
+
+@api_router.get("/accounts/{account_id}/credentials")
+async def reveal_credentials(account_id: str, request: Request, user: dict = Depends(require_roles("admin", "agent")),
+                             _su: dict = Depends(verify_step_up_dep)):
+    acc = await db.users.find_one({"_id": ObjectId(account_id), "role": "merchant"})
+    if not acc:
+        raise HTTPException(status_code=404, detail="商户不存在")
+    if user["role"] == "agent" and acc.get("parent_agent_id") != str(user["_id"]):
+        raise HTTPException(status_code=403, detail="无权限")
+    await audit(user, "account.reveal_secret", "user", account_id, {"target_email": acc["email"]}, request)
+    return {"api_key": acc.get("api_key", ""), "api_secret": acc.get("api_secret", "")}
 
 
 @api_router.post("/accounts/{account_id}/require-2fa")
@@ -1476,6 +1491,8 @@ async def seed():
     await db.api_nonces.create_index("created_at", expireAfterSeconds=600)
     await db.api_nonces.create_index([("api_key", 1), ("nonce", 1)])
     await db.orders.create_index([("status", 1), ("wallet_address", 1), ("pay_amount", 1)])
+    await db.orders.create_index([("wallet_address", 1), ("pay_amount", 1)], name="uniq_pending_pay_amount", unique=True,
+                                 partialFilterExpression={"status": "pending", "live": True})
     await db.orders.create_index([("merchant_id", 1), ("out_trade_no", 1)])
     await db.orders.create_index("order_no")
     await db.orders.create_index([("status", 1), ("expires_at", 1)])

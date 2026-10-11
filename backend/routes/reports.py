@@ -511,8 +511,16 @@ async def create_export(kind: str, request: Request, user: dict = Depends(get_cu
               "snapshots": ("start", "end"),
               "ledger": ("account_id", "month", "start", "end")}[kind]
     allowed = {k: params.get(k) for k in fields if params.get(k)}
-    if kind == "ledger" and not allowed.get("account_id"):
-        raise HTTPException(status_code=400, detail="导出资金流水需指定 account_id")
+    if kind == "snapshots" and user["role"] not in ("admin", "operator"):
+        raise HTTPException(status_code=403, detail="无权限导出分润快照")
+    if kind == "orders" and user["role"] in ("merchant", "agent"):
+        scope = await merchant_ids_for_scope(user)
+        if allowed.get("merchant_id") and (scope is None or ObjectId(allowed["merchant_id"]) not in scope):
+            raise HTTPException(status_code=403, detail="无权限导出该商户订单")
+    if kind == "ledger":
+        if not allowed.get("account_id"):
+            raise HTTPException(status_code=400, detail="导出资金流水需指定 account_id")
+        allowed["account_id"] = str(await resolve_ledger_account(user, allowed["account_id"]))
     jid = await start_export_job(str(user["_id"]), user["email"], kind, allowed, user)
     await audit(user, "export.create", "export", jid, {"kind": kind, "params": allowed}, request)
     return {"id": jid, "status": "pending"}

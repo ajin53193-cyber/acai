@@ -382,3 +382,12 @@
 - 审计日志新增 `step_up: {op_code, totp}` 字段（verify_step_up_dep 成功后写入 request.state，shared.audit 自动落库）；审计页/操作员留痕页显示紫色「安全码/谷歌验证」徽章，审计页支持「仅看已通过二次验证」筛选（`GET /api/audit-logs?step_up=true`）。
 - 安全策略新增 `enforce_operator_op_code`：开启后未设置操作安全码的操作员的 POST/PUT/PATCH/DELETE（/api/auth/*、/api/support/* 除外）返回 403 `{op_code_required:true}`；前端 api.js 拦截弹出 toast 并引导到 /security；安全页显示红色提示。
 - 登录地图提醒：`shared.ip_geo(ip)` 通过 ip-api.com（免费、无需 key，中文结果）解析 IP → 国家/省/市，缓存于 `db.ip_geo`；成功登录新增审计 `auth.login`（detail: location/new_location/new_device，字段 `geo`），登录失败/锁定日志也带 geo。用户记录 `login_cities`，与历史城市不同时标记 `new_location`。审计页/操作员留痕页 IP 下方显示城市标签，异常位置显示琥珀色「异常位置」。
+
+## 2026-06 安全审计修复（security_audit_agent：3 高危 / 2 中危 / 6 加固）
+- [高] 导出越权：/api/export/{kind} 现按角色校验（snapshots 仅 admin/operator；ledger 经 resolve_ledger_account；orders merchant_id 需在可见范围）。
+- [高] 操作员越权确认收款：PERM_RULES 补 manual-callback-batch；/api/orders/* 未知写操作默认拒绝。
+- [高] api_secret 泄露：clean_user 与 /dev/merchants 不再返回 api_secret；新增 GET /api/accounts/{id}/credentials（admin/agent + 二次验证 + 审计 account.reveal_secret）；前端 MerchantDrawer/ApiDocsPage 点击眼睛时按需拉取。
+- [中] X-Forwarded-For 伪造：client_ip 改为取右侧受信代理跳数（TRUSTED_PROXY_HOPS，默认 1）。
+- [中] 客服会话 IDOR：/orders/{no}/public 下发 chat_token=HMAC(jwt_secret,"chat:"+order_no)；所有 /support/public/* 需 X-Chat-Token 头或 ?t=。
+- 加固：order_no 随机段 5 位数字 → 8 位大写字母数字（secrets）；订单关键词 re.escape；notify_url（商户设置与下单参数）禁止内网/本机地址（SSRF）；pending+live 订单 (wallet_address,pay_amount) 唯一部分索引 + 下单 DuplicateKeyError 重试 3 次（TOCTOU）；simulate-pay 需 ALLOW_SIMULATE_PAY=true（已在 preview .env 开启，生产请勿设置）。
+- 未处理（低）：cookie SameSite=None 无 CSRF token（Bearer 为主）；JWT 7 天无服务端吊销。

@@ -45,7 +45,7 @@ def create_access_token(user_id: str, email: str, role: str) -> str:
 
 
 def gen_order_no() -> str:
-    return "SF" + now_utc().strftime("%Y%m%d%H%M%S") + "".join(random.choices(string.digits, k=5))
+    return "SF" + now_utc().strftime("%Y%m%d%H%M%S") + "".join(secrets.choice(string.ascii_uppercase + string.digits) for _ in range(8))
 
 
 def gen_wallet_address(network: str) -> str:
@@ -81,7 +81,21 @@ def clean_user(u: dict) -> dict:
     u.pop("totp_secret", None)
     u.pop("totp_pending_secret", None)
     u.pop("login_ips", None)
+    u.pop("login_cities", None)
+    u.pop("api_secret", None)
     return u
+
+
+def is_private_host(host: str) -> bool:
+    import ipaddress
+    h = (host or "").strip("[]").lower()
+    if h in ("localhost", "") or h.endswith((".local", ".internal")):
+        return True
+    try:
+        ip = ipaddress.ip_address(h)
+        return ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_reserved or ip.is_multicast
+    except ValueError:
+        return False
 
 
 def serialize(doc: dict) -> dict:
@@ -104,8 +118,19 @@ def sign_payload(payload: dict, secret: str) -> str:
     return hmac.new(secret.encode(), raw.encode(), hashlib.sha256).hexdigest()
 
 
+TRUSTED_PROXY_HOPS = int(os.environ.get("TRUSTED_PROXY_HOPS", "1"))
+
+
+def chat_token(order_no: str) -> str:
+    return hmac.new(get_jwt_secret().encode(), f"chat:{order_no}".encode(), hashlib.sha256).hexdigest()[:32]
+
+
 def client_ip(request: Request) -> Optional[str]:
+    """Take the address appended by the trusted edge proxy (right-most hops), so a
+    client-supplied X-Forwarded-For prefix cannot spoof the IP."""
     xff = request.headers.get("x-forwarded-for")
-    if xff:
-        return xff.split(",")[0].strip()
+    if xff and TRUSTED_PROXY_HOPS > 0:
+        parts = [p.strip() for p in xff.split(",") if p.strip()]
+        if parts:
+            return parts[-TRUSTED_PROXY_HOPS] if len(parts) >= TRUSTED_PROXY_HOPS else parts[0]
     return request.client.host if request.client else None
