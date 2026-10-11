@@ -406,3 +406,4 @@
 - `backend/reset_data.py --yes [--keep-operators]`；`POST /api/admin/reset-test-data`（admin + step-up，审计 admin.reset_test_data）；安全设置页「清空测试数据」卡片（需输入“清空”）。
 - 演示数据种子改为仅 `SEED_DEMO_DATA=true` 时生成（preview .env 已设 true，生产示例为 false）。
 - 预览库测试数据未实际清除（由用户自行触发）。
+- 数据库自动备份：deploy/{windows/backup_db.ps1,restore_db.ps1, linux/backup_db.sh,restore_db.sh}；部署脚本注册每日 02:30 mongodump（gzip archive，保留 14 天）到 <项目>/backups；已验证 dump→restore 完整。

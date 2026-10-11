@@ -26,6 +26,12 @@ sudo bash deploy/linux/deploy.sh --reset-data
 
 保留：管理员账号、系统设置、通道与收款地址。删除：订单、链上记录、流水、提现、回调、客服、审计、导出、商户/代理/操作员账号。
 
+## 数据库自动备份
+部署脚本会注册每日 **02:30** 的 `mongodump` 任务（Windows 计划任务 `SifangDbBackup` / Linux crontab），输出到 `<项目>/backups/<DB_NAME>_日期.archive.gz`，自动保留最近 14 天。需安装 [MongoDB Database Tools](https://www.mongodb.com/try/download/database-tools)（提供 `mongodump` / `mongorestore`）。
+- 手动备份：`deploy\windows\backup_db.ps1 -KeepDays 14` / `bash deploy/linux/backup_db.sh 14`
+- 恢复：`deploy\windows\restore_db.ps1 -File <文件>` / `bash deploy/linux/restore_db.sh <文件>`（会停后端 → `--drop` 覆盖 → 启动）
+- 建议把 `backups/` 目录同步到异地（宝塔「计划任务 → 备份目录」可直接推送到对象存储/FTP）。
+
 ## 注意
 - 生产 `.env` 请勿设置 `ALLOW_SIMULATE_PAY`；`SEED_DEMO_DATA=false` 禁止生成演示数据。
 - 邮件提醒与对象存储依赖 Emergent 平台密钥（`EMERGENT_EMAIL_KEY` / `EMERGENT_LLM_KEY`），自建服务器上不填写即自动跳过（客服图片已内联存储，不受影响）。

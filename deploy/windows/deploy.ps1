@@ -108,6 +108,12 @@ foreach ($j in $jobs) {
 }
 Write-Host "已创建 4 个 Windows 计划任务。"
 
+Step "注册每日数据库备份 (02:30, 保留 14 天)"
+$bk = "powershell.exe -NoProfile -ExecutionPolicy Bypass -File `"$SiteRoot\deploy\windows\backup_db.ps1`" -KeepDays 14"
+schtasks /Create /F /SC DAILY /ST 02:30 /TN SifangDbBackup /TR $bk /RU SYSTEM | Out-Null
+if (Get-Command mongodump -ErrorAction SilentlyContinue) { & "$SiteRoot\deploy\windows\backup_db.ps1" -KeepDays 14 }
+else { Write-Warning "未安装 mongodump（MongoDB Database Tools），计划任务已创建但首次备份跳过。" }
+
 Step "完成"
 Write-Host @"
 后续在宝塔面板中：
@@ -117,4 +123,5 @@ Write-Host @"
  3. 站点 -> SSL：为三个域名申请 Let's Encrypt 证书并开启强制 HTTPS
  4. 浏览器访问 https://$Domain 用 .env 中的 ADMIN_EMAIL / ADMIN_PASSWORD 登录
  服务管理：nssm start|stop|restart SifangPayBackend     日志：$backend\logs
+ 数据库备份：每日 02:30 自动 -> $SiteRoot\backups（保留 14 天）；手动 deploy\windows\backup_db.ps1；恢复 deploy\windows\restore_db.ps1 -File <文件>
 "@ -ForegroundColor Green

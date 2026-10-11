@@ -51,11 +51,15 @@ SECRET=$(grep ^WEBHOOK_CRON_SECRET= "$BACKEND/.env" | cut -d= -f2)
   echo "5 0 * * * curl -s -X POST http://127.0.0.1:8001/api/cron/daily-settle -H 'Authorization: Bearer $SECRET' # sifang-cron"
   echo "20 0 * * * curl -s -X POST http://127.0.0.1:8001/api/cron/run-exports -H 'Authorization: Bearer $SECRET' # sifang-cron"
   echo "30 0 * * * curl -s -X POST http://127.0.0.1:8001/api/cron/export-expiry-reminders -H 'Authorization: Bearer $SECRET' # sifang-cron"
-  echo "0 3 * * * curl -s -X POST http://127.0.0.1:8001/api/cron/support-cleanup -H 'Authorization: Bearer $SECRET' # sifang-cron" ) | crontab -
+  echo "0 3 * * * curl -s -X POST http://127.0.0.1:8001/api/cron/support-cleanup -H 'Authorization: Bearer $SECRET' # sifang-cron"
+  echo "30 2 * * * bash $ROOT/deploy/linux/backup_db.sh 14 >> $ROOT/backups/backup.log 2>&1 # sifang-cron" ) | crontab -
+mkdir -p "$ROOT/backups"; chmod +x "$ROOT/deploy/linux/backup_db.sh" "$ROOT/deploy/linux/restore_db.sh"
+command -v mongodump >/dev/null && bash "$ROOT/deploy/linux/backup_db.sh" 14 || echo "提示：安装 mongodb-database-tools 后备份任务才会生效"
 
 step "完成"
 cat <<EOF
 宝塔面板：网站 -> 添加站点（域名 print8.8bc8uyz.com print8.1bc8uyz.com print8.2bc8uyz.com，根目录 $FRONTEND/build）
 -> 配置文件粘贴 $ROOT/deploy/nginx.conf 的 server 块（root 改为 $FRONTEND/build）-> 申请 SSL 并强制 HTTPS
 服务：systemctl restart sifang-backend   日志：journalctl -u sifang-backend -f
+备份：每日 02:30 -> $ROOT/backups（保留 14 天）；手动 deploy/linux/backup_db.sh；恢复 deploy/linux/restore_db.sh <文件>
 EOF
