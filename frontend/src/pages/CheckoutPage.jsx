@@ -235,6 +235,7 @@ export default function CheckoutPage() {
             </div>
           </div>
           <p className="mt-1.5 text-orange-500 text-[12px] font-medium">{t.checkChain(order.network)}</p>
+          <p className="mt-1 text-[12px] text-slate-600 bg-amber-50 border border-amber-200 rounded-lg px-2.5 py-1.5" data-testid="checkout-keep-open">{t.keepOpen}</p>
           {!order.live && <p className="mt-1 text-[11px] text-slate-400">{t.demo}</p>}
 
           <div className="mt-3 flex flex-col items-center">

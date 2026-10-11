@@ -30,7 +30,7 @@ const zhCN = {
     ["区块链记录", "一切交易以官方区块链浏览器记录为准，以上地址的区块链记录链接是", exp],
   ],
   tutorials: "常见教程：", defaultTutorials: ["什么是USDT", "如何购买", "充币多久能到账/如何查询", "充/提币需要手续费吗", "充币没到账要怎么处理"],
-  listening: "正在监听链上到账…", simulate: "模拟支付（演示）", viewTx: "查看链上交易", copied: "已复制", contact: "联系客服",
+  listening: "正在监听链上到账…", keepOpen: "请勿关闭付款页面，付款完成后等待1～3分钟自动到账。", simulate: "模拟支付（演示）", viewTx: "查看链上交易", copied: "已复制", contact: "联系客服",
   demo: "演示订单：此地址为模拟地址，请勿真实转账",
   successSubtitle: "您的付款已确认，感谢您的支付", txHash: "交易哈希", paidTime: "支付时间", returnMerchant: "返回商户", viewOnChain: "查看链上记录", done: "完成", closeHint: "交易已完成，您可以安全关闭此页面", receipt: "下载收据", contactSupport: "联系在线客服", supportNotice: "转错金额或未自动到账？点此联系在线客服", supportTitle: "在线客服", supportInput: "输入消息…", supportSend: "发送", supportDisabled: "该商户暂未开通在线客服", supportEmpty: "有问题随时联系我们，我们会尽快回复",
 };
@@ -62,7 +62,7 @@ const zhTW = {
     ["區塊鏈記錄", "一切交易以官方區塊鏈瀏覽器記錄為準，以上地址的區塊鏈記錄鏈接是", exp],
   ],
   tutorials: "常見教程：", defaultTutorials: ["什麼是 USDT", "如何購買", "充幣多久能到賬 / 如何查詢", "充 / 提幣需要手續費嗎", "充幣沒到賬要怎麼處理"],
-  listening: "正在監聽鏈上到賬…", simulate: "模擬支付（演示）", viewTx: "查看鏈上交易", copied: "已複製", contact: "聯繫客服",
+  listening: "正在監聽鏈上到賬…", keepOpen: "請勿關閉付款頁面，付款完成後等待1～3分鐘自動到賬。", simulate: "模擬支付（演示）", viewTx: "查看鏈上交易", copied: "已複製", contact: "聯繫客服",
   demo: "演示訂單：此地址為模擬地址，請勿真實轉賬",
   successSubtitle: "您的付款已確認，感謝您的支付", txHash: "交易哈希", paidTime: "支付時間", returnMerchant: "返回商戶", viewOnChain: "查看鏈上記錄", done: "完成", closeHint: "交易已完成，您可以安全關閉此頁面", receipt: "下載收據", contactSupport: "聯繫線上客服", supportNotice: "轉錯金額或未自動到賬？點此聯繫線上客服", supportTitle: "線上客服", supportInput: "輸入訊息…", supportSend: "發送", supportDisabled: "該商戶暫未開通線上客服", supportEmpty: "有問題隨時聯繫我們，我們會盡快回覆",
 };
@@ -93,7 +93,7 @@ const en = {
     ["On-chain record", "All transactions are subject to the official block explorer. Address record:", exp],
   ],
   tutorials: "Guides:", defaultTutorials: ["What is USDT", "How to buy", "How long does a deposit take / how to check", "Are there fees", "Deposit not arrived?"],
-  listening: "Listening for on-chain payment…", simulate: "Simulate payment (demo)", viewTx: "View on-chain tx", copied: "Copied", contact: "Support",
+  listening: "Listening for on-chain payment…", keepOpen: "Please keep this page open. Funds arrive automatically within 1–3 minutes after payment.", simulate: "Simulate payment (demo)", viewTx: "View on-chain tx", copied: "Copied", contact: "Support",
   demo: "Demo order: this is a simulated address, do not send real funds",
   successSubtitle: "Your payment has been confirmed. Thank you!", txHash: "Tx Hash", paidTime: "Paid At", returnMerchant: "Return to Merchant", viewOnChain: "View on-chain record", done: "Done", closeHint: "Payment complete — you can safely close this page.", receipt: "Download receipt", contactSupport: "Contact support", supportNotice: "Wrong amount or payment not detected? Contact support here", supportTitle: "Live Support", supportInput: "Type a message…", supportSend: "Send", supportDisabled: "This merchant has not enabled live support", supportEmpty: "Message us anytime, we'll reply shortly",
 };
