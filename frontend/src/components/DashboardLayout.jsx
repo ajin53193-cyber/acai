@@ -19,6 +19,7 @@ const NAV = [
   { to: "/ledger", label: "资金流水", icon: ArrowLeftRight, roles: ["admin"] },
   { to: "/accounts", label: "账户权限", icon: Users, roles: ["admin", "operator"], perm: "accounts.view" },
   { to: "/merchant-stats", label: "商户统计", icon: BarChart3, roles: ["admin", "operator"], perm: "orders.view" },
+  { to: "/developer", label: "对接文档", icon: Code2, roles: ["admin", "operator"], perm: "orders.view" },
   { to: "/callbacks", label: "回调通知", icon: Webhook, roles: ["admin", "operator"], perm: "callbacks.retry" },
   { to: "/audit", label: "审计日志", icon: ScrollText, roles: ["admin", "operator"], perm: "audit.view" },
   { to: "/operators", label: "操作员留痕", icon: UserCog, roles: ["admin"] },

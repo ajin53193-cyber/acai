@@ -122,9 +122,9 @@ function App() {
                 }
               />
               <Route
-                path="api"
+                path="developer"
                 element={
-                  <Protected roles={["merchant"]}>
+                  <Protected roles={["admin", "operator"]}>
                     <ApiDocsPage />
                   </Protected>
                 }

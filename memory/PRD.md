@@ -134,6 +134,14 @@
 - [x] 登录页演示账号改为 管理员/操作员
 - [x] 商户/代理为纯数据实体，由管理员在总后台管理（商户经收银台与开放 API 对接）
 
+## Implemented (2026-06, iteration 15)
+- [x] 对接文档迁移到总后台（/developer 菜单「对接文档」，admin + 有 orders.view 的 operator）：顶部选择商户 → 展示该商户 api_key/api_secret（显隐/复制）、默认 notify_url、IP 白名单；admin 可一键「重置密钥」(POST /accounts/{id}/reset-api-key，operator 无权 403)
+- [x] 完整对接文档：创建订单 / 查询订单 / 签名算法 / 响应示例 / 回调通知验签示例（GET /api/dev/callback-sample?merchant_id= 用该商户密钥生成 payload+sign_string）
+- [x] 在线测试：POST /api/dev/test-order（admin/operator，服务端用所选商户密钥签名并真实下单，绕过 IP 白名单；返回 request 含 sign、sign_string、response、pay_url）；写审计 dev.test_order
+- [x] 路由避让：前端页面路径由 /api 改为 /developer（/api/* 被 ingress 路由到后端，会 404）
+- [x] 新增权限规则 ("/api/dev", None, "orders.view")，operator(orders.view) 可访问 dev 接口
+- [x] 测试：后端 curl（dev/merchants、dev/test-order、dev/callback-sample、operator 200、reset-key operator 403/admin 成功）+ 前端截图（菜单、凭证、在线下单成功 toast）全通过
+
 ## Backlog
 - P1: 获取 ETHERSCAN_API_KEY 后验证 ERC20/BEP20 真实到账
 - P2: 代理多级分润（当前单级）
