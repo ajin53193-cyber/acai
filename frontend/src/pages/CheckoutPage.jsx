@@ -215,7 +215,7 @@ export default function CheckoutPage() {
               <p className="mt-2 text-orange-500 font-semibold text-[14px]">{t.trxOnly}</p>
               <div className="mt-3 flex items-center gap-2 flex-wrap" data-testid="energy-buy-amounts">
                 <span className="text-[14px] font-semibold text-slate-800">{t.energyBuyAmount}</span>
-                {["2", "4"].map((a) => (
+                {String(settings?.energy_amounts || "2,4").split(",").map((x) => x.trim()).filter(Boolean).map((a) => (
                   <button key={a} onClick={() => copy(a)} data-testid={`energy-copy-${a}`} className="inline-flex items-center gap-1 rounded-full bg-emerald-500 hover:bg-emerald-600 text-white px-3 py-1 text-[13px] font-semibold"><Copy className="w-3.5 h-3.5" />{a} TRX</button>
                 ))}
               </div>

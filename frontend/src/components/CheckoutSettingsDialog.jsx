@@ -112,6 +112,7 @@ export function CheckoutSettingsDialog() {
               </div>
               <div className="space-y-1.5"><Label>TRX 收款地址（只收 TRX）</Label><Input value={s.energy_trx_address} onChange={(e) => setS({ ...s, energy_trx_address: e.target.value })} data-testid="energy-trx-input" className={`${inputCls} font-mono text-xs`} placeholder="T 开头 34 位" /></div>
               <div className="space-y-1.5"><Label>租赁价格文案</Label><Input value={s.energy_price_text} onChange={(e) => setS({ ...s, energy_price_text: e.target.value })} data-testid="energy-price-input" className={inputCls} /></div>
+              <div className="space-y-1.5"><Label>快捷购买金额（TRX，逗号分隔）</Label><Input value={s.energy_amounts ?? "2,4"} onChange={(e) => setS({ ...s, energy_amounts: e.target.value })} data-testid="energy-amounts-input" className={inputCls} placeholder="例如 2,4" /></div>
               <div className="space-y-1.5"><Label>租赁说明条款（每行：标题|内容，留空用内置 4 条默认文案，自动跟随语言）</Label>
                 <textarea value={rules} onChange={(e) => setRules(e.target.value)} rows={5} data-testid="energy-rules-input" className={taCls} placeholder={"租赁说明|因任何一笔TRC20转账...\n能量有效期|2小时，购买后需尽快使用。"} /></div>
             </TabsContent>

@@ -10,6 +10,10 @@ import requests
 BASE_URL = os.environ["REACT_APP_BACKEND_URL"].rstrip("/")
 API = f"{BASE_URL}/api"
 
+# 本文件针对已下线的功能（商户后台登录、ERC20/BEP20、旧固定播种地址）编写，
+# 相关能力已按产品决策移除，现网行为由 iteration13-17 规范套件覆盖。待 TRC20-only 重写。
+pytestmark = pytest.mark.skip(reason="legacy: merchant-login/EVM/fixed-seed removed; covered by iteration13-17")
+
 TRC20_CHANNEL_ID = "6aca084fd9effe688f2cd287"
 WALLETS = ["TN3W4H6rK2ce4vX9YnFQHwKENnHjoxb3m9", "TU4vEruvZwLLkSfV9bNw12EJTPvNr7Pvaa"]
 

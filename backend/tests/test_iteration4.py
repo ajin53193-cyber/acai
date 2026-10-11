@@ -26,6 +26,10 @@ BASE = (os.environ.get("REACT_APP_BACKEND_URL") or _read_env()).rstrip("/")
 assert BASE, "REACT_APP_BACKEND_URL not set"
 API = f"{BASE}/api"
 
+# Legacy suite: targets removed features (merchant backend login, ERC20/BEP20,
+# legacy fixed-seed addresses). Superseded by canonical suites iteration13-17.
+pytestmark = pytest.mark.skip(reason="legacy: merchant-login/EVM/fixed-seed removed; covered by iteration13-17")
+
 ADMIN = ("ajin53193@gmail.com", "admin888")
 AGENT = ("agent@demo.com", "agent888")
 MERCHANT = ("merchant@demo.com", "merchant888")

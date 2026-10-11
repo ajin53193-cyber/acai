@@ -17,6 +17,9 @@ if not os.environ.get("REACT_APP_BACKEND_URL"):
 BASE = os.environ["REACT_APP_BACKEND_URL"].rstrip("/")
 API = BASE + "/api"
 
+# Legacy suite: BEP20 RPC fallback + merchant login removed; covered by iteration13-17.
+pytestmark = pytest.mark.skip(reason="legacy: merchant-login/EVM/fixed-seed removed; covered by iteration13-17")
+
 ADMIN = {"email": "ajin53193@gmail.com", "password": "admin888"}
 MERCH = {"email": "merchant@demo.com", "password": "merchant888"}
 

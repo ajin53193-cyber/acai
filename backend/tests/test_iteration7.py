@@ -7,6 +7,10 @@ import time
 BASE = os.environ.get("REACT_APP_BACKEND_URL", "").rstrip("/") or "http://localhost:8001"
 API = f"{BASE}/api"
 
+# Legacy suite: merchant login + legacy fixed-seed (3 addresses, ERC20/BEP20 by_network)
+# removed. Superseded by canonical suites iteration13-17.
+pytestmark = pytest.mark.skip(reason="legacy: merchant-login/EVM/fixed-seed removed; covered by iteration13-17")
+
 ADMIN = {"email": "ajin53193@gmail.com", "password": "admin888"}
 MERCHANT = {"email": "merchant@demo.com", "password": "merchant888"}
 

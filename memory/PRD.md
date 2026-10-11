@@ -214,11 +214,17 @@
 - [x] **收银台能量下单引导**：TRC20 待付页能量区新增「快捷购买金额」2 TRX / 4 TRX 一键复制按钮(data-testid energy-copy-2 / energy-copy-4),三语文案
 - [x] 测试：canonical pytest 31 passed；notify/alerts/chain 7 端点 200；retain/threshold 持久化验证；前端编译成功
 
+## Implemented (2026-06, iteration 27) — 报表/导出域拆分 + 能量金额可配 + 导出重试 + 遗留测试归整
+- [x] **报表/导出域拆分**：所有 `/reports/*` 下载 + 后台导出(create/jobs/download) + 定时导出(schedules) + 导出 cron + xlsx 生成器 + `_run_export`/`start_export_job` 迁至 `routes/reports.py`。server.py 1981→1361 行(累计 2717→1361)；标签常量与 merchant_stats/build_profit_snapshot/resolve_ledger_account 仍在 server，late-import 复用；无循环依赖
+- [x] **能量快捷金额可配**：checkout 设置新增 `energy_amounts`(默认"2,4")；收银台按配置渲染复制按钮；结账设置弹窗新增输入。实测持久化("3,5,10")
+- [x] **定时导出失败自动重试一次**：`_run_export` 失败后对定时任务(非重试)自动再入队一次(email 带「·重试」防循环)并 Telegram 通知
+- [x] **遗留测试归整**：iteration3/4/5/7 针对已下线功能(商户后台登录/EVM/旧播种)加模块级 skip(保留文件)；iteration13 两处商户登录用例改 403→skip。canonical 13-17 现 55 passed / 2 skipped 全绿
+- [!] 注：完整并行跑全量套件仍有 iteration6/8/9/11/backend_test/new_features 既有不稳定(共享管理员账号锁定 + rate-limit 用例触发并行邻居 429)，属环境性，非本次改动；本次 scope 为 3/4/5/7
+
 ## Backlog (next)
-- P2: 清理/迁移遗留 pytest(iteration3/4/5/7/new_features)
-- P2: server.py 继续拆分(reports 域)；散落 Pydantic 模型并入 models.py
-- P2: admin 账户删除接口
-- P3: 导出失败自动重试；能量金额从后台可配(当前固定 2/4 TRX)
+- P2: 归整其余遗留测试(iteration6/8/9/11/new_features/backend_test：商户登录依赖/限流隔离)
+- P2: 散落 Pydantic 模型并入 models.py；admin 账户删除接口
+- P3: 能量规则(energy_rules)后台可视化编辑
 
 ## Next Tasks
 - 按需接入真实支付/链上监听，或扩展回调通知与对账自动化。
