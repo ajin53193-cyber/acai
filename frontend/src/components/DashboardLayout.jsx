@@ -116,7 +116,7 @@ export default function DashboardLayout() {
 
       {/* Main */}
       <div className="flex-1 flex flex-col min-w-0">
-        <header className="sticky top-0 z-20 h-16 flex items-center gap-4 px-4 md:px-6 border-b border-slate-800 glass">
+        <header className="sticky top-0 z-20 h-16 flex items-center gap-4 px-4 md:px-6 border-b border-slate-800 bg-[#0B1120] shadow-sm shadow-black/40">
           <button className="lg:hidden p-2 text-slate-400" onClick={() => setOpen(!open)} data-testid="menu-toggle">
             {open ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
           </button>
