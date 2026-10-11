@@ -43,7 +43,7 @@ RestartSec=3
 WantedBy=multi-user.target
 EOF
 systemctl daemon-reload; systemctl enable --now sifang-backend; sleep 3
-curl -fs http://127.0.0.1:8001/api/checkout/settings >/dev/null && echo "后端健康 OK" || echo "后端未响应: journalctl -u sifang-backend -n 50"
+curl -fs http://127.0.0.1:8001/api/health >/dev/null && echo "后端健康 OK" || echo "后端未响应: journalctl -u sifang-backend -n 50"
 
 step "定时任务 (crontab)"
 SECRET=$(grep ^WEBHOOK_CRON_SECRET= "$BACKEND/.env" | cut -d= -f2)

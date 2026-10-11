@@ -109,7 +109,7 @@ if (Get-Service $svc -ErrorAction SilentlyContinue) { & $nssmExe stop $svc | Out
 New-Item -ItemType Directory -Force "$backend\logs" | Out-Null
 & $nssmExe start $svc
 Start-Sleep 12
-try { $r = Invoke-WebRequest "http://127.0.0.1:8001/api/checkout/settings" -UseBasicParsing -TimeoutSec 10; Write-Host "后端健康: HTTP $($r.StatusCode)" -ForegroundColor Green }
+try { $r = Invoke-WebRequest "http://127.0.0.1:8001/api/health" -UseBasicParsing -TimeoutSec 10; Write-Host "后端健康: HTTP $($r.StatusCode)" -ForegroundColor Green }
 catch { Write-Warning "后端未响应，请查看 $backend\logs\backend.err.log" }
 
 Step "注册定时任务 (替代平台 cron)"

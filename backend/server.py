@@ -564,6 +564,15 @@ async def admin_reset_test_data(request: Request, user: dict = Depends(require_r
     return {"ok": True, "report": report}
 
 
+@api_router.get("/health")
+async def health():
+    try:
+        await db.command("ping")
+        return {"ok": True, "db": "up"}
+    except Exception:
+        raise HTTPException(status_code=503, detail="db down")
+
+
 @api_router.get("/security/policy")
 async def get_security_policy(user: dict = Depends(get_current_user)):
     pol = await security_policy()
