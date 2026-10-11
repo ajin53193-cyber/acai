@@ -5,6 +5,7 @@
 param(
   [string]$SiteRoot = (Resolve-Path "$PSScriptRoot\..\..").Path,
   [string]$Domain = "print8.8bc8uyz.com",
+  [string]$Python = "",
   [switch]$ResetData
 )
 $ErrorActionPreference = "Stop"
@@ -12,10 +13,24 @@ function Step($m) { Write-Host "`n==> $m" -ForegroundColor Cyan }
 function Need($cmd, $hint) { if (-not (Get-Command $cmd -ErrorAction SilentlyContinue)) { throw "未找到 $cmd。$hint" } }
 
 Step "环境检查"
-Need python "请在宝塔「软件商店」安装 Python 项目管理器（Python 3.11），或从 python.org 安装并勾选 Add to PATH"
 Need node   "请安装 Node.js 20 LTS（宝塔 Node 版本管理器或 nodejs.org）"
 Need npm    "Node.js 安装异常"
-$py = (python --version) ; $nv = (node --version); Write-Host "Python: $py  Node: $nv"
+# 寻找 Python >= 3.10：-Python 参数 > py 启动器 3.11/3.12/3.10 > PATH 中的 python
+$candidates = @()
+if ($Python) { $candidates += $Python }
+if (Get-Command py -ErrorAction SilentlyContinue) { foreach ($v in "3.11","3.12","3.10") { $candidates += "py -$v" } }
+$candidates += "python"
+$PyExe = $null
+foreach ($c in $candidates) {
+  try {
+    $ver = (& cmd /c "$c -c `"import sys;print(sys.version_info[0]*100+sys.version_info[1])`"" 2>$null)
+    if ($ver -and [int]$ver -ge 310) { $PyExe = (& cmd /c "$c -c `"import sys;print(sys.executable)`"").Trim(); break }
+  } catch {}
+}
+if (-not $PyExe) {
+  throw "需要 Python 3.10+（推荐 3.11）。当前 PATH 中的 python 版本过旧。请从 https://www.python.org/downloads/windows/ 安装 Python 3.11（勾选 Add to PATH 与 py launcher），或用 -Python 'C:\Python311\python.exe' 指定路径。"
+}
+$py = (& $PyExe --version); $nv = (node --version); Write-Host "Python: $py ($PyExe)  Node: $nv"
 if (-not (Get-Service -Name MongoDB -ErrorAction SilentlyContinue)) {
   Write-Warning "未检测到 MongoDB Windows 服务。请先安装 MongoDB Community Server 7.x（勾选 Install as Service），或在 .env 中填写远程 MONGO_URL。"
 }
@@ -37,7 +52,7 @@ if (-not (Test-Path $envFile)) {
 
 Step "后端依赖 (venv)"
 Push-Location $backend
-if (-not (Test-Path ".venv")) { python -m venv .venv }
+if (-not (Test-Path ".venv")) { & $PyExe -m venv .venv }
 & ".\.venv\Scripts\python.exe" -m pip install --upgrade pip -q
 & ".\.venv\Scripts\python.exe" -m pip install -r requirements.txt -q
 Pop-Location
