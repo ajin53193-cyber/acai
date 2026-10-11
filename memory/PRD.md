@@ -411,3 +411,9 @@
 - requirements-prod.txt（剔除 emergentintegrations/litellm 平台专用包）；deploy.ps1 用 corepack 启用 yarn
 - deploy.ps1: cron 任务改用 cron_call.bat（修复 schtasks 引号）、自动下载便携版 mongotools、服务健康等待 12s
 - deploy.ps1 新增 -Port 参数（用户服务器 8001 被其他项目占用，改用 8011）
+
+## 2026-06 生产部署记录（宝塔 Windows 10，137.220.157.109）
+- 代码目录 D:\wwwroot\sifang；Python 便携版 D:\python311\tools\python.exe（系统 Python 3.8 过旧、MSI 在 SYSTEM 会话安装失败）；Node 22；MongoDB 7 Windows 服务。
+- 后端 NSSM 服务 SifangPayBackend，端口 **8011**（8001 被同机另一项目 eztyv.com 占用）；Nginx 站点 print8.8bc8uyz.com(+1/+2 备用) → root D:/wwwroot/sifang/frontend/build，/api → 127.0.0.1:8011。
+- 踩坑：ps1 需 UTF-8 BOM；宝塔建站会用默认页覆盖 build/index.html（重新 yarn build）；Let's Encrypt 被宝塔反复申请触发注册限流，改用 win-acme (D:\wacs) 签发后粘到宝塔「其他证书」。
+- 管理员 ajin53193@gmail.com（生产密码由用户持有）。

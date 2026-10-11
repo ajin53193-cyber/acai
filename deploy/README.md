@@ -36,3 +36,9 @@ sudo bash deploy/linux/deploy.sh --reset-data
 - 生产 `.env` 请勿设置 `ALLOW_SIMULATE_PAY`；`SEED_DEMO_DATA=false` 禁止生成演示数据。
 - 邮件提醒与对象存储依赖 Emergent 平台密钥（`EMERGENT_EMAIL_KEY` / `EMERGENT_LLM_KEY`），自建服务器上不填写即自动跳过（客服图片已内联存储，不受影响）。
 - `TRUSTED_PROXY_HOPS=1` 对应单层 Nginx；若前置 Cloudflare 再加 Nginx，请设为 2。
+
+## Windows 实战备注
+- 若系统 Python 过旧且安装器失败，用便携版：解压 https://www.nuget.org/api/v2/package/python/3.11.9 到 `D:\python311`，部署时加 `-Python "D:\python311\tools\python.exe"`。
+- 端口冲突时加 `-Port 8011`，并同步修改 nginx.conf 的 `proxy_pass`。
+- 宝塔「添加站点」会往根目录写默认 index.html 覆盖构建产物，建站后请重新 `yarn build`。
+- 宝塔 SSL 申请失败/限流时，用 win-acme：`wacs.exe --source manual --host 域名1,域名2 --validation filesystem --webroot <build目录> --store pemfiles --pemfilespath D:\wacs\certs --emailaddress 邮箱 --accepttos`，再把 pem 粘到宝塔「其他证书」。
