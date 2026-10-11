@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/select";
 import { toast } from "sonner";
 import {
-  Plus, Search, Copy, ExternalLink, Zap, Loader2, CheckCircle2, Activity, Link2, RefreshCw, Ban,
+  Plus, Search, Copy, ExternalLink, Zap, Loader2, CheckCircle2, Activity, Link2, RefreshCw, Ban, FileSpreadsheet,
 } from "lucide-react";
 import { ChainTxDialog } from "@/components/ChainTxDialog";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -137,6 +137,33 @@ export default function OrdersPage() {
     finally { setBatchBusy(false); }
   };
 
+  const [exporting, setExporting] = useState(false);
+  const exportOrders = async () => {
+    setExporting(true);
+    try {
+      const params = {};
+      if (selected.size > 0) params.ids = [...selected].join(",");
+      else {
+        if (statusFilter !== "all") params.status = statusFilter;
+        if (networkFilter !== "all") params.network = networkFilter;
+        if (keyword) params.keyword = keyword;
+        const mId = searchParams.get("merchant_id"); const d = searchParams.get("date");
+        const s = searchParams.get("start"); const e = searchParams.get("end");
+        if (mId) params.merchant_id = mId;
+        if (d) params.date = d;
+        if (s && e) { params.start = s; params.end = e; }
+      }
+      const res = await api.get("/reports/orders", { params, responseType: "blob" });
+      const url = URL.createObjectURL(res.data);
+      const a = document.createElement("a"); a.href = url; a.download = `orders_${selected.size > 0 ? "selected" : "filtered"}.xlsx`; a.click(); URL.revokeObjectURL(url);
+      toast.success(selected.size > 0 ? `已导出所选 ${selected.size} 笔订单` : "已按当前筛选导出订单 Excel");
+    } catch (err) {
+      let msg = "导出失败";
+      try { msg = JSON.parse(await err.response.data.text()).detail; } catch { /* noop */ }
+      toast.error(formatApiErrorDetail(msg));
+    } finally { setExporting(false); }
+  };
+
   return (
     <div className="space-y-6" data-testid="orders-page">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -144,6 +171,10 @@ export default function OrdersPage() {
           <h1 className="text-2xl font-bold tracking-tight">订单与收款</h1>
           <p className="text-sm text-slate-400 mt-1">管理 USDT 收款订单，实时跟踪链上状态</p>
         </div>
+        <div className="flex items-center gap-2">
+          <Button onClick={exportOrders} disabled={exporting} variant="outline" data-testid="export-orders-btn" className="border-slate-700 hover:bg-slate-800">
+            {exporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <><FileSpreadsheet className="w-4 h-4 mr-1" /> 导出 Excel</>}
+          </Button>
         <Dialog open={createOpen} onOpenChange={setCreateOpen}>
           <DialogTrigger asChild>
             <Button data-testid="create-order-btn" className="bg-gradient-to-r from-cyan-500 to-emerald-500 text-slate-950 font-semibold hover:opacity-90">
@@ -191,6 +222,7 @@ export default function OrdersPage() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+        </div>
       </div>
 
       {/* filters */}

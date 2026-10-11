@@ -544,102 +544,12 @@ async def merchant_ids_for_scope(user: dict) -> Optional[List[ObjectId]]:
 
 
 # ---------------------------------------------------------------------------
-# Models
+# Models — request models extracted to models.py
 # ---------------------------------------------------------------------------
-class LoginInput(BaseModel):
-    email: EmailStr
-    password: str
-    code: Optional[str] = None
-
-
-class AccountCreate(BaseModel):
-    email: EmailStr
-    password: str
-    name: str
-    role: str  # agent | merchant | operator
-    rate: float = 0.03
-    parent_agent_id: Optional[str] = None
-    permissions: Optional[List[str]] = None
-
-
-class PermissionsUpdate(BaseModel):
-    permissions: List[str]
-
-
-class BalanceAdjust(BaseModel):
-    amount: float
-    action: str  # credit | debit | freeze | unfreeze
-    remark: Optional[str] = ""
-
-
-class ChannelCreate(BaseModel):
-    name: str
-    network: str
-    fee_rate: float = 0.02
-    weight: int = 10
-    min_amount: float = 10
-    max_amount: float = 50000
-    status: str = "active"
-    wallet_address: Optional[str] = ""
-    wallet_addresses: Optional[List[str]] = None
-
-
-class ChannelUpdate(BaseModel):
-    name: Optional[str] = None
-    fee_rate: Optional[float] = None
-    weight: Optional[int] = None
-    min_amount: Optional[float] = None
-    max_amount: Optional[float] = None
-    status: Optional[str] = None
-    wallet_address: Optional[str] = None
-    wallet_addresses: Optional[List[str]] = None
-
-
-class OrderCreate(BaseModel):
-    amount_usdt: float
-    network: Optional[str] = None
-    merchant_id: Optional[str] = None  # admin/agent may specify
-    remark: Optional[str] = ""
-    notify_url: Optional[str] = None
-    out_trade_no: Optional[str] = None
-
-
-class ApiOrderCreate(BaseModel):
-    api_key: str
-    timestamp: int
-    nonce: str
-    sign: str
-    amount_usdt: float
-    network: Optional[str] = "TRC20"
-    out_trade_no: str
-    notify_url: Optional[str] = None
-    remark: Optional[str] = ""
-
-
-class ApiOrderQuery(BaseModel):
-    api_key: str
-    timestamp: int
-    nonce: str
-    sign: str
-    order_no: Optional[str] = None
-    out_trade_no: Optional[str] = None
-
-
-class DevTestOrder(BaseModel):
-    merchant_id: str
-    amount_usdt: float
-    network: Optional[str] = "TRC20"
-    out_trade_no: Optional[str] = None
-    remark: Optional[str] = ""
-    notify_url: Optional[str] = None
-
-
-class NotifySettings(BaseModel):
-    notify_url: Optional[str] = ""
-
-
-class IpWhitelist(BaseModel):
-    ips: List[str]
+from models import (
+    LoginInput, AccountCreate, PermissionsUpdate, BalanceAdjust, ChannelCreate, ChannelUpdate,
+    OrderCreate, ApiOrderCreate, ApiOrderQuery, DevTestOrder, NotifySettings, IpWhitelist,
+)
 
 
 # ---------------------------------------------------------------------------
@@ -1517,6 +1427,15 @@ async def backfill_unsettled() -> int:
     return count
 
 
+def snapshot_report_text(snap: dict) -> str:
+    bf = snap.get("backfilled") or 0
+    return (f"📊 <b>日终分润对账</b> {snap.get('date')}\n"
+            f"订单数：{snap['order_count']}\n收款总额：{snap['total_amount']} USDT\n"
+            f"手续费：{snap['total_fee']} USDT\n商户实收：{snap['total_merchant_receive']} USDT\n"
+            f"代理分润：{snap['total_agent_commission']} USDT\n平台利润：{snap['total_platform_profit']} USDT"
+            + (f"\n⚠️ 补偿结算：{bf} 单" if bf else ""))
+
+
 async def run_daily_settlement(run_id: str, day: str) -> dict:
     if await db.cron_runs.find_one({"run_id": run_id}):
         return {"skipped": True}
@@ -1525,12 +1444,7 @@ async def run_daily_settlement(run_id: str, day: str) -> dict:
     snap = await build_profit_snapshot(day)
     snap["backfilled"] = backfilled
     await db.profit_snapshots.update_one({"date": day}, {"$set": snap}, upsert=True)
-    text = (f"📊 <b>日终分润对账</b> {day}\n"
-            f"订单数：{snap['order_count']}\n收款总额：{snap['total_amount']} USDT\n"
-            f"手续费：{snap['total_fee']} USDT\n商户实收：{snap['total_merchant_receive']} USDT\n"
-            f"代理分润：{snap['total_agent_commission']} USDT\n平台利润：{snap['total_platform_profit']} USDT"
-            + (f"\n⚠️ 补偿结算：{backfilled} 单" if backfilled else ""))
-    await send_telegram(text, "report")
+    await send_telegram(snapshot_report_text(snap), "report")
     await db.cron_runs.update_one({"run_id": run_id}, {"$set": {"finished_at": iso(now_utc())}})
     return snap
 
@@ -1796,6 +1710,19 @@ async def test_notify(user: dict = Depends(require_roles("admin"))):
     if not body.get("ok"):
         raise HTTPException(status_code=400, detail=f"Telegram 返回错误: {body.get('description', body)}")
     return {"ok": True}
+
+
+@api_router.post("/notify/daily-report")
+async def send_daily_report(date: Optional[str] = None, user: dict = Depends(require_roles("admin"))):
+    day = date or now_utc().strftime("%Y-%m-%d")
+    if day > now_utc().strftime("%Y-%m-%d"):
+        raise HTTPException(status_code=400, detail="不能预览未来日期")
+    snap = await db.profit_snapshots.find_one({"date": day}) or await build_profit_snapshot(day)
+    text = snapshot_report_text(snap)
+    cfg = await notify_settings()
+    configured = bool(cfg["telegram_bot_token"] and cfg["telegram_chat_id"])
+    sent = bool(await send_telegram(text, "report")) if configured else False
+    return {"text": text, "telegram_configured": configured, "sent": sent, "date": day}
 
 
 @api_router.get("/notify/log")
@@ -2586,6 +2513,110 @@ async def balance_ledger_report(account_id: Optional[str] = None, month: Optiona
     ws.freeze_panes = "A2"
     buf = io.BytesIO(); wb.save(buf); buf.seek(0)
     fname = f"ledger_{acc.get('name', '')}_{title_suffix}.xlsx"
+    return StreamingResponse(buf, media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                             headers={"Content-Disposition": f"attachment; filename*=UTF-8''{quote(fname)}"})
+
+
+@api_router.get("/reports/profit-snapshot")
+async def profit_snapshot_report(date: str, user: dict = Depends(require_roles("admin"))):
+    from openpyxl import Workbook
+    from openpyxl.styles import Font, PatternFill, Alignment
+    from openpyxl.utils import get_column_letter
+    from fastapi.responses import StreamingResponse
+    from urllib.parse import quote
+    import io
+    snap = await db.profit_snapshots.find_one({"date": date}) or await build_profit_snapshot(date)
+    wb = Workbook()
+    head_font = Font(bold=True, color="FFFFFF"); head_fill = PatternFill("solid", fgColor="0E7490")
+    ws = wb.active; ws.title = "日度汇总"
+    ws.append([f"分润对账日期：{date}"])
+    ws.append(["订单数", "收款总额", "手续费", "商户实收", "代理分润", "平台利润", "补偿结算"])
+    for c in ws[2]:
+        c.font, c.fill, c.alignment = head_font, head_fill, Alignment(horizontal="center")
+    ws.append([snap["order_count"], snap["total_amount"], snap["total_fee"], snap["total_merchant_receive"],
+               snap["total_agent_commission"], snap["total_platform_profit"], snap.get("backfilled", 0)])
+    for i, w in enumerate([12, 16, 14, 16, 14, 14, 12], 1):
+        ws.column_dimensions[get_column_letter(i)].width = w
+    ws2 = wb.create_sheet("按商户明细")
+    ws2.append(["商户", "订单数", "收款金额", "手续费", "商户实收", "代理分润", "平台利润"])
+    for c in ws2[1]:
+        c.font, c.fill, c.alignment = head_font, head_fill, Alignment(horizontal="center")
+    for m in snap.get("merchants", []):
+        ws2.append([m["merchant_name"], m["orders"], m["amount"], m["fee"], m["receive"], m["commission"], m["platform"]])
+    for i, w in enumerate([22, 10, 16, 14, 16, 14, 14], 1):
+        ws2.column_dimensions[get_column_letter(i)].width = w
+    ws.freeze_panes = "A3"; ws2.freeze_panes = "A2"
+    buf = io.BytesIO(); wb.save(buf); buf.seek(0)
+    fname = f"profit_snapshot_{date}.xlsx"
+    return StreamingResponse(buf, media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                             headers={"Content-Disposition": f"attachment; filename*=UTF-8''{quote(fname)}"})
+
+
+ORDER_STATUS_LABELS = {"pending": "待支付", "confirming": "确认中", "paid": "已支付", "expired": "超时未付", "rejected": "已驳回"}
+
+
+@api_router.get("/reports/orders")
+async def orders_report(user: dict = Depends(get_current_user),
+                        status: Optional[str] = None, network: Optional[str] = None,
+                        keyword: Optional[str] = None, merchant_id: Optional[str] = None,
+                        date: Optional[str] = None, start: Optional[str] = None, end: Optional[str] = None,
+                        ids: Optional[str] = None):
+    from openpyxl import Workbook
+    from openpyxl.styles import Font, PatternFill, Alignment
+    from openpyxl.utils import get_column_letter
+    from fastapi.responses import StreamingResponse
+    from urllib.parse import quote
+    import io
+    scope = await merchant_ids_for_scope(user)
+    q: dict = {}
+    if scope is not None:
+        q["merchant_id"] = {"$in": [str(i) for i in scope]}
+    id_list = [x for x in (ids.split(",") if ids else []) if x]
+    if id_list:
+        try:
+            q["_id"] = {"$in": [ObjectId(x) for x in id_list]}
+        except Exception:
+            raise HTTPException(status_code=400, detail="订单 ID 格式不正确")
+    else:
+        if merchant_id and (scope is None or ObjectId(merchant_id) in scope):
+            q["merchant_id"] = str(merchant_id)
+        if start and end:
+            ds = datetime.strptime(start, "%Y-%m-%d").replace(tzinfo=timezone.utc)
+            de = datetime.strptime(end, "%Y-%m-%d").replace(tzinfo=timezone.utc) + timedelta(days=1)
+            q["created_at"] = {"$gte": iso(ds), "$lt": iso(de)}
+        elif date:
+            ds = datetime.strptime(date, "%Y-%m-%d").replace(tzinfo=timezone.utc)
+            q["created_at"] = {"$gte": iso(ds), "$lt": iso(ds + timedelta(days=1))}
+        if status:
+            q["status"] = status
+        if network:
+            q["network"] = network
+        if keyword:
+            kw = keyword.strip()
+            q["$or"] = [{"order_no": {"$regex": kw, "$options": "i"}}, {"tx_id": {"$regex": kw, "$options": "i"}},
+                        {"out_trade_no": {"$regex": kw, "$options": "i"}}, {"wallet_address": {"$regex": kw, "$options": "i"}},
+                        {"merchant_name": {"$regex": kw, "$options": "i"}}]
+            if re.fullmatch(r"\d+(\.\d+)?", kw):
+                q["$or"] += [{"amount_usdt": float(kw)}, {"pay_amount": float(kw)}]
+    orders = await db.orders.find(q).sort("created_at", -1).to_list(100000)
+    wb = Workbook(); ws = wb.active; ws.title = "订单明细"
+    head_font = Font(bold=True, color="FFFFFF"); head_fill = PatternFill("solid", fgColor="0E7490")
+    ws.append(["订单号", "商户", "商户单号", "网络", "金额(USDT)", "到账金额", "状态", "收款地址", "TxID",
+               "手续费", "实收", "回调状态", "创建时间", "支付时间"])
+    for c in ws[1]:
+        c.font, c.fill, c.alignment = head_font, head_fill, Alignment(horizontal="center")
+    for o in orders:
+        ws.append([o.get("order_no"), o.get("merchant_name"), o.get("out_trade_no") or "", o.get("network"),
+                   o.get("amount_usdt"), o.get("pay_amount"), ORDER_STATUS_LABELS.get(o.get("status"), o.get("status")),
+                   o.get("wallet_address") or "", o.get("tx_id") or "", o.get("fee"), o.get("merchant_receive"),
+                   o.get("callback_status") or "", (o.get("created_at") or "")[:19].replace("T", " "),
+                   (o.get("paid_at") or "")[:19].replace("T", " ")])
+    for i, w in enumerate([22, 16, 18, 8, 12, 12, 10, 36, 40, 10, 12, 10, 20, 20], 1):
+        ws.column_dimensions[get_column_letter(i)].width = w
+    ws.freeze_panes = "A2"
+    buf = io.BytesIO(); wb.save(buf); buf.seek(0)
+    tag = "selected" if id_list else (date or (f"{start}_{end}" if start and end else "all"))
+    fname = f"orders_{tag}.xlsx"
     return StreamingResponse(buf, media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                              headers={"Content-Disposition": f"attachment; filename*=UTF-8''{quote(fname)}"})
 
