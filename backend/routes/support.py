@@ -578,6 +578,21 @@ async def support_thread_post(order_no: str, data: SupportMessageIn, request: Re
     return _msg_view(doc)
 
 
+@router.delete("/support/threads/{order_no}")
+async def delete_thread(order_no: str, request: Request,
+                        user: dict = Depends(require_roles("admin", "operator"))):
+    """Manually end a conversation: purge its messages/images/thread so it no
+    longer occupies a seat slot nor shows in the list."""
+    for m in await db.support_messages.find({"order_no": order_no, "image": {"$ne": None}}).to_list(1000):
+        p = (m.get("image") or "").replace("/api/support/file/", "")
+        if p:
+            await db.support_files.update_one({"path": p}, {"$set": {"is_deleted": True}})
+    await db.support_messages.delete_many({"order_no": order_no})
+    await db.support_threads.delete_one({"_id": order_no})
+    await audit(user, "support.end", "support_thread", order_no, {"manual": True}, request)
+    return {"ok": True, "deleted": True}
+
+
 @router.patch("/support/threads/{order_no}/status")
 async def set_thread_status(order_no: str, data: ThreadStatusIn, request: Request,
                             user: dict = Depends(require_roles("admin", "operator"))):

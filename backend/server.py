@@ -73,7 +73,10 @@ def _bump_usage(n: int = 1):
 def chain_usage_snapshot() -> dict:
     k = _usage_today_key()
     used = _chain_usage["count"] if _chain_usage["date"] == k else 0
-    return {"date": k, "used": used, "limit": TRONGRID_DAILY_LIMIT}
+    pct = (used / TRONGRID_DAILY_LIMIT * 100) if TRONGRID_DAILY_LIMIT else 0
+    mult = 8 if pct >= 95 else 4 if pct >= 85 else 2 if pct >= 70 else 1
+    return {"date": k, "used": used, "limit": TRONGRID_DAILY_LIMIT,
+            "throttle_x": mult, "poll_seconds": CHAIN_POLL_SECONDS * mult}
 
 
 # ---------------------------------------------------------------------------
@@ -288,7 +291,7 @@ async def chain_listener():
                 {"$set": {"count": _chain_usage["count"], "updated_at": iso(now_utc())}}, upsert=True)
         except Exception:
             pass
-        await asyncio.sleep(CHAIN_POLL_SECONDS)
+        await asyncio.sleep(chain_usage_snapshot()["poll_seconds"])
 
 
 async def balance_refresher():

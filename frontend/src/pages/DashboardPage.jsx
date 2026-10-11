@@ -94,6 +94,7 @@ export default function DashboardPage() {
               <Gauge className="w-4 h-4 text-cyan-400" />
               <h2 className="text-base font-semibold text-slate-200">TronGrid 轮询额度</h2>
               <span className="text-xs text-slate-500 font-mono">{usage.date} · UTC</span>
+              {usage.throttle_x > 1 && <span className="text-xs text-amber-400 font-mono" data-testid="chain-usage-throttle">· 已自动降速 {usage.throttle_x}×（轮询 {usage.poll_seconds}s）</span>}
             </div>
             <span className="text-sm font-mono text-slate-300" data-testid="chain-usage-count">
               {usage.used.toLocaleString()} <span className="text-slate-500">/ {usage.limit.toLocaleString()} 次</span>

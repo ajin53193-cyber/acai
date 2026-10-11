@@ -4,7 +4,7 @@ import { useAuth } from "@/context/AuthContext";
 import api, { formatApiErrorDetail } from "@/lib/api";
 import { fmtDate } from "@/lib/format";
 import { toast } from "sonner";
-import { MessageSquare, Send, Loader2, RefreshCw, CheckCircle2, RotateCcw, Copy, Volume2, VolumeX } from "lucide-react";
+import { MessageSquare, Send, Loader2, RefreshCw, CheckCircle2, RotateCcw, Copy, Volume2, VolumeX, Trash2 } from "lucide-react";
 
 const STATUS_LABEL = { pending: "待支付", paid: "已支付", expired: "已过期", confirming: "确认中", rejected: "已驳回" };
 const FILTERS = [["all", "全部"], ["open", "待处理"], ["resolved", "已解决"]];
@@ -176,6 +176,16 @@ export default function SupportPage() {
     } catch (err) { toast.error(formatApiErrorDetail(err.response?.data?.detail)); }
   };
 
+  const endThread = async () => {
+    if (!active) return;
+    if (!window.confirm("结束并删除该会话？记录将从列表移除且不可恢复，该坐席名额随即释放。")) return;
+    try {
+      await api.delete(`/support/threads/${active}`);
+      toast.success("会话已结束并删除");
+      setActive(null); setConvo(null); loadThreads();
+    } catch (err) { toast.error(formatApiErrorDetail(err.response?.data?.detail)); }
+  };
+
   return (
     <div className="space-y-6" data-testid="support-page">
       <div className="flex items-center justify-between flex-wrap gap-3">
@@ -225,7 +235,7 @@ export default function SupportPage() {
         </div>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4" style={{ height: "calc(100vh - 320px)" }}>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4" style={{ height: "calc(100vh - 210px)" }}>
         {/* Threads list */}
         <div className="glass rounded-xl overflow-y-auto" data-testid="support-threads">
           {loading ? (
@@ -270,6 +280,7 @@ export default function SupportPage() {
                     {convo.status === "resolved"
                       ? <button onClick={() => setStatus("open")} data-testid="support-reopen" className="flex items-center gap-1 text-xs px-2 py-1 rounded border border-slate-600 text-slate-300 hover:bg-slate-700"><RotateCcw className="w-3.5 h-3.5" /> 重新打开</button>
                       : <button onClick={() => setStatus("resolved")} data-testid="support-resolve" className="flex items-center gap-1 text-xs px-2 py-1 rounded border border-emerald-500/40 text-emerald-400 hover:bg-emerald-500/10"><CheckCircle2 className="w-3.5 h-3.5" /> 标记已解决</button>}
+                    <button onClick={endThread} data-testid="support-end" className="flex items-center gap-1 text-xs px-2 py-1 rounded border border-red-500/40 text-red-400 hover:bg-red-500/10"><Trash2 className="w-3.5 h-3.5" /> 结束会话</button>
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-[11px]">

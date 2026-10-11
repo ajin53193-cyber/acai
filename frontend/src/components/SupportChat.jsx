@@ -131,7 +131,7 @@ export function SupportChat({ orderNo, t, open, setOpen }) {
                   <button onClick={() => fileRef.current?.click()} data-testid="support-attach" className="h-11 w-11 rounded-xl bg-slate-100 text-slate-500 flex items-center justify-center shrink-0"><ImagePlus className="w-5 h-5" /></button>
                   <input value={text} onChange={onType} onKeyDown={(e) => e.key === "Enter" && send()}
                     placeholder={t.supportInput} data-testid="support-input"
-                    className="flex-1 h-11 px-3 rounded-xl bg-slate-100 text-[15px] outline-none text-slate-800" />
+                    className="flex-1 h-11 px-3 rounded-xl bg-slate-100 text-[16px] outline-none text-slate-800" />
                   <button onClick={send} disabled={sending || (!text.trim() && !pendingImg)} data-testid="support-send"
                     className="h-11 w-11 rounded-xl text-white flex items-center justify-center disabled:opacity-40 shrink-0" style={{ background: "var(--accent)" }}>
                     {sending ? <Loader2 className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5" />}
