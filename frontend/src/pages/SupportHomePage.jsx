@@ -8,11 +8,13 @@ export default function SupportHomePage() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [stats, setStats] = useState(null);
+  const [seats, setSeats] = useState([]);
   const [online, setOnline] = useState(false);
 
   const load = useCallback(() => {
     api.get("/support/stats").then((r) => setStats(r.data)).catch(() => {});
     api.get("/support/seats").then((r) => {
+      setSeats(r.data || []);
       const me = (r.data || []).find((s) => s.id === user.id);
       setOnline(me ? me.online : true);
     }).catch(() => {});
@@ -70,6 +72,35 @@ export default function SupportHomePage() {
           <div className="mt-3 font-semibold text-slate-100">我负责的会话</div>
           <div className="text-xs text-slate-400 mt-1">{stats?.mine_open ?? 0} 条待处理，优先跟进</div>
         </button>
+      </div>
+
+      <div className="glass rounded-2xl p-5" data-testid="home-load-board">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2 text-sm font-semibold text-slate-200"><Users className="w-4 h-4 text-indigo-400" /> 坐席负载看板</div>
+          <div className="text-xs text-slate-500">每坐席上限 {stats?.max_per_seat ?? "—"} 会话</div>
+        </div>
+        {seats.length === 0 ? (
+          <div className="text-sm text-slate-500 py-4 text-center">暂无坐席</div>
+        ) : (
+          <div className="space-y-3">
+            {seats.map((s) => {
+              const max = s.max || stats?.max_per_seat || 1;
+              const pct = Math.min(100, Math.round((s.open_count / max) * 100));
+              const barColor = s.full ? "bg-red-500" : pct >= 70 ? "bg-amber-400" : "bg-emerald-400";
+              return (
+                <div key={s.id} className="flex items-center gap-3" data-testid={`home-seat-${s.id}`}>
+                  <span className={`inline-block w-2 h-2 rounded-full shrink-0 ${s.online ? "bg-emerald-400" : "bg-slate-500"}`} />
+                  <span className={`w-28 shrink-0 text-sm truncate ${s.online ? "text-slate-200" : "text-slate-500"}`}>{s.name}{s.id === user.id ? " (我)" : ""}</span>
+                  <div className="flex-1 h-2 rounded-full bg-slate-800 overflow-hidden">
+                    <div className={`h-full ${barColor} transition-all`} style={{ width: `${pct}%` }} />
+                  </div>
+                  <span className="shrink-0 text-xs font-mono text-slate-400 w-16 text-right">{s.open_count}/{max}</span>
+                  {s.full && <span className="shrink-0 text-[10px] px-1.5 py-0.5 rounded bg-red-500/20 text-red-400" data-testid={`home-seat-full-${s.id}`}>已满</span>}
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
     </div>
   );

@@ -296,6 +296,12 @@
 - [x] **忙闲均衡分配**：`_auto_assign` 由纯 round-robin 改为「最少负载优先」——无人负责的新会话分配给**当前 open 会话数最少**的在线坐席；负载相同时用 `rr_last` 轮转打平，保证公平。避免忙的坐席更忙。
   - 验证：curl（两坐席均在线、初始负载 3/3，连发 4 个新会话 → 交替分配、结束 5/5 保持均衡）。
 
+## Implemented (2026-06, iteration 37) — 坐席上限保护 + 负载看板
+- [x] **坐席并发上限保护**：新增全局设置 `settings.support.max_per_seat`（默认 5，范围 1-100）。`_auto_assign` 仅在「open 会话数 < 上限」的在线坐席中选最少负载者；全部达上限则不分配，新会话保持待认领。`/support/settings` GET(admin/operator)、PUT(admin) 读写上限；后台控制台头部「每坐席上限」输入框（仅 admin 可改）。
+- [x] **坐席负载看板**：坐席工作台首页新增看板，列出各坐席在线状态圆点、当前 open 会话数/上限（x/N）、负载进度条（绿/黄/红）与「已满」标记；`/support/seats` 每项增加 `open_count/max/full`，`/support/stats` 增加 `max_per_seat`。
+- [x] **达上限 Telegram 兜底**：新会话未被分配（无人在线或全部已满）时发 Telegram，文案区分「无坐席在线」/「所有在线坐席已达会话上限」。
+  - 验证：curl（cap=1 两坐席已满 → 新会话 assigned=None；PUT 设置生效）+ 截图（首页负载看板 5/5 已满红条、admin 控制台上限输入框）。
+
 ## Backlog (next)
 - P2: 散落模型持续并入 models.py
 - P2: 清理测试残留的 TEST_M 商户账户（有余额，需先结清；现可用新删除接口手动清理）

@@ -23,6 +23,7 @@ export default function SupportPage() {
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState(null);
   const [seats, setSeats] = useState([]);
+  const [maxSeat, setMaxSeat] = useState(null);
   const endRef = useRef(null);
   const imgUrl = (p) => (p && !p.startsWith("http") && !p.startsWith("data:")) ? (process.env.REACT_APP_BACKEND_URL || "") + p : p;
   const fmtDur = (s) => s == null ? "—" : s < 60 ? `${s}秒` : s < 3600 ? `${Math.round(s / 60)}分` : `${(s / 3600).toFixed(1)}时`;
@@ -40,6 +41,7 @@ export default function SupportPage() {
   }, []);
 
   useEffect(() => { api.get("/support/templates").then((r) => setTemplates(r.data.templates || [])).catch(() => {}); }, []);
+  useEffect(() => { if (user.role === "admin") api.get("/support/settings").then((r) => setMaxSeat(r.data.max_per_seat)).catch(() => {}); }, [user.role]);
   useEffect(() => { const f = () => { api.get("/support/stats").then((r) => setStats(r.data)).catch(() => {}); api.get("/support/seats").then((r) => setSeats(r.data)).catch(() => {}); }; f(); const i = setInterval(f, 8000); return () => clearInterval(i); }, []);
   useEffect(() => { loadThreads(); const i = setInterval(loadThreads, 5000); return () => clearInterval(i); }, [loadThreads]);
   useEffect(() => {
@@ -52,6 +54,13 @@ export default function SupportPage() {
 
   const openThread = (orderNo) => { setActive(orderNo); setConvo(null); loadThreads(); };
   const copy = (v) => { navigator.clipboard.writeText(v); toast.success("已复制"); };
+
+  const saveMax = async () => {
+    const v = parseInt(maxSeat, 10);
+    if (!v || v < 1) return;
+    try { const { data } = await api.put("/support/settings", { max_per_seat: v }); setMaxSeat(data.max_per_seat); toast.success(`已设置每坐席上限为 ${data.max_per_seat}`); }
+    catch (err) { toast.error(formatApiErrorDetail(err.response?.data?.detail)); }
+  };
 
   const send = async () => {
     const msg = text.trim();
@@ -93,6 +102,15 @@ export default function SupportPage() {
           </div>
           <button onClick={() => setMineOnly((v) => !v)} data-testid="support-filter-mine"
             className={`px-3 py-1.5 text-xs rounded-lg border ${mineOnly ? "bg-cyan-500/20 text-cyan-300 border-cyan-500/50" : "text-slate-400 border-slate-700 hover:text-slate-200"}`}>仅我负责</button>
+          {user.role === "admin" && (
+            <div className="flex items-center gap-1.5 text-xs text-slate-400" data-testid="support-max-config">
+              每坐席上限
+              <input type="number" min="1" max="100" value={maxSeat ?? ""}
+                onChange={(e) => setMaxSeat(e.target.value)} onBlur={saveMax} onKeyDown={(e) => e.key === "Enter" && saveMax()}
+                data-testid="support-max-input"
+                className="w-14 h-7 px-2 rounded bg-slate-800 border border-slate-600 text-slate-200 outline-none focus:border-cyan-500" />
+            </div>
+          )}
           <button onClick={loadThreads} data-testid="support-refresh" className="flex items-center gap-1.5 text-sm text-slate-400 hover:text-cyan-400"><RefreshCw className="w-4 h-4" /> 刷新</button>
         </div>
       </div>

@@ -66,6 +66,10 @@ class AssignIn(BaseModel):
     assigned_id: str
 
 
+class SupportSettingsIn(BaseModel):
+    max_per_seat: int
+
+
 SEAT_ONLINE_SECS = 120
 
 
@@ -95,25 +99,42 @@ async def _online_count() -> int:
     return len(await _online_seats())
 
 
-async def _auto_assign(order_no: str, order: dict):
-    """Assign an unassigned thread to the least-busy online seat (fewest open threads)."""
-    th = await db.support_threads.find_one({"_id": order_no}) or {}
-    if th.get("assigned_id"):
-        return
-    seats = await _online_seats()
-    if not seats:
-        return
-    # current open workload per seat
+async def _open_load_map() -> dict:
     agg = await db.support_threads.aggregate([
         {"$match": {"status": "open", "assigned_id": {"$ne": None}}},
         {"$group": {"_id": "$assigned_id", "n": {"$sum": 1}}}]).to_list(1000)
-    load = {a["_id"]: a["n"] for a in agg}
-    # rotate seat order by last pick so equal-load seats are chosen fairly
+    return {a["_id"]: a["n"] for a in agg}
+
+
+async def _max_per_seat() -> int:
+    doc = await db.settings.find_one({"_id": "support"}) or {}
+    try:
+        return max(1, int(doc.get("max_per_seat", 5)))
+    except Exception:
+        return 5
+
+
+async def _auto_assign(order_no: str, order: dict) -> Optional[str]:
+    """Assign an unassigned thread to the least-busy online seat that is not at
+    its concurrent-conversation cap. Returns the seat name, or None if nobody
+    is available (nobody online, or every online seat is full)."""
+    th = await db.support_threads.find_one({"_id": order_no}) or {}
+    if th.get("assigned_id"):
+        return th.get("assigned_to")
+    seats = await _online_seats()
+    if not seats:
+        return None
+    load = await _open_load_map()
+    cap = await _max_per_seat()
+    avail = [s for s in seats if load.get(str(s["_id"]), 0) < cap]
+    if not avail:
+        return None
+    # rotate order by last pick so equal-load seats are chosen fairly
     doc = await db.settings.find_one({"_id": "support"}) or {}
     last = doc.get("rr_last")
-    ids = [str(s["_id"]) for s in seats]
+    ids = [str(s["_id"]) for s in avail]
     start = (ids.index(last) + 1) % len(ids) if last in ids else 0
-    ordered = seats[start:] + seats[:start]
+    ordered = avail[start:] + avail[:start]
     seat = min(ordered, key=lambda s: load.get(str(s["_id"]), 0))
     sid = str(seat["_id"])
     sname = seat.get("name") or seat["email"]
@@ -124,6 +145,7 @@ async def _auto_assign(order_no: str, order: dict):
         "merchant_name": order["merchant_name"], "sender": "system", "sender_name": "系统",
         "text": f"系统已自动分配给 {sname}", "image": None, "created_at": iso(now_utc()),
         "read_agent": True, "read_customer": True})
+    return sname
 
 
 def _msg_view(m: dict) -> dict:
@@ -218,11 +240,13 @@ async def support_public_post(order_no: str, data: SupportMessageIn):
     r = await db.support_messages.insert_one(doc)
     doc["_id"] = r.inserted_id
     await _touch_thread(o, text, "customer", reopen=True)
-    await _auto_assign(order_no, o)
-    if prior_unread == 0 and await _online_count() == 0:
+    assigned = await _auto_assign(order_no, o)
+    if prior_unread == 0 and assigned is None:
+        online = await _online_count()
+        reason = "（当前无坐席在线）" if online == 0 else "（所有在线坐席已达会话上限）"
         snippet = (text or "[图片]")[:80]
         asyncio.create_task(send_telegram(
-            f"💬 <b>新的客服咨询</b>\n商户：{o['merchant_name']}\n订单：{order_no}\n内容：{snippet}\n（当前无坐席在线）请尽快到后台「在线客服」回复", "support"))
+            f"💬 <b>新的客服咨询</b>\n商户：{o['merchant_name']}\n订单：{order_no}\n内容：{snippet}\n{reason}请尽快到后台「在线客服」回复", "support"))
     return _msg_view(doc)
 
 
@@ -293,12 +317,14 @@ async def support_stats(user: dict = Depends(require_roles("admin", "operator"))
                 "avg_seconds": int(s["sum"] / s["cnt"]) if s["cnt"] else None}
                for s in sorted(seats.values(), key=lambda x: -x["replies"])]
     return {"open": open_n, "resolved": resolved_n, "total": total, "mine_open": mine_open,
-            "online": online_n, "by_seat": by_seat}
+            "online": online_n, "max_per_seat": await _max_per_seat(), "by_seat": by_seat}
 
 
 @router.get("/support/seats")
 async def support_seats(user: dict = Depends(require_roles("admin", "operator"))):
     cutoff = now_utc() - timedelta(seconds=SEAT_ONLINE_SECS)
+    load = await _open_load_map()
+    cap = await _max_per_seat()
     out = []
     for s in await db.users.find(_seat_query()).to_list(200):
         ls = s.get("support_last_seen"); online = False
@@ -306,9 +332,26 @@ async def support_seats(user: dict = Depends(require_roles("admin", "operator"))
             online = bool(ls) and datetime.fromisoformat(ls) >= cutoff
         except Exception:
             online = False
-        out.append({"id": str(s["_id"]), "name": s.get("name") or s["email"], "role": s["role"], "online": online})
+        n = load.get(str(s["_id"]), 0)
+        out.append({"id": str(s["_id"]), "name": s.get("name") or s["email"], "role": s["role"],
+                    "online": online, "open_count": n, "max": cap, "full": n >= cap})
     out.sort(key=lambda x: (not x["online"], x["name"]))
     return out
+
+
+@router.get("/support/settings")
+async def get_support_settings(user: dict = Depends(require_roles("admin", "operator"))):
+    doc = await db.settings.find_one({"_id": "support"}) or {}
+    return {"max_per_seat": await _max_per_seat(), "retain_days": int(doc.get("retain_days", 7))}
+
+
+@router.put("/support/settings")
+async def put_support_settings(data: SupportSettingsIn, request: Request,
+                               user: dict = Depends(require_roles("admin"))):
+    v = max(1, min(100, int(data.max_per_seat)))
+    await db.settings.update_one({"_id": "support"}, {"$set": {"max_per_seat": v}}, upsert=True)
+    await audit(user, "support.settings", "settings", "support", {"max_per_seat": v}, request)
+    return {"max_per_seat": v}
 
 
 @router.patch("/support/threads/{order_no}/assign")
