@@ -334,6 +334,16 @@
   - 验证：curl（bogus→400、真实 tx 866.7→200 置 paid、重复→400 dedup）+ 截图（添加地址按钮可用、手动核对弹窗）。
 - [x] **繁体翻译确认**：付款人端 agent 消息 + 欢迎语已转繁体（curl 实测「訂單已成功到賬…網路與金額」）；坐席后台控制台按设计保留简体。
 
+## Implemented (2026-06, iteration 41) — 详情滚动修复 / 操作员留痕 / 到账下拉 / 批量补单
+- [x] **订单详情弹窗溢出修复**：`order-detail-dialog` 加 `max-h-[85vh] overflow-y-auto`，内容超高可滚动，不再被截断。
+- [x] **手动核对留痕**：`manual_callback` 写入 `manual_confirmed / manual_confirmed_by / manual_confirmed_at`；订单详情新增「手动核对确认：操作员 · 时间」行，便于审计。
+- [x] **最近到账下拉**：新增 `GET /orders/{id}/recent-arrivals`（实时拉该收款地址链上到账，标记已占用）；手动核对弹窗列出最近到账，点击自动带入哈希与金额，减少手输错误。
+- [x] **批量补单**：新增 `POST /orders/manual-callback-batch`（粘贴多条 TxID→解析各活跃收款地址链上记录→按「地址+金额」匹配待处理订单→确认并回调）。订单页「批量补单」按钮 + 弹窗，返回逐条结果（成功/已占用/无匹配/链上未找到）。
+  - 验证：curl（批量：真实 tx→paid 867.4，bogus→not_found；单笔 recent-arrivals 正确标记 used）+ 截图（详情可滚动、到账下拉、批量补单弹窗）。
+
+## 待办（item 4）
+- [ ] **TronHook Webhook 秒级到账**：需用户提供 TronHook API Key + 回调注册。按集成规范接入：注册收款地址→到账回调→验签→匹配订单→确认（与轮询互为兜底）。
+
 ## Backlog (next)
 - P2: 散落模型持续并入 models.py
 - P2: 清理测试残留的 TEST_M 商户账户（有余额，需先结清；现可用新删除接口手动清理）

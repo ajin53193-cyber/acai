@@ -53,7 +53,28 @@ export default function OrdersPage() {
   const [mcTx, setMcTx] = useState("");
   const [mcAmt, setMcAmt] = useState("");
   const [mcBusy, setMcBusy] = useState(false);
-  const openManualCallback = (o) => { setMc(o); setMcTx(""); setMcAmt(String(o.pay_amount ?? o.amount_usdt ?? "")); };
+  const [mcArrivals, setMcArrivals] = useState(null);
+  const openManualCallback = (o) => {
+    setMc(o); setMcTx(""); setMcAmt(String(o.pay_amount ?? o.amount_usdt ?? "")); setMcArrivals(null);
+    api.get(`/orders/${o.id}/recent-arrivals`).then((r) => setMcArrivals(r.data)).catch(() => setMcArrivals([]));
+  };
+
+  const [bmcOpen, setBmcOpen] = useState(false);
+  const [bmcText, setBmcText] = useState("");
+  const [bmcBusy, setBmcBusy] = useState(false);
+  const [bmcResults, setBmcResults] = useState(null);
+  const submitBatchCallback = async () => {
+    const ids = bmcText.split(/[\s,]+/).map((s) => s.trim()).filter(Boolean);
+    if (!ids.length) { toast.error("请粘贴至少一个 TxID"); return; }
+    setBmcBusy(true); setBmcResults(null);
+    try {
+      const { data } = await api.post("/orders/manual-callback-batch", { tx_ids: ids });
+      setBmcResults(data);
+      toast.success(`批量补单完成：成功 ${data.ok_count}，未处理 ${data.fail_count}`);
+      load();
+    } catch (e) { toast.error(formatApiErrorDetail(e.response?.data?.detail)); }
+    finally { setBmcBusy(false); }
+  };
   const submitManualCallback = async () => {
     if (!mcTx.trim() || !mcAmt) { toast.error("请填写交易哈希和金额"); return; }
     setMcBusy(true);
@@ -274,6 +295,11 @@ export default function OrdersPage() {
             <SelectItem value="rejected">已驳回</SelectItem>
           </SelectContent>
         </Select>
+        {user.role === "admin" && (
+          <Button onClick={() => { setBmcText(""); setBmcResults(null); setBmcOpen(true); }} size="sm" variant="outline" data-testid="open-batch-mc-btn" className="border-emerald-500/40 text-emerald-400 hover:bg-emerald-500/10">
+            <CheckCircle2 className="w-4 h-4 mr-1" />批量补单
+          </Button>
+        )}
       </div>
 
       {selected.size > 0 && (
@@ -380,7 +406,7 @@ export default function OrdersPage() {
 
       {/* detail dialog */}
       <Dialog open={!!detail} onOpenChange={(v) => !v && setDetail(null)}>
-        <DialogContent className="glass border-slate-700" data-testid="order-detail-dialog">
+        <DialogContent className="glass border-slate-700 max-h-[85vh] overflow-y-auto" data-testid="order-detail-dialog">
           <DialogHeader><DialogTitle>订单详情</DialogTitle></DialogHeader>
           {detail && (
             <div className="space-y-3 text-sm">
@@ -400,6 +426,7 @@ export default function OrdersPage() {
                 ["支付时间", detail.paid_at ? fmtDate(detail.paid_at) : "—"],
                 ["过期时间", detail.expires_at ? fmtDate(detail.expires_at) : "—"],
                 ["收款模式", detail.live ? "真实链上监听 (TronGrid)" : "模拟到账"],
+                ...(detail.manual_confirmed ? [["手动核对确认", `${detail.manual_confirmed_by || "—"} · ${detail.manual_confirmed_at ? fmtDate(detail.manual_confirmed_at) : ""}`]] : []),
               ].map(([k, v]) => (
                 <div key={k} className="flex items-center justify-between gap-4 py-1.5 border-b border-slate-800/50">
                   <span className="text-slate-400">{k}</span>
@@ -474,10 +501,53 @@ export default function OrdersPage() {
               <div className="text-xs text-slate-400 break-all">收款地址 <span className="font-mono text-slate-300">{mc.wallet_address}</span></div>
               <div className="space-y-1.5"><Label>交易哈希 TxID</Label><Input value={mcTx} onChange={(e) => setMcTx(e.target.value)} data-testid="mc-tx-input" className="bg-slate-900/60 border-slate-700 font-mono text-xs" placeholder="链上转账哈希" /></div>
               <div className="space-y-1.5"><Label>到账金额 USDT</Label><Input type="number" value={mcAmt} onChange={(e) => setMcAmt(e.target.value)} data-testid="mc-amount-input" className="bg-slate-900/60 border-slate-700 font-mono" /></div>
+              {mcArrivals === null ? (
+                <div className="text-xs text-slate-500 flex items-center gap-1.5"><Loader2 className="w-3 h-3 animate-spin" />加载该地址最近到账…</div>
+              ) : mcArrivals.length === 0 ? (
+                <div className="text-xs text-slate-500">该地址暂无最近链上到账</div>
+              ) : (
+                <div className="space-y-1">
+                  <div className="text-xs text-slate-400">最近到账（点击自动带入哈希与金额）</div>
+                  <div className="space-y-1 max-h-40 overflow-y-auto pr-1">
+                    {mcArrivals.map((a) => (
+                      <button key={a.tx_id} disabled={a.used} onClick={() => { setMcTx(a.tx_id); setMcAmt(String(a.amount)); }} data-testid={`mc-arrival-${a.tx_id}`}
+                        className={`w-full text-left text-xs rounded border px-2 py-1.5 flex items-center justify-between gap-2 transition-colors ${a.used ? "border-slate-800 text-slate-600 cursor-not-allowed" : "border-slate-700 hover:border-cyan-500/50 text-slate-300"}`}>
+                        <span className="font-mono truncate">{a.tx_id.slice(0, 10)}…{a.tx_id.slice(-6)}</span>
+                        <span className="flex items-center gap-2 shrink-0"><span className="font-mono text-emerald-400">{a.amount}</span>{a.used && <span className="text-[10px] text-slate-500">已占用</span>}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
               <p className="text-[11px] text-slate-500">系统将在该收款地址的链上记录中核对此哈希与金额，匹配后按实际到账金额确认订单并触发回调。</p>
             </div>
           )}
           <DialogFooter><Button onClick={submitManualCallback} disabled={mcBusy || !mcTx.trim() || !mcAmt} data-testid="mc-submit-btn" className="bg-emerald-500 text-slate-950 hover:bg-emerald-400">{mcBusy ? <Loader2 className="w-4 h-4 animate-spin" /> : "核对并确认"}</Button></DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={bmcOpen} onOpenChange={(v) => !v && setBmcOpen(false)}>
+        <DialogContent className="glass border-slate-700 max-h-[85vh] overflow-y-auto" data-testid="batch-mc-dialog">
+          <DialogHeader><DialogTitle>批量补单（粘贴 TxID）</DialogTitle></DialogHeader>
+          <div className="space-y-3 py-1 text-sm">
+            <p className="text-[11px] text-slate-500">每行一个交易哈希。系统在收款地址的链上记录中逐条核对，并按「地址 + 金额」自动匹配待处理订单，确认并触发回调。</p>
+            <textarea value={bmcText} onChange={(e) => setBmcText(e.target.value)} data-testid="batch-mc-input" rows={6}
+              className="w-full rounded-lg bg-slate-900/60 border border-slate-700 p-2 font-mono text-xs text-slate-200 outline-none focus:border-cyan-500" placeholder="每行粘贴一个交易哈希 TxID" />
+            {bmcResults && (
+              <div className="space-y-1 max-h-48 overflow-y-auto" data-testid="batch-mc-results">
+                <div className="text-xs text-slate-400">结果：成功 <span className="text-emerald-400 font-bold">{bmcResults.ok_count}</span> · 未处理 <span className="text-amber-400 font-bold">{bmcResults.fail_count}</span></div>
+                {bmcResults.results.map((r) => (
+                  <div key={r.tx_id} className="flex items-center justify-between gap-2 text-xs border-b border-slate-800/50 py-1">
+                    <span className="font-mono text-slate-400 truncate">{r.tx_id.slice(0, 10)}…{r.tx_id.slice(-6)}</span>
+                    <span className={r.status === "ok" ? "text-emerald-400 shrink-0" : "text-amber-400 shrink-0"}>
+                      {r.status === "ok" ? `✓ ${r.order_no} (${r.amount})` : r.status === "used" ? `已占用 ${r.order_no}` : r.status === "no_order" ? `无匹配订单 (${r.amount})` : "链上未找到"}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+          <DialogFooter><Button onClick={submitBatchCallback} disabled={bmcBusy || !bmcText.trim()} data-testid="batch-mc-submit" className="bg-emerald-500 text-slate-950 hover:bg-emerald-400">{bmcBusy ? <Loader2 className="w-4 h-4 animate-spin" /> : "开始核对"}</Button></DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

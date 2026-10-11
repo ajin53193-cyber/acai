@@ -215,6 +215,20 @@ async def resend_callback(order_id: str, request: Request, user: dict = Depends(
     return {"ok": True, "callback": serialize(cb) if cb else None}
 
 
+async def _confirm_with_tx(order: dict, txid: str, addr: str, actual: float,
+                           from_addr, block_ts: int, who: str) -> None:
+    ts = datetime.fromtimestamp(block_ts / 1000, tz=timezone.utc)
+    await db.chain_txs.update_one({"tx_id": txid}, {"$set": {
+        "tx_id": txid, "network": order["network"], "to": addr, "from": from_addr,
+        "amount": actual, "block_time": iso(ts), "order_no": order["order_no"], "matched": True,
+        "manual": True, "created_at": iso(now_utc())}}, upsert=True)
+    await db.orders.update_one({"_id": order["_id"]}, {"$set": {"amount_usdt": actual, "status": "pending",
+        "manual_confirmed": True, "manual_confirmed_by": who, "manual_confirmed_at": iso(now_utc())}})
+    order["amount_usdt"] = actual
+    order["status"] = "pending"
+    await mark_paid(order, tx_id=txid, paid_at=ts)
+
+
 class ManualCallbackIn(BaseModel):
     tx_id: str
     amount: float
@@ -255,13 +269,90 @@ async def manual_callback(order_id: str, data: ManualCallbackIn, request: Reques
         "tx_id": txid, "network": order["network"], "to": addr, "from": match.get("from"),
         "amount": actual, "block_time": iso(ts), "order_no": order["order_no"], "matched": True,
         "manual": True, "created_at": iso(now_utc())}}, upsert=True)
-    await db.orders.update_one({"_id": order["_id"]}, {"$set": {"amount_usdt": actual, "status": "pending"}})
+    await db.orders.update_one({"_id": order["_id"]}, {"$set": {"amount_usdt": actual, "status": "pending",
+        "manual_confirmed": True, "manual_confirmed_by": user.get("name") or user.get("email"),
+        "manual_confirmed_at": iso(now_utc())}})
     order["amount_usdt"] = actual
     order["status"] = "pending"
     await mark_paid(order, tx_id=txid, paid_at=ts)
     await audit(user, "order.manual_callback", "order", order["order_no"],
                 {"tx_id": txid, "amount": actual}, request)
     return {"ok": True, "amount": actual, "tx_id": txid}
+
+
+class BatchTxIn(BaseModel):
+    tx_ids: List[str]
+
+
+@router.post("/orders/manual-callback-batch")
+async def manual_callback_batch(data: BatchTxIn, request: Request,
+                                user: dict = Depends(require_roles("admin"))):
+    """Paste many TxIDs; resolve each against the live receiving addresses and
+    auto-confirm the matching pending order (by address + exact amount)."""
+    who = user.get("name") or user.get("email")
+    addrs = []
+    async for ch in db.channels.find({}):
+        addrs += ch.get("wallet_addresses", [])
+    addrs = list(dict.fromkeys(addrs))
+    since = int((now_utc() - timedelta(days=7)).timestamp() * 1000)
+    txmap = {}
+    for a in addrs:
+        try:
+            for t in await fetch_trc20_transfers(a, since):
+                txmap[t["transaction_id"].lower()] = {
+                    "addr": a, "value": t["value"], "decimals": t.get("decimals", 6),
+                    "from": t.get("from"), "ts": t["block_timestamp"]}
+        except Exception:
+            continue
+    results, ok, seen = [], 0, set()
+    for raw in data.tx_ids:
+        txid = (raw or "").strip()
+        if not txid or txid.lower() in seen:
+            continue
+        seen.add(txid.lower())
+        info = txmap.get(txid.lower())
+        if not info:
+            results.append({"tx_id": txid, "status": "not_found"}); continue
+        used = await db.chain_txs.find_one({"tx_id": txid})
+        if used and used.get("order_no"):
+            results.append({"tx_id": txid, "status": "used", "order_no": used["order_no"]}); continue
+        actual = round(int(info["value"]) / (10 ** info["decimals"]), 2)
+        order = await db.orders.find_one({"wallet_address": info["addr"],
+            "status": {"$in": ["pending", "confirming", "expired"]},
+            "$or": [{"pay_amount": actual}, {"amount_usdt": actual}]})
+        if not order:
+            results.append({"tx_id": txid, "status": "no_order", "amount": actual}); continue
+        await _confirm_with_tx(order, txid, info["addr"], actual, info["from"], info["ts"], who)
+        ok += 1
+        results.append({"tx_id": txid, "status": "ok", "order_no": order["order_no"], "amount": actual})
+    await audit(user, "order.manual_callback_batch", "order", "-", {"count": len(results), "ok": ok}, request)
+    return {"results": results, "ok_count": ok, "fail_count": len(results) - ok}
+
+
+@router.get("/orders/{order_id}/recent-arrivals")
+async def recent_arrivals(order_id: str, user: dict = Depends(require_roles("admin", "operator"))):
+    """Recent on-chain USDT arrivals to this order's receiving address, for the
+    manual-callback picker. Marks arrivals already bound to an order as used."""
+    order = await db.orders.find_one({"_id": ObjectId(order_id)})
+    if not order:
+        raise HTTPException(status_code=404, detail="订单不存在")
+    addr = order.get("wallet_address")
+    if not addr or not order.get("live"):
+        return []
+    since = int((now_utc() - timedelta(days=3)).timestamp() * 1000)
+    try:
+        txs = await fetch_trc20_transfers(addr, since)
+    except Exception:
+        return []
+    ids = [t["transaction_id"] for t in txs]
+    used = {d["tx_id"] async for d in db.chain_txs.find({"tx_id": {"$in": ids}, "order_no": {"$ne": None}})}
+    out = []
+    for t in txs[:30]:
+        amt = round(int(t["value"]) / (10 ** t.get("decimals", 6)), 2)
+        out.append({"tx_id": t["transaction_id"], "amount": amt, "from": t.get("from"),
+                    "block_time": iso(datetime.fromtimestamp(t["block_timestamp"] / 1000, tz=timezone.utc)),
+                    "used": t["transaction_id"] in used})
+    return out
 
 
 class BatchOrderIds(BaseModel):
