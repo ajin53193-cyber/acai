@@ -231,16 +231,25 @@ async def _confirm_with_tx(order: dict, txid: str, addr: str, actual: float,
         "amount": actual, "block_time": iso(ts), "order_no": order["order_no"], "matched": True,
         "manual": True, "created_at": iso(now_utc())}}, upsert=True)
     await db.orders.update_one({"_id": order["_id"], "status": {"$nin": ["paid", "confirming"]}},
-                               {"$set": {"amount_usdt": actual, "status": "pending",
+                               {"$set": {"amount_usdt": actual, "pay_amount": actual, "status": "pending",
         "manual_confirmed": True, "manual_confirmed_by": who, "manual_confirmed_at": iso(now_utc())}})
     order["amount_usdt"] = actual
+    order["pay_amount"] = actual
     order["status"] = "pending"
     await mark_paid(order, tx_id=txid, paid_at=ts)
+    cb = await db.callbacks.find_one({"order_no": order["order_no"], "status": "pending"}, sort=[("created_at", -1)])
+    if cb:
+        await deliver_callback(cb)
 
 
 class ManualCallbackIn(BaseModel):
     tx_id: str
     amount: float
+    force: bool = False
+
+
+MANUAL_DEVIATION_ABS = 1.0
+MANUAL_DEVIATION_PCT = 0.1
 
 
 @router.post("/orders/{order_id}/manual-callback")
@@ -273,22 +282,30 @@ async def manual_callback(order_id: str, data: ManualCallbackIn, request: Reques
     actual = round(int(match["value"]) / (10 ** match.get("decimals", 6)), 2)
     if abs(actual - amount) > 0.001:
         raise HTTPException(status_code=400, detail=f"金额不符：链上实际到账 {actual} USDT，与填写的 {amount} USDT 不一致")
+    expected = float(order.get("pay_amount") or order["amount_usdt"])
+    deviation = abs(actual - expected)
+    if deviation > max(MANUAL_DEVIATION_ABS, expected * MANUAL_DEVIATION_PCT) and not data.force:
+        raise HTTPException(status_code=409, detail=f"链上到账 {actual} USDT 与订单应付 {expected} USDT 差异过大，此笔转账可能属于其他订单。如确认无误请勾选「强制按实际金额补单」后再提交")
     ts = datetime.fromtimestamp(match["block_timestamp"] / 1000, tz=timezone.utc)
     await db.chain_txs.update_one({"tx_id": txid}, {"$set": {
         "tx_id": txid, "network": order["network"], "to": addr, "from": match.get("from"),
         "amount": actual, "block_time": iso(ts), "order_no": order["order_no"], "matched": True,
         "manual": True, "created_at": iso(now_utc())}}, upsert=True)
     r = await db.orders.update_one({"_id": order["_id"], "status": {"$nin": ["paid", "confirming"]}},
-                                   {"$set": {"amount_usdt": actual, "status": "pending",
+                                   {"$set": {"amount_usdt": actual, "pay_amount": actual, "status": "pending",
         "manual_confirmed": True, "manual_confirmed_by": user.get("name") or user.get("email"),
-        "manual_confirmed_at": iso(now_utc())}})
+        "manual_confirmed_at": iso(now_utc()), "manual_original_amount": expected}})
     if r.matched_count != 1:
         raise HTTPException(status_code=400, detail="订单已被系统确认，无需补单")
     order["amount_usdt"] = actual
+    order["pay_amount"] = actual
     order["status"] = "pending"
     await mark_paid(order, tx_id=txid, paid_at=ts)
+    cb = await db.callbacks.find_one({"order_no": order["order_no"], "status": "pending"}, sort=[("created_at", -1)])
+    if cb:
+        await deliver_callback(cb)
     await audit(user, "order.manual_callback", "order", order["order_no"],
-                {"tx_id": txid, "amount": actual}, request)
+                {"tx_id": txid, "amount": actual, "expected": expected, "force": data.force}, request)
     return {"ok": True, "amount": actual, "tx_id": txid}
 
 

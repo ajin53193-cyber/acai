@@ -55,8 +55,9 @@ export default function OrdersPage() {
   const [mcAmt, setMcAmt] = useState("");
   const [mcBusy, setMcBusy] = useState(false);
   const [mcArrivals, setMcArrivals] = useState(null);
+  const [mcForce, setMcForce] = useState(false);
   const openManualCallback = (o) => {
-    setMc(o); setMcTx(""); setMcAmt(String(o.pay_amount ?? o.amount_usdt ?? "")); setMcArrivals(null);
+    setMc(o); setMcTx(""); setMcAmt(String(o.pay_amount ?? o.amount_usdt ?? "")); setMcArrivals(null); setMcForce(false);
     api.get(`/orders/${o.id}/recent-arrivals`).then((r) => setMcArrivals(r.data)).catch(() => setMcArrivals([]));
   };
 
@@ -80,7 +81,7 @@ export default function OrdersPage() {
     if (!mcTx.trim() || !mcAmt) { toast.error("请填写交易哈希和金额"); return; }
     setMcBusy(true);
     try {
-      const { data } = await api.post(`/orders/${mc.id}/manual-callback`, { tx_id: mcTx.trim(), amount: Number(mcAmt) });
+      const { data } = await api.post(`/orders/${mc.id}/manual-callback`, { tx_id: mcTx.trim(), amount: Number(mcAmt), force: mcForce });
       toast.success(`核对成功：实际到账 ${data.amount} USDT，已确认并触发回调`);
       setMc(null); load(); setDetail(null);
     } catch (e) { toast.error(formatApiErrorDetail(e.response?.data?.detail)); }
@@ -524,6 +525,12 @@ export default function OrdersPage() {
                 </div>
               )}
               <p className="text-[11px] text-slate-500">系统将在该收款地址的链上记录中核对此哈希与金额，匹配后按实际到账金额确认订单并触发回调。</p>
+              {Math.abs(Number(mcAmt) - Number(mc.pay_amount ?? mc.amount_usdt)) > Math.max(1, Number(mc.pay_amount ?? mc.amount_usdt) * 0.1) && (
+                <label className="flex items-start gap-2 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-300 cursor-pointer" data-testid="mc-force-wrap">
+                  <input type="checkbox" checked={mcForce} onChange={(e) => setMcForce(e.target.checked)} data-testid="mc-force-checkbox" className="mt-0.5" />
+                  <span>到账 <b>{mcAmt}</b> 与订单应付 <b>{mc.pay_amount ?? mc.amount_usdt}</b> 差异过大，此笔转账可能属于其他订单。勾选后将<b>强制按实际金额 {mcAmt} USDT 补单</b>并以该金额回调商户。</span>
+                </label>
+              )}
             </div>
           )}
           <DialogFooter><Button onClick={submitManualCallback} disabled={mcBusy || !mcTx.trim() || !mcAmt} data-testid="mc-submit-btn" className="bg-emerald-500 text-slate-950 hover:bg-emerald-400">{mcBusy ? <Loader2 className="w-4 h-4 animate-spin" /> : "核对并确认"}</Button></DialogFooter>

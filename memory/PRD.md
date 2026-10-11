@@ -437,3 +437,4 @@
 - 后台登录路径改为 `/sf-admin-k9x2m7`（由 frontend .env `REACT_APP_ADMIN_PATH` 控制；生产由 update.ps1/deploy.ps1 的 -AdminPath 参数注入，默认同值）。
 - `/login`、`/` 及任何未登录访问均显示 404 页面，不再跳转到登录页。付款页 `/pay/:orderNo` 不受影响。
 - 支付成功页按付款页同比例缩小（图标64px、标题19px、金额32px、明细13px、按钮h-10）。
+- 手动补单安全阀(2026-10-11)：/orders/{id}/manual-callback 当链上金额与订单应付差异 > max(1 USDT, 10%) 时返回 409，需 force=true；补单同步更新 pay_amount，记录 manual_original_amount，并立即投递回调。前端 OrdersPage/SupportPage 显示“强制补单”勾选框。

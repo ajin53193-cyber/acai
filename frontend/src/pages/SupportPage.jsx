@@ -135,16 +135,17 @@ export default function SupportPage() {
   const [mcAmt, setMcAmt] = useState("");
   const [mcBusy, setMcBusy] = useState(false);
   const [mcArr, setMcArr] = useState(null);
+  const [mcForce, setMcForce] = useState(false);
   const openMc = () => {
     if (!convo?.order_id) return;
-    setMc(true); setMcTx(""); setMcAmt(String(convo.pay_amount ?? convo.amount_usdt ?? "")); setMcArr(null);
+    setMc(true); setMcTx(""); setMcAmt(String(convo.pay_amount ?? convo.amount_usdt ?? "")); setMcArr(null); setMcForce(false);
     api.get(`/orders/${convo.order_id}/recent-arrivals`).then((r) => setMcArr(r.data)).catch(() => setMcArr([]));
   };
   const submitMc = async () => {
     if (!mcTx.trim() || !mcAmt) { toast.error("请填写交易哈希和金额"); return; }
     setMcBusy(true);
     try {
-      const { data } = await api.post(`/orders/${convo.order_id}/manual-callback`, { tx_id: mcTx.trim(), amount: Number(mcAmt) });
+      const { data } = await api.post(`/orders/${convo.order_id}/manual-callback`, { tx_id: mcTx.trim(), amount: Number(mcAmt), force: mcForce });
       toast.success(`核对成功：实际到账 ${data.amount} USDT，已确认并回调`);
       setMc(false); loadConvo(active); loadThreads();
     } catch (e) { toast.error(formatApiErrorDetail(e.response?.data?.detail)); }
@@ -396,6 +397,12 @@ export default function SupportPage() {
                   ))}
                 </div>
               </div>
+            )}
+            {Math.abs(Number(mcAmt) - Number(convo.pay_amount ?? convo.amount_usdt)) > Math.max(1, Number(convo.pay_amount ?? convo.amount_usdt) * 0.1) && (
+              <label className="flex items-start gap-2 mb-2 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-300 cursor-pointer" data-testid="support-mc-force-wrap">
+                <input type="checkbox" checked={mcForce} onChange={(e) => setMcForce(e.target.checked)} data-testid="support-mc-force" className="mt-0.5" />
+                <span>到账 <b>{mcAmt}</b> 与订单应付 <b>{convo.pay_amount ?? convo.amount_usdt}</b> 差异过大，可能属于其他订单。勾选后强制按 {mcAmt} USDT 补单并回调。</span>
+              </label>
             )}
             <button onClick={submitMc} disabled={mcBusy || !mcTx.trim() || !mcAmt} data-testid="support-mc-submit" className="w-full h-10 rounded-lg bg-emerald-500 text-slate-950 font-semibold disabled:opacity-40 flex items-center justify-center">{mcBusy ? <Loader2 className="w-4 h-4 animate-spin" /> : "核对并确认"}</button>
           </div>
