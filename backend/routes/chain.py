@@ -21,11 +21,30 @@ from services import channel_addresses
 from server import (
     live_address_list, sync_address, set_address_health, check_balance_alert,
     check_sweep_alert, fetch_balance, normalize_addresses, _tx_explorer, NETWORKS,
-    chain_usage_snapshot,
+    chain_usage_snapshot, chain_usage_memory, TRONGRID_DAILY_LIMIT,
 )
 from datetime import timedelta
 
 router = APIRouter(prefix="/api")
+
+
+@router.get("/chain/usage/trend")
+async def chain_usage_trend(user: dict = Depends(require_roles("admin", "operator"))):
+    now = now_utc()
+    keys = [now.strftime("%Y-%m-%d"), (now - timedelta(days=1)).strftime("%Y-%m-%d")]
+    docs = {}
+    for k in keys:
+        d = await db.chain_usage.find_one({"_id": k}) or {}
+        docs[k] = dict(d.get("hours", {}) or {})
+    mem = chain_usage_memory()
+    if mem["date"] in docs:
+        docs[mem["date"]] = {**docs[mem["date"]], **mem["hours"]}
+    points = []
+    for i in range(23, -1, -1):
+        t = now - timedelta(hours=i)
+        dk, hh = t.strftime("%Y-%m-%d"), t.strftime("%H")
+        points.append({"hour": f"{hh}:00", "count": int((docs.get(dk) or {}).get(hh, 0))})
+    return {"points": points, "limit": TRONGRID_DAILY_LIMIT}
 
 
 @router.get("/chain/usage")

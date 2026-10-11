@@ -50,13 +50,17 @@ export default function DashboardPage() {
   const [stats, setStats] = useState(null);
   const [orders, setOrders] = useState([]);
   const [usage, setUsage] = useState(null);
+  const [usageTrend, setUsageTrend] = useState(null);
   const today = new Date().toISOString().slice(0, 10);
   const [statDate, setStatDate] = useState(today);
 
   const load = () => {
     api.get("/dashboard/stats", { params: { date: statDate } }).then((r) => setStats(r.data)).catch(() => {});
     api.get("/orders", { params: { limit: 8 } }).then((r) => setOrders(r.data)).catch(() => {});
-    if (user.role === "admin") api.get("/chain/usage").then((r) => setUsage(r.data)).catch(() => {});
+    if (user.role === "admin") {
+      api.get("/chain/usage").then((r) => setUsage(r.data)).catch(() => {});
+      api.get("/chain/usage/trend").then((r) => setUsageTrend(r.data.points)).catch(() => {});
+    }
   };
 
   useEffect(() => {
@@ -112,6 +116,22 @@ export default function DashboardPage() {
           {usage.pct >= 85 && (
             <div className="mt-3 text-xs text-amber-300 bg-amber-500/10 border border-amber-500/30 rounded-lg px-3 py-2" data-testid="chain-usage-warn">
               ⚠️ 今日额度即将用尽，建议升级 TronGrid 套餐，或调大 CHAIN_POLL_SECONDS 放慢轮询以避免超额。
+            </div>
+          )}
+          {usageTrend && usageTrend.length > 0 && (
+            <div className="mt-4" data-testid="chain-usage-trend">
+              <div className="text-xs text-slate-400 mb-2">近 24 小时请求趋势（UTC）</div>
+              <ResponsiveContainer width="100%" height={120}>
+                <BarChart data={usageTrend} margin={{ top: 4, right: 4, left: -24, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#1E293B" vertical={false} />
+                  <XAxis dataKey="hour" stroke="#475569" fontSize={10} tickLine={false} axisLine={false} interval={3} />
+                  <YAxis stroke="#475569" fontSize={10} tickLine={false} axisLine={false} width={40} allowDecimals={false} />
+                  <Tooltip cursor={{ fill: "rgba(6,182,212,0.08)" }}
+                    contentStyle={{ background: "#0f172a", border: "1px solid #1e293b", borderRadius: 8, fontSize: 12 }}
+                    labelStyle={{ color: "#94a3b8" }} formatter={(v) => [`${v} 次`, "请求"]} />
+                  <Bar dataKey="count" fill="#06B6D4" radius={[3, 3, 0, 0]} maxBarSize={16} />
+                </BarChart>
+              </ResponsiveContainer>
             </div>
           )}
         </div>
