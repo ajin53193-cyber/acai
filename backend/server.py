@@ -885,24 +885,30 @@ async def put_security_policy(data: SecurityPolicy, request: Request, user: dict
 # Dashboard
 # ---------------------------------------------------------------------------
 @api_router.get("/dashboard/stats")
-async def dashboard_stats(user: dict = Depends(get_current_user)):
+async def dashboard_stats(user: dict = Depends(get_current_user), date: Optional[str] = None):
     scope = await merchant_ids_for_scope(user)
     q: dict = {}
     if scope is not None:
         q["merchant_id"] = {"$in": [str(i) for i in scope]}
 
     today_start = now_utc().replace(hour=0, minute=0, second=0, microsecond=0)
+    if date:
+        try:
+            today_start = datetime.strptime(date, "%Y-%m-%d").replace(tzinfo=timezone.utc)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="date 格式应为 YYYY-MM-DD")
+    day_end = today_start + timedelta(days=1)
     all_orders = await db.orders.find(q).to_list(5000)
 
     total_volume = sum(o["amount_usdt"] for o in all_orders if o["status"] == "paid")
     today_volume = sum(o["amount_usdt"] for o in all_orders
-                       if o["status"] == "paid" and datetime.fromisoformat(o["created_at"]) >= today_start)
+                       if o["status"] == "paid" and today_start <= datetime.fromisoformat(o["created_at"]) < day_end)
     total_orders = len(all_orders)
     paid_orders = len([o for o in all_orders if o["status"] == "paid"])
     pending_orders = len([o for o in all_orders if o["status"] == "pending"])
     success_rate = round(paid_orders / total_orders * 100, 1) if total_orders else 0.0
 
-    today_all = [o for o in all_orders if datetime.fromisoformat(o["created_at"]) >= today_start]
+    today_all = [o for o in all_orders if today_start <= datetime.fromisoformat(o["created_at"]) < day_end]
     today_orders = len(today_all)
     today_paid = len([o for o in today_all if o["status"] == "paid"])
     today_success_rate = round(today_paid / today_orders * 100, 1) if today_orders else 0.0
@@ -944,6 +950,7 @@ async def dashboard_stats(user: dict = Depends(get_current_user)):
         "today_orders": today_orders,
         "today_paid": today_paid,
         "today_success_rate": today_success_rate,
+        "stat_date": today_start.strftime("%Y-%m-%d"),
     }
 
 

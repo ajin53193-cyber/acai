@@ -49,9 +49,11 @@ export default function DashboardPage() {
   const { user } = useAuth();
   const [stats, setStats] = useState(null);
   const [orders, setOrders] = useState([]);
+  const today = new Date().toISOString().slice(0, 10);
+  const [statDate, setStatDate] = useState(today);
 
   const load = () => {
-    api.get("/dashboard/stats").then((r) => setStats(r.data)).catch(() => {});
+    api.get("/dashboard/stats", { params: { date: statDate } }).then((r) => setStats(r.data)).catch(() => {});
     api.get("/orders", { params: { limit: 8 } }).then((r) => setOrders(r.data)).catch(() => {});
   };
 
@@ -59,7 +61,8 @@ export default function DashboardPage() {
     load();
     const t = setInterval(load, 10000);
     return () => clearInterval(t);
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [statDate]);
 
   if (!stats)
     return (
@@ -82,11 +85,20 @@ export default function DashboardPage() {
         <StatCard icon={Wallet} label={stats.profit_label} value={fmtUSDT(stats.profit)} unit="USDT" accent="bg-emerald-500" delay={180} testid="stat-profit" />
       </div>
 
-      <div className="grid grid-cols-3 gap-4">
-        <div className="glass rounded-xl p-4" data-testid="stat-today-orders"><div className="text-xs text-slate-400 mb-1">今日订单数</div><div className="font-mono text-xl font-bold">{stats.today_orders ?? 0} <span className="text-xs text-slate-500 font-normal">笔</span></div></div>
-        <div className="glass rounded-xl p-4" data-testid="stat-today-paid"><div className="text-xs text-slate-400 mb-1">今日成功收款</div><div className="font-mono text-xl font-bold text-emerald-400">{stats.today_paid ?? 0} <span className="text-xs text-slate-500 font-normal">笔</span></div></div>
-        <div className="glass rounded-xl p-4" data-testid="stat-today-success"><div className="text-xs text-slate-400 mb-1">今日成功率</div><div className="font-mono text-xl font-bold text-cyan-400">{stats.today_success_rate ?? 0}%</div></div>
-      </div>
+      {user.role !== "agent" && (
+        <div className="space-y-3" data-testid="daily-stats-section">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h2 className="text-base font-semibold text-slate-200">每日收款统计{statDate !== today && <span className="ml-2 text-xs text-cyan-400 font-mono">{statDate}</span>}</h2>
+            <input type="date" value={statDate} max={today} onChange={(e) => setStatDate(e.target.value || today)} data-testid="daily-stat-date" className="bg-slate-900/60 border border-slate-700 rounded-md px-3 py-1.5 text-sm font-mono text-slate-200" />
+          </div>
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="glass rounded-xl p-4" data-testid="stat-today-orders"><div className="text-xs text-slate-400 mb-1">当日订单数</div><div className="font-mono text-xl font-bold">{stats.today_orders ?? 0} <span className="text-xs text-slate-500 font-normal">笔</span></div></div>
+            <div className="glass rounded-xl p-4" data-testid="stat-today-paid"><div className="text-xs text-slate-400 mb-1">当日成功收款</div><div className="font-mono text-xl font-bold text-emerald-400">{stats.today_paid ?? 0} <span className="text-xs text-slate-500 font-normal">笔</span></div></div>
+            <div className="glass rounded-xl p-4" data-testid="stat-today-success"><div className="text-xs text-slate-400 mb-1">当日成功率</div><div className="font-mono text-xl font-bold text-cyan-400">{stats.today_success_rate ?? 0}%</div></div>
+            <div className="glass rounded-xl p-4" data-testid="stat-today-vol"><div className="text-xs text-slate-400 mb-1">当日收款金额</div><div className="font-mono text-xl font-bold text-emerald-400">{fmtUSDT(stats.today_volume)} <span className="text-xs text-slate-500 font-normal">USDT</span></div></div>
+          </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <div className="lg:col-span-2 glass rounded-xl p-5 fade-up" style={{ animationDelay: "200ms" }}>
