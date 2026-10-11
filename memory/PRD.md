@@ -409,3 +409,4 @@
 - 数据库自动备份：deploy/{windows/backup_db.ps1,restore_db.ps1, linux/backup_db.sh,restore_db.sh}；部署脚本注册每日 02:30 mongodump（gzip archive，保留 14 天）到 <项目>/backups；已验证 dump→restore 完整。
 - Windows .ps1 脚本改为 UTF-8 BOM（PowerShell 5 中文乱码修复）
 - requirements-prod.txt（剔除 emergentintegrations/litellm 平台专用包）；deploy.ps1 用 corepack 启用 yarn
+- deploy.ps1: cron 任务改用 cron_call.bat（修复 schtasks 引号）、自动下载便携版 mongotools、服务健康等待 12s

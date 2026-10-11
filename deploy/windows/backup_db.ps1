@@ -9,6 +9,8 @@ $ErrorActionPreference = "Stop"
 $envFile = Join-Path (Resolve-Path "$PSScriptRoot\..\..").Path "backend\.env"
 $mongo = (Select-String -Path $envFile -Pattern "^MONGO_URL=(.*)$").Matches[0].Groups[1].Value.Trim('"')
 $dbName = (Select-String -Path $envFile -Pattern "^DB_NAME=(.*)$").Matches[0].Groups[1].Value.Trim('"')
+$tools = Join-Path $PSScriptRoot "mongotools"
+if (Test-Path "$tools\mongodump.exe") { $env:Path = "$tools;$env:Path" }
 if (-not (Get-Command mongodump -ErrorAction SilentlyContinue)) { throw "未找到 mongodump，请安装 MongoDB Database Tools 并加入 PATH: https://www.mongodb.com/try/download/database-tools" }
 New-Item -ItemType Directory -Force $OutDir | Out-Null
 $file = Join-Path $OutDir ("{0}_{1}.archive.gz" -f $dbName, (Get-Date -Format "yyyyMMdd_HHmmss"))

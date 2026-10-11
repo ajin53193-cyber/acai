@@ -108,13 +108,12 @@ if (Get-Service $svc -ErrorAction SilentlyContinue) { & $nssmExe stop $svc | Out
 & $nssmExe set $svc Start SERVICE_AUTO_START
 New-Item -ItemType Directory -Force "$backend\logs" | Out-Null
 & $nssmExe start $svc
-Start-Sleep 4
+Start-Sleep 12
 try { $r = Invoke-WebRequest "http://127.0.0.1:8001/api/checkout/settings" -UseBasicParsing -TimeoutSec 10; Write-Host "后端健康: HTTP $($r.StatusCode)" -ForegroundColor Green }
 catch { Write-Warning "后端未响应，请查看 $backend\logs\backend.err.log" }
 
 Step "注册定时任务 (替代平台 cron)"
-$cronSecret = (Select-String -Path $envFile -Pattern "^WEBHOOK_CRON_SECRET=(.*)$").Matches[0].Groups[1].Value
-$curl = "curl.exe"
+$cronBat = "$SiteRoot\deploy\windows\cron_call.bat"
 $jobs = @(
   @{n="SifangDailySettle";  t="00:05"; p="/api/cron/daily-settle"},
   @{n="SifangRunExports";   t="00:20"; p="/api/cron/run-exports"},
@@ -122,16 +121,23 @@ $jobs = @(
   @{n="SifangSupportClean"; t="03:00"; p="/api/cron/support-cleanup"}
 )
 foreach ($j in $jobs) {
-  $cmd = "$curl -s -X POST http://127.0.0.1:8001$($j.p) -H `"Authorization: Bearer $cronSecret`""
-  schtasks /Create /F /SC DAILY /ST $j.t /TN $j.n /TR $cmd /RU SYSTEM | Out-Null
+  schtasks /Create /F /SC DAILY /ST $j.t /TN $j.n /TR "`"$cronBat`" $($j.p)" /RU SYSTEM | Out-Null
 }
 Write-Host "已创建 4 个 Windows 计划任务。"
 
 Step "注册每日数据库备份 (02:30, 保留 14 天)"
+$toolsDir = "$SiteRoot\deploy\windows\mongotools"
+if (-not (Get-Command mongodump -ErrorAction SilentlyContinue) -and -not (Test-Path "$toolsDir\mongodump.exe")) {
+  Write-Host "下载 MongoDB Database Tools (便携版)..."
+  New-Item -ItemType Directory -Force $toolsDir | Out-Null
+  Invoke-WebRequest "https://fastdl.mongodb.org/tools/db/mongodb-database-tools-windows-x86_64-100.10.0.zip" -OutFile "$toolsDir\tools.zip"
+  Expand-Archive "$toolsDir\tools.zip" "$toolsDir\tmp" -Force
+  Get-ChildItem "$toolsDir\tmp" -Recurse -Filter "*.exe" | Copy-Item -Destination $toolsDir -Force
+  Remove-Item "$toolsDir\tmp","$toolsDir\tools.zip" -Recurse -Force
+}
 $bk = "powershell.exe -NoProfile -ExecutionPolicy Bypass -File `"$SiteRoot\deploy\windows\backup_db.ps1`" -KeepDays 14"
 schtasks /Create /F /SC DAILY /ST 02:30 /TN SifangDbBackup /TR $bk /RU SYSTEM | Out-Null
-if (Get-Command mongodump -ErrorAction SilentlyContinue) { & "$SiteRoot\deploy\windows\backup_db.ps1" -KeepDays 14 }
-else { Write-Warning "未安装 mongodump（MongoDB Database Tools），计划任务已创建但首次备份跳过。" }
+& "$SiteRoot\deploy\windows\backup_db.ps1" -KeepDays 14
 
 Step "完成"
 Write-Host @"
