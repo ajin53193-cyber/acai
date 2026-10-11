@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback, useMemo } from "react";
 import { useParams } from "react-router-dom";
 import api, { formatApiErrorDetail } from "@/lib/api";
 import { LANGS, I18N, TUTORIAL_CONTENT } from "@/lib/checkoutI18n";
+import { SupportChat } from "@/components/SupportChat";
 import { toast } from "sonner";
 import { Copy, Clock, CheckCircle2, XCircle, Loader2, Zap, ChevronDown, ChevronUp, Leaf, X, ExternalLink } from "lucide-react";
 
@@ -77,6 +78,7 @@ export default function CheckoutPage() {
   const [energyOpen, setEnergyOpen] = useState(true);
   const [tutorial, setTutorial] = useState(null);
   const [redirectLeft, setRedirectLeft] = useState(null);
+  const [supportOpen, setSupportOpen] = useState(false);
   const t = I18N[lang];
 
   const load = useCallback(() => {
@@ -157,6 +159,7 @@ export default function CheckoutPage() {
         </div>
       </header>
       <main className="max-w-md mx-auto px-3 py-3 space-y-3 pb-10">{inner}</main>
+      <SupportChat orderNo={orderNo} t={t} open={supportOpen} setOpen={setSupportOpen} />
     </div>
   );
 
@@ -256,6 +259,12 @@ export default function CheckoutPage() {
         <div className="mt-3 flex items-center justify-center gap-2 text-xs text-slate-400">
           <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 pulse-dot" /> {t.listening}
         </div>
+      )}
+      {st !== "paid" && (
+        <button onClick={() => setSupportOpen(true)} data-testid="support-notice"
+          className="mt-3 w-full rounded-xl border border-dashed border-[var(--accent)] bg-[var(--accent)]/5 px-3 py-2.5 text-[13px] text-[var(--accent)] font-medium text-center">
+          {t.supportNotice}
+        </button>
       )}
       {st === "pending" && !order.live && (
         <button onClick={simulate} disabled={paying} data-testid="simulate-payment-btn" className="mt-4 w-full h-11 rounded-xl bg-slate-900 text-white font-semibold flex items-center justify-center gap-2">

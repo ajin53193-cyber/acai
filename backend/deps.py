@@ -23,6 +23,7 @@ PERM_RULES = [
     ("/api/callbacks", None, "callbacks.retry"), ("/api/audit-logs", None, "audit.view"), ("/api/reports", None, "reports.export"),
     ("/api/dashboard", None, "orders.view"), ("/api/notifications", None, "orders.view"),
     ("/api/stats", None, "orders.view"),
+    ("/api/support", None, "orders.view"),
     ("/api/dev", None, "orders.view"),
     ("/api/export", None, "reports.export"),
 ]

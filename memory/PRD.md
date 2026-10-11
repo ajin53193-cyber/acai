@@ -247,6 +247,15 @@
 - [x] **return_url 域名白名单（防钓鱼）**：收银台设置新增 `return_url_domains`（逗号/换行分隔，留空=允许任意，支持子域名）。`build_order` 校验下单 return_url 域名命中白名单否则 422。curl 验证：evil.com→422、pay.ok.example.com（子域）→200
 - [x] **导出到期实时倒计时**：ExportJobsPage 每秒刷新 `nowTs`，有效期列 <24h 显示 HH:MM:SS 实时倒计时（琥珀高亮），≥24h 显示「N天 N小时后」。截图验证
 
+## Implemented (2026-06, iteration 30) — 内置在线客服（付款人↔平台实时聊天）
+- [x] **内置实时客服**（新模块 `routes/support.py`，轮询实现）：
+  - 付款人侧（收银台，无需登录）：悬浮客服按钮 + 聊天面板（欢迎语、消息气泡、输入发送，3s 轮询）；并在待付款区加提示「转错金额或未自动到账？点此联系在线客服」（多语言 简/繁/EN）。组件 `components/SupportChat.jsx`
+  - 客服侧（后台 admin/operator）：新页面 `pages/SupportPage.jsx`（会话列表+未读角标 / 对话窗 / 回复，5s/3s 轮询），侧边栏「在线客服」入口 + 未读数角标（10s 轮询 `/support/unread-count`）
+  - 每商户客服配置（管理员）：MerchantDrawer 新增「在线客服」开关 + 欢迎语；`PATCH /api/accounts/{id}/support`。关闭后付款人发消息返回 403
+  - 线程以 order_no 为键；`support_messages` 集合；读/未读标记（客服打开线程标记已读）
+  - API：`GET/POST /api/support/public/{order_no}`（匿名付款人）、`GET /api/support/threads`、`GET/POST /api/support/threads/{order_no}`、`GET /api/support/unread-count`（admin/operator，operator 需 orders.view，deps.py 已加 PERM_RULE）
+  - 验证：curl 全链路（配置/欢迎语/付款人发/客服收未读=2/读后=1/客服回复/付款人收到/禁用→403）+ 付款人与后台双端截图确认
+
 ## Backlog (next)
 - P2: 散落模型持续并入 models.py
 - P2: 清理测试残留的 TEST_M 商户账户（有余额，需先结清；现可用新删除接口手动清理）

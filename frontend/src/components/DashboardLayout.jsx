@@ -1,11 +1,12 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Outlet, NavLink, useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
+import api from "@/lib/api";
 import { ROLE_LABELS, fmtUSDT } from "@/lib/format";
 import {
   LayoutDashboard, Receipt, Network, Wallet, Users, LogOut, ShieldCheck,
   Activity, ChevronRight, Menu, X, Webhook, ScrollText, Code2, HeartPulse,
-  ArrowLeftRight, UserCog, Fingerprint, BarChart3, PieChart, Download,
+  ArrowLeftRight, UserCog, Fingerprint, BarChart3, PieChart, Download, MessageSquare,
 } from "lucide-react";
 import { PaymentAlerts } from "@/components/PaymentAlerts";
 import { AlertBell } from "@/components/AlertBell";
@@ -21,6 +22,7 @@ const NAV = [
   { to: "/ledger", label: "资金流水", icon: ArrowLeftRight, roles: ["admin"] },
   { to: "/accounts", label: "账户权限", icon: Users, roles: ["admin", "operator"], perm: "accounts.view" },
   { to: "/merchant-stats", label: "商户统计", icon: BarChart3, roles: ["admin", "operator"], perm: "orders.view" },
+  { to: "/support", label: "在线客服", icon: MessageSquare, roles: ["admin", "operator"], perm: "orders.view" },
   { to: "/developer", label: "对接文档", icon: Code2, roles: ["admin", "operator"], perm: "orders.view" },
   { to: "/callbacks", label: "回调通知", icon: Webhook, roles: ["admin", "operator"], perm: "callbacks.retry" },
   { to: "/audit", label: "审计日志", icon: ScrollText, roles: ["admin", "operator"], perm: "audit.view" },
@@ -33,6 +35,15 @@ export default function DashboardLayout() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
+  const [supportUnread, setSupportUnread] = useState(0);
+  useEffect(() => {
+    if (!["admin", "operator"].includes(user.role)) return;
+    let on = true;
+    const fetch = () => api.get("/support/unread-count").then((r) => on && setSupportUnread(r.data.unread || 0)).catch(() => {});
+    fetch();
+    const i = setInterval(fetch, 10000);
+    return () => { on = false; clearInterval(i); };
+  }, [user.role]);
   const items = NAV.filter((n) => n.roles.includes(user.role) && (user.role !== "operator" || (user.permissions || []).includes(n.perm)));
 
   const handleLogout = async () => {
@@ -77,6 +88,9 @@ export default function DashboardLayout() {
             >
               <item.icon className="w-[18px] h-[18px]" />
               <span>{item.label}</span>
+              {item.to === "/support" && supportUnread > 0 && (
+                <span className="ml-auto min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[10px] font-semibold flex items-center justify-center" data-testid="nav-support-unread">{supportUnread}</span>
+              )}
               <ChevronRight className="w-4 h-4 ml-auto opacity-0 group-hover:opacity-50 transition-opacity" />
             </NavLink>
           ))}

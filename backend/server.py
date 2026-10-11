@@ -1363,6 +1363,8 @@ from routes.chain import router as chain_router  # noqa: E402
 app.include_router(chain_router)
 from routes.reports import router as reports_router  # noqa: E402
 app.include_router(reports_router)
+from routes.support import router as support_router  # noqa: E402
+app.include_router(support_router)
 
 
 RATE_LIMIT_MAX = int(os.environ.get("RATE_LIMIT_MAX", "300"))

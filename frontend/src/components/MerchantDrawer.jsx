@@ -4,7 +4,8 @@ import { fmtUSDT, fmtDate, ROLE_LABELS } from "@/lib/format";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import { Copy, Eye, EyeOff, KeyRound, RefreshCw, Loader2, Wallet, Snowflake, Webhook, ShieldCheck } from "lucide-react";
+import { Copy, Eye, EyeOff, KeyRound, RefreshCw, Loader2, Wallet, Snowflake, Webhook, ShieldCheck, MessageSquare } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
 
 const CAT = {
   order_credit: "收款入账", commission: "代理分润", payout_freeze: "提现冻结", payout_done: "提现完成",
@@ -18,6 +19,8 @@ export function MerchantDrawer({ accountId, open, onClose, isAdmin, onReset }) {
   const [loading, setLoading] = useState(false);
   const [show, setShow] = useState(false);
   const [resetting, setResetting] = useState(false);
+  const [sup, setSup] = useState({ support_enabled: true, support_welcome: "" });
+  const [savingSup, setSavingSup] = useState(false);
 
   useEffect(() => {
     if (!open || !accountId) return;
@@ -27,6 +30,7 @@ export function MerchantDrawer({ accountId, open, onClose, isAdmin, onReset }) {
       api.get("/balance/ledger", { params: { account_id: accountId } }).catch(() => ({ data: { entries: [] } })),
     ]).then(([a, l]) => {
       setAcc(a.data); setEntries((l.data.entries || []).slice(0, 12));
+      setSup({ support_enabled: a.data.support_enabled !== false, support_welcome: a.data.support_welcome || "" });
     }).catch((err) => toast.error(formatApiErrorDetail(err.response?.data?.detail)))
       .finally(() => setLoading(false));
   }, [open, accountId]);
@@ -42,6 +46,13 @@ export function MerchantDrawer({ accountId, open, onClose, isAdmin, onReset }) {
       toast.success("密钥已重置，请妥善保管新 secret");
     } catch (err) { toast.error(formatApiErrorDetail(err.response?.data?.detail)); }
     finally { setResetting(false); }
+  };
+
+  const saveSup = async () => {
+    setSavingSup(true);
+    try { await api.patch(`/accounts/${acc.id}/support`, sup); toast.success("客服设置已保存"); }
+    catch (err) { toast.error(formatApiErrorDetail(err.response?.data?.detail)); }
+    finally { setSavingSup(false); }
   };
 
   return (
@@ -99,6 +110,17 @@ export function MerchantDrawer({ accountId, open, onClose, isAdmin, onReset }) {
                   <div className="flex items-start gap-1.5"><Webhook className="w-3.5 h-3.5 text-slate-500 mt-0.5" /><span className="text-slate-400">回调地址：</span><span className="font-mono text-slate-200 break-all flex-1" data-testid="drawer-notify-url">{acc.notify_url || "未设置"}</span></div>
                   <div className="flex items-start gap-1.5"><ShieldCheck className="w-3.5 h-3.5 text-slate-500 mt-0.5" /><span className="text-slate-400">IP 白名单：</span><span className="font-mono text-slate-200 flex-1" data-testid="drawer-ip-whitelist">{acc.ip_whitelist?.length ? acc.ip_whitelist.join(", ") : "未启用"}</span></div>
                 </div>
+              </div>
+            )}
+
+            {acc.role === "merchant" && isAdmin && (
+              <div className="glass rounded-lg p-3 space-y-2" data-testid="drawer-support">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5 text-xs font-semibold"><MessageSquare className="w-3.5 h-3.5 text-cyan-400" /> 在线客服</div>
+                  <Switch checked={sup.support_enabled} onCheckedChange={(v) => setSup({ ...sup, support_enabled: v })} data-testid="support-enabled-switch" />
+                </div>
+                <textarea value={sup.support_welcome} onChange={(e) => setSup({ ...sup, support_welcome: e.target.value })} rows={2} placeholder="欢迎语（选填），付款人打开客服时显示" data-testid="support-welcome-input" className="w-full rounded bg-slate-900/60 border border-slate-700 p-2 text-[12px] text-slate-200 outline-none resize-none" />
+                <Button onClick={saveSup} disabled={savingSup} size="sm" data-testid="support-save-btn" className="h-7 bg-cyan-500 text-slate-950 hover:bg-cyan-400">{savingSup ? <Loader2 className="w-3 h-3 animate-spin" /> : "保存客服设置"}</Button>
               </div>
             )}
 
