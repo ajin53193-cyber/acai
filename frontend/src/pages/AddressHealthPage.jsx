@@ -7,8 +7,9 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Loader2, RefreshCw, ExternalLink, Activity, AlertTriangle, CheckCircle2, CircleDashed, Plus, Pause, Play, Trash2, Snowflake, Tag, History, Search, Link2 } from "lucide-react";
+import { Loader2, RefreshCw, ExternalLink, Activity, AlertTriangle, CheckCircle2, CircleDashed, Plus, Pause, Play, Trash2, Snowflake, Tag, History, Search, Link2, Zap } from "lucide-react";
 import { ChainTxDialog } from "@/components/ChainTxDialog";
+import { useAuth } from "@/context/AuthContext";
 
 const ST = {
   ok: { label: "正常", cls: "text-emerald-400 bg-emerald-400/10 border-emerald-400/30", Icon: CheckCircle2 },
@@ -98,7 +99,44 @@ function HistoryDialog({ row, onClose }) {
   );
 }
 
+export function TronHooksCard({ user }) {
+  const [st, setSt] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const load = () => api.get("/tronhooks/status").then((r) => setSt(r.data)).catch(() => {});
+  useEffect(() => { load(); const t = setInterval(load, 30000); return () => clearInterval(t); }, []);
+  const sync = async () => {
+    setBusy(true);
+    try {
+      const { data } = await api.post("/tronhooks/sync");
+      toast.success(`监控同步完成：新增 ${data.created.length}，移除 ${data.removed.length}，共 ${data.watched} 个地址`);
+      (data.errors || []).slice(0, 3).forEach((e) => toast.error(e, { duration: 8000 }));
+      load();
+    } catch (err) { toast.error(formatApiErrorDetail(err.response?.data?.detail)); } finally { setBusy(false); }
+  };
+  if (!st || !st.enabled) return null;
+  const active = st.watches.filter((w) => w.status === "ACTIVE").length;
+  return (
+    <div className="glass rounded-xl p-4 flex flex-wrap items-center gap-4" data-testid="tronhooks-card">
+      <div className="flex items-center gap-2"><Zap className={`w-4 h-4 ${st.enabled ? "text-amber-400" : "text-slate-600"}`} /><span className="font-semibold text-sm">TronHooks 即时到账推送</span>
+        <span className={`px-2 py-0.5 rounded text-[10px] border ${st.enabled ? "border-emerald-400/40 text-emerald-300 bg-emerald-400/10" : "border-slate-700 text-slate-500"}`} data-testid="tronhooks-status">{st.enabled ? "已启用" : "未配置"}</span></div>
+      {st.enabled ? (
+        <div className="flex flex-wrap gap-x-4 gap-y-1 text-[11px] font-mono text-slate-400">
+          <span>监控地址 <b className="text-slate-200">{active}</b>/{st.watches.length}</span>
+          <span>已接收事件 <b className="text-slate-200">{st.events_received}</b></span>
+          <span>最近事件 {st.last_event_at ? fmtDate(st.last_event_at) : "—"}</span>
+          <span>最近同步 {st.last_sync_at ? fmtDate(st.last_sync_at) : "—"}</span>
+          {st.last_error && <span className="text-red-400">错误：{st.last_error}</span>}
+        </div>
+      ) : <span className="text-[11px] text-slate-500">在服务器 .env 配置 TRONHOOKS_API_KEY 并重启后端，到账将在区块固化后 1–3 秒内推送（TronGrid 轮询自动作为兜底）。</span>}
+      {st.enabled && user?.role === "admin" && (
+        <Button size="sm" variant="outline" onClick={sync} disabled={busy} data-testid="tronhooks-sync-btn" className="border-slate-700 ml-auto">{busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <><RefreshCw className="w-3.5 h-3.5 mr-1" />同步监控地址</>}</Button>
+      )}
+    </div>
+  );
+}
+
 export default function AddressHealthPage() {
+  const { user } = useAuth();
   const [data, setData] = useState({ total_balance: 0, total_swept: 0, by_network: {}, addresses: [] });
   const [channels, setChannels] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -157,6 +195,8 @@ export default function AddressHealthPage() {
           <Button onClick={() => setAddOpen(true)} data-testid="add-address-btn" className="bg-cyan-500 text-slate-950 hover:bg-cyan-400"><Plus className="w-4 h-4 mr-1" />添加地址</Button>
         </div>
       </div>
+
+      <TronHooksCard user={user} />
 
       <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
         <div className="glass rounded-xl p-4 md:col-span-2" data-testid="total-balance-card"><div className="text-[11px] text-slate-500">所有地址链上余额总和（待归集）</div><div className="font-mono text-2xl font-bold text-cyan-400">{fmtUSDT(data.total_balance)} <span className="text-xs text-slate-500 font-normal">USDT</span></div>

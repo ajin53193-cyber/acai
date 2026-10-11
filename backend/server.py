@@ -22,6 +22,7 @@ import jwt
 import asyncio
 import hmac
 import hashlib
+from pymongo.errors import DuplicateKeyError
 import json
 import re
 from urllib.parse import urlparse
@@ -319,7 +320,7 @@ async def set_address_health(network: str, address: str, channel: dict, **fields
                                        upsert=True)
 
 
-async def match_chain_tx(tx: dict, address: str, network: str = "TRC20"):
+async def match_chain_tx(tx: dict, address: str, network: str = "TRC20", source: str = "trongrid"):
     txid = tx["transaction_id"]
     if await db.chain_txs.find_one({"tx_id": txid}):
         return
@@ -331,11 +332,14 @@ async def match_chain_tx(tx: dict, address: str, network: str = "TRC20"):
                                       "pay_amount": amount, "network": network})
     rec = {"tx_id": txid, "network": network, "to": address, "from": tx.get("from"),
            "amount": amount, "block_time": iso(ts), "order_no": order["order_no"] if order else None,
-           "matched": bool(order), "created_at": iso(now_utc())}
-    await db.chain_txs.insert_one(rec)
+           "matched": bool(order), "source": source, "created_at": iso(now_utc())}
+    try:
+        await db.chain_txs.insert_one(rec)
+    except DuplicateKeyError:
+        return
     if order:
         await mark_paid(order, tx_id=txid, paid_at=ts)
-        logger.info(f"链上到账匹配成功 {order['order_no']} {amount} USDT tx={txid}")
+        logger.info(f"链上到账匹配成功 {order['order_no']} {amount} USDT tx={txid} via={source}")
 
 
 async def live_address_list() -> List[tuple]:
@@ -1637,6 +1641,8 @@ async def on_startup():
     asyncio.create_task(chain_listener())
     asyncio.create_task(callback_worker())
     asyncio.create_task(balance_refresher())
+    from routes.tronhooks import tronhooks_sync_loop
+    asyncio.create_task(tronhooks_sync_loop())
 
 
 @app.on_event("shutdown")
@@ -1665,6 +1671,8 @@ from routes.reports import router as reports_router  # noqa: E402
 app.include_router(reports_router)
 from routes.support import router as support_router  # noqa: E402
 app.include_router(support_router)
+from routes.tronhooks import router as tronhooks_router  # noqa: E402
+app.include_router(tronhooks_router)
 
 
 RATE_LIMIT_MAX = int(os.environ.get("RATE_LIMIT_MAX", "300"))

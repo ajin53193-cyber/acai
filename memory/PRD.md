@@ -420,3 +420,10 @@
 - 复制按钮：新增 lib/clipboard.js copyText()（HTTP 非安全上下文回退 execCommand），替换全部 navigator.clipboard 调用
 - deploy/windows/update.ps1 与 linux/update.sh：一键拉取分支 ZIP、同步代码（保留 .env 等）、装依赖、构建、重启、健康检查，更新前自动备份
 - 付款页文案：自动上分 → 自动到账（简/繁，checkoutI18n.js 共 6 处）
+
+## 2026-06 TronHooks 即时到账推送
+- routes/tronhooks.py：POST /api/webhooks/tronhooks（HMAC-SHA256 X-Signature 按 watch secret 校验、event_id 去重、仅 transfer.confirmed/USDT/incoming）→ 复用 match_chain_tx(source="tronhooks") → mark_paid → 回调；GET /api/tronhooks/status；POST /api/tronhooks/sync（admin+step-up）。
+- 后台循环 tronhooks_sync_loop 每 2 分钟按 live_address_list 自动注册/删除 watch（asset_filter USDT，webhook_url=FRONTEND_URL/api/webhooks/tronhooks）；watch secret 存 db.tronhooks_watches。
+- 环境变量 TRONHOOKS_API_KEY（预览未配置；用户生产 key 已提供，需 HTTPS 后在服务器 .env 配置）。收款地址页新增 TronHooksCard。
+- chain_txs 新增 source 字段；match_chain_tx 捕获 DuplicateKeyError（轮询与 webhook 并发安全）。
+- 用户放弃 TronHooks（无法购买）：代码保留但未配置 Key 时完全停用，前端卡片仅在启用时显示。继续依赖 TronGrid 5s 轮询。
