@@ -18,7 +18,7 @@ export default function ExportJobsPage() {
   const timer = useRef(null);
   const [schedules, setSchedules] = useState([]);
   const [accounts, setAccounts] = useState([]);
-  const [form, setForm] = useState({ kind: "orders", freq: "daily", account_id: "" });
+  const [form, setForm] = useState({ kind: "orders", freq: "daily", range: "all", account_id: "" });
   const [creating, setCreating] = useState(false);
 
   const loadSchedules = useCallback(async () => {
@@ -37,9 +37,9 @@ export default function ExportJobsPage() {
     if (form.kind === "ledger" && !form.account_id) { toast.error("资金流水定时导出需选择账户"); return; }
     setCreating(true);
     try {
-      await api.post("/export-schedules", { kind: form.kind, freq: form.freq, account_id: form.kind === "ledger" ? form.account_id : null });
+      await api.post("/export-schedules", { kind: form.kind, freq: form.freq, range: form.range, account_id: form.kind === "ledger" ? form.account_id : null });
       toast.success("定时导出已创建");
-      setForm({ kind: "orders", freq: "daily", account_id: "" });
+      setForm({ kind: "orders", freq: "daily", range: "all", account_id: "" });
       loadSchedules();
     } catch (err) { toast.error(err.response?.data?.detail || "创建失败"); }
     finally { setCreating(false); }
@@ -106,6 +106,10 @@ export default function ExportJobsPage() {
             <SelectTrigger data-testid="schedule-freq-select" className="w-[120px] bg-slate-900/60 border-slate-700"><SelectValue /></SelectTrigger>
             <SelectContent><SelectItem value="daily">每日</SelectItem><SelectItem value="weekly">每周</SelectItem></SelectContent>
           </Select>
+          <Select value={form.range} onValueChange={(v) => setForm({ ...form, range: v })}>
+            <SelectTrigger data-testid="schedule-range-select" className="w-[130px] bg-slate-900/60 border-slate-700"><SelectValue /></SelectTrigger>
+            <SelectContent><SelectItem value="all">全部数据</SelectItem><SelectItem value="yesterday">仅昨日</SelectItem><SelectItem value="week">本周至今</SelectItem></SelectContent>
+          </Select>
           {form.kind === "ledger" && (
             <Select value={form.account_id} onValueChange={(v) => setForm({ ...form, account_id: v })}>
               <SelectTrigger data-testid="schedule-account-select" className="w-[220px] bg-slate-900/60 border-slate-700"><SelectValue placeholder="选择账户" /></SelectTrigger>
@@ -123,6 +127,7 @@ export default function ExportJobsPage() {
                 <div className="flex items-center gap-2 flex-wrap">
                   <span className="px-2 py-0.5 rounded bg-slate-800 text-slate-200">{{ orders: "订单", ledger: "资金流水", snapshots: "分润快照" }[s.kind]}</span>
                   <span className="text-cyan-400">{s.freq === "daily" ? "每日" : "每周(周一)"}</span>
+                  <span className="text-slate-400">{{ all: "全部", yesterday: "仅昨日", week: "本周至今" }[s.range || "all"]}</span>
                   {s.account_name && <span className="text-slate-400">{s.account_name}</span>}
                   <span className={`text-[11px] ${s.enabled ? "text-emerald-400" : "text-slate-500"}`}>{s.enabled ? "启用中" : "已暂停"}</span>
                   <span className="text-slate-500">上次：{s.last_run_at ? fmtDate(s.last_run_at) : "尚未运行"}</span>

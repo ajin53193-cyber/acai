@@ -74,7 +74,7 @@ export default function CheckoutPage() {
   const [notFound, setNotFound] = useState(false);
   const [paying, setPaying] = useState(false);
   const [lang, setLang] = useState(() => localStorage.getItem("sf_pay_lang") || "zh-CN");
-  const [energyOpen, setEnergyOpen] = useState(false);
+  const [energyOpen, setEnergyOpen] = useState(true);
   const [tutorial, setTutorial] = useState(null);
   const t = I18N[lang];
 
@@ -198,9 +198,9 @@ export default function CheckoutPage() {
     </section>
 
     {showEnergy && (
-      <section className="bg-[#EEF9EA] rounded-2xl px-4 py-3" data-testid="energy-section">
+      <section className="bg-[#EEF9EA] rounded-2xl px-4 py-3 ring-2 ring-emerald-400/60 shadow-[0_0_0_4px_rgba(16,185,129,0.08)]" data-testid="energy-section">
         <button onClick={() => setEnergyOpen(!energyOpen)} data-testid="energy-toggle-btn" aria-expanded={energyOpen} className="w-full flex items-center justify-between text-[16px] font-medium text-slate-800">
-          <span className="flex items-center gap-2"><Leaf className="w-5 h-5 text-emerald-600" /> {t.energyTitle}</span>
+          <span className="flex items-center gap-2"><Leaf className="w-5 h-5 text-emerald-600" /> {t.energyTitle}<span className="inline-flex items-center rounded-full bg-emerald-500 px-2 py-0.5 text-[11px] font-bold text-white animate-pulse" data-testid="energy-save-badge">省70%</span></span>
           {energyOpen ? <ChevronUp className="w-6 h-6 text-[var(--accent)] border-2 border-[var(--accent)] rounded-full p-0.5" /> : <ChevronDown className="w-6 h-6 text-[var(--accent)] border-2 border-[var(--accent)] rounded-full p-0.5" />}
         </button>
         {energyOpen && (

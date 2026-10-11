@@ -1346,107 +1346,6 @@ async def set_require_2fa(account_id: str, request: Request, user: dict = Depend
 # ---------------------------------------------------------------------------
 # Settlements / reconciliation
 # ---------------------------------------------------------------------------
-@api_router.get("/settlements/reconciliation")
-async def reconciliation(user: dict = Depends(get_current_user)):
-    scope = await merchant_ids_for_scope(user)
-    q = {"status": "paid"}
-    if scope is not None:
-        q["merchant_id"] = {"$in": [str(i) for i in scope]}
-    orders = await db.orders.find(q).to_list(5000)
-
-    by_merchant: dict = {}
-    for o in orders:
-        m = by_merchant.setdefault(o["merchant_id"], {
-            "merchant_id": o["merchant_id"], "merchant_name": o["merchant_name"],
-            "order_count": 0, "total_amount": 0.0, "total_fee": 0.0,
-            "total_receive": 0.0, "total_commission": 0.0, "total_platform": 0.0,
-        })
-        m["order_count"] += 1
-        m["total_amount"] += o["amount_usdt"]
-        m["total_fee"] += o.get("fee", 0)
-        m["total_receive"] += o.get("merchant_receive", 0)
-        m["total_commission"] += o.get("agent_commission", 0)
-        m["total_platform"] += o.get("platform_profit", 0)
-    rows = []
-    for m in by_merchant.values():
-        for k in ["total_amount", "total_fee", "total_receive", "total_commission", "total_platform"]:
-            m[k] = round(m[k], 2)
-        rows.append(m)
-    rows.sort(key=lambda x: x["total_amount"], reverse=True)
-    return rows
-
-
-@api_router.get("/settlements/payouts")
-async def list_payouts(user: dict = Depends(get_current_user)):
-    scope = await merchant_ids_for_scope(user)
-    q: dict = {}
-    if scope is not None:
-        q["merchant_id"] = {"$in": [str(i) for i in scope]}
-    payouts = await db.payouts.find(q).sort("created_at", -1).to_list(500)
-    return [serialize(p) for p in payouts]
-
-
-class PayoutCreate(BaseModel):
-    amount: float
-
-
-@api_router.post("/settlements/payouts")
-async def request_payout(data: PayoutCreate, user: dict = Depends(get_current_user)):
-    if user["role"] not in ["merchant", "agent"]:
-        raise HTTPException(status_code=403, detail="仅商户/代理可提现")
-    if data.amount <= 0 or data.amount > user.get("balance", 0):
-        raise HTTPException(status_code=400, detail="余额不足")
-    doc = {
-        "merchant_id": str(user["_id"]),
-        "merchant_name": user["name"],
-        "amount": round(data.amount, 2),
-        "status": "pending",
-        "created_at": iso(now_utc()),
-    }
-    await db.users.update_one({"_id": user["_id"]},
-                              {"$inc": {"balance": -data.amount, "frozen_balance": data.amount}})
-    res = await db.payouts.insert_one(doc)
-    doc["_id"] = res.inserted_id
-    _u = await db.users.find_one({"_id": user["_id"]})
-    await record_ledger(str(user["_id"]), "payout_freeze", -round(data.amount, 2),
-                        _u.get("balance", 0), _u.get("frozen_balance", 0),
-                        "payout", res.inserted_id, remark="提现申请，冻结待审核")
-    return serialize(doc)
-
-
-@api_router.post("/settlements/payouts/{payout_id}/approve")
-async def approve_payout(payout_id: str, request: Request, user: dict = Depends(require_roles("admin"))):
-    p = await db.payouts.find_one({"_id": ObjectId(payout_id)})
-    if not p or p["status"] != "pending":
-        raise HTTPException(status_code=400, detail="提现单不存在或已处理")
-    await db.payouts.update_one({"_id": p["_id"]},
-                                {"$set": {"status": "approved", "approved_at": iso(now_utc())}})
-    await db.users.update_one({"_id": ObjectId(p["merchant_id"])},
-                              {"$inc": {"frozen_balance": -p["amount"]}})
-    _u = await db.users.find_one({"_id": ObjectId(p["merchant_id"])})
-    await record_ledger(p["merchant_id"], "payout_done", 0.0,
-                        _u.get("balance", 0), _u.get("frozen_balance", 0),
-                        "payout", payout_id, remark=f"提现 {p['amount']} USDT 已放款", operator=user["email"])
-    await audit(user, "payout.approve", "payout", payout_id,
-                {"merchant_name": p["merchant_name"], "amount": p["amount"]}, request)
-    return {"ok": True}
-
-
-@api_router.post("/settlements/payouts/{payout_id}/reject")
-async def reject_payout(payout_id: str, request: Request, user: dict = Depends(require_roles("admin"))):
-    p = await db.payouts.find_one({"_id": ObjectId(payout_id)})
-    if not p or p["status"] != "pending":
-        raise HTTPException(status_code=400, detail="提现单不存在或已处理")
-    await db.payouts.update_one({"_id": p["_id"]}, {"$set": {"status": "rejected"}})
-    await db.users.update_one({"_id": ObjectId(p["merchant_id"])},
-                              {"$inc": {"balance": p["amount"], "frozen_balance": -p["amount"]}})
-    _u = await db.users.find_one({"_id": ObjectId(p["merchant_id"])})
-    await record_ledger(p["merchant_id"], "payout_reject", round(p["amount"], 2),
-                        _u.get("balance", 0), _u.get("frozen_balance", 0),
-                        "payout", payout_id, remark="提现被驳回，退回余额", operator=user["email"])
-    await audit(user, "payout.reject", "payout", payout_id,
-                {"merchant_name": p["merchant_name"], "amount": p["amount"]}, request)
-    return {"ok": True}
 
 
 # ---------------------------------------------------------------------------
@@ -2027,6 +1926,7 @@ async def download_export_job(job_id: str, user: dict = Depends(get_current_user
 class ExportScheduleIn(BaseModel):
     kind: str
     freq: str  # daily | weekly
+    range: str = "all"  # all | yesterday | week
     account_id: Optional[str] = None
 
 
@@ -2049,9 +1949,11 @@ async def create_export_schedule(data: ExportScheduleIn, request: Request, user:
         raise HTTPException(status_code=400, detail="不支持的导出类型")
     if data.freq not in ("daily", "weekly"):
         raise HTTPException(status_code=400, detail="频率需为 daily 或 weekly")
+    if data.range not in ("all", "yesterday", "week"):
+        raise HTTPException(status_code=400, detail="区间需为 all / yesterday / week")
     if data.kind == "ledger" and not data.account_id:
         raise HTTPException(status_code=400, detail="资金流水定时导出需指定账户")
-    doc = {"kind": data.kind, "freq": data.freq, "account_id": data.account_id or None,
+    doc = {"kind": data.kind, "freq": data.freq, "range": data.range, "account_id": data.account_id or None,
            "enabled": True, "created_by": str(user["_id"]), "created_email": user["email"],
            "created_at": iso(now_utc()), "last_run_at": None}
     res = await db.export_schedules.insert_one(doc)
@@ -2091,6 +1993,13 @@ async def run_scheduled_exports(run_id: str) -> dict:
             skipped += 1
             continue
         allowed = {}
+        rng = sch.get("range", "all")
+        if rng == "yesterday":
+            y = (now_utc() - timedelta(days=1)).strftime("%Y-%m-%d")
+            allowed["start"], allowed["end"] = y, y
+        elif rng == "week":
+            monday = now_utc() - timedelta(days=now_utc().weekday())
+            allowed["start"], allowed["end"] = monday.strftime("%Y-%m-%d"), now_utc().strftime("%Y-%m-%d")
         if sch["kind"] == "ledger" and sch.get("account_id"):
             allowed["account_id"] = sch["account_id"]
         label = {"daily": "每日", "weekly": "每周"}.get(sch.get("freq"), sch.get("freq"))
@@ -2287,6 +2196,8 @@ from routes.auth import router as auth_router  # noqa: E402
 app.include_router(auth_router)
 from routes.orders import router as orders_router  # noqa: E402
 app.include_router(orders_router)
+from routes.settlements import router as settlements_router  # noqa: E402
+app.include_router(settlements_router)
 
 
 RATE_LIMIT_MAX = int(os.environ.get("RATE_LIMIT_MAX", "300"))

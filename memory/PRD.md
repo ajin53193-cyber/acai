@@ -201,12 +201,17 @@
 - [x] **收银台实时到账**：待付页倒计时(按 expires_at)已存在；轮询改为每 5 秒且支付/超时后自动停止；倒计时格式修正(14:55)
 - [x] 测试：iteration_17 testing_agent 后端 12/12 + 前端 100% 通过；canonical pytest 43 passed(iteration13 两处 merchant 后台登录为既有设计限制，非回归)
 
+## Implemented (2026-06, iteration 25) — 结算域拆分 + 导出区间 + 能量引导
+- [x] **结算域拆分**：`settlements/reconciliation` 与 `settlements/payouts`(列表/申请/审批/驳回) + `PayoutCreate` 迁至 `routes/settlements.py`（延续 orders 域模式，server.py 再减 91 行，经 routes 注册，端点 200 验证通过）
+- [x] **定时导出区间参数**：定时导出新增 range(全部/仅昨日/本周至今)。`ExportScheduleIn.range`，cron 运行时按 range 计算 start/end 注入导出参数（实测 range=yesterday 生成任务 params={start,end}=昨日）；导出任务页表单新增区间下拉并在列表展示
+- [x] **收银台能量引导**：TRC20 待付页「能量租赁，节省70%矿工费」默认展开 + 绿色高亮描边 + 跳动「省70%」徽标（仅在管理员已配置能量地址时展示）
+- [x] 测试：canonical pytest 31 passed；settlements/排程+cron curl 全通过；前端编译成功、/exports 200
+
 ## Backlog (next)
-- P1: settlements 域迁移 routes/settlements.py（延续 orders 域拆分模式）
 - P2: 清理/迁移遗留 pytest（iteration3/4/5/7/new_features：硬编码 ObjectId + 已移除 EVM + 商户后台登录）
-- P2: 剩余散落 Pydantic 模型并入 models.py；server.py 继续拆分(notify/chain/settlement/reports)
-- P2: 代理多级分润（当前单级）；admin 账户删除接口
-- P3: 定时导出支持「仅昨日/本周」区间参数、导出保留天数可配
+- P2: 剩余散落 Pydantic 模型并入 models.py；server.py 继续拆分(notify/chain/reports 域)
+- P2: admin 账户删除接口
+- P3: 导出保留天数可配；定时导出失败重试/告警
 
 ## Next Tasks
 - 按需接入真实支付/链上监听，或扩展回调通知与对账自动化。
