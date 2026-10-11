@@ -57,6 +57,7 @@ _chain_last_call = 0.0
 TRONGRID_DAILY_LIMIT = int(os.environ.get("TRONGRID_DAILY_LIMIT", "500000"))
 CHAIN_SPIKE_MULT = float(os.environ.get("CHAIN_SPIKE_MULT", "3"))
 CHAIN_SPIKE_MIN = int(os.environ.get("CHAIN_SPIKE_MIN", "2000"))
+CHAIN_FORECAST_LEAD = float(os.environ.get("CHAIN_FORECAST_LEAD", "6"))
 _chain_usage = {"date": "", "count": 0, "hours": {}, "alerted_hour": "", "forecast_alerted": ""}
 
 
@@ -120,6 +121,11 @@ async def _maybe_alert_forecast():
         return
     fc = chain_usage_forecast()
     if not fc["will_exhaust"]:
+        return
+    doc = await db.settings.find_one({"_id": "chain_alert"}) or {}
+    lead = float(doc.get("forecast_lead_hours", CHAIN_FORECAST_LEAD))
+    h2e = fc["hours_to_exhaust"]
+    if h2e is not None and h2e > lead:
         return
     if _chain_usage.get("forecast_alerted") == k:
         return

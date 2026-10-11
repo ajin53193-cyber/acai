@@ -57,7 +57,7 @@ export default function DashboardPage() {
   const [statDate, setStatDate] = useState(today);
 
   const saveAlertCfg = () => {
-    api.put("/chain/alert-settings", { spike_mult: Number(alertCfg.spike_mult), spike_min: Number(alertCfg.spike_min) })
+    api.put("/chain/alert-settings", { spike_mult: Number(alertCfg.spike_mult), spike_min: Number(alertCfg.spike_min), forecast_lead_hours: Number(alertCfg.forecast_lead_hours) })
       .then((r) => { setAlertCfg(r.data); toast.success("已更新告警阈值"); })
       .catch(() => toast.error("保存失败"));
   };
@@ -161,6 +161,10 @@ export default function DashboardPage() {
               <span className="text-slate-400">倍，且 ≥</span>
               <input type="number" min="100" value={alertCfg.spike_min} onChange={(e) => setAlertCfg({ ...alertCfg, spike_min: e.target.value })} data-testid="chain-alert-min" className="w-24 h-7 px-2 rounded bg-slate-900/60 border border-slate-700 text-slate-100 font-mono outline-none focus:border-cyan-500" />
               <span className="text-slate-400">次/时 → Telegram 告警</span>
+              <span className="text-slate-600">·</span>
+              <span className="text-slate-400">预测超额提前</span>
+              <input type="number" min="1" max="24" value={alertCfg.forecast_lead_hours} onChange={(e) => setAlertCfg({ ...alertCfg, forecast_lead_hours: e.target.value })} data-testid="chain-alert-lead" className="w-14 h-7 px-2 rounded bg-slate-900/60 border border-slate-700 text-slate-100 font-mono outline-none focus:border-cyan-500" />
+              <span className="text-slate-400">小时预警</span>
               <button onClick={saveAlertCfg} data-testid="chain-alert-save" className="h-7 px-3 rounded bg-cyan-500 text-slate-950 font-semibold">保存</button>
             </div>
           )}
