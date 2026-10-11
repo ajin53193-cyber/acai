@@ -57,7 +57,7 @@ _chain_last_call = 0.0
 TRONGRID_DAILY_LIMIT = int(os.environ.get("TRONGRID_DAILY_LIMIT", "500000"))
 CHAIN_SPIKE_MULT = float(os.environ.get("CHAIN_SPIKE_MULT", "3"))
 CHAIN_SPIKE_MIN = int(os.environ.get("CHAIN_SPIKE_MIN", "2000"))
-_chain_usage = {"date": "", "count": 0, "hours": {}, "alerted_hour": ""}
+_chain_usage = {"date": "", "count": 0, "hours": {}, "alerted_hour": "", "forecast_alerted": ""}
 
 
 def _usage_today_key():
@@ -70,6 +70,7 @@ def _bump_usage(n: int = 1):
         _chain_usage["date"] = k
         _chain_usage["count"] = 0
         _chain_usage["hours"] = {}
+        _chain_usage["forecast_alerted"] = ""
     _chain_usage["count"] += n
     hh = now_utc().strftime("%H")
     _chain_usage["hours"][hh] = _chain_usage["hours"].get(hh, 0) + n
@@ -77,6 +78,59 @@ def _bump_usage(n: int = 1):
 
 def chain_usage_memory() -> dict:
     return {"date": _chain_usage["date"], "hours": dict(_chain_usage["hours"])}
+
+
+def chain_usage_forecast() -> dict:
+    """Project today's end-of-day request total from the recent hourly rate and
+    flag whether the daily quota will be exhausted before UTC midnight."""
+    k = _usage_today_key()
+    now = now_utc()
+    used = _chain_usage["count"] if _chain_usage["date"] == k else 0
+    limit = TRONGRID_DAILY_LIMIT
+    secs_elapsed = max(1, now.hour * 3600 + now.minute * 60 + now.second)
+    hours_remaining = (86400 - secs_elapsed) / 3600
+    hours = _chain_usage["hours"] if _chain_usage["date"] == k else {}
+    cur = now.strftime("%H")
+    completed = sorted(((hh, v) for hh, v in hours.items() if hh != cur), reverse=True)[:3]
+    if completed:
+        rate = sum(v for _, v in completed) / len(completed)
+    else:
+        mins = now.minute + now.second / 60
+        rate = (hours.get(cur, 0) / mins * 60) if mins > 0 else 0.0
+    projected = used + rate * hours_remaining
+    will_exhaust = limit > 0 and projected >= limit
+    hours_to_exhaust = ((limit - used) / rate) if (rate > 0 and limit > used) else None
+    eta = None
+    if will_exhaust and hours_to_exhaust is not None and hours_to_exhaust <= hours_remaining:
+        eta = (now + timedelta(hours=hours_to_exhaust)).strftime("%H:%M")
+    return {"projected_eod": int(projected), "rate_per_hour": int(rate),
+            "will_exhaust": bool(will_exhaust),
+            "hours_to_exhaust": round(hours_to_exhaust, 1) if hours_to_exhaust is not None else None,
+            "eta": eta}
+
+
+async def _maybe_alert_forecast():
+    """Telegram-warn once per day when the current rate projects the daily quota
+    will be exhausted before midnight — gives hours of lead time."""
+    k = _usage_today_key()
+    if _chain_usage["date"] != k:
+        return
+    snap = chain_usage_snapshot()
+    if snap["limit"] <= 0 or snap["used"] < snap["limit"] * 0.1:
+        return
+    fc = chain_usage_forecast()
+    if not fc["will_exhaust"]:
+        return
+    if _chain_usage.get("forecast_alerted") == k:
+        return
+    _chain_usage["forecast_alerted"] = k
+    pct = round(snap["used"] / snap["limit"] * 100, 1)
+    await send_telegram(
+        f"⏳ <b>TronGrid 额度预测告警</b>\n"
+        f"按当前速率（约 {fc['rate_per_hour']}/时），预计今日请求将达 {fc['projected_eod']}，超过额度 {snap['limit']}。\n"
+        + (f"预计约 {fc['eta']} (UTC) 用尽。\n" if fc["eta"] else "")
+        + f"当前已用 {snap['used']}（{pct}%）。\n"
+        f"建议升级 TronGrid 套餐，或调大 CHAIN_POLL_SECONDS 放慢轮询。", "alert")
 
 
 async def _maybe_alert_spike():
@@ -339,6 +393,10 @@ async def chain_listener():
             pass
         try:
             await _maybe_alert_spike()
+        except Exception:
+            pass
+        try:
+            await _maybe_alert_forecast()
         except Exception:
             pass
         await asyncio.sleep(chain_usage_snapshot()["poll_seconds"])

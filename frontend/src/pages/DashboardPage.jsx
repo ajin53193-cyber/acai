@@ -126,6 +126,13 @@ export default function DashboardPage() {
             <span className={usage.pct >= 90 ? "text-red-400" : usage.pct >= 70 ? "text-amber-400" : "text-emerald-400"}>已用 {usage.pct}%</span>
             <span className="text-slate-400 font-mono">剩余 {usage.remaining.toLocaleString()} 次</span>
           </div>
+          {usage.forecast && (
+            <div className={`mt-2 text-xs ${usage.forecast.will_exhaust ? "text-red-400" : "text-emerald-400"}`} data-testid="chain-usage-forecast">
+              {usage.forecast.will_exhaust
+                ? `⚠️ 按当前速率（约 ${usage.forecast.rate_per_hour.toLocaleString()}/时）预计今日将用 ${usage.forecast.projected_eod.toLocaleString()} 次，超出额度${usage.forecast.eta ? `，约 ${usage.forecast.eta} (UTC) 用尽` : ""}`
+                : `预计今日约 ${usage.forecast.projected_eod.toLocaleString()} 次（速率约 ${usage.forecast.rate_per_hour.toLocaleString()}/时），额度充足`}
+            </div>
+          )}
           {usage.pct >= 85 && (
             <div className="mt-3 text-xs text-amber-300 bg-amber-500/10 border border-amber-500/30 rounded-lg px-3 py-2" data-testid="chain-usage-warn">
               ⚠️ 今日额度即将用尽，建议升级 TronGrid 套餐，或调大 CHAIN_POLL_SECONDS 放慢轮询以避免超额。

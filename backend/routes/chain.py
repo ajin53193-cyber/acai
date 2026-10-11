@@ -21,7 +21,7 @@ from services import channel_addresses
 from server import (
     live_address_list, sync_address, set_address_health, check_balance_alert,
     check_sweep_alert, fetch_balance, normalize_addresses, _tx_explorer, NETWORKS,
-    chain_usage_snapshot, chain_usage_memory, TRONGRID_DAILY_LIMIT,
+    chain_usage_snapshot, chain_usage_memory, chain_usage_forecast, TRONGRID_DAILY_LIMIT,
     CHAIN_SPIKE_MULT, CHAIN_SPIKE_MIN,
 )
 from datetime import timedelta
@@ -74,7 +74,8 @@ async def chain_usage(user: dict = Depends(require_roles("admin", "operator"))):
     snap = chain_usage_snapshot()
     used, limit = snap["used"], snap["limit"]
     return {**snap, "remaining": max(0, limit - used),
-            "pct": round(used / limit * 100, 2) if limit else 0.0}
+            "pct": round(used / limit * 100, 2) if limit else 0.0,
+            "forecast": chain_usage_forecast()}
 
 
 @router.get("/chain/txs")
