@@ -109,10 +109,16 @@
 
 ## Implemented (2026-06, iteration 11)
 - [x] 订单详情完善：订单详情弹窗补全 网络/收款地址/TxID/商户单号/回调地址/回调状态/手续费/实收/创建·支付·过期时间/收款模式，收款地址与 TxID 支持复制 + 区块浏览器外链
-- [x] 收款地址 → 链上到账记录：订单详情（admin/operator）与「收款地址」页每行可点开 ChainTxDialog，展示该地址 chain_txs（时间/网络/金额/来源/TxID 外链/匹配订单）；GET /api/chain/txs?address=&order_no=（admin/operator 专用，商户 403）
-- [x] 商户当日统计：仪表盘新增 今日订单数/今日成功收款/今日成功率（today_success_rate=今日已支付÷今日订单）；dashboard/stats 按角色数据域
-- [x] 平台安全加固：全局安全响应头（HSTS/X-Frame-Options/X-Content-Type-Options/Referrer-Policy/Permissions-Policy）、按 IP 全局限流（默认 300 req/60s → 429）、新设备/新 IP 登录邮件提醒、2FA 平台策略（GET/PUT /api/security/policy，/security 页策略卡）
-- [x] 测试：后端 26/26、前端 100% 通过（见 iteration_11.json）；admin 确认 2FA 关闭、安全策略复位默认
+- [x] 订单列表新增「收款地址」列，点击弹出该地址链上到账记录（admin/operator）
+- [x] 收款地址 → 链上到账记录：订单详情与「收款地址」页可点开 ChainTxDialog；GET /api/chain/txs?address=&order_no=（admin/operator 专用，商户 403）
+- [x] 手动回调 / 驳回订单：POST /api/orders/{id}/resend-callback、/reject（admin/operator，列表与详情按钮）
+- [x] 平台安全加固：全局安全响应头、按 IP 限流(300/60s→429)、新设备登录邮件提醒、2FA 平台策略(/api/security/policy)
+- [x] 测试：后端 26/26、前端 100% 通过（见 iteration_11.json）
+
+## Implemented (2026-06, iteration 12)
+- [x] 每日收款统计 + 日期查询：GET /api/dashboard/stats?date=YYYY-MM-DD（返回 stat_date 及当日订单/成功/成功率/金额）；仪表盘加日期选择器，**仅总后台(admin/operator)可见**
+- [x] 商户后台收敛为「仅报表」：移除 商户 的 数据总览/订单与收款/回调通知 菜单与路由，保留 资金流水(对账)+结算分润+开发者API；商户登录默认首页重定向 /ledger；/orders、/callbacks 对商户做角色保护
+- [x] 代理商不展示每日收款统计
 
 ## Backlog
 - P1: 获取 ETHERSCAN_API_KEY 后验证 ERC20/BEP20 真实到账

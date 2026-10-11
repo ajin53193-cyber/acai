@@ -32,6 +32,12 @@ function Protected({ children, roles }) {
   return children;
 }
 
+function IndexRoute() {
+  const { user } = useAuth();
+  if (user && user.role === "merchant") return <Navigate to="/ledger" replace />;
+  return <DashboardPage />;
+}
+
 function App() {
   return (
     <div className="App">
@@ -48,8 +54,15 @@ function App() {
                 </Protected>
               }
             >
-              <Route index element={<DashboardPage />} />
-              <Route path="orders" element={<OrdersPage />} />
+              <Route index element={<IndexRoute />} />
+              <Route
+                path="orders"
+                element={
+                  <Protected roles={["admin", "agent", "operator"]}>
+                    <OrdersPage />
+                  </Protected>
+                }
+              />
               <Route
                 path="channels"
                 element={
@@ -91,7 +104,14 @@ function App() {
                   </Protected>
                 }
               />
-              <Route path="callbacks" element={<CallbacksPage />} />
+              <Route
+                path="callbacks"
+                element={
+                  <Protected roles={["admin", "agent", "operator"]}>
+                    <CallbacksPage />
+                  </Protected>
+                }
+              />
               <Route
                 path="api"
                 element={
