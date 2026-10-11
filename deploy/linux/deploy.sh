@@ -21,7 +21,7 @@ fi
 
 step "后端依赖"
 cd "$BACKEND"; [[ -d .venv ]] || python3 -m venv .venv
-.venv/bin/pip install -q --upgrade pip; .venv/bin/pip install -q -r requirements.txt
+.venv/bin/pip install -q --upgrade pip; .venv/bin/pip install -q -r requirements-prod.txt
 
 step "前端构建（同域，API 自动跟随访问域名）"
 cd "$FRONTEND"; command -v yarn >/dev/null || npm i -g yarn >/dev/null

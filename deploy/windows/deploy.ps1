@@ -54,16 +54,20 @@ Step "后端依赖 (venv)"
 Push-Location $backend
 if (-not (Test-Path ".venv")) { & $PyExe -m venv .venv }
 & ".\.venv\Scripts\python.exe" -m pip install --upgrade pip -q
-& ".\.venv\Scripts\python.exe" -m pip install -r requirements.txt -q
+& ".\.venv\Scripts\python.exe" -m pip install -r requirements-prod.txt -q
+if ($LASTEXITCODE -ne 0) { throw "后端依赖安装失败，请把上方 pip 错误发给开发者" }
 Pop-Location
 
 Step "前端构建 (同域部署，API 使用 https://$Domain)"
 Push-Location $frontend
-if (-not (Get-Command yarn -ErrorAction SilentlyContinue)) { npm install -g yarn | Out-Null }
-yarn install --frozen-lockfile
+corepack enable 2>$null; corepack prepare yarn@1.22.22 --activate 2>$null
+$yarn = if (Get-Command yarn -ErrorAction SilentlyContinue) { "yarn" } else { "npx --yes yarn@1.22.22" }
+Invoke-Expression "$yarn install --frozen-lockfile"
+if ($LASTEXITCODE -ne 0) { throw "前端依赖安装失败" }
 $env:REACT_APP_BACKEND_URL = ""   # 留空 => 前端自动使用当前访问域名（主域/备用域均可）
 $env:GENERATE_SOURCEMAP = "false"
-yarn build
+Invoke-Expression "$yarn build"
+if ($LASTEXITCODE -ne 0) { throw "前端构建失败" }
 Pop-Location
 
 if ($ResetData) {
