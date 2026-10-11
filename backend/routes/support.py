@@ -26,7 +26,7 @@ from storage import upload_data_url, get_object
 
 try:
     import opencc
-    _s2t = opencc.OpenCC("s2twp")
+    _s2t = opencc.OpenCC("s2tw")
 
     def to_trad(s: Optional[str]) -> Optional[str]:
         return _s2t.convert(s) if s else s
@@ -41,6 +41,7 @@ MAX_LEN = 2000
 MAX_IMG = 3_600_000
 TYPING_WINDOW = 8
 DEFAULT_TEMPLATES = [
+    "你好，请问有什么可以帮助您呢？",
     "你好，请提供您的付款截图及交易哈希值（交易号）。",
     "您好，请提供您的转账哈希（TxID），我们帮您核实。",
     "已收到，正在为您查询，请稍候。",

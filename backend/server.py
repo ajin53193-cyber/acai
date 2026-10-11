@@ -49,6 +49,7 @@ TRONGRID_API_KEY = os.environ.get("TRONGRID_API_KEY", "")
 USDT_TRC20_CONTRACT = "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t"
 CHAIN_POLL_SECONDS = int(os.environ.get("CHAIN_POLL_SECONDS", "20"))
 CHAIN_MIN_INTERVAL = float(os.environ.get("CHAIN_MIN_INTERVAL", "0.08"))  # global QPS cap (~12/s)
+CHAIN_ADDR_INTERVAL = float(os.environ.get("CHAIN_ADDR_INTERVAL", "1"))  # delay between addresses in a poll cycle
 CHAIN_CURSOR_OVERLAP_MS = 180000  # re-scan a 3-min overlap so no tx slips past the cursor
 CALLBACK_RETRY_DELAYS = [15, 60, 300, 1800, 7200]
 _chain_rate_lock = asyncio.Lock()
@@ -250,7 +251,7 @@ async def chain_listener():
                     await sync_address(ch, addr, since)
                 except Exception:
                     pass
-                await asyncio.sleep(1)
+                await asyncio.sleep(CHAIN_ADDR_INTERVAL)
             await db.orders.update_many({"status": "pending", "expires_at": {"$lt": iso(now_utc())}},
                                         {"$set": {"status": "expired"}})
         except Exception as e:
