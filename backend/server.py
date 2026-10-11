@@ -54,6 +54,26 @@ CHAIN_CURSOR_OVERLAP_MS = 180000  # re-scan a 3-min overlap so no tx slips past 
 CALLBACK_RETRY_DELAYS = [15, 60, 300, 1800, 7200]
 _chain_rate_lock = asyncio.Lock()
 _chain_last_call = 0.0
+TRONGRID_DAILY_LIMIT = int(os.environ.get("TRONGRID_DAILY_LIMIT", "500000"))
+_chain_usage = {"date": "", "count": 0}
+
+
+def _usage_today_key():
+    return now_utc().strftime("%Y-%m-%d")
+
+
+def _bump_usage(n: int = 1):
+    k = _usage_today_key()
+    if _chain_usage["date"] != k:
+        _chain_usage["date"] = k
+        _chain_usage["count"] = 0
+    _chain_usage["count"] += n
+
+
+def chain_usage_snapshot() -> dict:
+    k = _usage_today_key()
+    used = _chain_usage["count"] if _chain_usage["date"] == k else 0
+    return {"date": k, "used": used, "limit": TRONGRID_DAILY_LIMIT}
 
 
 # ---------------------------------------------------------------------------
@@ -96,6 +116,7 @@ async def _chain_get(client, url, **kw):
     for attempt in range(5):
         await _chain_throttle()
         try:
+            _bump_usage()
             r = await client.get(url, **kw)
             if r.status_code in (403, 429, 500, 502, 503):
                 last = httpx.HTTPStatusError(f"chain {r.status_code}", request=r.request, response=r)
@@ -237,6 +258,12 @@ async def sync_address(ch: dict, addr: str, since_ms: int) -> int:
 
 async def chain_listener():
     await asyncio.sleep(3)
+    try:
+        doc = await db.chain_usage.find_one({"_id": _usage_today_key()}) or {}
+        _chain_usage["date"] = _usage_today_key()
+        _chain_usage["count"] = int(doc.get("count", 0))
+    except Exception:
+        pass
     while True:
         try:
             for ch, addr in await live_address_list():
@@ -256,6 +283,11 @@ async def chain_listener():
                                         {"$set": {"status": "expired"}})
         except Exception as e:
             logger.warning(f"chain listener error: {e}")
+        try:
+            await db.chain_usage.update_one({"_id": _chain_usage["date"] or _usage_today_key()},
+                {"$set": {"count": _chain_usage["count"], "updated_at": iso(now_utc())}}, upsert=True)
+        except Exception:
+            pass
         await asyncio.sleep(CHAIN_POLL_SECONDS)
 
 

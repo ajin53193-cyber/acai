@@ -6,7 +6,7 @@ import {
   AreaChart, Area, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
 } from "recharts";
 import {
-  TrendingUp, Receipt, CheckCircle2, Network, Clock, Wallet, Loader2,
+  TrendingUp, Receipt, CheckCircle2, Network, Clock, Wallet, Loader2, Gauge,
 } from "lucide-react";
 
 const StatCard = ({ icon: Icon, label, value, unit, accent, delay, testid }) => (
@@ -49,12 +49,14 @@ export default function DashboardPage() {
   const { user } = useAuth();
   const [stats, setStats] = useState(null);
   const [orders, setOrders] = useState([]);
+  const [usage, setUsage] = useState(null);
   const today = new Date().toISOString().slice(0, 10);
   const [statDate, setStatDate] = useState(today);
 
   const load = () => {
     api.get("/dashboard/stats", { params: { date: statDate } }).then((r) => setStats(r.data)).catch(() => {});
     api.get("/orders", { params: { limit: 8 } }).then((r) => setOrders(r.data)).catch(() => {});
+    if (user.role === "admin") api.get("/chain/usage").then((r) => setUsage(r.data)).catch(() => {});
   };
 
   useEffect(() => {
@@ -84,6 +86,35 @@ export default function DashboardPage() {
         <StatCard icon={CheckCircle2} label="支付成功率" value={stats.success_rate} unit="%" accent="bg-emerald-500" delay={120} testid="stat-success-rate" />
         <StatCard icon={Wallet} label={stats.profit_label} value={fmtUSDT(stats.profit)} unit="USDT" accent="bg-emerald-500" delay={180} testid="stat-profit" />
       </div>
+
+      {user.role === "admin" && usage && (
+        <div className="glass rounded-xl p-5 fade-up" data-testid="chain-usage-board">
+          <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+            <div className="flex items-center gap-2">
+              <Gauge className="w-4 h-4 text-cyan-400" />
+              <h2 className="text-base font-semibold text-slate-200">TronGrid 轮询额度</h2>
+              <span className="text-xs text-slate-500 font-mono">{usage.date} · UTC</span>
+            </div>
+            <span className="text-sm font-mono text-slate-300" data-testid="chain-usage-count">
+              {usage.used.toLocaleString()} <span className="text-slate-500">/ {usage.limit.toLocaleString()} 次</span>
+            </span>
+          </div>
+          <div className="h-3 rounded-full bg-slate-800 overflow-hidden">
+            <div className="h-full rounded-full transition-all duration-500" data-testid="chain-usage-bar"
+              style={{ width: `${Math.min(100, usage.pct)}%`,
+                       background: usage.pct >= 90 ? "#ef4444" : usage.pct >= 70 ? "#f59e0b" : "#10b981" }} />
+          </div>
+          <div className="flex items-center justify-between mt-2 text-xs">
+            <span className={usage.pct >= 90 ? "text-red-400" : usage.pct >= 70 ? "text-amber-400" : "text-emerald-400"}>已用 {usage.pct}%</span>
+            <span className="text-slate-400 font-mono">剩余 {usage.remaining.toLocaleString()} 次</span>
+          </div>
+          {usage.pct >= 85 && (
+            <div className="mt-3 text-xs text-amber-300 bg-amber-500/10 border border-amber-500/30 rounded-lg px-3 py-2" data-testid="chain-usage-warn">
+              ⚠️ 今日额度即将用尽，建议升级 TronGrid 套餐，或调大 CHAIN_POLL_SECONDS 放慢轮询以避免超额。
+            </div>
+          )}
+        </div>
+      )}
 
       {(user.role === "admin" || user.role === "operator") && (
         <div className="space-y-3" data-testid="daily-stats-section">
