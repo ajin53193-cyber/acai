@@ -76,6 +76,7 @@ export default function CheckoutPage() {
   const [lang, setLang] = useState(() => localStorage.getItem("sf_pay_lang") || "zh-CN");
   const [energyOpen, setEnergyOpen] = useState(true);
   const [tutorial, setTutorial] = useState(null);
+  const [redirectLeft, setRedirectLeft] = useState(null);
   const t = I18N[lang];
 
   const load = useCallback(() => {
@@ -87,6 +88,17 @@ export default function CheckoutPage() {
     const i = setInterval(load, 5000);
     return () => clearInterval(i);
   }, [order, load]);
+  useEffect(() => {
+    if (!order || order.status !== "paid" || !order.return_url || !settings?.success_auto_redirect) return;
+    let secs = Math.min(60, Math.max(1, Number(settings.success_redirect_seconds) || 5));
+    setRedirectLeft(secs);
+    const iv = setInterval(() => {
+      secs -= 1;
+      if (secs <= 0) { clearInterval(iv); window.location.href = order.return_url; }
+      else setRedirectLeft(secs);
+    }, 1000);
+    return () => clearInterval(iv);
+  }, [order, settings]);
 
   const changeLang = (v) => { setLang(v); localStorage.setItem("sf_pay_lang", v); };
   const copy = (v) => { navigator.clipboard.writeText(String(v)); toast.success(t.copied); };
@@ -160,7 +172,7 @@ export default function CheckoutPage() {
         </div>
         {order.tx_url && <a href={order.tx_url} target="_blank" rel="noreferrer" data-testid="success-view-tx" className="mt-4 inline-flex items-center gap-1 text-[var(--accent)] text-[15px] font-medium">{t.viewOnChain} <ExternalLink className="w-4 h-4" /></a>}
         {order.return_url ? (
-          <a href={order.return_url} data-testid="success-return-merchant" className="mt-5 w-full h-12 rounded-xl text-white font-semibold flex items-center justify-center text-[16px] shadow-sm active:opacity-90" style={{ background: "var(--accent)" }}>{t.returnMerchant}</a>
+          <a href={order.return_url} data-testid="success-return-merchant" className="mt-5 w-full h-12 rounded-xl text-white font-semibold flex items-center justify-center text-[16px] shadow-sm active:opacity-90" style={{ background: "var(--accent)" }}>{t.returnMerchant}{redirectLeft != null ? ` (${redirectLeft}s)` : ""}</a>
         ) : (
           <p className="mt-5 text-center text-slate-400 text-[14px]" data-testid="success-close-hint">{t.closeHint}</p>
         )}

@@ -126,6 +126,15 @@ export function CheckoutSettingsDialog() {
                   <div className="flex gap-1.5">{["#26A17B", "#2563EB", "#7C3AED", "#DC2626", "#EA580C", "#0F766E", "#111827"].map((c) => <button key={c} onClick={() => setS({ ...s, theme_color: c })} className="w-6 h-6 rounded-full border border-white/20" style={{ background: c }} title={c} />)}</div>
                 </div></div>
               <div className="space-y-1.5"><Label>客服链接（可选）</Label><Input value={s.support_url} onChange={(e) => setS({ ...s, support_url: e.target.value })} data-testid="support-url-input" className={`${inputCls} font-mono text-xs`} placeholder="https://t.me/..." /></div>
+              <div className="rounded-lg border border-slate-700 p-3 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div><div className="text-sm font-medium">支付成功后自动跳回商户</div><div className="text-xs text-slate-500">需商户下单时传 return_url；开启后成功页倒计时后自动跳转，关闭则显示「返回商户」按钮由用户点击</div></div>
+                  <Switch checked={s.success_auto_redirect} onCheckedChange={(v) => setS({ ...s, success_auto_redirect: v })} data-testid="success-auto-redirect-switch" />
+                </div>
+                {s.success_auto_redirect && (
+                  <div className="space-y-1.5"><Label>倒计时秒数（1-60）</Label><Input type="number" min={1} max={60} value={s.success_redirect_seconds ?? 5} onChange={(e) => setS({ ...s, success_redirect_seconds: Number(e.target.value) })} data-testid="success-redirect-seconds-input" className={`${inputCls} w-28`} /></div>
+                )}
+              </div>
             </TabsContent>
             <TabsContent value="energy" className="space-y-4 pt-3">
               <div className="flex items-center justify-between rounded-lg border border-slate-700 p-3">

@@ -497,6 +497,7 @@ DEFAULT_CHECKOUT_SETTINGS = {
     "support_url": "", "tutorial_links": [], "energy_rules": [],
     "logo_url": "", "brand_subtitle": "USDT 安全收款", "brand_subtitle_tw": "USDT 安全收款", "brand_subtitle_en": "Secure USDT Payment",
     "theme_color": "#26A17B",
+    "success_auto_redirect": False, "success_redirect_seconds": 5,
 }
 
 
@@ -1037,6 +1038,31 @@ async def set_require_2fa(account_id: str, request: Request, user: dict = Depend
     await audit(user, "account.require_2fa" if new_val else "account.unrequire_2fa", "user", account_id,
                 {"target_email": acc["email"], "required": new_val}, request)
     return {"totp_required": new_val}
+
+
+@api_router.delete("/accounts/{account_id}")
+async def delete_account(account_id: str, request: Request, user: dict = Depends(require_roles("admin"))):
+    acc = await db.users.find_one({"_id": ObjectId(account_id)})
+    if not acc:
+        raise HTTPException(status_code=404, detail="账户不存在")
+    if acc["role"] not in ("operator", "merchant"):
+        raise HTTPException(status_code=400, detail="仅可删除操作员或商户账户")
+    if str(acc["_id"]) == str(user["_id"]):
+        raise HTTPException(status_code=400, detail="不能删除自己的账户")
+    if acc["role"] == "merchant":
+        if round(acc.get("balance", 0), 2) != 0 or round(acc.get("frozen_balance", 0), 2) != 0:
+            raise HTTPException(status_code=409, detail="商户仍有可用/冻结余额，无法删除；请先结清余额")
+        active_orders = await db.orders.count_documents(
+            {"merchant_id": str(acc["_id"]), "status": {"$in": ["pending", "confirming"]}})
+        if active_orders:
+            raise HTTPException(status_code=409, detail=f"商户仍有 {active_orders} 笔进行中订单，无法删除")
+        pending_payouts = await db.payouts.count_documents({"merchant_id": str(acc["_id"]), "status": "pending"})
+        if pending_payouts:
+            raise HTTPException(status_code=409, detail=f"商户仍有 {pending_payouts} 笔待处理提现，无法删除")
+    await db.users.delete_one({"_id": acc["_id"]})
+    await audit(user, "account.delete", "user", account_id,
+                {"target_email": acc["email"], "role": acc["role"], "name": acc.get("name")}, request)
+    return {"ok": True}
 
 
 # ---------------------------------------------------------------------------

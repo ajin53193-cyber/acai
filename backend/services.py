@@ -79,7 +79,7 @@ async def build_order(merchant: dict, amount_usdt: float, network: Optional[str]
     pay_amount = await unique_pay_amount(amount, address) if live else amount
     clean_return = return_url.strip() if return_url else ""
     if clean_return and not clean_return.startswith(("http://", "https://")):
-        clean_return = ""
+        raise HTTPException(status_code=422, detail="return_url 必须以 http:// 或 https:// 开头")
     order = {
         "order_no": gen_order_no(),
         "out_trade_no": out_trade_no or None,

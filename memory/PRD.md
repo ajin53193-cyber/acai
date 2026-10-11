@@ -236,8 +236,14 @@
 - [x] **支付成功页**：订单支付成功后收银台自动切换为专属全屏成功页（动画对勾 + 金额 + 币种/协议/订单号/交易哈希/支付时间 + 查看链上记录 + 返回商户按钮），沿用多语言与品牌主题。新增订单 `return_url` 字段（后台下单 + 开放 API `/api/v1/orders` + dev 测试均支持，仅接受 http/https），public 接口返回 `paid_at`/`return_url`。testing_agent(iteration_19) 前后端 100%
 - [x] **单通道不变量修复**：清理历史测试残留的 13 个 TEST_* 通道（仅保留 live「TRC20 极速通道」）；修复 `backend_test` 通道用例自清理 + conftest 会话级安全网（结束时删除遗留非 live 的 TEST/TMP/VERIFY 通道）。全量 pytest 跑完后仍恰为 1 个通道
 
+## Implemented (2026-06, iteration 29b) — 成功页自动跳转 + 账户删除 + return_url 校验
+- [x] **成功页自动跳回商户（可选）**：收银台设置「品牌」tab 新增开关 `success_auto_redirect` + 倒计时秒数 `success_redirect_seconds`(1-60, 默认5)。开启且订单含 return_url 时，支付成功页按倒计时自动跳转（按钮显示「返回商户 (Ns)」，截图验证 7s 倒计时）；关闭则仅显示按钮由用户点击。CheckoutSettings 模型 + DEFAULT_CHECKOUT_SETTINGS 同步新增两字段
+- [x] **账户删除接口 + UI**：`DELETE /api/accounts/{id}`（admin-only），仅可删 operator/merchant；安全校验：不能删自己、商户有可用/冻结余额或进行中订单(pending/confirming)或待处理提现→409 阻止。curl 验证：删 operator=200、删自己=400、删 agent=400、非法=404。AccountsPage 每行新增删除按钮 + AlertDialog 二次确认（商户显示资金安全提示）
+- [x] **非法 return_url 改为 422**：`build_order` 对非 http(s) 的 return_url 由「静默忽略」改为抛 422（curl 验证 `javascript:` →422，`https://` →200）
+
 ## Backlog (next)
-- P2: admin 账户删除接口；散落模型持续并入 models.py
+- P2: 散落模型持续并入 models.py
+- P2: 清理测试残留的 TEST_M 商户账户（有余额，需先结清；现可用新删除接口手动清理）
 - P3: 导出保留天数可视化倒计时；能量规则移动端拖拽体验微调
 
 

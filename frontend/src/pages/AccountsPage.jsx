@@ -14,7 +14,11 @@ import {
 } from "@/components/ui/select";
 import { toast } from "sonner";
 import {
-  Plus, Loader2, KeyRound, Lock, Unlock, Copy, SlidersHorizontal, Snowflake, ShieldCheck, Fingerprint, Eye,
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
+  Plus, Loader2, KeyRound, Lock, Unlock, Copy, SlidersHorizontal, Snowflake, ShieldCheck, Fingerprint, Eye, Trash2,
 } from "lucide-react";
 import { MerchantDrawer } from "@/components/MerchantDrawer";
 
@@ -30,6 +34,8 @@ export default function AccountsPage() {
   const [permEdit, setPermEdit] = useState(null);
   const [permVal, setPermVal] = useState([]);
   const [drawerId, setDrawerId] = useState(null);
+  const [delTarget, setDelTarget] = useState(null);
+  const [deleting, setDeleting] = useState(false);
   useEffect(() => { if (user.role === "admin") api.get("/accounts/permissions").then((r) => setPerms(r.data)).catch(() => {}); }, [user.role]);
   const savePerms = async () => {
     try { await api.patch(`/accounts/${permEdit.id}/permissions`, { permissions: permVal }); toast.success("权限已更新"); setPermEdit(null); load(); }
@@ -92,6 +98,16 @@ export default function AccountsPage() {
       toast.success(data.totp_required ? "已强制开启两步验证" : "已取消强制两步验证");
       load();
     } catch (err) { toast.error(formatApiErrorDetail(err.response?.data?.detail)); }
+  };
+
+  const doDelete = async () => {
+    setDeleting(true);
+    try {
+      await api.delete(`/accounts/${delTarget.id}`);
+      toast.success(`账户「${delTarget.name}」已删除`);
+      setDelTarget(null); load();
+    } catch (err) { toast.error(formatApiErrorDetail(err.response?.data?.detail)); }
+    finally { setDeleting(false); }
   };
 
   return (
@@ -214,6 +230,9 @@ export default function AccountsPage() {
                           {a.status === "active" ? <Lock className="w-4 h-4" /> : <Unlock className="w-4 h-4" />}
                         </button>
                       )}
+                      {user.role === "admin" && (a.role === "operator" || a.role === "merchant") && (
+                        <button onClick={() => setDelTarget(a)} data-testid={`delete-account-${a.id}`} title="删除账户" className="p-1.5 rounded-md text-red-400 hover:bg-red-400/10"><Trash2 className="w-4 h-4" /></button>
+                      )}
                     </div>
                   </td>
                 </tr>
@@ -259,6 +278,24 @@ export default function AccountsPage() {
           <DialogFooter><Button onClick={doAdjust} disabled={!adjForm.amount} data-testid="adjust-submit-btn" className="bg-cyan-500 text-slate-950 hover:bg-cyan-400">确认调整</Button></DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={!!delTarget} onOpenChange={(v) => !v && setDelTarget(null)}>
+        <AlertDialogContent className="glass border-slate-700" data-testid="delete-account-dialog">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2"><Trash2 className="w-5 h-5 text-red-400" /> 删除账户</AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="text-sm text-slate-400 space-y-2">
+                <div>确认删除{delTarget?.role === "operator" ? "操作员" : "商户"} <span className="text-slate-200 font-medium">「{delTarget?.name}」</span>（{delTarget?.email}）？此操作不可撤销。</div>
+                {delTarget?.role === "merchant" && <div className="rounded-md border border-amber-400/30 bg-amber-400/10 px-3 py-2 text-amber-300">若商户仍有可用/冻结余额、进行中订单或待处理提现，系统将阻止删除以保护资金安全。</div>}
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel data-testid="delete-account-cancel" className="border-slate-700">取消</AlertDialogCancel>
+            <AlertDialogAction onClick={(e) => { e.preventDefault(); doDelete(); }} disabled={deleting} data-testid="delete-account-confirm" className="bg-red-500 text-white hover:bg-red-600">{deleting ? <Loader2 className="w-4 h-4 animate-spin" /> : "确认删除"}</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <MerchantDrawer accountId={drawerId} open={!!drawerId} onClose={() => setDrawerId(null)} isAdmin={user.role === "admin"} onReset={() => load()} />
     </div>
