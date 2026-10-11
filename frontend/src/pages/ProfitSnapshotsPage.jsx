@@ -93,6 +93,9 @@ export default function ProfitSnapshotsPage() {
           <Button onClick={sendReport} disabled={busy} variant="outline" data-testid="send-daily-report-btn" className="border-slate-700 hover:bg-slate-800">
             <Send className="w-4 h-4 mr-1" /> 发送今日日报
           </Button>
+          <Button onClick={async () => { try { await api.post("/export/snapshots", {}); toast.success("已加入后台导出，前往『导出任务』下载"); } catch { toast.error("导出失败"); } }} variant="outline" data-testid="bg-export-snapshots-btn" className="border-slate-700 hover:bg-slate-800">
+            <FileSpreadsheet className="w-4 h-4 mr-1" /> 后台导出
+          </Button>
           <Button onClick={runNow} disabled={busy} data-testid="snapshot-run-btn" className="bg-cyan-500 text-slate-950 hover:bg-cyan-400">
             {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Play className="w-4 h-4 mr-1" /> 生成快照</>}
           </Button>

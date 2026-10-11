@@ -2430,6 +2430,73 @@ async def orders_report(user: dict = Depends(get_current_user),
                              headers={"Content-Disposition": f"attachment; filename*=UTF-8''{quote(fname)}"})
 
 
+EXPORT_KINDS = {"orders", "snapshots", "ledger"}
+LEDGER_CAT = {
+    "order_credit": "收款入账", "commission": "代理分润", "payout_freeze": "提现冻结", "payout_done": "提现完成",
+    "payout_reject": "提现驳回退回", "adjust_credit": "人工加款", "adjust_debit": "人工扣款",
+    "adjust_freeze": "冻结", "adjust_unfreeze": "解冻",
+}
+
+
+async def generate_snapshots_xlsx(start=None, end=None):
+    from openpyxl import Workbook
+    from openpyxl.styles import Font, PatternFill, Alignment
+    from openpyxl.utils import get_column_letter
+    import io
+    q = {}
+    if start and end:
+        q["date"] = {"$gte": start, "$lte": end}
+    rows = await db.profit_snapshots.find(q).sort("date", -1).to_list(500)
+    wb = Workbook(); ws = wb.active; ws.title = "分润快照"
+    hf = Font(bold=True, color="FFFFFF"); hfill = PatternFill("solid", fgColor="0E7490")
+    ws.append(["日期", "订单数", "收款总额", "手续费", "商户实收", "代理分润", "平台利润", "补偿单", "环比%"])
+    for c in ws[1]:
+        c.font, c.fill, c.alignment = hf, hfill, Alignment(horizontal="center")
+    for s in rows:
+        ws.append([s.get("date"), s.get("order_count"), s.get("total_amount"), s.get("total_fee"),
+                   s.get("total_merchant_receive"), s.get("total_agent_commission"), s.get("total_platform_profit"),
+                   s.get("backfilled", 0), s.get("platform_profit_change_pct")])
+    for i, w in enumerate([12, 10, 14, 12, 14, 12, 12, 8, 10], 1):
+        ws.column_dimensions[get_column_letter(i)].width = w
+    ws.freeze_panes = "A2"
+    buf = io.BytesIO(); wb.save(buf); buf.seek(0)
+    return buf, len(rows), f"profit_snapshots_{start or 'all'}.xlsx"
+
+
+async def generate_ledger_xlsx(user, account_id=None, month=None, start=None, end=None):
+    from openpyxl import Workbook
+    from openpyxl.styles import Font, PatternFill, Alignment
+    from openpyxl.utils import get_column_letter
+    import io
+    acc = await db.users.find_one({"_id": ObjectId(account_id)})
+    if not acc:
+        raise HTTPException(status_code=404, detail="账户不存在")
+    q = {"account_id": account_id}
+    if start and end:
+        ds = datetime.strptime(start, "%Y-%m-%d").replace(tzinfo=timezone.utc)
+        de = datetime.strptime(end, "%Y-%m-%d").replace(tzinfo=timezone.utc) + timedelta(days=1)
+        q["created_at"] = {"$gte": iso(ds), "$lt": iso(de)}
+    elif month:
+        ds = datetime.strptime(month + "-01", "%Y-%m-%d").replace(tzinfo=timezone.utc)
+        de = (ds + timedelta(days=32)).replace(day=1)
+        q["created_at"] = {"$gte": iso(ds), "$lt": iso(de)}
+    rows = await db.balance_logs.find(q).sort("created_at", -1).to_list(100000)
+    wb = Workbook(); ws = wb.active; ws.title = "资金流水"
+    hf = Font(bold=True, color="FFFFFF"); hfill = PatternFill("solid", fgColor="0E7490")
+    ws.append([f"账户：{acc.get('name', '')} ({acc.get('email', '')})"])
+    ws.append(["时间", "类型", "金额(USDT)", "变动后余额", "关联单号/ID", "备注"])
+    for c in ws[2]:
+        c.font, c.fill, c.alignment = hf, hfill, Alignment(horizontal="center")
+    for r in rows:
+        ws.append([(r.get("created_at") or "")[:19].replace("T", " "), LEDGER_CAT.get(r.get("category"), r.get("category")),
+                   r.get("amount"), r.get("balance_after"), r.get("ref_id") or "", r.get("remark") or ""])
+    for i, w in enumerate([20, 12, 14, 14, 24, 24], 1):
+        ws.column_dimensions[get_column_letter(i)].width = w
+    ws.freeze_panes = "A3"
+    buf = io.BytesIO(); wb.save(buf); buf.seek(0)
+    return buf, len(rows), f"ledger_{acc.get('name', '')}_{month or start or 'all'}.xlsx"
+
+
 # ---------------------------------------------------------------------------
 # Background export jobs (large exports -> async job + download link)
 # ---------------------------------------------------------------------------
@@ -2438,37 +2505,51 @@ def _require_export(user: dict):
         raise HTTPException(status_code=403, detail="无报表导出权限")
 
 
-async def _run_order_export(job_id: str, user: dict, params: dict):
+async def _run_export(job_id: str, user: dict, kind: str, params: dict):
     async def progress(done, total):
         await db.export_jobs.update_one({"_id": ObjectId(job_id)}, {"$set": {"processed": done, "expected": total}})
     try:
-        buf, count, fname = await generate_orders_xlsx(user, progress=progress, **params)
+        if kind == "orders":
+            buf, count, fname = await generate_orders_xlsx(user, progress=progress, **params)
+        elif kind == "snapshots":
+            buf, count, fname = await generate_snapshots_xlsx(**params)
+        else:
+            buf, count, fname = await generate_ledger_xlsx(user, **params)
         data = buf.getvalue()
         file_id = await fs.upload_from_stream(f"{job_id}.xlsx", data)
         await db.export_jobs.update_one({"_id": ObjectId(job_id)},
             {"$set": {"status": "done", "row_count": count, "filename": fname, "size_bytes": len(data),
                       "file_id": str(file_id), "processed": count, "expected": count,
                       "finished_at": iso(now_utc()), "expires_at": iso(now_utc() + timedelta(days=7))}})
+        if count >= 500:
+            kind_label = {"orders": "订单", "snapshots": "分润快照", "ledger": "资金流水"}.get(kind, kind)
+            await send_telegram(f"📁 <b>导出完成</b>\n类型：{kind_label}\n行数：{count}\n大小：{round(len(data) / 1024)}KB\n操作人：{user.get('email', '')}", "report")
     except Exception as e:
         await db.export_jobs.update_one({"_id": ObjectId(job_id)},
             {"$set": {"status": "failed", "error": str(e)[:300], "finished_at": iso(now_utc())}})
 
 
-@api_router.post("/export/orders")
-async def create_order_export(request: Request, user: dict = Depends(get_current_user)):
+@api_router.post("/export/{kind}")
+async def create_export(kind: str, request: Request, user: dict = Depends(get_current_user)):
     _require_export(user)
+    if kind not in EXPORT_KINDS:
+        raise HTTPException(status_code=400, detail="不支持的导出类型")
     try:
         params = await request.json()
     except Exception:
         params = {}
-    allowed = {k: params.get(k) for k in ("status", "network", "keyword", "merchant_id", "date", "start", "end", "ids")
-               if params.get(k)}
-    doc = {"kind": "orders", "status": "pending", "params": allowed,
+    fields = {"orders": ("status", "network", "keyword", "merchant_id", "date", "start", "end", "ids"),
+              "snapshots": ("start", "end"),
+              "ledger": ("account_id", "month", "start", "end")}[kind]
+    allowed = {k: params.get(k) for k in fields if params.get(k)}
+    if kind == "ledger" and not allowed.get("account_id"):
+        raise HTTPException(status_code=400, detail="导出资金流水需指定 account_id")
+    doc = {"kind": kind, "status": "pending", "params": allowed,
            "created_by": str(user["_id"]), "created_email": user["email"], "created_at": iso(now_utc())}
     res = await db.export_jobs.insert_one(doc)
     jid = str(res.inserted_id)
-    asyncio.create_task(_run_order_export(jid, user, allowed))
-    await audit(user, "export.create", "export", jid, {"kind": "orders", "params": allowed}, request)
+    asyncio.create_task(_run_export(jid, user, kind, allowed))
+    await audit(user, "export.create", "export", jid, {"kind": kind, "params": allowed}, request)
     return {"id": jid, "status": "pending"}
 
 

@@ -68,6 +68,7 @@ export default function ExportJobsPage() {
           <thead>
             <tr className="text-left text-xs text-slate-500 border-b border-slate-800 bg-slate-900/40">
               <th className="py-3 px-3 font-medium">创建时间</th>
+              <th className="py-3 px-3 font-medium">类型</th>
               <th className="py-3 px-3 font-medium">筛选条件</th>
               <th className="py-3 px-3 font-medium text-right">行数</th>
               <th className="py-3 px-3 font-medium text-right">大小</th>
@@ -78,12 +79,14 @@ export default function ExportJobsPage() {
           </thead>
           <tbody>
             {jobs.length === 0 ? (
-              <tr><td colSpan={7} className="py-10 text-center text-slate-500">暂无导出任务，在「订单与收款」页点击「后台导出」创建</td></tr>
+              <tr><td colSpan={8} className="py-10 text-center text-slate-500">暂无导出任务，在「订单与收款」页点击「后台导出」创建</td></tr>
             ) : jobs.map((j) => {
               const s = STATUS[j.status] || STATUS.pending; const Icon = s.Icon;
+              const kindLabel = { orders: "订单", snapshots: "分润快照", ledger: "资金流水" }[j.kind] || j.kind;
               return (
                 <tr key={j.id} className="border-b border-slate-800/50 hover:bg-slate-800/30" data-testid={`export-job-${j.id}`}>
                   <td className="py-3 px-3 font-mono text-[11px] text-slate-400">{fmtDate(j.created_at)}</td>
+                  <td className="py-3 px-3"><span className="text-[11px] px-2 py-0.5 rounded bg-slate-800 text-slate-300">{kindLabel}</span></td>
                   <td className="py-3 px-3 text-xs text-slate-300">{fmtParams(j.params)}</td>
                   <td className="py-3 px-3 text-right font-mono">{j.row_count ?? "—"}</td>
                   <td className="py-3 px-3 text-right font-mono text-slate-400">{fmtSize(j.size_bytes)}</td>

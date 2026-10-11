@@ -181,12 +181,16 @@
 - [x] 测试：后端 pytest 28/28；GridFS 导出 curl 全流程通过（建任务→done 270 行→file_id/expires 落库→GridFS 下载有效 xlsx 33KB）；前端编译通过 + 导出任务页截图确认
 - [说明] 采用 GridFS 作为持久化方案（无需外部对象存储密钥，满足重启可下载+TTL）；如需切平台对象存储可再接
 
+## Implemented (2026-06, iteration 22)
+- [x] 多类型导出：导出任务中心统一支持 订单/分润快照/资金流水 三类。通用端点 POST /api/export/{kind}（kind∈orders|snapshots|ledger，校验类型与必填 account_id）；新增 generate_snapshots_xlsx、generate_ledger_xlsx；_run_export 按 kind 分发；导出任务页新增「类型」列；分润快照页加「后台导出」按钮
+- [x] 导出完成通知：后台导出完成且行数≥500 时，Telegram 推送「导出完成（类型/行数/大小/操作人）」(kind=report)
+- [x] 测试：后端 pytest 28/28；三类导出 curl 全通过（orders 279 行 done、snapshots done、ledger done；ledger 缺 account_id→400、非法 kind→400；GridFS 落库+下载正常）；前端编译通过 + 导出任务页截图确认
+
 ## Backlog (next)
-- P1: orders 域迁移 routes/orders.py（必要时抽 services.py 承载 build_order/settle_order/pick_*）
+- P1: orders 域迁移 routes/orders.py（抽 services.py 承载 build_order/settle_order/pick_*，需专轮全回归——涉核心资金流程）
 - P1: settlements 域迁移 routes/settlements.py
 - P1: 获取 ETHERSCAN_API_KEY 后验证 ERC20/BEP20 真实到账
-- P2: 导出可选切换平台对象存储；导出任务中心支持多表类型(订单/快照/流水)
-- P2: 剩余散落 Pydantic 模型并入 models.py
+- P2: 导出可选切换平台对象存储；定时导出；剩余散落 Pydantic 模型并入 models.py
 - P2: 代理多级分润（当前单级）
 - P2: server.py 进一步拆分为路由模块（现 ~2389 行，email 已抽出；建议继续拆 auth/orders/settlements/ledger/operators）
 - P2: admin 账户删除接口（清理测试遗留账户 test_2fa_*@demo.com）
