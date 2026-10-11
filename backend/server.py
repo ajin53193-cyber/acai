@@ -5,7 +5,7 @@ import os
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
 
-from fastapi import FastAPI, APIRouter, HTTPException, Depends, Request, Response, Query
+from fastapi import FastAPI, APIRouter, HTTPException, Depends, Request, Response, Query, Header
 from fastapi.responses import JSONResponse
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient  # noqa: F401  (client/db provided via core)
@@ -492,6 +492,58 @@ async def security_policy() -> dict:
     return {"enforce_admin_2fa": False, "enforce_operator_2fa": False, "login_alert": True, **doc}
 
 
+# ---------------------------------------------------------------------------
+# Step-up verification for sensitive operations (operation security code + TOTP)
+# ---------------------------------------------------------------------------
+OP_LOCK_MAX = 5
+OP_LOCK_MINUTES = 15
+
+
+async def _op_code_check_lock(user: dict):
+    until = user.get("op_code_locked_until")
+    if until:
+        try:
+            locked = datetime.fromisoformat(until) > now_utc()
+        except Exception:
+            locked = False
+        if locked:
+            raise HTTPException(status_code=423, detail="操作安全码错误次数过多，请稍后再试")
+
+
+async def verify_step_up_dep(request: Request, x_op_code: Optional[str] = Header(None),
+                             x_op_totp: Optional[str] = Header(None),
+                             user: dict = Depends(get_current_user)):
+    """Gate a sensitive operation behind the operation security code AND a fresh
+    Google Authenticator TOTP. Each factor is only enforced if the user has
+    configured it (lenient until set), converging to both-required once set up."""
+    need_op = bool(user.get("op_code_hash"))
+    need_totp = bool(user.get("totp_enabled"))
+    if not need_op and not need_totp:
+        return user
+
+    def challenge(err=None):
+        return HTTPException(status_code=428, detail={"step_up": True, "need_op_code": need_op,
+                                                      "need_totp": need_totp, "error": err})
+    if need_op:
+        await _op_code_check_lock(user)
+    oc = (x_op_code or "").strip()
+    tc = (x_op_totp or "").strip().replace(" ", "")
+    if (need_op and not oc) or (need_totp and not tc):
+        raise challenge()
+    if need_op and not verify_password(oc, user["op_code_hash"]):
+        fails = int(user.get("op_code_fails", 0)) + 1
+        upd = {"op_code_fails": fails}
+        if fails >= OP_LOCK_MAX:
+            upd = {"op_code_fails": 0, "op_code_locked_until": iso(now_utc() + timedelta(minutes=OP_LOCK_MINUTES))}
+        await db.users.update_one({"_id": user["_id"]}, {"$set": upd})
+        raise challenge("操作安全码错误")
+    if need_totp and not pyotp.TOTP(user.get("totp_secret") or "").verify(tc, valid_window=1):
+        raise challenge("谷歌验证码错误")
+    if need_op and user.get("op_code_fails"):
+        await db.users.update_one({"_id": user["_id"]}, {"$set": {"op_code_fails": 0}})
+    return user
+
+
 @api_router.get("/security/policy")
 async def get_security_policy(user: dict = Depends(get_current_user)):
     pol = await security_policy()
@@ -500,7 +552,8 @@ async def get_security_policy(user: dict = Depends(get_current_user)):
 
 
 @api_router.put("/security/policy")
-async def put_security_policy(data: SecurityPolicy, request: Request, user: dict = Depends(require_roles("admin"))):
+async def put_security_policy(data: SecurityPolicy, request: Request, user: dict = Depends(require_roles("admin")),
+                              _su: dict = Depends(verify_step_up_dep)):
     await db.settings.update_one({"_id": "security"}, {"$set": data.model_dump()}, upsert=True)
     await audit(user, "settings.security", "settings", "security", data.model_dump(), request)
     return {"ok": True, **data.model_dump()}
@@ -1086,7 +1139,8 @@ async def update_my_notify(data: NotifySettings, request: Request, user: dict = 
 
 
 @api_router.post("/accounts")
-async def create_account(data: AccountCreate, request: Request, user: dict = Depends(require_roles("admin", "agent"))):
+async def create_account(data: AccountCreate, request: Request, user: dict = Depends(require_roles("admin", "agent")),
+                         _su: dict = Depends(verify_step_up_dep)):
     if data.role not in ["agent", "merchant", "operator"]:
         raise HTTPException(status_code=400, detail="角色不合法")
     if user["role"] == "agent" and data.role != "merchant":
@@ -1160,7 +1214,7 @@ async def get_account(account_id: str, user: dict = Depends(get_current_user)):
 
 @api_router.post("/accounts/{account_id}/adjust")
 async def adjust_balance(account_id: str, data: BalanceAdjust, request: Request,
-                         user: dict = Depends(require_roles("admin"))):
+                         user: dict = Depends(require_roles("admin")), _su: dict = Depends(verify_step_up_dep)):
     acc = await db.users.find_one({"_id": ObjectId(account_id)})
     if not acc:
         raise HTTPException(status_code=404, detail="账户不存在")
@@ -1193,7 +1247,8 @@ async def adjust_balance(account_id: str, data: BalanceAdjust, request: Request,
 
 
 @api_router.post("/accounts/{account_id}/toggle-status")
-async def toggle_status(account_id: str, request: Request, user: dict = Depends(require_roles("admin"))):
+async def toggle_status(account_id: str, request: Request, user: dict = Depends(require_roles("admin")),
+                        _su: dict = Depends(verify_step_up_dep)):
     acc = await db.users.find_one({"_id": ObjectId(account_id)})
     if not acc:
         raise HTTPException(status_code=404, detail="账户不存在")
@@ -1232,7 +1287,8 @@ async def set_require_2fa(account_id: str, request: Request, user: dict = Depend
 
 
 @api_router.delete("/accounts/{account_id}")
-async def delete_account(account_id: str, request: Request, user: dict = Depends(require_roles("admin"))):
+async def delete_account(account_id: str, request: Request, user: dict = Depends(require_roles("admin")),
+                         _su: dict = Depends(verify_step_up_dep)):
     acc = await db.users.find_one({"_id": ObjectId(account_id)})
     if not acc:
         raise HTTPException(status_code=404, detail="账户不存在")

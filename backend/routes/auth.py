@@ -8,18 +8,20 @@ import asyncio
 import base64
 import io as _io
 
+from typing import Optional
+
 import pyotp
 import qrcode
 from fastapi import APIRouter, Depends, Request, Response, HTTPException
 from pydantic import BaseModel
 
 from core import db
-from utils import client_ip, verify_password, create_access_token, clean_user, iso, now_utc
+from utils import client_ip, verify_password, hash_password, create_access_token, clean_user, iso, now_utc
 from models import LoginInput
 from deps import get_current_user
 from email_utils import notify_security
 from shared import audit
-from server import check_lockout, record_login_failure, security_policy, LOCK_MAX_FAILS, LOCK_MINUTES
+from server import check_lockout, record_login_failure, security_policy, verify_step_up_dep, LOCK_MAX_FAILS, LOCK_MINUTES
 
 router = APIRouter(prefix="/api")
 
@@ -126,3 +128,50 @@ async def totp_disable(data: TotpCode, request: Request, user: dict = Depends(ge
     await audit(user, "auth.2fa_disable", "user", user["_id"], {}, request)
     asyncio.create_task(notify_security(user, "disable", client_ip(request)))
     return {"ok": True, "totp_enabled": False}
+
+
+class OpCodeSet(BaseModel):
+    new_code: str
+    current_code: Optional[str] = None
+    totp_code: Optional[str] = None
+
+
+class ChangePassword(BaseModel):
+    current_password: str
+    new_password: str
+
+
+@router.get("/auth/op-code/status")
+async def op_code_status(user: dict = Depends(get_current_user)):
+    return {"op_code_set": bool(user.get("op_code_hash"))}
+
+
+@router.post("/auth/op-code/set")
+async def op_code_set(data: OpCodeSet, request: Request, user: dict = Depends(get_current_user)):
+    if user["role"] not in ("admin", "operator"):
+        raise HTTPException(status_code=403, detail="当前角色无需操作安全码")
+    new = (data.new_code or "").strip()
+    if len(new) < 6:
+        raise HTTPException(status_code=400, detail="操作安全码至少 6 位")
+    if user.get("op_code_hash"):
+        if not data.current_code or not verify_password(data.current_code.strip(), user["op_code_hash"]):
+            raise HTTPException(status_code=403, detail="当前操作安全码错误")
+    if user.get("totp_enabled"):
+        tc = (data.totp_code or "").strip().replace(" ", "")
+        if not tc or not pyotp.TOTP(user.get("totp_secret") or "").verify(tc, valid_window=1):
+            raise HTTPException(status_code=403, detail="谷歌验证码错误")
+    await db.users.update_one({"_id": user["_id"]},
+        {"$set": {"op_code_hash": hash_password(new), "op_code_fails": 0}, "$unset": {"op_code_locked_until": ""}})
+    await audit(user, "auth.op_code_set", "user", user["_id"], {}, request)
+    return {"ok": True, "op_code_set": True}
+
+
+@router.post("/auth/change-password")
+async def change_password(data: ChangePassword, request: Request, user: dict = Depends(verify_step_up_dep)):
+    if not verify_password(data.current_password, user["password_hash"]):
+        raise HTTPException(status_code=403, detail="当前登录密码错误")
+    if len(data.new_password) < 6:
+        raise HTTPException(status_code=400, detail="新密码至少 6 位")
+    await db.users.update_one({"_id": user["_id"]}, {"$set": {"password_hash": hash_password(data.new_password)}})
+    await audit(user, "auth.change_password", "user", user["_id"], {}, request)
+    return {"ok": True}

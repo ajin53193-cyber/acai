@@ -22,7 +22,7 @@ from server import (
     live_address_list, sync_address, set_address_health, check_balance_alert,
     check_sweep_alert, fetch_balance, normalize_addresses, _tx_explorer, NETWORKS,
     chain_usage_snapshot, chain_usage_memory, chain_usage_forecast, TRONGRID_DAILY_LIMIT,
-    CHAIN_SPIKE_MULT, CHAIN_SPIKE_MIN, CHAIN_FORECAST_LEAD,
+    CHAIN_SPIKE_MULT, CHAIN_SPIKE_MIN, CHAIN_FORECAST_LEAD, verify_step_up_dep,
 )
 from datetime import timedelta
 
@@ -205,7 +205,8 @@ class AddressAdd(BaseModel):
 
 
 @router.post("/chain/addresses")
-async def add_addresses(data: AddressAdd, request: Request, user: dict = Depends(require_roles("admin"))):
+async def add_addresses(data: AddressAdd, request: Request, user: dict = Depends(require_roles("admin")),
+                        _su: dict = Depends(verify_step_up_dep)):
     ch = await db.channels.find_one({"_id": ObjectId(data.channel_id)})
     if not ch:
         raise HTTPException(status_code=404, detail="通道不存在")
@@ -219,7 +220,8 @@ async def add_addresses(data: AddressAdd, request: Request, user: dict = Depends
 
 
 @router.delete("/chain/addresses/{channel_id}/{address}")
-async def remove_address(channel_id: str, address: str, request: Request, user: dict = Depends(require_roles("admin"))):
+async def remove_address(channel_id: str, address: str, request: Request, user: dict = Depends(require_roles("admin")),
+                         _su: dict = Depends(verify_step_up_dep)):
     ch = await db.channels.find_one({"_id": ObjectId(channel_id)})
     if not ch:
         raise HTTPException(status_code=404, detail="通道不存在")

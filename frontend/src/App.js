@@ -2,6 +2,7 @@ import "@/App.css";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/context/AuthContext";
 import { Toaster } from "@/components/ui/sonner";
+import StepUpModal from "@/components/StepUpModal";
 import LoginPage from "@/pages/LoginPage";
 import DashboardLayout from "@/components/DashboardLayout";
 import DashboardPage from "@/pages/DashboardPage";
@@ -51,6 +52,7 @@ function App() {
   return (
     <div className="App">
       <AuthProvider>
+        <StepUpModal />
         <BrowserRouter>
           <Routes>
             <Route path="/login" element={<LoginPage />} />

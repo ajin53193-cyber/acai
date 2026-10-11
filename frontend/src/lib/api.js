@@ -1,4 +1,5 @@
 import axios from "axios";
+import { requestStepUp } from "./stepup";
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 export const API = `${BACKEND_URL}/api`;
@@ -10,6 +11,27 @@ api.interceptors.request.use((config) => {
   if (token) config.headers.Authorization = `Bearer ${token}`;
   return config;
 });
+
+api.interceptors.response.use(
+  (r) => r,
+  async (error) => {
+    const { response, config } = error;
+    const detail = response?.data?.detail;
+    if (response && response.status === 428 && detail && detail.step_up && config && (config.__su || 0) < 6) {
+      try {
+        const { opCode, totpCode } = await requestStepUp({ needOp: detail.need_op_code, needTotp: detail.need_totp, error: detail.error });
+        config.__su = (config.__su || 0) + 1;
+        config.headers = { ...(config.headers || {}) };
+        if (opCode) config.headers["X-Op-Code"] = opCode;
+        if (totpCode) config.headers["X-Op-Totp"] = totpCode;
+        return api(config);
+      } catch (e) {
+        return Promise.reject(error);
+      }
+    }
+    return Promise.reject(error);
+  }
+);
 
 export function formatApiErrorDetail(detail) {
   if (detail == null) return "操作失败，请重试";

@@ -128,7 +128,77 @@ export default function SecurityPage() {
         )}
       </div>
 
+      <OpCodeCard user={user} refresh={refresh} />
+      <ChangePasswordCard />
       <SecurityPolicyCard user={user} />
+    </div>
+  );
+}
+
+function OpCodeCard({ user, refresh }) {
+  const [opSet, setOpSet] = useState(null);
+  const [newCode, setNewCode] = useState("");
+  const [curCode, setCurCode] = useState("");
+  const [totp, setTotp] = useState("");
+  const [busy, setBusy] = useState(false);
+  useEffect(() => { api.get("/auth/op-code/status").then((r) => setOpSet(r.data.op_code_set)).catch(() => {}); }, []);
+  const save = async () => {
+    setBusy(true);
+    try {
+      await api.post("/auth/op-code/set", { new_code: newCode, current_code: curCode || null, totp_code: totp || null });
+      toast.success(opSet ? "操作安全码已更新" : "操作安全码已设置");
+      setNewCode(""); setCurCode(""); setTotp(""); setOpSet(true);
+      if (refresh) await refresh();
+    } catch (e) { toast.error(formatApiErrorDetail(e.response?.data?.detail)); }
+    finally { setBusy(false); }
+  };
+  if (opSet === null) return null;
+  return (
+    <div className="glass rounded-xl p-6" data-testid="opcode-card">
+      <div className="flex items-center gap-2 mb-1"><KeyRound className="w-5 h-5 text-cyan-400" /><span className="font-semibold">操作安全码</span>
+        <span className={`ml-auto px-2.5 py-1 rounded-full text-[11px] border ${opSet ? "border-emerald-400/40 text-emerald-400 bg-emerald-400/10" : "border-slate-600 text-slate-400"}`} data-testid="opcode-status">{opSet ? "已设置" : "未设置"}</span>
+      </div>
+      <p className="text-xs text-slate-400 mb-4">用于增删收款地址、增删商户、余额调整、冻结账户、改密码、改安全策略等敏感操作的二次确认（与谷歌验证码一起校验）。</p>
+      <div className="space-y-3 max-w-sm">
+        {opSet && (
+          <div className="space-y-1.5"><Label>当前操作安全码</Label>
+            <Input type="password" value={curCode} onChange={(e) => setCurCode(e.target.value)} data-testid="opcode-current" className="bg-slate-900/60 border-slate-700" placeholder="输入当前安全码" /></div>
+        )}
+        <div className="space-y-1.5"><Label>{opSet ? "新操作安全码" : "设置操作安全码"}（至少 6 位）</Label>
+          <Input type="password" value={newCode} onChange={(e) => setNewCode(e.target.value)} data-testid="opcode-new" className="bg-slate-900/60 border-slate-700" placeholder="至少 6 位" /></div>
+        {user.totp_enabled && (
+          <div className="space-y-1.5"><Label>谷歌验证码</Label>
+            <Input inputMode="numeric" maxLength={6} value={totp} onChange={(e) => setTotp(e.target.value)} data-testid="opcode-totp" className="bg-slate-900/60 border-slate-700 font-mono tracking-widest max-w-[180px]" placeholder="6 位动态码" /></div>
+        )}
+        <Button onClick={save} disabled={busy || newCode.length < 6 || (opSet && !curCode) || (user.totp_enabled && totp.length < 6)} data-testid="opcode-save" className="bg-cyan-500 text-slate-950 hover:bg-cyan-400">{busy ? <Loader2 className="w-4 h-4 animate-spin" /> : (opSet ? "更新安全码" : "设置安全码")}</Button>
+      </div>
+    </div>
+  );
+}
+
+function ChangePasswordCard() {
+  const [cur, setCur] = useState("");
+  const [nw, setNw] = useState("");
+  const [busy, setBusy] = useState(false);
+  const save = async () => {
+    setBusy(true);
+    try {
+      await api.post("/auth/change-password", { current_password: cur, new_password: nw });
+      toast.success("登录密码已修改");
+      setCur(""); setNw("");
+    } catch (e) { toast.error(formatApiErrorDetail(e.response?.data?.detail)); }
+    finally { setBusy(false); }
+  };
+  return (
+    <div className="glass rounded-xl p-6" data-testid="change-password-card">
+      <div className="flex items-center gap-2 mb-4"><Lock className="w-5 h-5 text-cyan-400" /><span className="font-semibold">修改登录密码</span></div>
+      <div className="space-y-3 max-w-sm">
+        <div className="space-y-1.5"><Label>当前密码</Label>
+          <Input type="password" value={cur} onChange={(e) => setCur(e.target.value)} data-testid="cp-current" className="bg-slate-900/60 border-slate-700" /></div>
+        <div className="space-y-1.5"><Label>新密码（至少 6 位）</Label>
+          <Input type="password" value={nw} onChange={(e) => setNw(e.target.value)} data-testid="cp-new" className="bg-slate-900/60 border-slate-700" /></div>
+        <Button onClick={save} disabled={busy || !cur || nw.length < 6} data-testid="cp-save" className="bg-cyan-500 text-slate-950 hover:bg-cyan-400">{busy ? <Loader2 className="w-4 h-4 animate-spin" /> : "确认修改"}</Button>
+      </div>
     </div>
   );
 }
