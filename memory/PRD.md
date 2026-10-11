@@ -427,3 +427,8 @@
 - 环境变量 TRONHOOKS_API_KEY（预览未配置；用户生产 key 已提供，需 HTTPS 后在服务器 .env 配置）。收款地址页新增 TronHooksCard。
 - chain_txs 新增 source 字段；match_chain_tx 捕获 DuplicateKeyError（轮询与 webhook 并发安全）。
 - 用户放弃 TronHooks（无法购买）：代码保留但未配置 Key 时完全停用，前端卡片仅在启用时显示。继续依赖 TronGrid 5s 轮询。
+
+## 2026-10-11
+- 手机付款页(CheckoutPage.jsx)整体缩小：字号13-14px、金额32px、二维码170px、间距收紧。
+- 生产域名 print8.8bc8uyz.com 已通过宝塔签发 Let's Encrypt 证书(到期2027-01-09)，外网 HTTPS 验证通过；旧 win-acme 证书作废。
+- 预览环境 frontend .env 为 sifang-collect 域名。
