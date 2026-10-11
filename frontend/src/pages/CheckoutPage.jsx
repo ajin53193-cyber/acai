@@ -75,7 +75,7 @@ export default function CheckoutPage() {
   const [notFound, setNotFound] = useState(false);
   const [paying, setPaying] = useState(false);
   const [lang, setLang] = useState(() => localStorage.getItem("sf_pay_lang") || "zh-CN");
-  const [energyOpen, setEnergyOpen] = useState(true);
+  const [energyOpen, setEnergyOpen] = useState(false);
   const [tutorial, setTutorial] = useState(null);
   const [redirectLeft, setRedirectLeft] = useState(null);
   const [supportOpen, setSupportOpen] = useState(false);
