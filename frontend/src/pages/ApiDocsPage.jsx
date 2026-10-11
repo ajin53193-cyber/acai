@@ -170,8 +170,7 @@ export default function ApiDocsPage() {
           <div className="grid grid-cols-3 gap-3">
             <div className="space-y-1"><Label className="text-xs">金额 USDT</Label><Input value={amount} onChange={(e) => setAmount(e.target.value)} data-testid="try-amount-input" className="bg-slate-900/60 border-slate-700 font-mono" /></div>
             <div className="space-y-1"><Label className="text-xs">网络</Label>
-              <select value={network} onChange={(e) => setNetwork(e.target.value)} data-testid="try-network-select" className="w-full h-10 rounded-md bg-slate-900/60 border border-slate-700 text-sm px-2">
-                <option>TRC20</option><option>ERC20</option><option>BEP20</option></select></div>
+              <div data-testid="try-network-fixed" className="w-full h-10 flex items-center rounded-md bg-slate-900/60 border border-slate-700 text-sm px-2 font-mono text-emerald-400">TRC20</div></div>
             <div className="space-y-1"><Label className="text-xs">out_trade_no</Label><Input value={outNo} onChange={(e) => setOutNo(e.target.value)} data-testid="try-out-no-input" className="bg-slate-900/60 border-slate-700 font-mono text-xs" /></div>
           </div>
           <Button onClick={tryIt} disabled={busy || !amount || !sel} data-testid="try-submit-btn" className="w-full bg-gradient-to-r from-cyan-500 to-emerald-500 text-slate-950 font-semibold hover:opacity-90">

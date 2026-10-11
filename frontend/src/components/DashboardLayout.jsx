@@ -127,8 +127,6 @@ export default function DashboardLayout() {
             <span>节点在线</span>
             <span className="text-slate-600">·</span>
             <span className="text-emerald-400">TRC20 32ms</span>
-            <span className="text-sky-400">ERC20 88ms</span>
-            <span className="text-amber-400">BEP20 45ms</span>
           </div>
           <div className="ml-auto flex items-center gap-4">
             {user?.role === "admin" && <AlertBell />}

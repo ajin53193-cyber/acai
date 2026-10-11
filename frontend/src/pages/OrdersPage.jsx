@@ -225,14 +225,7 @@ export default function OrdersPage() {
               </div>
               <div className="space-y-1.5">
                 <Label>链网络</Label>
-                <Select value={network} onValueChange={setNetwork}>
-                  <SelectTrigger data-testid="order-network-select" className="bg-slate-900/60 border-slate-700"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="TRC20">TRC20</SelectItem>
-                    <SelectItem value="ERC20">ERC20</SelectItem>
-                    <SelectItem value="BEP20">BEP20</SelectItem>
-                  </SelectContent>
-                </Select>
+                <div data-testid="order-network-fixed" className="flex items-center h-10 px-3 rounded-md bg-slate-900/60 border border-slate-700 text-sm font-mono text-emerald-400">USDT · TRC20</div>
               </div>
               <div className="space-y-1.5">
                 <Label>回调地址 <span className="text-slate-500 text-xs">（可选，留空用商户默认）</span></Label>
@@ -263,15 +256,6 @@ export default function OrdersPage() {
             <SelectItem value="paid">已支付</SelectItem>
             <SelectItem value="expired">超时未付</SelectItem>
             <SelectItem value="rejected">已驳回</SelectItem>
-          </SelectContent>
-        </Select>
-        <Select value={networkFilter} onValueChange={setNetworkFilter}>
-          <SelectTrigger data-testid="network-filter" className="w-[130px] bg-slate-900/60 border-slate-700"><SelectValue /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">全部网络</SelectItem>
-            <SelectItem value="TRC20">TRC20</SelectItem>
-            <SelectItem value="ERC20">ERC20</SelectItem>
-            <SelectItem value="BEP20">BEP20</SelectItem>
           </SelectContent>
         </Select>
       </div>

@@ -43,7 +43,7 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(level
 logger = logging.getLogger("sifang")
 
 JWT_ALGORITHM = "HS256"
-NETWORKS = ["TRC20", "ERC20", "BEP20"]
+NETWORKS = ["TRC20"]
 TRONGRID_API = os.environ.get("TRONGRID_API", "https://api.trongrid.io")
 TRONGRID_API_KEY = os.environ.get("TRONGRID_API_KEY", "")
 USDT_TRC20_CONTRACT = "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t"
@@ -150,47 +150,6 @@ async def callback_worker():
         await asyncio.sleep(5)
 
 
-EVM_CHAINS = {"ERC20": {"chainid": 1, "contract": "0xdAC17F958D2ee523a2206206994597C13D831ec7", "decimals": 6,
-                        "explorer": "https://etherscan.io", "rpc": "https://ethereum-rpc.publicnode.com", "block_sec": 12},
-              "BEP20": {"chainid": 56, "contract": "0x55d398326f99059fF775485246999027B3197955", "decimals": 18,
-                        "explorer": "https://bscscan.com", "rpc": "https://bsc-rpc.publicnode.com", "block_sec": 3}}
-ETHERSCAN_API = "https://api.etherscan.io/v2/api"
-ETHERSCAN_API_KEY = os.environ.get("ETHERSCAN_API_KEY", "")
-TRANSFER_TOPIC = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"
-
-
-async def rpc_call(url: str, method: str, params: list):
-    async with httpx.AsyncClient(timeout=25) as hc:
-        r = await hc.post(url, json={"jsonrpc": "2.0", "id": 1, "method": method, "params": params})
-        r.raise_for_status()
-        data = r.json()
-    if "error" in data:
-        raise RuntimeError(f"RPC {method}: {data['error'].get('message')}")
-    return data["result"]
-
-
-async def fetch_evm_transfers_rpc(network: str, address: str, since_ms: int) -> List[dict]:
-    cfg = EVM_CHAINS[network]
-    latest = int(await rpc_call(cfg["rpc"], "eth_blockNumber", []), 16)
-    span = int((now_utc().timestamp() * 1000 - since_ms) / 1000 / cfg["block_sec"]) + 20
-    from_block = max(0, latest - min(span, 3000))
-    logs = await rpc_call(cfg["rpc"], "eth_getLogs", [{
-        "fromBlock": hex(from_block), "toBlock": "latest", "address": cfg["contract"],
-        "topics": [TRANSFER_TOPIC, None, "0x" + address[2:].lower().rjust(64, "0")]}])
-    logs = logs[-150:]
-    out, block_ts = [], {}
-    for bn in {lg["blockNumber"] for lg in logs}:
-        blk = await rpc_call(cfg["rpc"], "eth_getBlockByNumber", [bn, False])
-        block_ts[bn] = int(blk["timestamp"], 16) * 1000
-    for lg in logs:
-        bn = lg["blockNumber"]
-        if block_ts[bn] < since_ms:
-            continue
-        out.append({"transaction_id": lg["transactionHash"], "from": "0x" + lg["topics"][1][-40:],
-                    "value": str(int(lg["data"], 16)), "decimals": cfg["decimals"], "block_timestamp": block_ts[bn]})
-    return out
-
-
 async def fetch_trc20_transfers(address: str, since_ms: int) -> List[dict]:
     headers = {"TRON-PRO-API-KEY": TRONGRID_API_KEY} if TRONGRID_API_KEY else {}
     params = {"only_confirmed": "true", "only_to": "true", "limit": 100,
@@ -203,51 +162,20 @@ async def fetch_trc20_transfers(address: str, since_ms: int) -> List[dict]:
                 for t in r.json().get("data", [])]
 
 
-async def fetch_evm_transfers(network: str, address: str, since_ms: int) -> List[dict]:
-    if not ETHERSCAN_API_KEY:
-        return await fetch_evm_transfers_rpc(network, address, since_ms)
-    cfg = EVM_CHAINS[network]
-    params = {"chainid": cfg["chainid"], "module": "account", "action": "tokentx", "contractaddress": cfg["contract"],
-              "address": address, "page": 1, "offset": 100, "sort": "desc", "apikey": ETHERSCAN_API_KEY}
-    async with httpx.AsyncClient(timeout=20) as hc:
-        r = await hc.get(ETHERSCAN_API, params=params)
-        r.raise_for_status()
-        data = r.json()
-    if data.get("status") != "1" and data.get("message") != "No transactions found":
-        if "not supported" in str(data.get("result", "")) or "Invalid API Key" in str(data.get("result", "")):
-            return await fetch_evm_transfers_rpc(network, address, since_ms)
-        raise RuntimeError(str(data.get("result", data.get("message")))[:150])
-    out = []
-    for t in data.get("result", []) or []:
-        ts = int(t["timeStamp"]) * 1000
-        if ts < since_ms or t.get("to", "").lower() != address.lower():
-            continue
-        out.append({"transaction_id": t["hash"], "from": t.get("from"), "value": t["value"],
-                    "decimals": int(t.get("tokenDecimal", cfg["decimals"])), "block_timestamp": ts})
-    return out
-
-
 async def fetch_transfers(network: str, address: str, since_ms: int) -> List[dict]:
-    if network == "TRC20":
-        return await fetch_trc20_transfers(address, since_ms)
-    return await fetch_evm_transfers(network, address, since_ms)
+    return await fetch_trc20_transfers(address, since_ms)
 
 
 async def fetch_balance(network: str, address: str) -> float:
-    if network == "TRC20":
-        headers = {"TRON-PRO-API-KEY": TRONGRID_API_KEY} if TRONGRID_API_KEY else {}
-        async with httpx.AsyncClient(timeout=15) as hc:
-            r = await hc.get(f"{TRONGRID_API}/v1/accounts/{address}", headers=headers)
-            r.raise_for_status()
-            data = r.json().get("data") or [{}]
-        for item in data[0].get("trc20", []):
-            if USDT_TRC20_CONTRACT in item:
-                return round(int(item[USDT_TRC20_CONTRACT]) / 1e6, 2)
-        return 0.0
-    cfg = EVM_CHAINS[network]
-    data_hex = "0x70a08231" + address[2:].lower().rjust(64, "0")
-    res = await rpc_call(cfg["rpc"], "eth_call", [{"to": cfg["contract"], "data": data_hex}, "latest"])
-    return round(int(res, 16) / (10 ** cfg["decimals"]), 2)
+    headers = {"TRON-PRO-API-KEY": TRONGRID_API_KEY} if TRONGRID_API_KEY else {}
+    async with httpx.AsyncClient(timeout=15) as hc:
+        r = await hc.get(f"{TRONGRID_API}/v1/accounts/{address}", headers=headers)
+        r.raise_for_status()
+        data = r.json().get("data") or [{}]
+    for item in data[0].get("trc20", []):
+        if USDT_TRC20_CONTRACT in item:
+            return round(int(item[USDT_TRC20_CONTRACT]) / 1e6, 2)
+    return 0.0
 
 
 DEFAULT_ALERT_SETTINGS = {"pct": 10.0, "min_abs": 100.0, "sync_minutes": 10, "sweep_threshold": 10000.0, "big_payment": 1000.0}
@@ -710,9 +638,7 @@ async def pick_channel(network: Optional[str], amount: float) -> Optional[dict]:
 
 async def build_order(merchant: dict, amount_usdt: float, network: Optional[str], remark: str,
                       notify_url: Optional[str], out_trade_no: Optional[str] = None) -> dict:
-    network = network or random.choice(NETWORKS)
-    if network not in NETWORKS:
-        raise HTTPException(status_code=400, detail="不支持的网络")
+    network = "TRC20"
     if amount_usdt <= 0:
         raise HTTPException(status_code=400, detail="金额必须大于 0")
     channel = await pick_channel(network, amount_usdt)
@@ -901,11 +827,10 @@ async def get_order_public(order_no: str):
         await db.orders.update_one({"_id": order["_id"]}, {"$set": {"status": "expired"}})
         order["status"] = "expired"
     net = order["network"]
-    explorer = (f"https://tronscan.org/#/address/{order['wallet_address']}" if net == "TRC20"
-                else f"{EVM_CHAINS[net]['explorer']}/address/{order['wallet_address']}")
+    explorer = f"https://tronscan.org/#/address/{order['wallet_address']}"
     tx_url = None
     if order.get("tx_id") and order.get("live"):
-        tx_url = f"https://tronscan.org/#/transaction/{order['tx_id']}" if net == "TRC20" else f"{EVM_CHAINS[net]['explorer']}/tx/{order['tx_id']}"
+        tx_url = f"https://tronscan.org/#/transaction/{order['tx_id']}"
     return {
         "order_no": order["order_no"],
         "amount_usdt": order["amount_usdt"],
@@ -1257,7 +1182,7 @@ async def run_profit_snapshot(request: Request, date: Optional[str] = None, user
 
 
 def _tx_explorer(network: str, txid: str) -> str:
-    return f"https://tronscan.org/#/transaction/{txid}" if network == "TRC20" else f"{EVM_CHAINS[network]['explorer']}/tx/{txid}"
+    return f"https://tronscan.org/#/transaction/{txid}"
 
 
 @api_router.get("/chain/txs")
@@ -1310,7 +1235,7 @@ async def list_address_health(user: dict = Depends(require_roles("admin"))):
         p = paid.get(addr, {})
         m = meta.get(addr, {})
         sw = sweeps.get(addr, {})
-        explorer = f"https://tronscan.org/#/address/{addr}" if ch["network"] == "TRC20" else f"{EVM_CHAINS[ch['network']]['explorer']}/address/{addr}"
+        explorer = f"https://tronscan.org/#/address/{addr}"
         bal = h.get("balance")
         rows.append({"address": addr, "network": ch["network"], "channel_id": str(ch["_id"]), "channel_name": ch["name"],
                      "label": m.get("label", ""), "paused": m.get("status") == "paused",
@@ -1646,10 +1571,8 @@ async def list_channels(user: dict = Depends(get_current_user)):
 def validate_wallet(network: str, address: str):
     if not address:
         return
-    if network == "TRC20" and not (address.startswith("T") and len(address) == 34):
+    if not (address.startswith("T") and len(address) == 34):
         raise HTTPException(status_code=400, detail="TRC20 地址格式不正确（T 开头 34 位）")
-    if network in ("ERC20", "BEP20") and not (address.startswith("0x") and len(address) == 42):
-        raise HTTPException(status_code=400, detail="EVM 地址格式不正确（0x 开头 42 位）")
 
 
 def normalize_addresses(network: str, addrs: Optional[List[str]], single: Optional[str]) -> List[str]:
@@ -2640,10 +2563,8 @@ async def seed():
         base = [
             {"name": "TRC20 极速通道", "network": "TRC20", "fee_rate": 0.02, "weight": 50,
              "min_amount": 10, "max_amount": 50000, "status": "active"},
-            {"name": "ERC20 高速通道", "network": "ERC20", "fee_rate": 0.03, "weight": 20,
+            {"name": "TRC20 大额通道", "network": "TRC20", "fee_rate": 0.015, "weight": 30,
              "min_amount": 50, "max_amount": 100000, "status": "active"},
-            {"name": "BEP20 低费通道", "network": "BEP20", "fee_rate": 0.015, "weight": 30,
-             "min_amount": 10, "max_amount": 30000, "status": "active"},
         ]
         for c in base:
             c["success_rate"] = round(random.uniform(96, 99.5), 1)

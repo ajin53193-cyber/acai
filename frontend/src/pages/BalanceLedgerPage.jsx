@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { ArrowLeftRight, Loader2, FileText, Wallet, Snowflake, TrendingUp, TrendingDown } from "lucide-react";
+import { ArrowLeftRight, Loader2, FileText, Wallet, Snowflake, TrendingUp, TrendingDown, FolderDown } from "lucide-react";
 
 const CAT = {
   order_credit: { label: "收款入账", cls: "text-emerald-400 border-emerald-400/30 bg-emerald-400/10" },
@@ -71,6 +71,19 @@ export default function BalanceLedgerPage() {
     } finally { setBusy(false); }
   };
 
+  const bgExport = async () => {
+    if (pick && !accountId) { toast.error("请先选择账户"); return; }
+    const params = {}; if (pick) params.account_id = accountId;
+    if (rangeMode === "month" && month) params.month = month;
+    else if (rangeMode === "range" && start && end) { params.start = start; params.end = end; }
+    try {
+      await api.post("/export/ledger", params);
+      toast.success("已加入后台导出，请前往『导出任务』页下载");
+    } catch (err) {
+      toast.error(formatApiErrorDetail(err.response?.data?.detail) || "导出失败");
+    }
+  };
+
   const acc = data?.account;
   const entries = data?.entries || [];
 
@@ -102,6 +115,9 @@ export default function BalanceLedgerPage() {
           )}
           <Button onClick={download} disabled={busy || (pick && !accountId)} variant="outline" data-testid="ledger-export-btn" className="border-slate-700 hover:bg-slate-800">
             {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <><FileText className="w-4 h-4 mr-1" /> 导出 Excel</>}
+          </Button>
+          <Button onClick={bgExport} disabled={pick && !accountId} variant="outline" data-testid="ledger-bg-export-btn" className="border-slate-700 hover:bg-slate-800">
+            <FolderDown className="w-4 h-4 mr-1" /> 后台导出
           </Button>
         </div>
       </div>

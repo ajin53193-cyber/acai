@@ -114,7 +114,7 @@ export default function ChannelsPage() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">通道路由</h1>
-          <p className="text-sm text-slate-400 mt-1">配置 USDT 收款通道、权重路由与费率。配置收款地址后自动监听链上到账（TRC20 via TronGrid，ERC20/BEP20 via Etherscan 需 ETHERSCAN_API_KEY）</p>
+          <p className="text-sm text-slate-400 mt-1">配置 USDT-TRC20 收款通道、权重路由与费率。配置收款地址后自动监听链上到账（TRC20 via TronGrid）</p>
         </div>
         <div className="flex gap-2">
         <CheckoutSettingsDialog />
@@ -133,10 +133,7 @@ export default function ChannelsPage() {
               <div className="space-y-1.5"><Label>通道名称</Label>
                 <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} data-testid="channel-name-input" className="bg-slate-900/60 border-slate-700" placeholder="例如：TRC20 极速通道" /></div>
               <div className="space-y-1.5"><Label>链网络</Label>
-                <Select value={form.network} onValueChange={(v) => setForm({ ...form, network: v })}>
-                  <SelectTrigger data-testid="channel-network-select" className="bg-slate-900/60 border-slate-700"><SelectValue /></SelectTrigger>
-                  <SelectContent><SelectItem value="TRC20">TRC20</SelectItem><SelectItem value="ERC20">ERC20</SelectItem><SelectItem value="BEP20">BEP20</SelectItem></SelectContent>
-                </Select></div>
+                <div data-testid="channel-network-fixed" className="flex items-center h-10 px-3 rounded-md bg-slate-900/60 border border-slate-700 text-sm font-mono text-emerald-400">USDT · TRC20</div></div>
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5"><Label>费率 (0-1)</Label><Input type="number" step="0.001" value={form.fee_rate} onChange={(e) => setForm({ ...form, fee_rate: e.target.value })} data-testid="channel-fee-input" className="bg-slate-900/60 border-slate-700 font-mono" /></div>
                 <div className="space-y-1.5"><Label>权重</Label><Input type="number" value={form.weight} onChange={(e) => setForm({ ...form, weight: e.target.value })} data-testid="channel-weight-input" className="bg-slate-900/60 border-slate-700 font-mono" /></div>

@@ -167,9 +167,7 @@ export default function AddressHealthPage() {
 
       <div className="glass rounded-xl p-3 flex flex-wrap gap-3 items-center">
         <div className="relative flex-1 min-w-[220px]"><Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" /><Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="搜索地址 / 标签 / 通道" data-testid="address-search-input" className={`pl-9 ${inputCls}`} /></div>
-        <Select value={netFilter} onValueChange={setNetFilter}><SelectTrigger data-testid="address-network-filter" className={`w-[130px] ${inputCls}`}><SelectValue /></SelectTrigger>
-          <SelectContent><SelectItem value="all">全部网络</SelectItem><SelectItem value="TRC20">TRC20</SelectItem><SelectItem value="ERC20">ERC20</SelectItem><SelectItem value="BEP20">BEP20</SelectItem></SelectContent></Select>
-        <span className="text-xs text-slate-500 font-mono">{rows.length} 个地址</span>
+        <span className="text-xs text-slate-500 font-mono">{rows.length} 个地址 · TRC20</span>
       </div>
 
       <div className="glass rounded-xl overflow-hidden">
