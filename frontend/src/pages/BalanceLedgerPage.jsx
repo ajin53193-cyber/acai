@@ -29,7 +29,9 @@ export default function BalanceLedgerPage() {
   const [loading, setLoading] = useState(!pick);
   const [month, setMonth] = useState(() => new Date().toISOString().slice(0, 7));
   const [busy, setBusy] = useState(false);
-  const [byMonth, setByMonth] = useState(false);
+  const [rangeMode, setRangeMode] = useState("all");
+  const [start, setStart] = useState(() => new Date().toISOString().slice(0, 10));
+  const [end, setEnd] = useState(() => new Date().toISOString().slice(0, 10));
 
   useEffect(() => {
     if (!pick) return;
@@ -43,18 +45,21 @@ export default function BalanceLedgerPage() {
     if (pick && !accountId) { setData(null); return; }
     setLoading(true);
     const params = pick ? { account_id: accountId } : {};
-    if (byMonth && month) params.month = month;
+    if (rangeMode === "month" && month) params.month = month;
+    else if (rangeMode === "range" && start && end) { params.start = start; params.end = end; }
     api.get("/balance/ledger", { params })
       .then((r) => { setData(r.data); setLoading(false); })
       .catch((err) => { setLoading(false); toast.error(formatApiErrorDetail(err.response?.data?.detail)); });
-  }, [pick, accountId, byMonth, month]);
+  }, [pick, accountId, rangeMode, month, start, end]);
 
   useEffect(() => { load(); }, [load]);
 
   const download = async () => {
     setBusy(true);
     try {
-      const params = {}; if (pick) params.account_id = accountId; if (byMonth && month) params.month = month;
+      const params = {}; if (pick) params.account_id = accountId;
+      if (rangeMode === "month" && month) params.month = month;
+      else if (rangeMode === "range" && start && end) { params.start = start; params.end = end; }
       const res = await api.get("/reports/balance-ledger", { params, responseType: "blob" });
       const url = URL.createObjectURL(res.data);
       const a = document.createElement("a"); a.href = url; a.download = `ledger_${month || "all"}.xlsx`; a.click(); URL.revokeObjectURL(url);
@@ -83,11 +88,18 @@ export default function BalanceLedgerPage() {
               <SelectContent>{accounts.map((m) => <SelectItem key={m.id} value={m.id}>{m.name} · {m.email}</SelectItem>)}</SelectContent>
             </Select>
           )}
-          <Select value={byMonth ? "month" : "all"} onValueChange={(v) => setByMonth(v === "month")}>
+          <Select value={rangeMode} onValueChange={setRangeMode}>
             <SelectTrigger data-testid="ledger-range-select" className="w-[118px] bg-slate-900/60 border-slate-700"><SelectValue /></SelectTrigger>
-            <SelectContent><SelectItem value="all">全部时间</SelectItem><SelectItem value="month">按月份</SelectItem></SelectContent>
+            <SelectContent><SelectItem value="all">全部时间</SelectItem><SelectItem value="month">按月份</SelectItem><SelectItem value="range">按区间</SelectItem></SelectContent>
           </Select>
-          <Input type="month" value={month} onChange={(e) => setMonth(e.target.value)} disabled={!byMonth} data-testid="ledger-month-input" className="w-[150px] bg-slate-900/60 border-slate-700 font-mono disabled:opacity-40" />
+          {rangeMode === "month" && <Input type="month" value={month} onChange={(e) => setMonth(e.target.value)} data-testid="ledger-month-input" className="w-[150px] bg-slate-900/60 border-slate-700 font-mono" />}
+          {rangeMode === "range" && (
+            <>
+              <Input type="date" value={start} onChange={(e) => setStart(e.target.value)} data-testid="ledger-start-input" className="w-[146px] bg-slate-900/60 border-slate-700 font-mono" />
+              <span className="text-slate-500">~</span>
+              <Input type="date" value={end} onChange={(e) => setEnd(e.target.value)} data-testid="ledger-end-input" className="w-[146px] bg-slate-900/60 border-slate-700 font-mono" />
+            </>
+          )}
           <Button onClick={download} disabled={busy || (pick && !accountId)} variant="outline" data-testid="ledger-export-btn" className="border-slate-700 hover:bg-slate-800">
             {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <><FileText className="w-4 h-4 mr-1" /> 导出 Excel</>}
           </Button>

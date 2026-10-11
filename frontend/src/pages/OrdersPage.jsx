@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from "react";
+import { useSearchParams } from "react-router-dom";
 import api, { formatApiErrorDetail } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
 import { fmtUSDT, STATUS_MAP, NETWORK_COLORS, fmtDate, shortHash, explorerAddr, explorerTx } from "@/lib/format";
@@ -51,13 +52,19 @@ export default function OrdersPage() {
   const [notifyUrl, setNotifyUrl] = useState("");
   const [creating, setCreating] = useState(false);
 
+  const [searchParams, setSearchParams] = useSearchParams();
   const load = useCallback(() => {
     const params = { limit: 300 };
     if (statusFilter !== "all") params.status = statusFilter;
     if (networkFilter !== "all") params.network = networkFilter;
     if (keyword) params.keyword = keyword;
+    const mId = searchParams.get("merchant_id"); const d = searchParams.get("date");
+    const s = searchParams.get("start"); const e = searchParams.get("end");
+    if (mId) params.merchant_id = mId;
+    if (d) params.date = d;
+    if (s && e) { params.start = s; params.end = e; }
     api.get("/orders", { params }).then((r) => { setOrders(r.data); setLoading(false); }).catch(() => setLoading(false));
-  }, [statusFilter, networkFilter, keyword]);
+  }, [statusFilter, networkFilter, keyword, searchParams]);
 
   useEffect(() => { load(); }, [load]);
   useEffect(() => {

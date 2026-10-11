@@ -39,7 +39,7 @@ export default function DashboardLayout() {
   };
 
   return (
-    <div className="min-h-screen flex bg-background grain">
+    <div className="h-screen flex bg-background grain overflow-hidden">
       {/* Sidebar */}
       <aside
         className={`fixed lg:static z-40 h-screen w-[240px] shrink-0 flex flex-col border-r border-slate-800 bg-[#0B1120] transition-transform ${
@@ -115,8 +115,8 @@ export default function DashboardLayout() {
       {open && <div className="fixed inset-0 z-30 bg-black/60 lg:hidden" onClick={() => setOpen(false)} />}
 
       {/* Main */}
-      <div className="flex-1 flex flex-col min-w-0">
-        <header className="sticky top-0 z-20 h-16 flex items-center gap-4 px-4 md:px-6 border-b border-slate-800 bg-[#0B1120] shadow-sm shadow-black/40">
+      <div className="flex-1 flex flex-col min-w-0 h-screen">
+        <header className="z-20 h-16 flex items-center gap-4 px-4 md:px-6 border-b border-slate-800 bg-[#0B1120] shadow-sm shadow-black/40 shrink-0">
           <button className="lg:hidden p-2 text-slate-400" onClick={() => setOpen(!open)} data-testid="menu-toggle">
             {open ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
           </button>
@@ -144,7 +144,7 @@ export default function DashboardLayout() {
           </div>
         </header>
 
-        <main className="flex-1 p-4 md:p-6 lg:p-8 overflow-x-hidden">
+        <main className="flex-1 p-4 md:p-6 lg:p-8 overflow-y-auto overflow-x-hidden">
           <Outlet />
         </main>
       </div>

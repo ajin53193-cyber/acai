@@ -955,15 +955,29 @@ async def dashboard_stats(user: dict = Depends(get_current_user), date: Optional
     }
 
 
-@api_router.get("/stats/merchants")
-async def merchant_stats(date: Optional[str] = None, user: dict = Depends(require_roles("admin"))):
-    day_start = now_utc().replace(hour=0, minute=0, second=0, microsecond=0)
+def _date_window(date: Optional[str], start: Optional[str], end: Optional[str]):
+    if start and end:
+        try:
+            ds = datetime.strptime(start, "%Y-%m-%d").replace(tzinfo=timezone.utc)
+            de = datetime.strptime(end, "%Y-%m-%d").replace(tzinfo=timezone.utc) + timedelta(days=1)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="日期格式应为 YYYY-MM-DD")
+        if de <= ds:
+            raise HTTPException(status_code=400, detail="结束日期需不早于开始日期")
+        return ds, de, f"{start} ~ {end}"
+    ds = now_utc().replace(hour=0, minute=0, second=0, microsecond=0)
     if date:
         try:
-            day_start = datetime.strptime(date, "%Y-%m-%d").replace(tzinfo=timezone.utc)
+            ds = datetime.strptime(date, "%Y-%m-%d").replace(tzinfo=timezone.utc)
         except ValueError:
             raise HTTPException(status_code=400, detail="date 格式应为 YYYY-MM-DD")
-    day_end = day_start + timedelta(days=1)
+    return ds, ds + timedelta(days=1), ds.strftime("%Y-%m-%d")
+
+
+@api_router.get("/stats/merchants")
+async def merchant_stats(date: Optional[str] = None, start: Optional[str] = None, end: Optional[str] = None,
+                         user: dict = Depends(require_roles("admin"))):
+    day_start, day_end, label = _date_window(date, start, end)
     merchants = await db.users.find({"role": "merchant"}).to_list(1000)
     orders = await db.orders.find({"created_at": {"$gte": iso(day_start), "$lt": iso(day_end)}}).to_list(100000)
     by_m: dict = {}
@@ -988,7 +1002,37 @@ async def merchant_stats(date: Optional[str] = None, user: dict = Depends(requir
             "volume": round(s["volume"], 2), "fee": round(s["fee"], 2), "receive": round(s["receive"], 2),
         })
     result.sort(key=lambda x: (x["volume"], x["paid"]), reverse=True)
-    return {"date": day_start.strftime("%Y-%m-%d"), "count": len(result), "merchants": result}
+    return {"date": label, "start": day_start.strftime("%Y-%m-%d"),
+            "end": (day_end - timedelta(days=1)).strftime("%Y-%m-%d"),
+            "count": len(result), "merchants": result}
+
+
+@api_router.get("/reports/merchant-stats")
+async def merchant_stats_report(date: Optional[str] = None, start: Optional[str] = None, end: Optional[str] = None,
+                                user: dict = Depends(require_roles("admin"))):
+    from openpyxl import Workbook
+    from openpyxl.styles import Font, PatternFill, Alignment
+    from openpyxl.utils import get_column_letter
+    from fastapi.responses import StreamingResponse
+    from urllib.parse import quote
+    import io
+    data = await merchant_stats(date=date, start=start, end=end, user=user)
+    wb = Workbook(); ws = wb.active; ws.title = "商户统计"
+    head_font = Font(bold=True, color="FFFFFF"); head_fill = PatternFill("solid", fgColor="0E7490")
+    ws.append([f"统计区间：{data['date']}"])
+    ws.append(["商户", "邮箱", "订单数", "成功", "成功率%", "收款金额", "手续费", "实收", "可用余额"])
+    for c in ws[2]:
+        c.font, c.fill, c.alignment = head_font, head_fill, Alignment(horizontal="center")
+    for m in data["merchants"]:
+        ws.append([m["name"], m["email"], m["orders"], m["paid"], m["success_rate"],
+                   m["volume"], m["fee"], m["receive"], m["balance"]])
+    for i, w in enumerate([18, 26, 10, 8, 10, 16, 14, 14, 14], 1):
+        ws.column_dimensions[get_column_letter(i)].width = w
+    ws.freeze_panes = "A3"
+    buf = io.BytesIO(); wb.save(buf); buf.seek(0)
+    fname = f"merchant_stats_{data['date'].replace(' ', '').replace('~', '-')}.xlsx"
+    return StreamingResponse(buf, media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                             headers={"Content-Disposition": f"attachment; filename*=UTF-8''{quote(fname)}"})
 
 
 # ---------------------------------------------------------------------------
@@ -1152,11 +1196,28 @@ async def paid_notifications(since: str, user: dict = Depends(get_current_user))
 @api_router.get("/orders")
 async def list_orders(user: dict = Depends(get_current_user),
                       status: Optional[str] = None, network: Optional[str] = None,
-                      keyword: Optional[str] = None, limit: int = Query(200, le=1000)):
+                      keyword: Optional[str] = None, merchant_id: Optional[str] = None,
+                      date: Optional[str] = None, start: Optional[str] = None, end: Optional[str] = None,
+                      limit: int = Query(200, le=1000)):
     scope = await merchant_ids_for_scope(user)
     q: dict = {}
     if scope is not None:
         q["merchant_id"] = {"$in": [str(i) for i in scope]}
+    if merchant_id and (scope is None or ObjectId(merchant_id) in scope):
+        q["merchant_id"] = str(merchant_id)
+    if start and end:
+        try:
+            ds = datetime.strptime(start, "%Y-%m-%d").replace(tzinfo=timezone.utc)
+            de = datetime.strptime(end, "%Y-%m-%d").replace(tzinfo=timezone.utc) + timedelta(days=1)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="日期格式应为 YYYY-MM-DD")
+        q["created_at"] = {"$gte": iso(ds), "$lt": iso(de)}
+    elif date:
+        try:
+            ds = datetime.strptime(date, "%Y-%m-%d").replace(tzinfo=timezone.utc)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="date 格式应为 YYYY-MM-DD")
+        q["created_at"] = {"$gte": iso(ds), "$lt": iso(ds + timedelta(days=1))}
     if status:
         q["status"] = status
     if network:
@@ -2306,19 +2367,27 @@ async def resolve_ledger_account(user: dict, account_id: Optional[str]) -> Objec
 
 @api_router.get("/balance/ledger")
 async def balance_ledger(account_id: Optional[str] = None, category: Optional[str] = None,
-                         month: Optional[str] = None, limit: int = Query(300, le=2000),
+                         month: Optional[str] = None, start: Optional[str] = None, end: Optional[str] = None,
+                         limit: int = Query(300, le=2000),
                          user: dict = Depends(get_current_user)):
     acc_id = await resolve_ledger_account(user, account_id)
     q: dict = {"account_id": str(acc_id)}
     if category:
         q["category"] = category
-    if month:
+    if start and end:
         try:
-            start = datetime.strptime(month, "%Y-%m").replace(tzinfo=timezone.utc)
+            ds = datetime.strptime(start, "%Y-%m-%d").replace(tzinfo=timezone.utc)
+            de = datetime.strptime(end, "%Y-%m-%d").replace(tzinfo=timezone.utc) + timedelta(days=1)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="日期格式应为 YYYY-MM-DD")
+        q["created_at"] = {"$gte": iso(ds), "$lt": iso(de)}
+    elif month:
+        try:
+            ms = datetime.strptime(month, "%Y-%m").replace(tzinfo=timezone.utc)
         except ValueError:
             raise HTTPException(status_code=400, detail="month 格式应为 YYYY-MM")
-        end = (start.replace(year=start.year + 1, month=1) if start.month == 12 else start.replace(month=start.month + 1))
-        q["created_at"] = {"$gte": iso(start), "$lt": iso(end)}
+        me = (ms.replace(year=ms.year + 1, month=1) if ms.month == 12 else ms.replace(month=ms.month + 1))
+        q["created_at"] = {"$gte": iso(ms), "$lt": iso(me)}
     rows = await db.balance_ledger.find(q).sort("created_at", -1).to_list(limit)
     acc = await db.users.find_one({"_id": acc_id})
     return {
@@ -2338,6 +2407,7 @@ LEDGER_CAT_LABELS = {
 
 @api_router.get("/reports/balance-ledger")
 async def balance_ledger_report(account_id: Optional[str] = None, month: Optional[str] = None,
+                                start: Optional[str] = None, end: Optional[str] = None,
                                 user: dict = Depends(get_current_user)):
     from openpyxl import Workbook
     from openpyxl.styles import Font, PatternFill, Alignment
@@ -2350,13 +2420,21 @@ async def balance_ledger_report(account_id: Optional[str] = None, month: Optiona
     acc = await db.users.find_one({"_id": acc_id})
     q: dict = {"account_id": str(acc_id)}
     title_suffix = "全部"
-    if month:
+    if start and end:
         try:
-            start = datetime.strptime(month, "%Y-%m").replace(tzinfo=timezone.utc)
+            ds = datetime.strptime(start, "%Y-%m-%d").replace(tzinfo=timezone.utc)
+            de = datetime.strptime(end, "%Y-%m-%d").replace(tzinfo=timezone.utc) + timedelta(days=1)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="日期格式应为 YYYY-MM-DD")
+        q["created_at"] = {"$gte": iso(ds), "$lt": iso(de)}
+        title_suffix = f"{start}_{end}"
+    elif month:
+        try:
+            ms = datetime.strptime(month, "%Y-%m").replace(tzinfo=timezone.utc)
         except ValueError:
             raise HTTPException(status_code=400, detail="month 格式应为 YYYY-MM")
-        end = (start.replace(year=start.year + 1, month=1) if start.month == 12 else start.replace(month=start.month + 1))
-        q["created_at"] = {"$gte": iso(start), "$lt": iso(end)}
+        me = (ms.replace(year=ms.year + 1, month=1) if ms.month == 12 else ms.replace(month=ms.month + 1))
+        q["created_at"] = {"$gte": iso(ms), "$lt": iso(me)}
         title_suffix = month
     rows = await db.balance_ledger.find(q).sort("created_at", 1).to_list(100000)
 
