@@ -20,6 +20,8 @@ export default function ExportJobsPage() {
   const [accounts, setAccounts] = useState([]);
   const [form, setForm] = useState({ kind: "orders", freq: "daily", range: "all", account_id: "" });
   const [creating, setCreating] = useState(false);
+  const [nowTs, setNowTs] = useState(Date.now());
+  useEffect(() => { const i = setInterval(() => setNowTs(Date.now()), 1000); return () => clearInterval(i); }, []);
 
   const loadSchedules = useCallback(async () => {
     try { const { data } = await api.get("/export-schedules"); setSchedules(data); } catch { /* noop */ }
@@ -78,11 +80,14 @@ export default function ExportJobsPage() {
   const fmtSize = (b) => (!b ? "—" : b > 1048576 ? `${(b / 1048576).toFixed(1)}MB` : `${(b / 1024).toFixed(0)}KB`);
   const expiryInfo = (j) => {
     if (!j.expires_at) return null;
-    const ms = new Date(j.expires_at) - new Date();
+    const ms = new Date(j.expires_at).getTime() - nowTs;
     if (ms <= 0) return { label: "已过期", soon: false, expired: true };
-    const hrs = ms / 3600000;
-    const text = hrs < 24 ? `${Math.max(1, Math.round(hrs))}h 后` : `${Math.round(hrs / 24)}天后`;
-    return { label: `${text}到期`, soon: hrs < 24, expired: false };
+    const soon = ms < 86400000;
+    const d = Math.floor(ms / 86400000), h = Math.floor((ms % 86400000) / 3600000);
+    const m = Math.floor((ms % 3600000) / 60000), s = Math.floor((ms % 60000) / 1000);
+    const pad = (n) => String(n).padStart(2, "0");
+    const label = soon ? `${pad(h)}:${pad(m)}:${pad(s)} 后清理` : `${d}天 ${h}小时后`;
+    return { label, soon, expired: false };
   };
   const fmtParams = (p) => {
     if (!p || Object.keys(p).length === 0) return "全部订单";

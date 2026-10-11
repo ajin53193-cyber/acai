@@ -498,6 +498,7 @@ DEFAULT_CHECKOUT_SETTINGS = {
     "logo_url": "", "brand_subtitle": "USDT 安全收款", "brand_subtitle_tw": "USDT 安全收款", "brand_subtitle_en": "Secure USDT Payment",
     "theme_color": "#26A17B",
     "success_auto_redirect": False, "success_redirect_seconds": 5,
+    "return_url_domains": "",
 }
 
 
@@ -1063,6 +1064,33 @@ async def delete_account(account_id: str, request: Request, user: dict = Depends
     await audit(user, "account.delete", "user", account_id,
                 {"target_email": acc["email"], "role": acc["role"], "name": acc.get("name")}, request)
     return {"ok": True}
+
+
+@api_router.post("/accounts/cleanup-test-merchants")
+async def cleanup_test_merchants(request: Request, user: dict = Depends(require_roles("admin"))):
+    """One-click removal of leftover demo/test merchants (test_*@test.com,
+    *@citest.com, or name TEST_M). Accounts with in-flight orders or pending
+    payouts are skipped. Real demo merchants (@demo.com) are never matched."""
+    q = {"role": "merchant", "$or": [
+        {"email": {"$regex": r"^test_.*@test\.com$", "$options": "i"}},
+        {"email": {"$regex": r"@citest\.com$", "$options": "i"}},
+        {"name": "TEST_M"},
+    ]}
+    cands = await db.users.find(q).to_list(2000)
+    removed, skipped = [], []
+    for m in cands:
+        mid = str(m["_id"])
+        active = await db.orders.count_documents({"merchant_id": mid, "status": {"$in": ["pending", "confirming"]}})
+        pend_po = await db.payouts.count_documents({"merchant_id": mid, "status": "pending"})
+        if active or pend_po:
+            skipped.append({"email": m["email"], "reason": f"进行中订单 {active} / 待处理提现 {pend_po}"})
+            continue
+        await db.users.delete_one({"_id": m["_id"]})
+        removed.append(m["email"])
+    await audit(user, "accounts.cleanup_test", "user", "batch",
+                {"removed": len(removed), "skipped": len(skipped)}, request)
+    return {"ok": True, "removed_count": len(removed), "skipped_count": len(skipped),
+            "removed": removed, "skipped": skipped}
 
 
 # ---------------------------------------------------------------------------

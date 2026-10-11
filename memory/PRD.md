@@ -241,6 +241,12 @@
 - [x] **账户删除接口 + UI**：`DELETE /api/accounts/{id}`（admin-only），仅可删 operator/merchant；安全校验：不能删自己、商户有可用/冻结余额或进行中订单(pending/confirming)或待处理提现→409 阻止。curl 验证：删 operator=200、删自己=400、删 agent=400、非法=404。AccountsPage 每行新增删除按钮 + AlertDialog 二次确认（商户显示资金安全提示）
 - [x] **非法 return_url 改为 422**：`build_order` 对非 http(s) 的 return_url 由「静默忽略」改为抛 422（curl 验证 `javascript:` →422，`https://` →200）
 
+## Implemented (2026-06, iteration 29c) — 测试商户清理 + 成功页收据 + return_url 白名单 + 导出到期倒计时
+- [x] **一键清理测试商户**：`POST /api/accounts/cleanup-test-merchants`（admin），删除 `test_*@test.com`/`*@citest.com`/名称 TEST_M 的残留商户，有进行中订单或待处理提现者自动跳过；@demo.com 演示账户永不匹配。curl 验证：18→6（移除 12、跳过 3）。AccountsPage 商户 tab 新增「清理测试商户」按钮 + 确认弹窗
+- [x] **成功页收据**：支付成功页新增「下载收据」按钮，纯前端 Canvas 生成 PNG（品牌名/支付成功/金额/币种/协议/订单号/交易哈希/支付时间），无新依赖，多语言。截图验证按钮存在
+- [x] **return_url 域名白名单（防钓鱼）**：收银台设置新增 `return_url_domains`（逗号/换行分隔，留空=允许任意，支持子域名）。`build_order` 校验下单 return_url 域名命中白名单否则 422。curl 验证：evil.com→422、pay.ok.example.com（子域）→200
+- [x] **导出到期实时倒计时**：ExportJobsPage 每秒刷新 `nowTs`，有效期列 <24h 显示 HH:MM:SS 实时倒计时（琥珀高亮），≥24h 显示「N天 N小时后」。截图验证
+
 ## Backlog (next)
 - P2: 散落模型持续并入 models.py
 - P2: 清理测试残留的 TEST_M 商户账户（有余额，需先结清；现可用新删除接口手动清理）

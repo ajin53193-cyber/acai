@@ -78,8 +78,16 @@ async def build_order(merchant: dict, amount_usdt: float, network: Optional[str]
     amount = round(amount_usdt, 2)
     pay_amount = await unique_pay_amount(amount, address) if live else amount
     clean_return = return_url.strip() if return_url else ""
-    if clean_return and not clean_return.startswith(("http://", "https://")):
-        raise HTTPException(status_code=422, detail="return_url 必须以 http:// 或 https:// 开头")
+    if clean_return:
+        if not clean_return.startswith(("http://", "https://")):
+            raise HTTPException(status_code=422, detail="return_url 必须以 http:// 或 https:// 开头")
+        cfg = await db.settings.find_one({"_id": "checkout"}) or {}
+        allow = [d.strip().lower() for d in (cfg.get("return_url_domains") or "").replace("\n", ",").split(",") if d.strip()]
+        if allow:
+            from urllib.parse import urlparse
+            host = (urlparse(clean_return).hostname or "").lower()
+            if not any(host == d or host.endswith("." + d) for d in allow):
+                raise HTTPException(status_code=422, detail="return_url 域名不在允许白名单内")
     order = {
         "order_no": gen_order_no(),
         "out_trade_no": out_trade_no or None,

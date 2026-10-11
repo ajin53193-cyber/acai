@@ -116,6 +116,26 @@ export default function CheckoutPage() {
   };
 
   const subtitle = settings ? (lang === "en" ? settings.brand_subtitle_en : lang === "zh-TW" ? settings.brand_subtitle_tw : settings.brand_subtitle) : "";
+  const downloadReceipt = () => {
+    const W = 720, H = 640, c = document.createElement("canvas"); c.width = W; c.height = H;
+    const x = c.getContext("2d"); const accent = settings?.theme_color || "#26A17B";
+    x.fillStyle = "#ffffff"; x.fillRect(0, 0, W, H);
+    x.fillStyle = accent; x.fillRect(0, 0, W, 120);
+    x.fillStyle = "#ffffff"; x.font = "bold 32px sans-serif"; x.fillText(order.merchant_name || "USDT", 40, 54);
+    x.font = "20px sans-serif"; x.fillText(t.paid, 40, 92);
+    x.fillStyle = "#0f172a"; x.font = "bold 54px sans-serif"; x.textAlign = "center"; x.fillText(`${amount} USDT`, W / 2, 210); x.textAlign = "left";
+    const rows = [[t.coin, "USDT"], [t.protocol, order.network], [t.orderNo, order.order_no]];
+    if (order.tx_id) rows.push([t.txHash, order.tx_id.slice(0, 18) + "…"]);
+    if (order.paid_at) rows.push([t.paidTime, new Date(order.paid_at).toLocaleString(lang === "en" ? "en-US" : "zh-CN")]);
+    let y = 285; x.font = "18px sans-serif";
+    rows.forEach(([k, v]) => {
+      x.fillStyle = "#64748b"; x.fillText(String(k), 40, y);
+      x.fillStyle = "#0f172a"; x.textAlign = "right"; x.fillText(String(v), W - 40, y); x.textAlign = "left";
+      x.strokeStyle = "#e2e8f0"; x.beginPath(); x.moveTo(40, y + 16); x.lineTo(W - 40, y + 16); x.stroke(); y += 54;
+    });
+    x.fillStyle = "#94a3b8"; x.font = "14px sans-serif"; x.textAlign = "center"; x.fillText(order.order_no, W / 2, H - 26); x.textAlign = "left";
+    const a = document.createElement("a"); a.href = c.toDataURL("image/png"); a.download = `receipt-${order.order_no}.png`; a.click();
+  };
   const shell = (inner) => (
     <div className="min-h-screen bg-[#F5F6F8] text-slate-900" data-testid="checkout-page" style={{ colorScheme: "light", "--accent": settings?.theme_color || "#26A17B", fontFamily: "-apple-system, BlinkMacSystemFont, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', 'Noto Sans SC', 'Helvetica Neue', Arial, sans-serif" }}>
       <header className="bg-white border-b border-slate-200 sticky top-0 z-10">
@@ -171,6 +191,7 @@ export default function CheckoutPage() {
           {order.paid_at && <Row k={t.paidTime} v={<span className="text-[15px] text-slate-600 tabular-nums">{new Date(order.paid_at).toLocaleString(lang === "en" ? "en-US" : "zh-CN")}</span>} onCopy={copy} testid="success-paid-time" />}
         </div>
         {order.tx_url && <a href={order.tx_url} target="_blank" rel="noreferrer" data-testid="success-view-tx" className="mt-4 inline-flex items-center gap-1 text-[var(--accent)] text-[15px] font-medium">{t.viewOnChain} <ExternalLink className="w-4 h-4" /></a>}
+        <button onClick={downloadReceipt} data-testid="download-receipt-btn" className="mt-2 inline-flex items-center gap-1 text-slate-500 text-[14px] hover:text-slate-700">{t.receipt}</button>
         {order.return_url ? (
           <a href={order.return_url} data-testid="success-return-merchant" className="mt-5 w-full h-12 rounded-xl text-white font-semibold flex items-center justify-center text-[16px] shadow-sm active:opacity-90" style={{ background: "var(--accent)" }}>{t.returnMerchant}{redirectLeft != null ? ` (${redirectLeft}s)` : ""}</a>
         ) : (

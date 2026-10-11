@@ -50,6 +50,7 @@ class CheckoutSettings(BaseModel):
     theme_color: str = "#26A17B"
     success_auto_redirect: bool = False
     success_redirect_seconds: int = 5
+    return_url_domains: str = ""
 
 
 

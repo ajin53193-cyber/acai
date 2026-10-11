@@ -36,6 +36,8 @@ export default function AccountsPage() {
   const [drawerId, setDrawerId] = useState(null);
   const [delTarget, setDelTarget] = useState(null);
   const [deleting, setDeleting] = useState(false);
+  const [cleanupOpen, setCleanupOpen] = useState(false);
+  const [cleaning, setCleaning] = useState(false);
   useEffect(() => { if (user.role === "admin") api.get("/accounts/permissions").then((r) => setPerms(r.data)).catch(() => {}); }, [user.role]);
   const savePerms = async () => {
     try { await api.patch(`/accounts/${permEdit.id}/permissions`, { permissions: permVal }); toast.success("权限已更新"); setPermEdit(null); load(); }
@@ -110,6 +112,16 @@ export default function AccountsPage() {
     finally { setDeleting(false); }
   };
 
+  const doCleanup = async () => {
+    setCleaning(true);
+    try {
+      const { data } = await api.post("/accounts/cleanup-test-merchants");
+      toast.success(`已清理 ${data.removed_count} 个测试商户${data.skipped_count ? `，跳过 ${data.skipped_count} 个（有进行中订单/提现）` : ""}`);
+      setCleanupOpen(false); load();
+    } catch (err) { toast.error(formatApiErrorDetail(err.response?.data?.detail)); }
+    finally { setCleaning(false); }
+  };
+
   return (
     <div className="space-y-6" data-testid="accounts-page">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -117,6 +129,10 @@ export default function AccountsPage() {
           <h1 className="text-2xl font-bold tracking-tight">账户权限</h1>
           <p className="text-sm text-slate-400 mt-1">{user.role === "admin" ? "管理代理商与商户账户、费率及 API 密钥" : "管理您的下级商户"}</p>
         </div>
+        <div className="flex items-center gap-2">
+        {user.role === "admin" && tab === "merchant" && (
+          <Button variant="outline" onClick={() => setCleanupOpen(true)} data-testid="cleanup-test-merchants-btn" className="border-slate-700"><Trash2 className="w-4 h-4 mr-1" />清理测试商户</Button>
+        )}
         <Dialog open={createOpen} onOpenChange={setCreateOpen}>
           <DialogTrigger asChild>
             <Button data-testid="create-account-btn" className="bg-gradient-to-r from-cyan-500 to-emerald-500 text-slate-950 font-semibold hover:opacity-90">
@@ -151,6 +167,7 @@ export default function AccountsPage() {
             <DialogFooter><Button onClick={create} disabled={saving || !form.email || !form.name || !form.password} data-testid="account-submit-btn" className="bg-cyan-500 text-slate-950 hover:bg-cyan-400">{saving ? <Loader2 className="w-4 h-4 animate-spin" /> : "确认创建"}</Button></DialogFooter>
           </DialogContent>
         </Dialog>
+        </div>
       </div>
 
       {user.role === "admin" && (
@@ -293,6 +310,24 @@ export default function AccountsPage() {
           <AlertDialogFooter>
             <AlertDialogCancel data-testid="delete-account-cancel" className="border-slate-700">取消</AlertDialogCancel>
             <AlertDialogAction onClick={(e) => { e.preventDefault(); doDelete(); }} disabled={deleting} data-testid="delete-account-confirm" className="bg-red-500 text-white hover:bg-red-600">{deleting ? <Loader2 className="w-4 h-4 animate-spin" /> : "确认删除"}</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={cleanupOpen} onOpenChange={setCleanupOpen}>
+        <AlertDialogContent className="glass border-slate-700" data-testid="cleanup-test-dialog">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2"><Trash2 className="w-5 h-5 text-red-400" /> 清理测试商户</AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="text-sm text-slate-400 space-y-2">
+                <div>将批量删除测试残留商户（邮箱 <code className="text-slate-300">test_*@test.com</code> / <code className="text-slate-300">*@citest.com</code> 或名称 TEST_M）。有进行中订单或待处理提现的账户会自动跳过。</div>
+                <div className="rounded-md border border-amber-400/30 bg-amber-400/10 px-3 py-2 text-amber-300">演示账户（@demo.com）不会被匹配。此操作不可撤销。</div>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel data-testid="cleanup-test-cancel" className="border-slate-700">取消</AlertDialogCancel>
+            <AlertDialogAction onClick={(e) => { e.preventDefault(); doCleanup(); }} disabled={cleaning} data-testid="cleanup-test-confirm" className="bg-red-500 text-white hover:bg-red-600">{cleaning ? <Loader2 className="w-4 h-4 animate-spin" /> : "确认清理"}</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

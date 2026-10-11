@@ -135,6 +135,10 @@ export function CheckoutSettingsDialog() {
                   <div className="space-y-1.5"><Label>倒计时秒数（1-60）</Label><Input type="number" min={1} max={60} value={s.success_redirect_seconds ?? 5} onChange={(e) => setS({ ...s, success_redirect_seconds: Number(e.target.value) })} data-testid="success-redirect-seconds-input" className={`${inputCls} w-28`} /></div>
                 )}
               </div>
+              <div className="space-y-1.5"><Label>return_url 域名白名单（可选，逗号/换行分隔，留空=允许任意）</Label>
+                <textarea value={s.return_url_domains || ""} onChange={(e) => setS({ ...s, return_url_domains: e.target.value })} rows={2} data-testid="return-url-domains-input" className={taCls} placeholder="shop.example.com, pay.myshop.com" />
+                <p className="text-[10px] text-slate-500">防钓鱼：下单传入的 return_url 域名需命中白名单（含子域名），否则下单返回 422</p>
+              </div>
             </TabsContent>
             <TabsContent value="energy" className="space-y-4 pt-3">
               <div className="flex items-center justify-between rounded-lg border border-slate-700 p-3">
