@@ -50,7 +50,7 @@ export function SupportChat({ orderNo, t, open, setOpen, chatToken }) {
   useEffect(() => {
     const onUnload = () => {
       if (data?.status === "resolved" && navigator.sendBeacon) {
-        const url = `${process.env.REACT_APP_BACKEND_URL}/api/support/public/${orderNo}/close?t=${chatToken || ""}`;
+        const url = `${process.env.REACT_APP_BACKEND_URL || window.location.origin}/api/support/public/${orderNo}/close?t=${chatToken || ""}`;
         navigator.sendBeacon(url, new Blob([], { type: "application/json" }));
       }
     };

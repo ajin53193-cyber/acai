@@ -399,3 +399,10 @@
 - [中] /support/file/{path} 拒绝 .. 路径，且只提供 support_files 中有记录的文件。
 - 加固：限流器改用 client_ip（受信代理跳数）；reset-api-key 增加二次验证。
 - 残留低风险：JWT localStorage 存储 + 7 天无吊销；return_url_domains 为空时允许任意 http(s) 跳转（可在收银台设置配置白名单）。
+
+## 2026-06 宝塔部署套件 + 清除测试数据
+- `/app/deploy/`：README.md、nginx.conf（三域名同域、/api 反代 8001、SPA 回退）、backend.env.example、windows/deploy.ps1（venv+yarn build+NSSM 服务+计划任务，-ResetData）、linux/deploy.sh（systemd+crontab，--reset-data）。
+- 前端 `REACT_APP_BACKEND_URL` 为空时自动使用 window.location.origin（api.js / ApiDocsPage / CallbacksPage / SupportChat），备用域名无需单独构建。
+- `backend/reset_data.py --yes [--keep-operators]`；`POST /api/admin/reset-test-data`（admin + step-up，审计 admin.reset_test_data）；安全设置页「清空测试数据」卡片（需输入“清空”）。
+- 演示数据种子改为仅 `SEED_DEMO_DATA=true` 时生成（preview .env 已设 true，生产示例为 false）。
+- 预览库测试数据未实际清除（由用户自行触发）。

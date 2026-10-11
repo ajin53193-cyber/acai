@@ -548,6 +548,22 @@ async def verify_step_up_dep(request: Request, x_op_code: Optional[str] = Header
     return user
 
 
+@api_router.post("/admin/reset-test-data")
+async def admin_reset_test_data(request: Request, user: dict = Depends(require_roles("admin")),
+                                _su: dict = Depends(verify_step_up_dep)):
+    if user["role"] != "admin":
+        raise HTTPException(status_code=403, detail="仅管理员可操作")
+    from reset_data import reset
+    report = await reset(db)
+    await db.audit_logs.insert_one({
+        "actor_id": str(user["_id"]), "actor_email": user["email"], "actor_role": "admin",
+        "action": "admin.reset_test_data", "target_type": "system", "target_id": "all",
+        "detail": report, "ip": client_ip(request), "created_at": iso(now_utc()),
+        "step_up": getattr(request.state, "step_up", None),
+    })
+    return {"ok": True, "report": report}
+
+
 @api_router.get("/security/policy")
 async def get_security_policy(user: dict = Depends(get_current_user)):
     pol = await security_policy()
@@ -1526,8 +1542,8 @@ async def seed():
             c["created_at"] = iso(now_utc())
         await db.channels.insert_many(base)
 
-    # demo agent + merchants
-    if await db.users.count_documents({"role": "agent"}) == 0:
+    # demo agent + merchants + fake orders (only when SEED_DEMO_DATA=true)
+    if os.environ.get("SEED_DEMO_DATA", "false").lower() == "true" and await db.users.count_documents({"role": "agent"}) == 0:
         agent_res = await db.users.insert_one({
             "email": "agent@demo.com", "password_hash": hash_password("agent888"),
             "name": "华东一级代理", "role": "agent", "rate": 0.015,

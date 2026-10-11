@@ -32,7 +32,7 @@ PERM_RULES = [
     ("/api/dev", None, "orders.view"),
     ("/api/export", None, "reports.export"),
 ]
-OPERATOR_FORBIDDEN = ("/api/accounts/me", "/api/auth/lockouts", "/api/checkout/settings", "/api/notify/settings")
+OPERATOR_FORBIDDEN = ("/api/accounts/me", "/api/auth/lockouts", "/api/checkout/settings", "/api/notify/settings", "/api/admin/")
 
 
 def perm_for_path(path: str, method: str) -> Optional[str]:

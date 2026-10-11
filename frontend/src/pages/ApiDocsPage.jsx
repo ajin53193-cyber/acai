@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { Copy, Eye, EyeOff, KeyRound, Loader2, PlayCircle, Code2, RefreshCw, Webhook, ChevronDown } from "lucide-react";
 
-const BASE = process.env.REACT_APP_BACKEND_URL;
+const BASE = process.env.REACT_APP_BACKEND_URL || window.location.origin;
 
 function Code({ children, testid }) {
   const copy = () => { navigator.clipboard.writeText(children); toast.success("已复制"); };

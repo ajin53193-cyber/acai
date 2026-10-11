@@ -20,7 +20,7 @@ function NotifySettings({ user }) {
   const [url, setUrl] = useState(user.notify_url || "");
   const [saving, setSaving] = useState(false);
   const [preview, setPreview] = useState(null);
-  const testUrl = `${process.env.REACT_APP_BACKEND_URL}/api/callbacks/test-receiver`;
+  const testUrl = `${process.env.REACT_APP_BACKEND_URL || window.location.origin}/api/callbacks/test-receiver`;
 
   const save = async () => {
     setSaving(true);

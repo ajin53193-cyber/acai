@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { ShieldCheck, ShieldAlert, Loader2, Smartphone, Copy, Lock, KeyRound } from "lucide-react";
+import { ShieldCheck, ShieldAlert, Loader2, Smartphone, Copy, Lock, KeyRound, Trash2 } from "lucide-react";
 
 export default function SecurityPage() {
   const { user, refresh } = useAuth();
@@ -131,6 +131,7 @@ export default function SecurityPage() {
       <OpCodeCard user={user} refresh={refresh} />
       <ChangePasswordCard />
       <SecurityPolicyCard user={user} />
+      <ResetDataCard user={user} />
     </div>
   );
 }
@@ -199,6 +200,36 @@ function ChangePasswordCard() {
           <Input type="password" value={nw} onChange={(e) => setNw(e.target.value)} data-testid="cp-new" className="bg-slate-900/60 border-slate-700" /></div>
         <Button onClick={save} disabled={busy || !cur || nw.length < 6} data-testid="cp-save" className="bg-cyan-500 text-slate-950 hover:bg-cyan-400">{busy ? <Loader2 className="w-4 h-4 animate-spin" /> : "确认修改"}</Button>
       </div>
+    </div>
+  );
+}
+
+export function ResetDataCard({ user }) {
+  const [confirm, setConfirm] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [report, setReport] = useState(null);
+  if (user.role !== "admin") return null;
+  const run = async () => {
+    setBusy(true);
+    try {
+      const { data } = await api.post("/admin/reset-test-data");
+      setReport(data.report); setConfirm("");
+      toast.success("测试数据已清除");
+    } catch (e) { toast.error(formatApiErrorDetail(e.response?.data?.detail)); } finally { setBusy(false); }
+  };
+  return (
+    <div className="glass rounded-xl p-6 border border-rose-500/20" data-testid="reset-data-card">
+      <div className="flex items-center gap-2 mb-1"><Trash2 className="w-5 h-5 text-rose-400" /><span className="font-semibold">清空测试数据</span></div>
+      <p className="text-xs text-slate-400 mb-4">删除所有订单、链上记录、资金流水、提现、客服会话、审计日志、导出文件，以及全部商户/代理/操作员账号。<span className="text-slate-300">保留</span>管理员账号、系统设置、通道与收款地址。此操作不可恢复，需二次验证。</p>
+      <div className="flex flex-wrap items-center gap-3 max-w-lg">
+        <Input value={confirm} onChange={(e) => setConfirm(e.target.value)} placeholder='输入 "清空" 以确认' data-testid="reset-confirm-input" className="bg-slate-900/60 border-slate-700 w-48" />
+        <Button onClick={run} disabled={busy || confirm !== "清空"} data-testid="reset-data-btn" className="bg-rose-500 text-white hover:bg-rose-400">{busy ? <Loader2 className="w-4 h-4 animate-spin" /> : "立即清空"}</Button>
+      </div>
+      {report && (
+        <div className="mt-3 text-[11px] font-mono text-slate-400 flex flex-wrap gap-x-3 gap-y-0.5" data-testid="reset-report">
+          {Object.entries(report).filter(([, v]) => v > 0).map(([k, v]) => <span key={k}>{k}={v}</span>)}
+        </div>
+      )}
     </div>
   );
 }
