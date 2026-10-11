@@ -49,6 +49,22 @@ export default function OrdersPage() {
     } catch (e) { toast.error(formatApiErrorDetail(e.response?.data?.detail)); }
   };
 
+  const [mc, setMc] = useState(null);
+  const [mcTx, setMcTx] = useState("");
+  const [mcAmt, setMcAmt] = useState("");
+  const [mcBusy, setMcBusy] = useState(false);
+  const openManualCallback = (o) => { setMc(o); setMcTx(""); setMcAmt(String(o.pay_amount ?? o.amount_usdt ?? "")); };
+  const submitManualCallback = async () => {
+    if (!mcTx.trim() || !mcAmt) { toast.error("请填写交易哈希和金额"); return; }
+    setMcBusy(true);
+    try {
+      const { data } = await api.post(`/orders/${mc.id}/manual-callback`, { tx_id: mcTx.trim(), amount: Number(mcAmt) });
+      toast.success(`核对成功：实际到账 ${data.amount} USDT，已确认并触发回调`);
+      setMc(null); load(); setDetail(null);
+    } catch (e) { toast.error(formatApiErrorDetail(e.response?.data?.detail)); }
+    finally { setMcBusy(false); }
+  };
+
   const [amount, setAmount] = useState("");
   const [network, setNetwork] = useState("TRC20");
   const [merchantId, setMerchantId] = useState("");
@@ -422,6 +438,9 @@ export default function OrdersPage() {
                     <Button variant="outline" onClick={() => resendCallback(detail)} data-testid="detail-resend-cb-btn" className="flex-1 border-sky-500/40 text-sky-400 hover:bg-sky-500/10"><RefreshCw className="w-4 h-4 mr-1" />手动回调</Button>
                   )}
                   {["pending", "confirming", "expired"].includes(detail.status) && (
+                    <Button variant="outline" onClick={() => openManualCallback(detail)} data-testid="detail-manual-callback-btn" className="flex-1 border-emerald-500/40 text-emerald-400 hover:bg-emerald-500/10"><CheckCircle2 className="w-4 h-4 mr-1" />手动核对到账</Button>
+                  )}
+                  {["pending", "confirming", "expired"].includes(detail.status) && (
                     <Button variant="outline" onClick={() => rejectOrder(detail)} data-testid="detail-reject-btn" className="flex-1 border-red-500/40 text-red-400 hover:bg-red-500/10"><Ban className="w-4 h-4 mr-1" />驳回订单</Button>
                   )}
                 </div>
@@ -445,6 +464,22 @@ export default function OrdersPage() {
       </Dialog>
 
       <ChainTxDialog open={!!chainView} onClose={() => setChainView(null)} title="收款地址链上到账记录" params={chainView ? { address: chainView.address } : null} />
+
+      <Dialog open={!!mc} onOpenChange={(v) => !v && setMc(null)}>
+        <DialogContent className="glass border-slate-700" data-testid="manual-callback-dialog">
+          <DialogHeader><DialogTitle>手动核对到账</DialogTitle></DialogHeader>
+          {mc && (
+            <div className="space-y-3 py-2 text-sm">
+              <div className="text-xs text-slate-400">订单 <span className="font-mono text-slate-200">{mc.order_no}</span></div>
+              <div className="text-xs text-slate-400 break-all">收款地址 <span className="font-mono text-slate-300">{mc.wallet_address}</span></div>
+              <div className="space-y-1.5"><Label>交易哈希 TxID</Label><Input value={mcTx} onChange={(e) => setMcTx(e.target.value)} data-testid="mc-tx-input" className="bg-slate-900/60 border-slate-700 font-mono text-xs" placeholder="链上转账哈希" /></div>
+              <div className="space-y-1.5"><Label>到账金额 USDT</Label><Input type="number" value={mcAmt} onChange={(e) => setMcAmt(e.target.value)} data-testid="mc-amount-input" className="bg-slate-900/60 border-slate-700 font-mono" /></div>
+              <p className="text-[11px] text-slate-500">系统将在该收款地址的链上记录中核对此哈希与金额，匹配后按实际到账金额确认订单并触发回调。</p>
+            </div>
+          )}
+          <DialogFooter><Button onClick={submitManualCallback} disabled={mcBusy || !mcTx.trim() || !mcAmt} data-testid="mc-submit-btn" className="bg-emerald-500 text-slate-950 hover:bg-emerald-400">{mcBusy ? <Loader2 className="w-4 h-4 animate-spin" /> : "核对并确认"}</Button></DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

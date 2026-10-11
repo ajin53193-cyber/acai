@@ -19,7 +19,7 @@ from deps import get_current_user, require_roles, merchant_ids_for_scope
 from models import OrderCreate, ApiOrderCreate, ApiOrderQuery
 from services import build_order, mark_paid
 from shared import enqueue_callback, deliver_callback, audit
-from server import api_pay_url, verify_api_request, api_order_view
+from server import api_pay_url, verify_api_request, api_order_view, fetch_trc20_transfers
 
 router = APIRouter(prefix="/api")
 
@@ -213,6 +213,55 @@ async def resend_callback(order_id: str, request: Request, user: dict = Depends(
         cb = await db.callbacks.find_one({"_id": cb["_id"]})
     await audit(user, "order.resend_callback", "order", order["order_no"], {}, request)
     return {"ok": True, "callback": serialize(cb) if cb else None}
+
+
+class ManualCallbackIn(BaseModel):
+    tx_id: str
+    amount: float
+
+
+@router.post("/orders/{order_id}/manual-callback")
+async def manual_callback(order_id: str, data: ManualCallbackIn, request: Request,
+                          user: dict = Depends(require_roles("admin"))):
+    """Admin enters a TxID + amount; verify it on-chain against the order's
+    receiving address, and on match confirm the order with the ACTUAL received
+    amount and fire the merchant callback."""
+    order = await db.orders.find_one({"_id": ObjectId(order_id)})
+    if not order:
+        raise HTTPException(status_code=404, detail="订单不存在")
+    if order["status"] == "paid":
+        raise HTTPException(status_code=400, detail="订单已支付")
+    txid = (data.tx_id or "").strip()
+    if not txid:
+        raise HTTPException(status_code=400, detail="请填写交易哈希")
+    amount = round(float(data.amount), 2)
+    used = await db.chain_txs.find_one({"tx_id": txid})
+    if used and used.get("order_no") and used.get("order_no") != order["order_no"]:
+        raise HTTPException(status_code=400, detail=f"该哈希已用于订单 {used['order_no']}")
+    addr = order["wallet_address"]
+    since = int((now_utc() - timedelta(days=7)).timestamp() * 1000)
+    try:
+        txs = await fetch_trc20_transfers(addr, since)
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"链上查询失败，请稍后重试：{str(e)[:80]}")
+    match = next((t for t in txs if (t.get("transaction_id") or "").lower() == txid.lower()), None)
+    if not match:
+        raise HTTPException(status_code=400, detail="该收款地址的链上记录中未找到此哈希（请核对哈希与收款地址是否一致、链上是否已确认）")
+    actual = round(int(match["value"]) / (10 ** match.get("decimals", 6)), 2)
+    if abs(actual - amount) > 0.001:
+        raise HTTPException(status_code=400, detail=f"金额不符：链上实际到账 {actual} USDT，与填写的 {amount} USDT 不一致")
+    ts = datetime.fromtimestamp(match["block_timestamp"] / 1000, tz=timezone.utc)
+    await db.chain_txs.update_one({"tx_id": txid}, {"$set": {
+        "tx_id": txid, "network": order["network"], "to": addr, "from": match.get("from"),
+        "amount": actual, "block_time": iso(ts), "order_no": order["order_no"], "matched": True,
+        "manual": True, "created_at": iso(now_utc())}}, upsert=True)
+    await db.orders.update_one({"_id": order["_id"]}, {"$set": {"amount_usdt": actual, "status": "pending"}})
+    order["amount_usdt"] = actual
+    order["status"] = "pending"
+    await mark_paid(order, tx_id=txid, paid_at=ts)
+    await audit(user, "order.manual_callback", "order", order["order_no"],
+                {"tx_id": txid, "amount": actual}, request)
+    return {"ok": True, "amount": actual, "tx_id": txid}
 
 
 class BatchOrderIds(BaseModel):

@@ -22,6 +22,7 @@ function AddDialog({ open, onClose, channels, onDone }) {
   const [addrs, setAddrs] = useState("");
   const [label, setLabel] = useState("");
   const [busy, setBusy] = useState(false);
+  useEffect(() => { if (open && !channelId && channels.length) setChannelId(channels[0].id); }, [open, channels, channelId]);
   const submit = async () => {
     setBusy(true);
     try {
