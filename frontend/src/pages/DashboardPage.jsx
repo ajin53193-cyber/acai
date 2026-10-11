@@ -85,7 +85,7 @@ export default function DashboardPage() {
         <StatCard icon={Wallet} label={stats.profit_label} value={fmtUSDT(stats.profit)} unit="USDT" accent="bg-emerald-500" delay={180} testid="stat-profit" />
       </div>
 
-      {user.role !== "agent" && (
+      {(user.role === "admin" || user.role === "operator") && (
         <div className="space-y-3" data-testid="daily-stats-section">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <h2 className="text-base font-semibold text-slate-200">每日收款统计{statDate !== today && <span className="ml-2 text-xs text-cyan-400 font-mono">{statDate}</span>}</h2>
