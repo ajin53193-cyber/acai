@@ -95,7 +95,8 @@ export default function OrdersPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const load = useCallback(() => {
     const params = { limit: 300 };
-    if (statusFilter !== "all") params.status = statusFilter;
+    if (statusFilter === "manual") params.manual = 1;
+    else if (statusFilter !== "all") params.status = statusFilter;
     if (networkFilter !== "all") params.network = networkFilter;
     if (keyword) params.keyword = keyword;
     const mId = searchParams.get("merchant_id"); const d = searchParams.get("date");
@@ -293,6 +294,7 @@ export default function OrdersPage() {
             <SelectItem value="paid">已支付</SelectItem>
             <SelectItem value="expired">超时未付</SelectItem>
             <SelectItem value="rejected">已驳回</SelectItem>
+            <SelectItem value="manual">手动补单</SelectItem>
           </SelectContent>
         </Select>
         {user.role === "admin" && (
@@ -364,6 +366,7 @@ export default function OrdersPage() {
                         <span className={`w-1.5 h-1.5 rounded-full ${s.dot} ${o.status === "pending" ? "pulse-dot" : ""}`} />{s.label}
                       </span>
                       {o.live && <span className="ml-1 text-[10px] text-emerald-400/80 font-mono">链上</span>}
+                      {o.manual_confirmed && <span className="ml-1 text-[10px] text-amber-400 font-mono" data-testid={`manual-tag-${o.order_no}`} title={`手动补单：${o.manual_confirmed_by || ""}`}>手动补单</span>}
                       {o.callback_status && o.callback_status !== "none" && (
                         <span className={`ml-1 text-[10px] font-mono ${o.callback_status === "success" ? "text-emerald-400" : o.callback_status === "failed" ? "text-red-400" : "text-sky-400"}`} data-testid={`cb-status-${o.order_no}`}>
                           回调{{ pending: "待推", retrying: "重试", success: "成功", failed: "失败" }[o.callback_status]}

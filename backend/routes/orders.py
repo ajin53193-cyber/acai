@@ -83,6 +83,7 @@ async def list_orders(user: dict = Depends(get_current_user),
                       status: Optional[str] = None, network: Optional[str] = None,
                       keyword: Optional[str] = None, merchant_id: Optional[str] = None,
                       date: Optional[str] = None, start: Optional[str] = None, end: Optional[str] = None,
+                      manual: Optional[str] = None,
                       limit: int = Query(200, le=1000)):
     scope = await merchant_ids_for_scope(user)
     q: dict = {}
@@ -105,6 +106,8 @@ async def list_orders(user: dict = Depends(get_current_user),
         q["created_at"] = {"$gte": iso(ds), "$lt": iso(ds + timedelta(days=1))}
     if status:
         q["status"] = status
+    if manual == "1":
+        q["manual_confirmed"] = True
     if network:
         q["network"] = network
     if keyword:

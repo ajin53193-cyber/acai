@@ -358,6 +358,12 @@
 - 客服坐席添加位置：账户权限 → 新增账户 → 角色=操作员 → 勾选「在线客服坐席」(+可选「客服可补单」)。
   - 验证：curl（权限列表含 orders.manual_callback=客服可补单；无权限 403、授权后 400 放行）+ 截图（账户页仅商户/操作员、客服台图片灯箱下载/关闭）。
 
+## Implemented (2026-06, iteration 44) — 手动补单标记与筛选
+- [x] **手动补单可视标记**：订单列表行对 `manual_confirmed` 订单显示琥珀色「手动补单」标签（hover 显示操作员）；订单详情已有「手动核对确认：操作员·时间」行。
+- [x] **按手动补单筛选**：订单状态筛选新增「手动补单」项 → 前端传 `manual=1`；后端 `list_orders` 支持 `manual` 参数（`manual_confirmed: True`）。
+- [x] **审计**：`order.manual_callback` / `order.manual_callback_batch` 已记录操作员，审计日志页可查。
+  - 验证：curl（`/orders?manual=1` count=2 全部 manual_confirmed=true）+ 截图（列表琥珀「手动补单」标签）。
+
 ## Backlog (next)
 - P2: 散落模型持续并入 models.py
 - P2: 清理测试残留的 TEST_M 商户账户（有余额，需先结清；现可用新删除接口手动清理）
