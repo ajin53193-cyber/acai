@@ -90,7 +90,7 @@ export default function ExportJobsPage() {
                   <td className="py-3 px-3 text-xs text-slate-400">{j.created_email}</td>
                   <td className="py-3 px-3">
                     <span className={`inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full border ${s.cls}`}>
-                      <Icon className={`w-3 h-3 ${j.status === "pending" ? "animate-pulse" : ""}`} /> {s.label}
+                      <Icon className={`w-3 h-3 ${j.status === "pending" ? "animate-pulse" : ""}`} /> {s.label}{j.status === "pending" && j.expected ? ` ${j.processed || 0}/${j.expected}` : ""}
                     </span>
                     {j.status === "failed" && j.error && <div className="text-[10px] text-red-400/70 mt-0.5 max-w-[200px] truncate" title={j.error}>{j.error}</div>}
                   </td>

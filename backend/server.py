@@ -34,7 +34,7 @@ from email_utils import notify_security
 # ---------------------------------------------------------------------------
 # DB & app setup
 # ---------------------------------------------------------------------------
-from core import client, db
+from core import client, db, fs
 
 app = FastAPI(title="四方收款平台 API")
 api_router = APIRouter(prefix="/api")
@@ -1210,6 +1210,14 @@ async def run_daily_settlement(run_id: str, day: str) -> dict:
         text += f"\n🚨 平台利润环比{'骤增' if pct > 0 else '骤降'} {abs(pct)}%（异常波动预警）"
     await send_telegram(text, "report")
     await db.cron_runs.update_one({"run_id": run_id}, {"$set": {"finished_at": iso(now_utc())}})
+    # cleanup expired export files (TTL)
+    now_iso = iso(now_utc())
+    async for ej in db.export_jobs.find({"expires_at": {"$lt": now_iso}, "file_id": {"$ne": None}}):
+        try:
+            await fs.delete(ObjectId(ej["file_id"]))
+        except Exception:
+            pass
+        await db.export_jobs.delete_one({"_id": ej["_id"]})
     return snap
 
 
@@ -2320,7 +2328,7 @@ ORDER_STATUS_LABELS = {"pending": "待支付", "confirming": "确认中", "paid"
 
 
 async def generate_orders_xlsx(user, status=None, network=None, keyword=None, merchant_id=None,
-                               date=None, start=None, end=None, ids=None):
+                               date=None, start=None, end=None, ids=None, progress=None):
     from openpyxl import Workbook
     from openpyxl.cell import WriteOnlyCell
     from openpyxl.styles import Font, PatternFill, Alignment
@@ -2390,6 +2398,9 @@ async def generate_orders_xlsx(user, status=None, network=None, keyword=None, me
         c = WriteOnlyCell(ws, value=h); c.font, c.fill, c.alignment = head_font, head_fill, Alignment(horizontal="center")
         hrow.append(c)
     ws.append(hrow)
+    total = await db.orders.count_documents(q)
+    if progress:
+        await progress(0, total)
     count = 0
     async for o in db.orders.find(q).sort("created_at", -1):
         ws.append([o.get("order_no"), o.get("merchant_name"), o.get("out_trade_no") or "", o.get("network"),
@@ -2398,6 +2409,8 @@ async def generate_orders_xlsx(user, status=None, network=None, keyword=None, me
                    o.get("callback_status") or "", (o.get("created_at") or "")[:19].replace("T", " "),
                    (o.get("paid_at") or "")[:19].replace("T", " ")])
         count += 1
+        if progress and count % 1000 == 0:
+            await progress(count, total)
     ws.freeze_panes = "A5"
     buf = io.BytesIO(); wb.save(buf); buf.seek(0)
     tag = "selected" if id_list else (date or (f"{start}_{end}" if start and end else "all"))
@@ -2420,24 +2433,22 @@ async def orders_report(user: dict = Depends(get_current_user),
 # ---------------------------------------------------------------------------
 # Background export jobs (large exports -> async job + download link)
 # ---------------------------------------------------------------------------
-EXPORT_DIR = os.path.join(os.path.dirname(__file__), "exports")
-os.makedirs(EXPORT_DIR, exist_ok=True)
-
-
 def _require_export(user: dict):
     if user["role"] == "operator" and "reports.export" not in (user.get("permissions") or []):
         raise HTTPException(status_code=403, detail="无报表导出权限")
 
 
 async def _run_order_export(job_id: str, user: dict, params: dict):
+    async def progress(done, total):
+        await db.export_jobs.update_one({"_id": ObjectId(job_id)}, {"$set": {"processed": done, "expected": total}})
     try:
-        buf, count, fname = await generate_orders_xlsx(user, **params)
-        path = os.path.join(EXPORT_DIR, f"{job_id}.xlsx")
-        with open(path, "wb") as f:
-            f.write(buf.getvalue())
+        buf, count, fname = await generate_orders_xlsx(user, progress=progress, **params)
+        data = buf.getvalue()
+        file_id = await fs.upload_from_stream(f"{job_id}.xlsx", data)
         await db.export_jobs.update_one({"_id": ObjectId(job_id)},
-            {"$set": {"status": "done", "row_count": count, "filename": fname,
-                      "size_bytes": os.path.getsize(path), "finished_at": iso(now_utc())}})
+            {"$set": {"status": "done", "row_count": count, "filename": fname, "size_bytes": len(data),
+                      "file_id": str(file_id), "processed": count, "expected": count,
+                      "finished_at": iso(now_utc()), "expires_at": iso(now_utc() + timedelta(days=7))}})
     except Exception as e:
         await db.export_jobs.update_one({"_id": ObjectId(job_id)},
             {"$set": {"status": "failed", "error": str(e)[:300], "finished_at": iso(now_utc())}})
@@ -2471,18 +2482,23 @@ async def list_export_jobs(user: dict = Depends(get_current_user)):
 
 @api_router.get("/export/jobs/{job_id}/download")
 async def download_export_job(job_id: str, user: dict = Depends(get_current_user)):
-    from fastapi.responses import FileResponse
+    from fastapi.responses import StreamingResponse
+    from urllib.parse import quote
+    import io
     _require_export(user)
     job = await db.export_jobs.find_one({"_id": ObjectId(job_id)})
-    if not job or job.get("status") != "done":
+    if not job or job.get("status") != "done" or not job.get("file_id"):
         raise HTTPException(status_code=404, detail="文件未就绪")
     if user["role"] != "admin" and job.get("created_by") != str(user["_id"]):
         raise HTTPException(status_code=403, detail="无权下载")
-    path = os.path.join(EXPORT_DIR, f"{job_id}.xlsx")
-    if not os.path.exists(path):
+    try:
+        stream = await fs.open_download_stream(ObjectId(job["file_id"]))
+        data = await stream.read()
+    except Exception:
         raise HTTPException(status_code=410, detail="导出文件已过期，请重新导出")
-    return FileResponse(path, media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                        filename=job.get("filename", "orders.xlsx"))
+    fname = job.get("filename", "orders.xlsx")
+    return StreamingResponse(io.BytesIO(data), media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                             headers={"Content-Disposition": f"attachment; filename*=UTF-8''{quote(fname)}"})
 
 
 @api_router.get("/profit-snapshots/trend")

@@ -175,11 +175,17 @@
 - [x] 商户趋势对比：/profit-snapshots/trend 支持 merchant_id；分润快照页趋势图加「商户对比」多选 chips(最多 5)，选中后切换为多商户平台利润折线叠加图，未选则显示聚合面积图
 - [x] 测试：后端 pytest 28/28；curl 全通过（auth 路由登录/me/2FA、export 建任务→done 117/261 行→下载有效 xlsx、operator 登录+export 403、merchant 登录 403）；前端编译通过 + 导出任务页/对比图截图确认
 
+## Implemented (2026-06, iteration 21)
+- [x] 导出持久化存储：导出文件由本地盘改存 MongoDB GridFS（bucket=exports），Pod 重启后仍可下载；job 记录 file_id/size_bytes/expires_at(7天TTL)；下载端点改为 GridFS 流式读取（含权限+过期校验）；daily-settle cron 清理过期导出（删 GridFS 文件 + job 记录）
+- [x] 导出进度提示：generate_orders_xlsx 支持 progress 回调；后台任务先 count_documents 记 expected，写入每 1000 行更新 processed；导出任务页「生成中 N/总数」实时显示
+- [x] 测试：后端 pytest 28/28；GridFS 导出 curl 全流程通过（建任务→done 270 行→file_id/expires 落库→GridFS 下载有效 xlsx 33KB）；前端编译通过 + 导出任务页截图确认
+- [说明] 采用 GridFS 作为持久化方案（无需外部对象存储密钥，满足重启可下载+TTL）；如需切平台对象存储可再接
+
 ## Backlog (next)
-- P1: orders 域迁移：把订单相关路由搬入 routes/orders.py（服务函数 build_order/settle_order/pick_* 可再抽 services.py），server.py 继续瘦身
+- P1: orders 域迁移 routes/orders.py（必要时抽 services.py 承载 build_order/settle_order/pick_*）
 - P1: settlements 域迁移 routes/settlements.py
-- P2: 导出文件改对象存储（当前落本地盘 /app/backend/exports，Pod 重启不持久；需定期清理/TTL）
 - P1: 获取 ETHERSCAN_API_KEY 后验证 ERC20/BEP20 真实到账
+- P2: 导出可选切换平台对象存储；导出任务中心支持多表类型(订单/快照/流水)
 - P2: 剩余散落 Pydantic 模型并入 models.py
 - P2: 代理多级分润（当前单级）
 - P2: server.py 进一步拆分为路由模块（现 ~2389 行，email 已抽出；建议继续拆 auth/orders/settlements/ledger/operators）
