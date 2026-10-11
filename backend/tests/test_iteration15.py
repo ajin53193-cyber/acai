@@ -102,7 +102,8 @@ class TestOrdersExcel:
         wb = load_workbook(io.BytesIO(r.content))
         ws = wb.active
         # ensure non-header rows all have status == 已支付 (col 7)
-        rows = list(ws.iter_rows(min_row=2, values_only=True))
+        # new layout: rows 1-3 = filter title/export-time/blank, row 4 = header, data from row 5
+        rows = list(ws.iter_rows(min_row=5, values_only=True))
         for row in rows:
             if row and row[6] is not None:
                 assert row[6] == "已支付", f"non-paid row leaked: {row}"
@@ -113,7 +114,7 @@ class TestOrdersExcel:
         import io
         from openpyxl import load_workbook
         wb = load_workbook(io.BytesIO(r.content))
-        rows = list(wb.active.iter_rows(min_row=2, values_only=True))
+        rows = list(wb.active.iter_rows(min_row=5, values_only=True))
         for row in rows:
             if row and row[3] is not None:
                 assert row[3] == "TRC20"
@@ -132,7 +133,7 @@ class TestOrdersExcel:
         import io
         from openpyxl import load_workbook
         wb = load_workbook(io.BytesIO(r.content))
-        rows = [row for row in wb.active.iter_rows(min_row=2, values_only=True) if row and row[0]]
+        rows = [row for row in wb.active.iter_rows(min_row=5, values_only=True) if row and row[0]]
         assert len(rows) == 2, f"expected 2 rows, got {len(rows)}"
 
     def test_invalid_ids_400(self, admin_h):

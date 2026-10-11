@@ -156,10 +156,17 @@
 - [x] server.py 模块化 - 阶段二：请求模型抽离至 backend/models.py（LoginInput/AccountCreate/.../IpWhitelist 共 12 个契约模型），server.py import 使用（散落在路由旁的其余模型 TotpCode/SecurityPolicy/CheckoutSettings/BatchOrderIds/Address*/Alert*/Notify*/PayoutCreate 待后续阶段）
 - [x] 测试：后端 pytest 12/12（test_iteration15.py）+ 前端 100%（iteration_15.json）；重构后 auth/下单结算/批量/抽屉/dev/快照全回归通过；operator 无 reports.export → /api/reports/* 403 验证通过
 
+## Implemented (2026-06, iteration 18)
+- [x] routes/ 拆分收官（起步）：新增 backend/core.py（共享 Mongo client + db），server.py 改为 `from core import client, db`；开发者 API 域抽离至 backend/routes/dev.py（router prefix /api，dev/merchants|test-order|callback-sample），server 底部 `from routes.dev import router` + include（晚引入避免循环依赖）。auth/orders/settlements 域待后续阶段按同一 core/late-import 模式迁移
+- [x] 订单导出流式化：/api/reports/orders 改为 openpyxl write_only + `async for` 游标逐行写，不再 to_list(100000)，支撑十万级不吃内存
+- [x] 导出带筛选页脚：订单 Excel 顶部写明筛选条件（所选/商户/区间/状态/网络/关键词）+ 导出时间(UTC)+操作人，表头下移至第 4 行、数据第 5 行起
+- [x] 近 30 天收益趋势图：GET /api/profit-snapshots/trend?days=（admin，按 paid_at 日聚合 平台利润/代理分润/金额/单数）；/profit-snapshots 页顶部 recharts 双面积趋势图（平台利润 vs 代理分润）
+- [x] 测试：后端 pytest 28/28（test_iteration14 + test_iteration15，已同步更新订单导出断言到新版式 min_row=5）；dev 域(routes/dev.py)、订单导出、趋势接口 curl 验证通过；前端趋势图截图确认
+
 ## Backlog
 - P1: 获取 ETHERSCAN_API_KEY 后验证 ERC20/BEP20 真实到账
-- P2: server.py 模块化续做（阶段三：剩余散落模型并入 models.py；阶段四：routes/ 按域拆分 auth/orders/settlements/dev/accounts/chain，需引入 core/deps 共享 db 与依赖以避免循环引用）
-- P2: orders_report 大数据量改游标流式导出（当前 to_list(100000)）
+- P2: routes/ 续拆 auth/orders/settlements/accounts/chain（沿用 core + 晚引入模式），并把 get_current_user/require_roles/perm 规则下沉到 deps.py
+- P2: 剩余散落 Pydantic 模型并入 models.py
 - P2: 代理多级分润（当前单级）
 - P2: server.py 进一步拆分为路由模块（现 ~2389 行，email 已抽出；建议继续拆 auth/orders/settlements/ledger/operators）
 - P2: admin 账户删除接口（清理测试遗留账户 test_2fa_*@demo.com）

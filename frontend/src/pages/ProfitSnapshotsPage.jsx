@@ -5,6 +5,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { PieChart, Loader2, Play, ChevronDown, ChevronRight, FileSpreadsheet, Send } from "lucide-react";
+import {
+  AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend,
+} from "recharts";
 
 export default function ProfitSnapshotsPage() {
   const [rows, setRows] = useState([]);
@@ -12,6 +15,13 @@ export default function ProfitSnapshotsPage() {
   const [busy, setBusy] = useState(false);
   const [expanded, setExpanded] = useState(null);
   const [report, setReport] = useState(null);
+  const [trend, setTrend] = useState([]);
+
+  useEffect(() => {
+    api.get("/profit-snapshots/trend?days=30")
+      .then((r) => setTrend(r.data.map((d) => ({ ...d, label: d.date.slice(5) }))))
+      .catch(() => {});
+  }, []);
   const [date, setDate] = useState(() => {
     const d = new Date(); d.setUTCDate(d.getUTCDate() - 1); return d.toISOString().slice(0, 10);
   });
@@ -80,6 +90,34 @@ export default function ProfitSnapshotsPage() {
           <pre className="text-xs font-mono text-slate-300 whitespace-pre-wrap bg-slate-950/60 border border-slate-800 rounded-lg p-3" data-testid="daily-report-text">{report.text.replace(/<\/?b>/g, "")}</pre>
         </div>
       )}
+
+      <div className="glass rounded-xl p-5" data-testid="profit-trend-chart">
+        <div className="flex items-center justify-between mb-4">
+          <div className="text-sm font-semibold text-slate-200">近 30 天收益趋势</div>
+          <div className="text-[11px] text-slate-500">平台利润 vs 代理分润（USDT）</div>
+        </div>
+        <ResponsiveContainer width="100%" height={240}>
+          <AreaChart data={trend} margin={{ top: 5, right: 8, left: -18, bottom: 0 }}>
+            <defs>
+              <linearGradient id="platGrad" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="#10B981" stopOpacity={0.5} />
+                <stop offset="100%" stopColor="#10B981" stopOpacity={0} />
+              </linearGradient>
+              <linearGradient id="commGrad" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="#06B6D4" stopOpacity={0.4} />
+                <stop offset="100%" stopColor="#06B6D4" stopOpacity={0} />
+              </linearGradient>
+            </defs>
+            <CartesianGrid strokeDasharray="3 3" stroke="#1E293B" vertical={false} />
+            <XAxis dataKey="label" stroke="#475569" fontSize={10} tickLine={false} axisLine={false} interval={4} />
+            <YAxis stroke="#475569" fontSize={10} tickLine={false} axisLine={false} />
+            <Tooltip contentStyle={{ background: "#0B1120", border: "1px solid #1E293B", borderRadius: 8, fontSize: 12 }} labelStyle={{ color: "#94A3B8" }} />
+            <Legend wrapperStyle={{ fontSize: 11 }} />
+            <Area type="monotone" dataKey="platform_profit" name="平台利润" stroke="#10B981" strokeWidth={2} fill="url(#platGrad)" />
+            <Area type="monotone" dataKey="agent_commission" name="代理分润" stroke="#06B6D4" strokeWidth={2} fill="url(#commGrad)" />
+          </AreaChart>
+        </ResponsiveContainer>
+      </div>
 
       <div className="glass rounded-xl overflow-hidden">
         <div className="overflow-x-auto">

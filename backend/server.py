@@ -8,7 +8,7 @@ load_dotenv(ROOT_DIR / '.env')
 from fastapi import FastAPI, APIRouter, HTTPException, Depends, Request, Response, Query
 from fastapi.responses import JSONResponse
 from starlette.middleware.cors import CORSMiddleware
-from motor.motor_asyncio import AsyncIOMotorClient
+from motor.motor_asyncio import AsyncIOMotorClient  # noqa: F401  (client/db provided via core)
 from pydantic import BaseModel, Field, EmailStr
 from typing import List, Optional, Annotated, Any
 from bson import ObjectId
@@ -34,9 +34,7 @@ from email_utils import notify_security
 # ---------------------------------------------------------------------------
 # DB & app setup
 # ---------------------------------------------------------------------------
-mongo_url = os.environ['MONGO_URL']
-client = AsyncIOMotorClient(mongo_url)
-db = client[os.environ['DB_NAME']]
+from core import client, db
 
 app = FastAPI(title="四方收款平台 API")
 api_router = APIRouter(prefix="/api")
@@ -1019,67 +1017,8 @@ async def api_query_order(data: ApiOrderQuery, request: Request):
 
 
 # ---------------------------------------------------------------------------
-# Developer API console (admin/operator: 代商户查看凭证 / 对接文档 / 在线测试)
+# Developer API console routes extracted to routes/dev.py (included at bottom)
 # ---------------------------------------------------------------------------
-def _require_dev(user: dict):
-    if user["role"] not in ("admin", "operator"):
-        raise HTTPException(status_code=403, detail="无权限")
-
-
-@api_router.get("/dev/merchants")
-async def dev_list_merchants(user: dict = Depends(get_current_user)):
-    _require_dev(user)
-    ms = await db.users.find({"role": "merchant"}).sort("created_at", -1).to_list(500)
-    return [{"id": str(m["_id"]), "name": m["name"], "email": m["email"],
-             "status": m.get("status", "active"),
-             "api_key": m.get("api_key", ""), "api_secret": m.get("api_secret", ""),
-             "notify_url": m.get("notify_url") or "", "ip_whitelist": m.get("ip_whitelist") or []}
-            for m in ms]
-
-
-@api_router.post("/dev/test-order")
-async def dev_test_order(data: DevTestOrder, request: Request, user: dict = Depends(get_current_user)):
-    _require_dev(user)
-    merchant = await db.users.find_one({"_id": ObjectId(data.merchant_id), "role": "merchant"})
-    if not merchant:
-        raise HTTPException(status_code=404, detail="商户不存在")
-    out_no = data.out_trade_no or ("T" + str(int(now_utc().timestamp() * 1000)))
-    body: dict = {"api_key": merchant.get("api_key", ""), "timestamp": int(now_utc().timestamp()),
-                  "nonce": secrets.token_hex(6), "amount_usdt": data.amount_usdt,
-                  "network": data.network or "TRC20", "out_trade_no": out_no}
-    if data.notify_url:
-        body["notify_url"] = data.notify_url
-    if data.remark:
-        body["remark"] = data.remark
-    sign_string = "&".join(f"{k}={canon(v)}" for k, v in sorted(
-        (k, v) for k, v in body.items() if v is not None and v != ""))
-    body["sign"] = sign_payload(body, merchant.get("api_secret", ""))
-    dup = await db.orders.find_one({"merchant_id": str(merchant["_id"]), "out_trade_no": out_no})
-    if dup:
-        resp = {"code": 0, "msg": "duplicate", "data": api_order_view(dup)}
-    else:
-        order = await build_order(merchant, data.amount_usdt, data.network, data.remark or "",
-                                  data.notify_url, out_no)
-        resp = {"code": 0, "msg": "success", "data": api_order_view(order)}
-    await audit(user, "dev.test_order", "user", str(merchant["_id"]),
-                {"merchant": merchant["name"], "out_trade_no": out_no, "amount_usdt": data.amount_usdt}, request)
-    return {"request": body, "sign_string": sign_string, "response": resp}
-
-
-@api_router.get("/dev/callback-sample")
-async def dev_callback_sample(merchant_id: str, user: dict = Depends(get_current_user)):
-    _require_dev(user)
-    merchant = await db.users.find_one({"_id": ObjectId(merchant_id), "role": "merchant"})
-    if not merchant:
-        raise HTTPException(status_code=404, detail="商户不存在")
-    sample = {"order_no": "SF20260601120000", "out_trade_no": "M1718000000", "amount_usdt": 100.0,
-              "pay_amount": 100.0037, "network": "TRC20", "status": "paid", "tx_id": "a" * 64,
-              "paid_at": iso(now_utc()), "remark": "", "timestamp": int(now_utc().timestamp())}
-    items = sorted((k, v) for k, v in sample.items() if v is not None and v != "")
-    sign_string = "&".join(f"{k}={canon(v)}" for k, v in items)
-    sample["sign"] = sign_payload(sample, merchant.get("api_secret", ""))
-    return {"payload": sample, "sign_string": sign_string,
-            "algorithm": "HMAC-SHA256(api_secret, sign_string) -> hex"}
 
 
 @api_router.get("/notifications/paid")
@@ -2598,27 +2537,76 @@ async def orders_report(user: dict = Depends(get_current_user),
                         {"merchant_name": {"$regex": kw, "$options": "i"}}]
             if re.fullmatch(r"\d+(\.\d+)?", kw):
                 q["$or"] += [{"amount_usdt": float(kw)}, {"pay_amount": float(kw)}]
-    orders = await db.orders.find(q).sort("created_at", -1).to_list(100000)
-    wb = Workbook(); ws = wb.active; ws.title = "订单明细"
+    filters = []
+    if id_list:
+        filters.append(f"所选订单 {len(id_list)} 笔")
+    else:
+        if merchant_id:
+            filters.append(f"商户ID={merchant_id}")
+        if start and end:
+            filters.append(f"区间 {start}~{end}")
+        elif date:
+            filters.append(f"日期 {date}")
+        if status:
+            filters.append(f"状态={ORDER_STATUS_LABELS.get(status, status)}")
+        if network:
+            filters.append(f"网络={network}")
+        if keyword:
+            filters.append(f"关键词={keyword}")
+    summary = "、".join(filters) or "全部订单"
+
+    from openpyxl.cell import WriteOnlyCell
+    wb = Workbook(write_only=True)
+    ws = wb.create_sheet("订单明细")
+    for i, w in enumerate([22, 16, 18, 8, 12, 12, 10, 36, 40, 10, 12, 10, 20, 20], 1):
+        ws.column_dimensions[get_column_letter(i)].width = w
     head_font = Font(bold=True, color="FFFFFF"); head_fill = PatternFill("solid", fgColor="0E7490")
-    ws.append(["订单号", "商户", "商户单号", "网络", "金额(USDT)", "到账金额", "状态", "收款地址", "TxID",
-               "手续费", "实收", "回调状态", "创建时间", "支付时间"])
-    for c in ws[1]:
-        c.font, c.fill, c.alignment = head_font, head_fill, Alignment(horizontal="center")
-    for o in orders:
+    title = WriteOnlyCell(ws, value=f"订单导出 · 筛选条件：{summary}"); title.font = Font(bold=True, size=12)
+    ws.append([title])
+    ws.append([f"导出时间：{iso(now_utc())[:19].replace('T', ' ')} (UTC)    操作人：{user.get('email', '')}"])
+    ws.append([])
+    header = ["订单号", "商户", "商户单号", "网络", "金额(USDT)", "到账金额", "状态", "收款地址", "TxID",
+              "手续费", "实收", "回调状态", "创建时间", "支付时间"]
+    hrow = []
+    for h in header:
+        c = WriteOnlyCell(ws, value=h); c.font, c.fill, c.alignment = head_font, head_fill, Alignment(horizontal="center")
+        hrow.append(c)
+    ws.append(hrow)
+    count = 0
+    async for o in db.orders.find(q).sort("created_at", -1):
         ws.append([o.get("order_no"), o.get("merchant_name"), o.get("out_trade_no") or "", o.get("network"),
                    o.get("amount_usdt"), o.get("pay_amount"), ORDER_STATUS_LABELS.get(o.get("status"), o.get("status")),
                    o.get("wallet_address") or "", o.get("tx_id") or "", o.get("fee"), o.get("merchant_receive"),
                    o.get("callback_status") or "", (o.get("created_at") or "")[:19].replace("T", " "),
                    (o.get("paid_at") or "")[:19].replace("T", " ")])
-    for i, w in enumerate([22, 16, 18, 8, 12, 12, 10, 36, 40, 10, 12, 10, 20, 20], 1):
-        ws.column_dimensions[get_column_letter(i)].width = w
-    ws.freeze_panes = "A2"
+        count += 1
+    ws.freeze_panes = "A5"
     buf = io.BytesIO(); wb.save(buf); buf.seek(0)
     tag = "selected" if id_list else (date or (f"{start}_{end}" if start and end else "all"))
     fname = f"orders_{tag}.xlsx"
     return StreamingResponse(buf, media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                              headers={"Content-Disposition": f"attachment; filename*=UTF-8''{quote(fname)}"})
+
+
+@api_router.get("/profit-snapshots/trend")
+async def profit_trend(days: int = Query(30, ge=7, le=90), user: dict = Depends(require_roles("admin"))):
+    today = now_utc()
+    start_day = (today - timedelta(days=days - 1)).strftime("%Y-%m-%d")
+    buckets: dict = {}
+    async for o in db.orders.find({"status": "paid", "paid_at": {"$gte": start_day + "T00:00:00"}}):
+        d = (o.get("paid_at") or "")[:10]
+        if not d:
+            continue
+        b = buckets.setdefault(d, {"platform": 0.0, "commission": 0.0, "amount": 0.0, "orders": 0})
+        b["platform"] += o.get("platform_profit", 0); b["commission"] += o.get("agent_commission", 0)
+        b["amount"] += o.get("amount_usdt", 0); b["orders"] += 1
+    out = []
+    for i in range(days):
+        d = (today - timedelta(days=days - 1 - i)).strftime("%Y-%m-%d")
+        b = buckets.get(d, {"platform": 0, "commission": 0, "amount": 0, "orders": 0})
+        out.append({"date": d, "platform_profit": round(b["platform"], 2),
+                    "agent_commission": round(b["commission"], 2), "amount": round(b["amount"], 2), "orders": b["orders"]})
+    return out
 
 
 # ---------------------------------------------------------------------------
@@ -2759,6 +2747,10 @@ async def on_shutdown():
 
 
 app.include_router(api_router)
+
+# Extracted domain routers (late import avoids circular dependency with server defs)
+from routes.dev import router as dev_router  # noqa: E402
+app.include_router(dev_router)
 
 
 RATE_LIMIT_MAX = int(os.environ.get("RATE_LIMIT_MAX", "300"))
