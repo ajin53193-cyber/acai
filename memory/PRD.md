@@ -436,3 +436,4 @@
 ## 后台隐藏入口 (2026-10-11)
 - 后台登录路径改为 `/sf-admin-k9x2m7`（由 frontend .env `REACT_APP_ADMIN_PATH` 控制；生产由 update.ps1/deploy.ps1 的 -AdminPath 参数注入，默认同值）。
 - `/login`、`/` 及任何未登录访问均显示 404 页面，不再跳转到登录页。付款页 `/pay/:orderNo` 不受影响。
+- 支付成功页按付款页同比例缩小（图标64px、标题19px、金额32px、明细13px、按钮h-10）。
