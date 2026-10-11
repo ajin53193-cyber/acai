@@ -84,7 +84,6 @@ export function SupportChat({ orderNo, t, open, setOpen }) {
                 <div key={m.id} className={`flex ${m.sender === "customer" ? "justify-end" : "justify-start"}`} data-testid={`support-msg-${m.sender}`}>
                   <div className={`max-w-[78%] px-3 py-2 rounded-2xl text-[14px] whitespace-pre-wrap break-words ${m.sender === "customer" ? "text-white rounded-br-sm" : "bg-white text-slate-800 border border-slate-100 rounded-bl-sm"}`}
                     style={m.sender === "customer" ? { background: "var(--accent)" } : {}}>
-                    {m.sender === "agent" && <div className="text-[11px] opacity-70 mb-0.5">{m.sender_name || t.supportTitle}</div>}
                     {m.image && <a href={imgUrl(m.image)} target="_blank" rel="noreferrer"><img src={imgUrl(m.image)} alt="attach" className="max-w-[200px] rounded-lg mb-1 block" /></a>}
                     {m.text}
                   </div>

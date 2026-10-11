@@ -287,6 +287,11 @@
 - [x] **新会话轮询分配坐席**：`support_public_post` 对**无人负责**的新会话按 round-robin 自动分配给在线坐席（`_online_seats` + settings.rr_last 指针），写入系统提示「系统已自动分配给 X」；无人在线时保持未分配并发 Telegram（原逻辑）。`/support/stats` 新增 `mine_open`、`online`。
   - 验证：curl（stats 含 mine_open/online、新 payer 消息触发自动分配+系统消息）+ 截图（专席落 `/home`、控制台在线圆点显示）。
 
+## Implemented (2026-06, iteration 35) — 前台隐藏坐席信息 + 简繁自动转换
+- [x] **前台不显示坐席信息**：`SupportChat.jsx` 移除 agent 消息上方的 `sender_name` 标签；付款人侧只见消息内容，不再显示客服姓名（后台 `SupportPage` 仍显示坐席名用于管理）。
+- [x] **简→繁自动转换**：后端 `routes/support.py` 引入 OpenCC(`s2twp`，台湾正体+词汇)。付款人侧接口 `support_public_get` 将 **agent 消息文本与 welcome** 转换为繁体；坐席后台 `support_thread_get` 保留原简体。即坐席用简体回复，访客自动看到繁体。依赖 `opencc-python-reimplemented`（已写入 requirements.txt）。
+  - 验证：curl（坐席发简体「订单已成功到账…网络…」→ 付款人收到繁体「訂單已成功到賬…網路…」，后台仍为简体）+ 收银台截图（繁体气泡、无坐席名）。
+
 ## Backlog (next)
 - P2: 散落模型持续并入 models.py
 - P2: 清理测试残留的 TEST_M 商户账户（有余额，需先结清；现可用新删除接口手动清理）

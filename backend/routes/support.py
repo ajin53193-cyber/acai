@@ -24,6 +24,16 @@ from deps import require_roles
 from shared import audit, send_telegram
 from storage import upload_data_url, get_object
 
+try:
+    import opencc
+    _s2t = opencc.OpenCC("s2twp")
+
+    def to_trad(s: Optional[str]) -> Optional[str]:
+        return _s2t.convert(s) if s else s
+except Exception:  # pragma: no cover - fallback if opencc unavailable
+    def to_trad(s: Optional[str]) -> Optional[str]:
+        return s
+
 router = APIRouter(prefix="/api")
 logger = logging.getLogger("sifang")
 
@@ -170,8 +180,16 @@ async def support_public_get(order_no: str):
     msgs = await db.support_messages.find({"order_no": order_no}).sort("created_at", 1).to_list(500)
     await db.support_messages.update_many(
         {"order_no": order_no, "sender": "agent", "read_customer": False}, {"$set": {"read_customer": True}})
-    return {"enabled": enabled, "welcome": welcome, "merchant_name": o["merchant_name"],
-            "order_status": o["status"], "messages": [_msg_view(m) for m in msgs if m["sender"] != "system"]}
+    views = []
+    for m in msgs:
+        if m["sender"] == "system":
+            continue
+        v = _msg_view(m)
+        if v["sender"] == "agent":
+            v["text"] = to_trad(v["text"])  # agents type Simplified; payer sees Traditional
+        views.append(v)
+    return {"enabled": enabled, "welcome": to_trad(welcome), "merchant_name": o["merchant_name"],
+            "order_status": o["status"], "messages": views}
 
 
 @router.post("/support/public/{order_no}")
