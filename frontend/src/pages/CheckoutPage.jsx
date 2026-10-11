@@ -53,7 +53,7 @@ function Countdown({ expiresAt, t }) {
     tick(); const i = setInterval(tick, 1000); return () => clearInterval(i);
   }, [expiresAt]);
   const m = String(Math.floor(left / 60)).padStart(2, "0"), s = String(left % 60).padStart(2, "0");
-  return <p className="text-center text-slate-500 text-[16px]" data-testid="checkout-countdown">{t.payWithin} <span className="text-amber-500 font-semibold tabular-nums text-[17px]">{m}: {s}s</span> {t.payWithinSuffix}</p>;
+  return <p className="text-center text-slate-500 text-[16px]" data-testid="checkout-countdown">{t.payWithin} <span className="text-amber-500 font-semibold tabular-nums text-[17px]">{m}:{s}</span> {t.payWithinSuffix}</p>;
 }
 
 function Row({ k, v, copyVal, onCopy, testid }) {

@@ -194,13 +194,19 @@
 - [x] Telegram bot token 已写入 DB notify 设置（_id=notify）；**注意：chat_id 仍需管理员在安全/通知设置页填写后 Telegram 才会推送**
 - [x] 测试：iteration_16 testing_agent 后端 7/7 + 前端 100% 通过；canonical pytest iteration14/15 全通过（36 passed）。遗留 iteration3/4/5/7/new_features 为历史陈旧用例（硬编码 ObjectId + 已移除的 EVM + 商户后台登录已禁用），非本次改动导致
 
+## Implemented (2026-06, iteration 24) — 重构 + 定时导出 + 阈值 + 收银台
+- [x] **路由拆分/核心资金逻辑**：抽出 `shared.py`(audit/record_ledger/callbacks/notify/send_telegram/alert_settings)、`services.py`(pick_channel/pick_address/unique_pay_amount/build_order/settle_order/mark_paid)、`routes/orders.py`(全部订单端点 + Open API v1)。server.py 由 2717→2208 行；无循环依赖(server→services→shared→core)。pytest canonical 全过、订单创建/回调/模拟支付 curl 验证通过
+- [x] **定时自动导出**：`export_schedules` 集合 + 管理端 CRUD(`GET/POST /api/export-schedules`、`PATCH .../{id}/toggle`、`DELETE .../{id}`)；每日 cron `/api/cron/run-exports`(WEBHOOK_CRON_SECRET 鉴权, 2xx 即返回后台执行)；每周任务仅周一运行；订单/资金流水/分润快照均可配；资金流水需指定账户。导出任务页新增「定时导出」卡片(添加/启停/删除/上次运行)。`.emergent/crons.yml` 新增 run-exports(20 0 * * *)
+- [x] **导出提醒阈值可配**：notify 设置新增 `export_notify_threshold`(默认 500)；Telegram 设置弹窗新增阈值输入；`_run_export` 按阈值推送(邮件通知按用户要求不做)
+- [x] **收银台实时到账**：待付页倒计时(按 expires_at)已存在；轮询改为每 5 秒且支付/超时后自动停止；倒计时格式修正(14:55)
+- [x] 测试：iteration_17 testing_agent 后端 12/12 + 前端 100% 通过；canonical pytest 43 passed(iteration13 两处 merchant 后台登录为既有设计限制，非回归)
+
 ## Backlog (next)
-- P1: orders 域迁移 routes/orders.py（抽 services.py 承载 build_order/settle_order/pick_*，需专轮全回归——涉核心资金流程）
-- P1: settlements 域迁移 routes/settlements.py
-- P2: 定时自动导出（每日/每周静默生成入导出中心）；导出通知阈值可配置 + 可选邮件送达
-- P2: 清理/迁移遗留 pytest（iteration3/4/5/7/new_features 改 TRC20 或移除）
-- P2: 剩余散落 Pydantic 模型并入 models.py；server.py 进一步拆分
+- P1: settlements 域迁移 routes/settlements.py（延续 orders 域拆分模式）
+- P2: 清理/迁移遗留 pytest（iteration3/4/5/7/new_features：硬编码 ObjectId + 已移除 EVM + 商户后台登录）
+- P2: 剩余散落 Pydantic 模型并入 models.py；server.py 继续拆分(notify/chain/settlement/reports)
 - P2: 代理多级分润（当前单级）；admin 账户删除接口
+- P3: 定时导出支持「仅昨日/本周」区间参数、导出保留天数可配
 
 ## Next Tasks
 - 按需接入真实支付/链上监听，或扩展回调通知与对账自动化。

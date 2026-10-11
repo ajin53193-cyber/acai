@@ -1,0 +1,29 @@
+{
+  "summary": "Iteration 17: Validated backend route-split refactor (services.py/shared.py/routes/orders.py) + 3 new features. Backend pytest 12/12 PASS (test_iteration17.py): admin login, dashboard stats, /orders list+filters, create order (admin → TRC20), merchant Open API HMAC v1/orders create (TRC20), /notify/settings PUT+GET persisting export_notify_threshold, export-schedules CRUD (orders daily, ledger weekly w/ account), ledger-without-account → 400, cron /api/cron/run-exports 401 w/o auth and 200+background job 'created_email=定时导出·每日' with Bearer WEBHOOK_CRON_SECRET, channels still TRC20. Frontend verified: /exports shows export-schedules-card; kind/freq/add testids work; creating ledger schedule WITHOUT account shows toast '资金流水定时导出需选择账户' and does NOT create (toggle count stayed 1); account select appears when kind=资金流水; toggle+delete work and jobs table shows '定时导出·每日' entries. Threshold input: AlertBell popover (alert-bell-btn → alert-telegram-btn → tg-export-threshold-input) saves and GET /api/notify/settings returns export_notify_threshold=678 after save. Checkout page /pay/{order_no}: pending order shows countdown timer (14:55s format) and '正在监听链上到账…', after admin manual-verify, UI auto-flips to '支付成功' within ~4s confirming 5s auto-poll works. /orders create dialog shows order-network-fixed='USDT · TRC20'; /channels add dialog shows channel-network-fixed='USDT · TRC20'. No backend errors in logs.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "/pay checkout countdown", "issues": ["Countdown rendered with a space inside: '14: 55s' (space between colon and seconds). Harmless visually but surprising; consider formatting as '14:55'. Not blocking."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_iteration17.py", "/app/test_reports/pytest/iter17.xml"],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Backend refactor is clean: routes/orders.py imports services.build_order/mark_paid and shared helpers; server.py still mounts orders_router at the bottom; no duplicate route conflicts.",
+    "POST /api/cron/run-exports correctly ack's 2xx immediately and runs run_scheduled_exports() as asyncio.create_task — matches cron best practice.",
+    "run_scheduled_exports() correctly skips weekly schedules except on Mondays (weekday() == 0) and sets last_run_at on each execution.",
+    "shared.DEFAULT_NOTIFY_SETTINGS.export_notify_threshold=500 and _export_notify_threshold() guards against invalid values with max(1, int(...)) — robust.",
+    "simulate-pay endpoint in routes/orders.py (line 163-164) correctly rejects live orders — polling test used admin manual-verify instead to simulate paid flip, which exercised the same mark_paid path.",
+    "Checkout polling: pages/CheckoutPage.jsx auto-polls every 5s and stops when status !== pending — confirmed empirically (UI flipped to 支付成功 after admin verify)."
+  ],
+  "updated_files": ["/app/backend/tests/test_iteration17.py"],
+  "success_rate": {"backend": "100% (12/12)", "frontend": "100%"},
+  "test_credentials": "admin ajin53193@gmail.com/admin888; WEBHOOK_CRON_SECRET read from /app/backend/.env",
+  "seed_data_creation": "Created 2 orders (SF…24345 pending-live, SF…53435 paid-live via admin verify) + several transient export schedules (all cleaned up by UI delete) + several '定时导出·每日' export jobs (left in db — minor). Set export_notify_threshold=678 (was 500 default).",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Open API HMAC signing: body-based, sorted keys, exclude sign/None/empty, format float ints as int (see utils.sign_payload). Must include network='TRC20' in signed body because server-side ApiOrderCreate has default network='TRC20' that is included in model_dump(). Checkout sim-pay button only renders for live=False orders; current active channels all produce live orders so admin manual-verify was used to test 5s polling flip. AlertBell path: alert-bell-btn → alert-telegram-btn (NOT 'alert-bell'); threshold is at data-testid='tg-export-threshold-input'. Order create endpoint requires amount_usdt >= channel.min_amount (currently 10). Export jobs endpoint is /api/export/jobs (NOT /api/export-jobs). Schedules label 定时导出·每日 is stored in export_jobs.created_email field.",
+  "rca of the issue": "N/A — all tested paths green."
+}
