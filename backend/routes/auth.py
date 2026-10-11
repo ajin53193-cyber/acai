@@ -18,7 +18,8 @@ from utils import client_ip, verify_password, create_access_token, clean_user, i
 from models import LoginInput
 from deps import get_current_user
 from email_utils import notify_security
-from server import check_lockout, record_login_failure, security_policy, audit, LOCK_MAX_FAILS, LOCK_MINUTES
+from shared import audit
+from server import check_lockout, record_login_failure, security_policy, LOCK_MAX_FAILS, LOCK_MINUTES
 
 router = APIRouter(prefix="/api")
 

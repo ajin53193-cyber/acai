@@ -2,8 +2,9 @@ import { useEffect, useState, useCallback, useRef } from "react";
 import api from "@/lib/api";
 import { fmtDate } from "@/lib/format";
 import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Download, Loader2, FolderDown, CheckCircle2, XCircle, Clock } from "lucide-react";
+import { Download, Loader2, FolderDown, CheckCircle2, XCircle, Clock, CalendarClock, Plus, Trash2, Power } from "lucide-react";
 
 const STATUS = {
   pending: { label: "生成中", cls: "text-amber-400 border-amber-400/30", Icon: Clock },
@@ -15,6 +16,36 @@ export default function ExportJobsPage() {
   const [jobs, setJobs] = useState([]);
   const [loading, setLoading] = useState(true);
   const timer = useRef(null);
+  const [schedules, setSchedules] = useState([]);
+  const [accounts, setAccounts] = useState([]);
+  const [form, setForm] = useState({ kind: "orders", freq: "daily", account_id: "" });
+  const [creating, setCreating] = useState(false);
+
+  const loadSchedules = useCallback(async () => {
+    try { const { data } = await api.get("/export-schedules"); setSchedules(data); } catch { /* noop */ }
+  }, []);
+
+  useEffect(() => {
+    loadSchedules();
+    Promise.all([
+      api.get("/accounts", { params: { role: "merchant" } }),
+      api.get("/accounts", { params: { role: "agent" } }),
+    ]).then((rs) => setAccounts(rs.flatMap((r) => r.data))).catch(() => {});
+  }, [loadSchedules]);
+
+  const createSchedule = async () => {
+    if (form.kind === "ledger" && !form.account_id) { toast.error("资金流水定时导出需选择账户"); return; }
+    setCreating(true);
+    try {
+      await api.post("/export-schedules", { kind: form.kind, freq: form.freq, account_id: form.kind === "ledger" ? form.account_id : null });
+      toast.success("定时导出已创建");
+      setForm({ kind: "orders", freq: "daily", account_id: "" });
+      loadSchedules();
+    } catch (err) { toast.error(err.response?.data?.detail || "创建失败"); }
+    finally { setCreating(false); }
+  };
+  const toggleSchedule = async (s) => { try { await api.patch(`/export-schedules/${s.id}/toggle`); loadSchedules(); } catch { toast.error("操作失败"); } };
+  const deleteSchedule = async (s) => { try { await api.delete(`/export-schedules/${s.id}`); loadSchedules(); } catch { toast.error("删除失败"); } };
 
   const load = useCallback(async () => {
     try {
@@ -61,6 +92,49 @@ export default function ExportJobsPage() {
           <p className="text-sm text-slate-400 mt-1">大批量订单导出在后台生成，完成后在此下载（无需长时间等待）</p>
         </div>
         <Button onClick={load} variant="outline" data-testid="refresh-jobs-btn" className="border-slate-700 hover:bg-slate-800"><Loader2 className="w-4 h-4 mr-1" /> 刷新</Button>
+      </div>
+
+      <div className="glass rounded-xl p-4 space-y-3" data-testid="export-schedules-card">
+        <div className="flex items-center gap-2 text-sm font-semibold"><CalendarClock className="w-4 h-4 text-cyan-400" /> 定时导出</div>
+        <p className="text-xs text-slate-400 -mt-1">按每日/每周自动生成报表并存入下方任务列表（每周于周一运行）。资金流水需指定账户。</p>
+        <div className="flex flex-wrap items-end gap-2">
+          <Select value={form.kind} onValueChange={(v) => setForm({ ...form, kind: v, account_id: "" })}>
+            <SelectTrigger data-testid="schedule-kind-select" className="w-[150px] bg-slate-900/60 border-slate-700"><SelectValue /></SelectTrigger>
+            <SelectContent><SelectItem value="orders">订单</SelectItem><SelectItem value="ledger">资金流水</SelectItem><SelectItem value="snapshots">分润快照</SelectItem></SelectContent>
+          </Select>
+          <Select value={form.freq} onValueChange={(v) => setForm({ ...form, freq: v })}>
+            <SelectTrigger data-testid="schedule-freq-select" className="w-[120px] bg-slate-900/60 border-slate-700"><SelectValue /></SelectTrigger>
+            <SelectContent><SelectItem value="daily">每日</SelectItem><SelectItem value="weekly">每周</SelectItem></SelectContent>
+          </Select>
+          {form.kind === "ledger" && (
+            <Select value={form.account_id} onValueChange={(v) => setForm({ ...form, account_id: v })}>
+              <SelectTrigger data-testid="schedule-account-select" className="w-[220px] bg-slate-900/60 border-slate-700"><SelectValue placeholder="选择账户" /></SelectTrigger>
+              <SelectContent>{accounts.map((a) => <SelectItem key={a.id} value={a.id}>{a.name} · {a.email}</SelectItem>)}</SelectContent>
+            </Select>
+          )}
+          <Button onClick={createSchedule} disabled={creating} data-testid="schedule-add-btn" className="bg-cyan-500 text-slate-950 hover:bg-cyan-400">
+            {creating ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Plus className="w-4 h-4 mr-1" /> 添加</>}
+          </Button>
+        </div>
+        {schedules.length > 0 && (
+          <div className="flex flex-col gap-2 pt-1">
+            {schedules.map((s) => (
+              <div key={s.id} className="flex items-center justify-between gap-3 text-xs bg-slate-900/40 rounded-lg px-3 py-2" data-testid={`schedule-row-${s.id}`}>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="px-2 py-0.5 rounded bg-slate-800 text-slate-200">{{ orders: "订单", ledger: "资金流水", snapshots: "分润快照" }[s.kind]}</span>
+                  <span className="text-cyan-400">{s.freq === "daily" ? "每日" : "每周(周一)"}</span>
+                  {s.account_name && <span className="text-slate-400">{s.account_name}</span>}
+                  <span className={`text-[11px] ${s.enabled ? "text-emerald-400" : "text-slate-500"}`}>{s.enabled ? "启用中" : "已暂停"}</span>
+                  <span className="text-slate-500">上次：{s.last_run_at ? fmtDate(s.last_run_at) : "尚未运行"}</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <button onClick={() => toggleSchedule(s)} data-testid={`schedule-toggle-${s.id}`} className={`p-1.5 rounded hover:bg-slate-800 ${s.enabled ? "text-amber-400" : "text-emerald-400"}`} title={s.enabled ? "暂停" : "启用"}><Power className="w-3.5 h-3.5" /></button>
+                  <button onClick={() => deleteSchedule(s)} data-testid={`schedule-delete-${s.id}`} className="p-1.5 rounded text-red-400 hover:bg-red-400/10" title="删除"><Trash2 className="w-3.5 h-3.5" /></button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       <div className="glass rounded-xl overflow-hidden">

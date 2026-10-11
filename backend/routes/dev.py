@@ -13,7 +13,9 @@ from core import db
 from utils import now_utc, iso, canon, sign_payload
 from models import DevTestOrder
 from deps import get_current_user
-from server import build_order, api_order_view, audit
+from services import build_order
+from shared import audit
+from server import api_order_view
 
 router = APIRouter(prefix="/api")
 

@@ -81,7 +81,12 @@ export default function CheckoutPage() {
   const load = useCallback(() => {
     api.get(`/orders/${orderNo}/public`).then((r) => setOrder(r.data)).catch(() => setNotFound(true));
   }, [orderNo]);
-  useEffect(() => { load(); api.get("/checkout/settings").then((r) => setSettings(r.data)).catch(() => setSettings({})); const i = setInterval(load, 4000); return () => clearInterval(i); }, [load]);
+  useEffect(() => { load(); api.get("/checkout/settings").then((r) => setSettings(r.data)).catch(() => setSettings({})); }, [load]);
+  useEffect(() => {
+    if (!order || order.status !== "pending") return;
+    const i = setInterval(load, 5000);
+    return () => clearInterval(i);
+  }, [order, load]);
 
   const changeLang = (v) => { setLang(v); localStorage.setItem("sf_pay_lang", v); };
   const copy = (v) => { navigator.clipboard.writeText(String(v)); toast.success(t.copied); };

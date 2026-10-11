@@ -60,94 +60,17 @@ from utils import (
     clean_user, serialize, canon, sign_payload, client_ip,
 )
 
-
-async def audit(user: dict, action: str, target_type: str, target_id: str,
-                detail: Any = None, request: Optional[Request] = None):
-    await db.audit_logs.insert_one({
-        "actor_id": str(user["_id"]), "actor_email": user["email"], "actor_role": user["role"],
-        "action": action, "target_type": target_type, "target_id": str(target_id),
-        "detail": detail or {}, "ip": client_ip(request) if request else None,
-        "created_at": iso(now_utc()),
-    })
-
-
-async def record_ledger(account_id: str, category: str, amount: float, balance_after: float,
-                        frozen_after: Optional[float] = None, ref_type: Optional[str] = None,
-                        ref_id: Optional[Any] = None, remark: str = "", operator: Optional[str] = None):
-    await db.balance_ledger.insert_one({
-        "account_id": str(account_id), "category": category, "amount": round(amount, 4),
-        "balance_after": round(balance_after, 4),
-        "frozen_after": round(frozen_after, 4) if frozen_after is not None else None,
-        "ref_type": ref_type, "ref_id": str(ref_id) if ref_id else None,
-        "remark": remark, "operator": operator, "created_at": iso(now_utc()),
-    })
-
-
-async def enqueue_callback(order: dict):
-    url = order.get("notify_url")
-    if not url:
-        return
-    await db.callbacks.insert_one({
-        "order_no": order["order_no"], "merchant_id": order["merchant_id"],
-        "merchant_name": order["merchant_name"], "url": url, "status": "pending",
-        "attempts": 0, "max_attempts": len(CALLBACK_RETRY_DELAYS) + 1,
-        "next_at": iso(now_utc()), "last_code": None, "last_response": None,
-        "created_at": iso(now_utc()), "updated_at": iso(now_utc()),
-    })
-    await db.orders.update_one({"_id": order["_id"]}, {"$set": {"callback_status": "pending"}})
-
-
-async def build_callback_payload(order: dict, secret: str) -> dict:
-    payload = {
-        "order_no": order["order_no"], "amount_usdt": order["amount_usdt"],
-        "pay_amount": order.get("pay_amount", order["amount_usdt"]), "network": order["network"],
-        "status": order["status"], "tx_id": order.get("tx_id"), "paid_at": order.get("paid_at"),
-        "remark": order.get("remark", ""), "out_trade_no": order.get("out_trade_no") or "",
-        "timestamp": int(now_utc().timestamp()),
-    }
-    payload["sign"] = sign_payload(payload, secret)
-    return payload
-
-
-async def deliver_callback(cb: dict):
-    order = await db.orders.find_one({"order_no": cb["order_no"]})
-    merchant = await db.users.find_one({"_id": ObjectId(cb["merchant_id"])})
-    if not order or not merchant:
-        await db.callbacks.update_one({"_id": cb["_id"]}, {"$set": {"status": "failed", "last_response": "订单或商户不存在"}})
-        return
-    payload = await build_callback_payload(order, merchant.get("api_secret", ""))
-    code, body, ok = None, "", False
-    try:
-        async with httpx.AsyncClient(timeout=10) as hc:
-            resp = await hc.post(cb["url"], json=payload)
-            code, body = resp.status_code, resp.text[:500]
-            ok = 200 <= resp.status_code < 300 and ("success" in body.lower() or body.strip() in ("ok", "OK", "1", ""))
-    except Exception as e:
-        body = f"请求异常: {e}"[:500]
-    attempts = cb["attempts"] + 1
-    upd = {"attempts": attempts, "last_code": code, "last_response": body, "updated_at": iso(now_utc())}
-    if ok:
-        upd["status"] = "success"
-        upd["delivered_at"] = iso(now_utc())
-    elif attempts - 1 < len(CALLBACK_RETRY_DELAYS):
-        upd["status"] = "retrying"
-        upd["next_at"] = iso(now_utc() + timedelta(seconds=CALLBACK_RETRY_DELAYS[attempts - 1]))
-    else:
-        upd["status"] = "failed"
-    await db.callbacks.update_one({"_id": cb["_id"]}, {"$set": upd})
-    await db.orders.update_one({"_id": order["_id"]}, {"$set": {"callback_status": upd["status"]}})
-
-
-async def callback_worker():
-    while True:
-        try:
-            due = await db.callbacks.find({"status": {"$in": ["pending", "retrying"]},
-                                           "next_at": {"$lte": iso(now_utc())}}).to_list(50)
-            for cb in due:
-                await deliver_callback(cb)
-        except Exception as e:
-            logger.warning(f"callback worker error: {e}")
-        await asyncio.sleep(5)
+# Cross-cutting infra (audit/ledger/callbacks/notifications) and order domain
+# financial logic were extracted to shared.py / services.py.
+from shared import (
+    audit, record_ledger, enqueue_callback, build_callback_payload, deliver_callback,
+    callback_worker, notify_settings, send_telegram, alert_settings,
+    DEFAULT_ALERT_SETTINGS, DEFAULT_NOTIFY_SETTINGS,
+)
+from services import (
+    channel_addresses, pick_address, unique_pay_amount, pick_channel,
+    build_order, settle_order, mark_paid,
+)
 
 
 async def fetch_trc20_transfers(address: str, since_ms: int) -> List[dict]:
@@ -176,41 +99,6 @@ async def fetch_balance(network: str, address: str) -> float:
         if USDT_TRC20_CONTRACT in item:
             return round(int(item[USDT_TRC20_CONTRACT]) / 1e6, 2)
     return 0.0
-
-
-DEFAULT_ALERT_SETTINGS = {"pct": 10.0, "min_abs": 100.0, "sync_minutes": 10, "sweep_threshold": 10000.0, "big_payment": 1000.0}
-DEFAULT_NOTIFY_SETTINGS = {"telegram_enabled": False, "telegram_bot_token": "", "telegram_chat_id": "",
-                           "notify_alerts": True, "notify_big_payment": True, "notify_sweep": True}
-
-
-async def notify_settings() -> dict:
-    doc = await db.settings.find_one({"_id": "notify"}) or {}
-    doc.pop("_id", None)
-    return {**DEFAULT_NOTIFY_SETTINGS, **doc}
-
-
-async def send_telegram(text: str, kind: str = "alert") -> bool:
-    cfg = await notify_settings()
-    if not cfg["telegram_enabled"] or not cfg["telegram_bot_token"] or not cfg["telegram_chat_id"]:
-        return False
-    if kind != "report" and ((kind == "alert" and not cfg["notify_alerts"]) or (kind == "payment" and not cfg["notify_big_payment"]) or (kind == "sweep" and not cfg["notify_sweep"])):
-        return False
-    try:
-        async with httpx.AsyncClient(timeout=10) as hc:
-            r = await hc.post(f"https://api.telegram.org/bot{cfg['telegram_bot_token']}/sendMessage",
-                              json={"chat_id": cfg["telegram_chat_id"], "text": text, "parse_mode": "HTML", "disable_web_page_preview": True})
-            ok = r.status_code == 200 and r.json().get("ok")
-        await db.notify_log.insert_one({"kind": kind, "text": text, "ok": bool(ok), "resp": r.text[:300], "created_at": iso(now_utc())})
-        return bool(ok)
-    except Exception as e:
-        await db.notify_log.insert_one({"kind": kind, "text": text, "ok": False, "resp": str(e)[:300], "created_at": iso(now_utc())})
-        return False
-
-
-async def alert_settings() -> dict:
-    doc = await db.settings.find_one({"_id": "alerts"}) or {}
-    doc.pop("_id", None)
-    return {**DEFAULT_ALERT_SETTINGS, **doc}
 
 
 async def raise_alert(kind: str, network: str, address: str, channel: dict, message: str, detail: dict, cooldown_min: int = 60):
@@ -286,23 +174,6 @@ async def match_chain_tx(tx: dict, address: str, network: str = "TRC20"):
         logger.info(f"链上到账匹配成功 {order['order_no']} {amount} USDT tx={txid}")
 
 
-def channel_addresses(ch: dict) -> List[str]:
-    addrs = ch.get("wallet_addresses") or ([ch["wallet_address"]] if ch.get("wallet_address") else [])
-    return [a for a in addrs if a]
-
-
-async def pick_address(ch: dict) -> str:
-    addrs = channel_addresses(ch)
-    paused = {m["address"] async for m in db.address_meta.find({"address": {"$in": addrs}, "status": "paused"})}
-    addrs = [a for a in addrs if a not in paused] or addrs
-    if len(addrs) == 1:
-        return addrs[0]
-    pipeline = [{"$match": {"status": "pending", "wallet_address": {"$in": addrs}}},
-                {"$group": {"_id": "$wallet_address", "n": {"$sum": 1}}}]
-    counts = {r["_id"]: r["n"] async for r in db.orders.aggregate(pipeline)}
-    return min(addrs, key=lambda a: (counts.get(a, 0), random.random()))
-
-
 async def live_address_list() -> List[tuple]:
     chs = await db.channels.find({"status": "active"}).to_list(200)
     return [(ch, a) for ch in chs for a in channel_addresses(ch)]
@@ -362,17 +233,6 @@ async def balance_refresher():
         except Exception as e:
             logger.warning(f"balance refresher error: {e}")
         await asyncio.sleep(300)
-
-
-async def unique_pay_amount(amount: float, address: str) -> float:
-    base = round(amount, 2)
-    for _ in range(300):
-        cents = random.randint(1, 9999) / 10000
-        cand = round(base + cents, 4)
-        exists = await db.orders.find_one({"status": "pending", "wallet_address": address, "pay_amount": cand})
-        if not exists:
-            return cand
-    raise HTTPException(status_code=409, detail="该地址待支付订单过多，请稍后再试")
 
 
 # ---------------------------------------------------------------------------
@@ -617,77 +477,6 @@ async def merchant_stats_report(date: Optional[str] = None, start: Optional[str]
 # ---------------------------------------------------------------------------
 # Orders
 # ---------------------------------------------------------------------------
-async def pick_channel(network: Optional[str], amount: float) -> Optional[dict]:
-    q = {"status": "active"}
-    if network:
-        q["network"] = network
-    channels = await db.channels.find(q).to_list(100)
-    channels = [c for c in channels if c["min_amount"] <= amount <= c["max_amount"]]
-    if not channels:
-        return None
-    # weighted random
-    total = sum(c["weight"] for c in channels)
-    r = random.uniform(0, total)
-    upto = 0
-    for c in channels:
-        upto += c["weight"]
-        if r <= upto:
-            return c
-    return channels[0]
-
-
-async def build_order(merchant: dict, amount_usdt: float, network: Optional[str], remark: str,
-                      notify_url: Optional[str], out_trade_no: Optional[str] = None) -> dict:
-    network = "TRC20"
-    if amount_usdt <= 0:
-        raise HTTPException(status_code=400, detail="金额必须大于 0")
-    channel = await pick_channel(network, amount_usdt)
-    if not channel:
-        raise HTTPException(status_code=400, detail="没有可用的收款通道")
-    expires = now_utc() + timedelta(minutes=15)
-    live = bool(channel_addresses(channel))
-    address = await pick_address(channel) if live else gen_wallet_address(network)
-    amount = round(amount_usdt, 2)
-    pay_amount = await unique_pay_amount(amount, address) if live else amount
-    order = {
-        "order_no": gen_order_no(),
-        "out_trade_no": out_trade_no or None,
-        "merchant_id": str(merchant["_id"]),
-        "merchant_name": merchant["name"],
-        "amount_usdt": amount,
-        "pay_amount": pay_amount,
-        "live": live,
-        "network": network,
-        "wallet_address": address,
-        "tx_id": None,
-        "status": "pending",
-        "channel_id": str(channel["_id"]),
-        "channel_name": channel["name"],
-        "remark": remark or "",
-        "notify_url": notify_url or merchant.get("notify_url") or None,
-        "callback_status": None,
-        "created_at": iso(now_utc()),
-        "paid_at": None,
-        "expires_at": iso(expires),
-    }
-    res = await db.orders.insert_one(order)
-    order["_id"] = res.inserted_id
-    return order
-
-
-@api_router.post("/orders")
-async def create_order(data: OrderCreate, user: dict = Depends(get_current_user)):
-    # determine merchant
-    if user["role"] == "merchant":
-        merchant = user
-    else:
-        if not data.merchant_id:
-            raise HTTPException(status_code=400, detail="请选择商户")
-        merchant = await db.users.find_one({"_id": ObjectId(data.merchant_id), "role": "merchant"})
-        if not merchant:
-            raise HTTPException(status_code=404, detail="商户不存在")
-    order = await build_order(merchant, data.amount_usdt, data.network, data.remark, data.notify_url, data.out_trade_no)
-    return serialize(order)
 
 
 # ---------------------------------------------------------------------------
@@ -730,122 +519,9 @@ def api_order_view(o: dict) -> dict:
             "paid_at": o.get("paid_at"), "expires_at": o["expires_at"], "pay_url": api_pay_url(o["order_no"])}
 
 
-@api_router.post("/v1/orders")
-async def api_create_order(data: ApiOrderCreate, request: Request):
-    body = data.model_dump()
-    merchant = await verify_api_request(body, request)
-    dup = await db.orders.find_one({"merchant_id": str(merchant["_id"]), "out_trade_no": data.out_trade_no})
-    if dup:
-        return {"code": 0, "msg": "duplicate", "data": api_order_view(dup)}
-    order = await build_order(merchant, data.amount_usdt, data.network, data.remark, data.notify_url, data.out_trade_no)
-    return {"code": 0, "msg": "success", "data": api_order_view(order)}
-
-
-@api_router.post("/v1/orders/query")
-async def api_query_order(data: ApiOrderQuery, request: Request):
-    body = data.model_dump()
-    merchant = await verify_api_request(body, request)
-    q: dict = {"merchant_id": str(merchant["_id"])}
-    if data.order_no:
-        q["order_no"] = data.order_no
-    elif data.out_trade_no:
-        q["out_trade_no"] = data.out_trade_no
-    else:
-        raise HTTPException(status_code=400, detail="需提供 order_no 或 out_trade_no")
-    o = await db.orders.find_one(q)
-    if not o:
-        raise HTTPException(status_code=404, detail="订单不存在")
-    return {"code": 0, "msg": "success", "data": api_order_view(o)}
-
-
 # ---------------------------------------------------------------------------
 # Developer API console routes extracted to routes/dev.py (included at bottom)
 # ---------------------------------------------------------------------------
-
-
-@api_router.get("/notifications/paid")
-async def paid_notifications(since: str, user: dict = Depends(get_current_user)):
-    scope = await merchant_ids_for_scope(user)
-    q: dict = {"status": "paid", "paid_at": {"$gt": since}}
-    if scope is not None:
-        q["merchant_id"] = {"$in": [str(i) for i in scope]}
-    orders = await db.orders.find(q).sort("paid_at", -1).to_list(20)
-    return {"now": iso(now_utc()), "orders": [
-        {"order_no": o["order_no"], "amount_usdt": o["amount_usdt"], "merchant_name": o["merchant_name"],
-         "network": o["network"], "live": o.get("live", False), "paid_at": o["paid_at"]} for o in orders]}
-
-
-@api_router.get("/orders")
-async def list_orders(user: dict = Depends(get_current_user),
-                      status: Optional[str] = None, network: Optional[str] = None,
-                      keyword: Optional[str] = None, merchant_id: Optional[str] = None,
-                      date: Optional[str] = None, start: Optional[str] = None, end: Optional[str] = None,
-                      limit: int = Query(200, le=1000)):
-    scope = await merchant_ids_for_scope(user)
-    q: dict = {}
-    if scope is not None:
-        q["merchant_id"] = {"$in": [str(i) for i in scope]}
-    if merchant_id and (scope is None or ObjectId(merchant_id) in scope):
-        q["merchant_id"] = str(merchant_id)
-    if start and end:
-        try:
-            ds = datetime.strptime(start, "%Y-%m-%d").replace(tzinfo=timezone.utc)
-            de = datetime.strptime(end, "%Y-%m-%d").replace(tzinfo=timezone.utc) + timedelta(days=1)
-        except ValueError:
-            raise HTTPException(status_code=400, detail="日期格式应为 YYYY-MM-DD")
-        q["created_at"] = {"$gte": iso(ds), "$lt": iso(de)}
-    elif date:
-        try:
-            ds = datetime.strptime(date, "%Y-%m-%d").replace(tzinfo=timezone.utc)
-        except ValueError:
-            raise HTTPException(status_code=400, detail="date 格式应为 YYYY-MM-DD")
-        q["created_at"] = {"$gte": iso(ds), "$lt": iso(ds + timedelta(days=1))}
-    if status:
-        q["status"] = status
-    if network:
-        q["network"] = network
-    if keyword:
-        kw = keyword.strip()
-        q["$or"] = [{"order_no": {"$regex": kw, "$options": "i"}},
-                    {"tx_id": {"$regex": kw, "$options": "i"}},
-                    {"out_trade_no": {"$regex": kw, "$options": "i"}},
-                    {"wallet_address": {"$regex": kw, "$options": "i"}},
-                    {"merchant_name": {"$regex": kw, "$options": "i"}}]
-        if re.fullmatch(r"\d+(\.\d+)?", kw):
-            q["$or"] += [{"amount_usdt": float(kw)}, {"pay_amount": float(kw)}]
-    orders = await db.orders.find(q).sort("created_at", -1).to_list(limit)
-    return [serialize(o) for o in orders]
-
-
-@api_router.get("/orders/{order_no}/public")
-async def get_order_public(order_no: str):
-    order = await db.orders.find_one({"order_no": order_no})
-    if not order:
-        raise HTTPException(status_code=404, detail="订单不存在")
-    # auto-expire
-    if order["status"] == "pending" and datetime.fromisoformat(order["expires_at"]) < now_utc():
-        await db.orders.update_one({"_id": order["_id"]}, {"$set": {"status": "expired"}})
-        order["status"] = "expired"
-    net = order["network"]
-    explorer = f"https://tronscan.org/#/address/{order['wallet_address']}"
-    tx_url = None
-    if order.get("tx_id") and order.get("live"):
-        tx_url = f"https://tronscan.org/#/transaction/{order['tx_id']}"
-    return {
-        "order_no": order["order_no"],
-        "amount_usdt": order["amount_usdt"],
-        "pay_amount": order.get("pay_amount", order["amount_usdt"]),
-        "live": order.get("live", False),
-        "network": net,
-        "wallet_address": order["wallet_address"],
-        "status": order["status"],
-        "merchant_name": order["merchant_name"],
-        "created_at": order["created_at"],
-        "expires_at": order["expires_at"],
-        "tx_id": order.get("tx_id"),
-        "explorer_url": explorer,
-        "tx_url": tx_url,
-    }
 
 
 DEFAULT_CHECKOUT_SETTINGS = {
@@ -892,182 +568,9 @@ async def put_checkout_settings(data: CheckoutSettings, request: Request, user: 
     return doc
 
 
-async def settle_order(order: dict):
-    """Compute fee/commission split and credit balances."""
-    merchant = await db.users.find_one({"_id": ObjectId(order["merchant_id"])})
-    channel = await db.channels.find_one({"_id": ObjectId(order["channel_id"])})
-    amount = order["amount_usdt"]
-    merchant_rate = merchant.get("rate", 0.03)
-    channel_rate = channel.get("fee_rate", 0.02) if channel else 0.02
-
-    fee = round(amount * merchant_rate, 4)
-    merchant_receive = round(amount - fee, 4)
-
-    agent_commission = 0.0
-    agent_id = merchant.get("parent_agent_id")
-    if agent_id:
-        agent = await db.users.find_one({"_id": ObjectId(agent_id)})
-        if agent:
-            agent_rate = agent.get("rate", channel_rate)
-            agent_commission = round(amount * max(merchant_rate - agent_rate, 0), 4)
-            if agent_commission > 0:
-                await db.users.update_one({"_id": agent["_id"]},
-                                          {"$inc": {"balance": agent_commission}})
-                agent_upd = await db.users.find_one({"_id": agent["_id"]})
-                await record_ledger(str(agent["_id"]), "commission", agent_commission,
-                                    agent_upd.get("balance", 0), agent_upd.get("frozen_balance", 0),
-                                    "order", order.get("order_no"),
-                                    remark=f"订单 {order.get('order_no')} 代理分润")
-    platform_profit = round(fee - agent_commission, 4)
-
-    await db.users.update_one({"_id": merchant["_id"]}, {"$inc": {"balance": merchant_receive}})
-    m_upd = await db.users.find_one({"_id": merchant["_id"]})
-    await record_ledger(str(merchant["_id"]), "order_credit", merchant_receive,
-                        m_upd.get("balance", 0), m_upd.get("frozen_balance", 0),
-                        "order", order.get("order_no"),
-                        remark=f"{order.get('network', '')} 收款 {amount} USDT，手续费 {fee}")
-    return fee, merchant_receive, agent_commission, platform_profit
-
-
-async def mark_paid(order: dict, tx_id: Optional[str] = None, paid_at: Optional[datetime] = None,
-                    notify: bool = True) -> dict:
-    claimed = await db.orders.find_one_and_update(
-        {"_id": order["_id"], "status": "pending"}, {"$set": {"status": "confirming"}})
-    if not claimed:
-        return order
-    fee, merchant_receive, agent_commission, platform_profit = await settle_order(order)
-    update = {
-        "status": "paid",
-        "tx_id": tx_id or gen_txid(order["network"]),
-        "paid_at": iso(paid_at or now_utc()),
-        "fee": fee,
-        "merchant_receive": merchant_receive,
-        "agent_commission": agent_commission,
-        "platform_profit": platform_profit,
-        "callback_status": "none" if not order.get("notify_url") else "pending",
-    }
-    await db.orders.update_one({"_id": order["_id"]}, {"$set": update})
-    order.update(update)
-    if notify:
-        await enqueue_callback(order)
-    cfg = await alert_settings()
-    if order["amount_usdt"] >= cfg.get("big_payment", 1000):
-        await send_telegram(f"💰 <b>大额到账</b> {order['amount_usdt']} USDT\n商户：{order['merchant_name']}\n订单：<code>{order['order_no']}</code>\n网络：{order['network']}" + (f"\nTx：<code>{update['tx_id']}</code>" if order.get("live") else ""), "payment")
-    return order
-
-
-@api_router.post("/orders/{order_no}/simulate-pay")
-async def simulate_pay(order_no: str):
-    order = await db.orders.find_one({"order_no": order_no})
-    if not order:
-        raise HTTPException(status_code=404, detail="订单不存在")
-    if order["status"] == "paid":
-        return {"ok": True, "status": "paid"}
-    if order["status"] != "pending":
-        raise HTTPException(status_code=400, detail="订单状态不可支付")
-    if order.get("live"):
-        raise HTTPException(status_code=400, detail="真实链上订单不支持模拟支付，请向收款地址转账")
-    await mark_paid(order)
-    return {"ok": True, "status": "paid"}
-
-
-@api_router.post("/orders/{order_id}/verify")
-async def manual_verify(order_id: str, request: Request, user: dict = Depends(require_roles("admin"))):
-    order = await db.orders.find_one({"_id": ObjectId(order_id)})
-    if not order:
-        raise HTTPException(status_code=404, detail="订单不存在")
-    if order["status"] == "paid":
-        raise HTTPException(status_code=400, detail="订单已支付")
-    await db.orders.update_one({"_id": order["_id"]}, {"$set": {"status": "pending"}})
-    order["status"] = "pending"
-    await mark_paid(order)
-    await audit(user, "order.manual_verify", "order", order["order_no"],
-                {"amount_usdt": order["amount_usdt"]}, request)
-    return {"ok": True}
-
-
-@api_router.post("/orders/{order_id}/reject")
-async def reject_order(order_id: str, request: Request, user: dict = Depends(require_roles("admin"))):
-    order = await db.orders.find_one({"_id": ObjectId(order_id)})
-    if not order:
-        raise HTTPException(status_code=404, detail="订单不存在")
-    if order["status"] == "paid":
-        raise HTTPException(status_code=400, detail="订单已支付，无法驳回")
-    if order["status"] == "rejected":
-        return {"ok": True, "status": "rejected"}
-    await db.orders.update_one({"_id": order["_id"]}, {"$set": {"status": "rejected", "rejected_at": iso(now_utc())}})
-    await audit(user, "order.reject", "order", order["order_no"], {"amount_usdt": order["amount_usdt"]}, request)
-    return {"ok": True, "status": "rejected"}
-
-
-@api_router.post("/orders/{order_id}/resend-callback")
-async def resend_callback(order_id: str, request: Request, user: dict = Depends(require_roles("admin"))):
-    order = await db.orders.find_one({"_id": ObjectId(order_id)})
-    if not order:
-        raise HTTPException(status_code=404, detail="订单不存在")
-    if order["status"] != "paid":
-        raise HTTPException(status_code=400, detail="仅已支付订单可手动回调")
-    if not order.get("notify_url"):
-        raise HTTPException(status_code=400, detail="该订单未配置回调地址")
-    await enqueue_callback(order)
-    cb = await db.callbacks.find_one({"order_no": order["order_no"]}, sort=[("created_at", -1)])
-    if cb:
-        await deliver_callback(cb)
-        cb = await db.callbacks.find_one({"_id": cb["_id"]})
-    await audit(user, "order.resend_callback", "order", order["order_no"], {}, request)
-    return {"ok": True, "callback": serialize(cb) if cb else None}
-
-
 # ---------------------------------------------------------------------------
 # Batch order operations (admin / operator)
 # ---------------------------------------------------------------------------
-class BatchOrderIds(BaseModel):
-    ids: List[str]
-
-
-@api_router.post("/orders/batch-reject")
-async def batch_reject_orders(data: BatchOrderIds, request: Request, user: dict = Depends(require_roles("admin"))):
-    success, failed = [], []
-    for oid in data.ids:
-        try:
-            order = await db.orders.find_one({"_id": ObjectId(oid)})
-            if not order:
-                failed.append({"id": oid, "reason": "订单不存在"}); continue
-            if order["status"] == "paid":
-                failed.append({"id": oid, "order_no": order["order_no"], "reason": "已支付，无法驳回"}); continue
-            if order["status"] == "rejected":
-                success.append({"id": oid, "order_no": order["order_no"]}); continue
-            await db.orders.update_one({"_id": order["_id"]}, {"$set": {"status": "rejected", "rejected_at": iso(now_utc())}})
-            await audit(user, "order.reject", "order", order["order_no"], {"amount_usdt": order["amount_usdt"], "batch": True}, request)
-            success.append({"id": oid, "order_no": order["order_no"]})
-        except Exception as e:
-            failed.append({"id": oid, "reason": str(e)[:100]})
-    return {"ok": True, "total": len(data.ids), "success_count": len(success), "failed_count": len(failed),
-            "success": success, "failed": failed}
-
-
-@api_router.post("/orders/batch-resend-callback")
-async def batch_resend_callback(data: BatchOrderIds, request: Request, user: dict = Depends(require_roles("admin"))):
-    success, failed = [], []
-    for oid in data.ids:
-        try:
-            order = await db.orders.find_one({"_id": ObjectId(oid)})
-            if not order:
-                failed.append({"id": oid, "reason": "订单不存在"}); continue
-            if order["status"] != "paid":
-                failed.append({"id": oid, "order_no": order["order_no"], "reason": "仅已支付订单可回调"}); continue
-            if not order.get("notify_url"):
-                failed.append({"id": oid, "order_no": order["order_no"], "reason": "未配置回调地址"}); continue
-            await enqueue_callback(order)
-            cb = await db.callbacks.find_one({"order_no": order["order_no"]}, sort=[("created_at", -1)])
-            if cb:
-                await deliver_callback(cb)
-            await audit(user, "order.resend_callback", "order", order["order_no"], {"batch": True}, request)
-            success.append({"id": oid, "order_no": order["order_no"]})
-        except Exception as e:
-            failed.append({"id": oid, "reason": str(e)[:100]})
-    return {"ok": True, "total": len(data.ids), "success_count": len(success), "failed_count": len(failed),
-            "success": success, "failed": failed}
 
 
 # ---------------------------------------------------------------------------
@@ -1369,6 +872,7 @@ class NotifySettingsIn(BaseModel):
     notify_alerts: bool = True
     notify_big_payment: bool = True
     notify_sweep: bool = True
+    export_notify_threshold: int = 500
 
 
 @api_router.get("/notify/settings")
@@ -2428,6 +1932,22 @@ def _require_export(user: dict):
         raise HTTPException(status_code=403, detail="无报表导出权限")
 
 
+def _export_notify_threshold(cfg: dict) -> int:
+    try:
+        return max(1, int(cfg.get("export_notify_threshold", 500) or 500))
+    except (TypeError, ValueError):
+        return 500
+
+
+async def start_export_job(created_by: str, created_email: str, kind: str, allowed: dict, user_for_run: dict) -> str:
+    doc = {"kind": kind, "status": "pending", "params": allowed,
+           "created_by": created_by, "created_email": created_email, "created_at": iso(now_utc())}
+    res = await db.export_jobs.insert_one(doc)
+    jid = str(res.inserted_id)
+    asyncio.create_task(_run_export(jid, user_for_run, kind, allowed))
+    return jid
+
+
 async def _run_export(job_id: str, user: dict, kind: str, params: dict):
     async def progress(done, total):
         await db.export_jobs.update_one({"_id": ObjectId(job_id)}, {"$set": {"processed": done, "expected": total}})
@@ -2444,7 +1964,7 @@ async def _run_export(job_id: str, user: dict, kind: str, params: dict):
             {"$set": {"status": "done", "row_count": count, "filename": fname, "size_bytes": len(data),
                       "file_id": str(file_id), "processed": count, "expected": count,
                       "finished_at": iso(now_utc()), "expires_at": iso(now_utc() + timedelta(days=7))}})
-        if count >= 500:
+        if count >= _export_notify_threshold(await notify_settings()):
             kind_label = {"orders": "订单", "snapshots": "分润快照", "ledger": "资金流水"}.get(kind, kind)
             await send_telegram(f"📁 <b>导出完成</b>\n类型：{kind_label}\n行数：{count}\n大小：{round(len(data) / 1024)}KB\n操作人：{user.get('email', '')}", "report")
     except Exception as e:
@@ -2467,11 +1987,7 @@ async def create_export(kind: str, request: Request, user: dict = Depends(get_cu
     allowed = {k: params.get(k) for k in fields if params.get(k)}
     if kind == "ledger" and not allowed.get("account_id"):
         raise HTTPException(status_code=400, detail="导出资金流水需指定 account_id")
-    doc = {"kind": kind, "status": "pending", "params": allowed,
-           "created_by": str(user["_id"]), "created_email": user["email"], "created_at": iso(now_utc())}
-    res = await db.export_jobs.insert_one(doc)
-    jid = str(res.inserted_id)
-    asyncio.create_task(_run_export(jid, user, kind, allowed))
+    jid = await start_export_job(str(user["_id"]), user["email"], kind, allowed, user)
     await audit(user, "export.create", "export", jid, {"kind": kind, "params": allowed}, request)
     return {"id": jid, "status": "pending"}
 
@@ -2503,6 +2019,103 @@ async def download_export_job(job_id: str, user: dict = Depends(get_current_user
     fname = job.get("filename", "orders.xlsx")
     return StreamingResponse(io.BytesIO(data), media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                              headers={"Content-Disposition": f"attachment; filename*=UTF-8''{quote(fname)}"})
+
+
+# ---------------------------------------------------------------------------
+# Scheduled automated exports (admin-configured, run by platform cron)
+# ---------------------------------------------------------------------------
+class ExportScheduleIn(BaseModel):
+    kind: str
+    freq: str  # daily | weekly
+    account_id: Optional[str] = None
+
+
+@api_router.get("/export-schedules")
+async def list_export_schedules(user: dict = Depends(require_roles("admin"))):
+    rows = await db.export_schedules.find().sort("created_at", -1).to_list(100)
+    out = []
+    for r in rows:
+        v = serialize(r)
+        if r.get("account_id"):
+            acc = await db.users.find_one({"_id": ObjectId(r["account_id"])})
+            v["account_name"] = acc.get("name") if acc else r["account_id"]
+        out.append(v)
+    return out
+
+
+@api_router.post("/export-schedules")
+async def create_export_schedule(data: ExportScheduleIn, request: Request, user: dict = Depends(require_roles("admin"))):
+    if data.kind not in EXPORT_KINDS:
+        raise HTTPException(status_code=400, detail="不支持的导出类型")
+    if data.freq not in ("daily", "weekly"):
+        raise HTTPException(status_code=400, detail="频率需为 daily 或 weekly")
+    if data.kind == "ledger" and not data.account_id:
+        raise HTTPException(status_code=400, detail="资金流水定时导出需指定账户")
+    doc = {"kind": data.kind, "freq": data.freq, "account_id": data.account_id or None,
+           "enabled": True, "created_by": str(user["_id"]), "created_email": user["email"],
+           "created_at": iso(now_utc()), "last_run_at": None}
+    res = await db.export_schedules.insert_one(doc)
+    doc["_id"] = res.inserted_id
+    await audit(user, "export.schedule.create", "export_schedule", res.inserted_id,
+                {"kind": data.kind, "freq": data.freq}, request)
+    return serialize(doc)
+
+
+@api_router.patch("/export-schedules/{sid}/toggle")
+async def toggle_export_schedule(sid: str, request: Request, user: dict = Depends(require_roles("admin"))):
+    sch = await db.export_schedules.find_one({"_id": ObjectId(sid)})
+    if not sch:
+        raise HTTPException(status_code=404, detail="定时任务不存在")
+    enabled = not sch.get("enabled", True)
+    await db.export_schedules.update_one({"_id": sch["_id"]}, {"$set": {"enabled": enabled}})
+    await audit(user, "export.schedule.toggle", "export_schedule", sid, {"enabled": enabled}, request)
+    return {"ok": True, "enabled": enabled}
+
+
+@api_router.delete("/export-schedules/{sid}")
+async def delete_export_schedule(sid: str, request: Request, user: dict = Depends(require_roles("admin"))):
+    res = await db.export_schedules.delete_one({"_id": ObjectId(sid)})
+    if not res.deleted_count:
+        raise HTTPException(status_code=404, detail="定时任务不存在")
+    await audit(user, "export.schedule.delete", "export_schedule", sid, {}, request)
+    return {"ok": True}
+
+
+async def run_scheduled_exports(run_id: str) -> dict:
+    is_monday = now_utc().weekday() == 0
+    sys_user = {"_id": "system", "email": "定时任务", "role": "admin", "permissions": ["reports.export"]}
+    schedules = await db.export_schedules.find({"enabled": True}).to_list(200)
+    started, skipped = 0, 0
+    for sch in schedules:
+        if sch.get("freq") == "weekly" and not is_monday:
+            skipped += 1
+            continue
+        allowed = {}
+        if sch["kind"] == "ledger" and sch.get("account_id"):
+            allowed["account_id"] = sch["account_id"]
+        label = {"daily": "每日", "weekly": "每周"}.get(sch.get("freq"), sch.get("freq"))
+        await start_export_job("system", f"定时导出·{label}", sch["kind"], allowed, sys_user)
+        await db.export_schedules.update_one({"_id": sch["_id"]}, {"$set": {"last_run_at": iso(now_utc())}})
+        started += 1
+    logger.info(f"scheduled exports run {run_id}: started={started} skipped={skipped}")
+    return {"started": started, "skipped": skipped}
+
+
+@api_router.post("/cron/run-exports")
+async def cron_run_exports(request: Request):
+    # Cron endpoints must ack 2xx immediately; enqueue/background the actual work.
+    secret = os.environ.get("WEBHOOK_CRON_SECRET", "")
+    auth = request.headers.get("Authorization", "")
+    token = auth[7:] if auth.startswith("Bearer ") else ""
+    if not secret or not hmac.compare_digest(token, secret):
+        raise HTTPException(status_code=401, detail="unauthorized")
+    try:
+        body = await request.json()
+    except Exception:
+        body = {}
+    run_id = request.headers.get("X-Webhook-Id") or (body or {}).get("run_id") or secrets.token_hex(8)
+    asyncio.create_task(run_scheduled_exports(run_id))
+    return {"ok": True, "accepted": True, "run_id": run_id}
 
 
 @api_router.get("/profit-snapshots/trend")
@@ -2672,6 +2285,8 @@ from routes.dev import router as dev_router  # noqa: E402
 app.include_router(dev_router)
 from routes.auth import router as auth_router  # noqa: E402
 app.include_router(auth_router)
+from routes.orders import router as orders_router  # noqa: E402
+app.include_router(orders_router)
 
 
 RATE_LIMIT_MAX = int(os.environ.get("RATE_LIMIT_MAX", "300"))

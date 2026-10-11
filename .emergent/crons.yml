@@ -6,3 +6,10 @@ crons:
     method: POST
     # Cron endpoints must ack 2xx immediately; enqueue/background the actual work.
     enabled: true
+  - name: run-exports
+    description: "按管理员配置的定时导出任务，每日生成订单/资金流水/分润快照 Excel 并存入导出中心"
+    cron: "20 0 * * *"
+    endpoint: "{{BASE_URL}}/api/cron/run-exports"
+    method: POST
+    # Cron endpoints must ack 2xx immediately; enqueue/background the actual work.
+    enabled: true
