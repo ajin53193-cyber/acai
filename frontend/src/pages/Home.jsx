@@ -133,7 +133,7 @@ export default function Home() {
               const items = byCat(c.id).slice(0, 20);
               if (items.length === 0) return null;
               return (
-                <div key={c.id} data-testid={`cat-panel-${c.id}`} className="bg-white rounded-2xl border border-orange-100 shadow-sm p-5 sm:p-6">
+                <div key={c.id} data-testid={`cat-panel-${c.id}`} className="bg-white rounded-2xl border border-orange-100 shadow-sm p-4 sm:p-5">
                   <div className="flex items-center justify-between mb-5">
                     <div className="flex items-center gap-2">
                       <span className="h-5 w-1.5 rounded-full bg-gradient-to-b from-orange-400 to-amber-500" />
@@ -285,8 +285,11 @@ function Carousel({ children, testid }) {
 function PagedGrid({ items, perPage = 10, testid }) {
   const ref = useRef(null);
   const [page, setPage] = useState(0);
+  const [dragging, setDragging] = useState(false);
   const pages = [];
   for (let i = 0; i < items.length; i += perPage) pages.push(items.slice(i, i + perPage));
+
+  const drag = useRef({ down: false, startX: 0, startLeft: 0, moved: false });
 
   const goTo = (p) => {
     const el = ref.current;
@@ -294,21 +297,49 @@ function PagedGrid({ items, perPage = 10, testid }) {
   };
   const onScroll = () => {
     const el = ref.current;
-    if (el) setPage(Math.round(el.scrollLeft / el.clientWidth));
+    if (el && !drag.current.down) setPage(Math.round(el.scrollLeft / el.clientWidth));
+  };
+
+  const onDown = (e) => {
+    const el = ref.current;
+    drag.current = { down: true, startX: e.pageX, startLeft: el.scrollLeft, moved: false };
+    setDragging(true);
+    try { e.currentTarget.setPointerCapture(e.pointerId); } catch (_) {}
+  };
+  const onMove = (e) => {
+    if (!drag.current.down) return;
+    const el = ref.current;
+    const dx = e.pageX - drag.current.startX;
+    if (Math.abs(dx) > 4) drag.current.moved = true;
+    el.scrollLeft = drag.current.startLeft - dx;
+  };
+  const onUp = (e) => {
+    if (!drag.current.down) return;
+    drag.current.down = false;
+    setDragging(false);
+    try { e.currentTarget.releasePointerCapture(e.pointerId); } catch (_) {}
+    const el = ref.current;
+    if (el) {
+      const p = Math.max(0, Math.min(pages.length - 1, Math.round(el.scrollLeft / el.clientWidth)));
+      setPage(p);
+      goTo(p);
+    }
   };
 
   return (
     <div data-testid={testid}>
       <div ref={ref} onScroll={onScroll}
-        className="flex overflow-x-auto no-scrollbar -mx-1"
-        style={{ scrollSnapType: "x mandatory" }}>
+        onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp}
+        onClickCapture={(e) => { if (drag.current.moved) { e.preventDefault(); e.stopPropagation(); } }}
+        className="flex overflow-x-auto no-scrollbar cursor-grab active:cursor-grabbing select-none"
+        style={{ scrollSnapType: dragging ? "none" : "x mandatory", touchAction: "pan-y" }}>
         {pages.map((pg, pi) => (
-          <div key={pi} className="shrink-0 w-full px-1 grid grid-cols-5 gap-x-4 gap-y-5"
+          <div key={pi} className="shrink-0 w-full grid grid-cols-5 gap-x-2 gap-y-4"
             style={{ scrollSnapAlign: "start" }}>
             {pg.map((p) => (
-              <Link key={p.id} to={`/product/${p.id}`} data-testid={`cat-product-${p.id}`} className="group flex flex-col items-center text-center">
-                <div className="w-full aspect-square rounded-2xl overflow-hidden bg-white border border-slate-50 shadow-sm group-hover:shadow-md transition-shadow">
-                  <img src={p.image} alt={p.name} className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-300" />
+              <Link key={p.id} to={`/product/${p.id}`} draggable={false} data-testid={`cat-product-${p.id}`} className="group flex flex-col items-center text-center">
+                <div className="w-full aspect-square rounded-[22px] overflow-hidden bg-white border border-slate-50 shadow-sm group-hover:shadow-md transition-shadow">
+                  <img src={p.image} alt={p.name} draggable={false} className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-300 pointer-events-none" />
                 </div>
                 <div className="text-xs sm:text-[13px] text-slate-600 mt-2 line-clamp-1 w-full group-hover:text-orange-600">{p.name}</div>
               </Link>
