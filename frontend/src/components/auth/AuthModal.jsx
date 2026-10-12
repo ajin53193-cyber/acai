@@ -107,7 +107,7 @@ function AuthModal({ open, onOpenChange }) {
         }
         const r = await signIn.create({ identifier, password });
         if (r.status === "complete") return await finish(r.createdSessionId, setSignInActive);
-        toast.error("需要額外驗證步驟");
+        toast.error(r.status === "needs_client_trust" ? "瀏覽器環境驗證未通過，請改用一般瀏覽器重試" : "需要額外驗證步驟");
       } else {
         if (!sent) {
           setLoading(false);
