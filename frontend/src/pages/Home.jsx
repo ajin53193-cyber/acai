@@ -79,13 +79,13 @@ export default function Home() {
           <Carousel testid="quick-carousel">
             {quick.map((p) => (
               <Link key={p.id} to={`/product/${p.id}`} data-testid={`quick-order-${p.id}`}
-                className="group shrink-0 bg-white rounded-2xl border border-slate-100 shadow-sm p-3 flex flex-col items-center text-center hover:shadow-md hover:-translate-y-0.5 transition-all">
-                <div className="relative w-full aspect-square rounded-2xl overflow-hidden bg-white">
+                className="group shrink-0 bg-white rounded-xl border border-slate-100 shadow-sm p-2 flex flex-col items-center text-center hover:shadow-md transition-all">
+                <div className="relative w-16 h-16 rounded-2xl overflow-hidden bg-white">
                   <img src={p.image} alt={p.name} className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-300" />
-                  {p.tags?.includes("熱銷") && <span className="absolute top-1.5 left-1.5 text-[10px] font-bold rounded-md px-1.5 py-0.5 bg-red-500 text-white">熱銷</span>}
+                  {p.tags?.includes("熱銷") && <span className="absolute top-0.5 left-0.5 text-[9px] font-bold rounded px-1 py-0.5 bg-red-500 text-white">熱銷</span>}
                 </div>
-                <h3 className="font-semibold text-[13px] text-slate-800 line-clamp-1 mt-2.5 group-hover:text-orange-600">{p.name}</h3>
-                <span className="mt-2 text-xs font-bold text-orange-600 bg-orange-100 group-hover:bg-orange-500 group-hover:text-white rounded-full px-5 py-1.5 transition-colors">立即購買</span>
+                <h3 className="font-medium text-xs text-slate-800 line-clamp-1 mt-1.5 w-full group-hover:text-orange-600">{p.name}</h3>
+                <span className="mt-1.5 text-[11px] font-bold text-orange-600 bg-orange-100 group-hover:bg-orange-500 group-hover:text-white rounded-full px-3 py-1 transition-colors">立即購買</span>
               </Link>
             ))}
           </Carousel>
