@@ -18,11 +18,11 @@ const NEWS = [
 ];
 
 const FEATURES = [
-  [ShieldCheck, "正版安全", "涵蓋 500+ 款全球正版 App 內購服務"],
-  [Rocket, "極速出貨", "人工 24 小時極速處理，多數訂單數分鐘到帳"],
-  [Headphones, "7×24 客服", "全世界線上多語言客服竭誠服務"],
-  [Tag, "天天平價", "每日全類目特價促銷，折扣不停"],
-  [Globe, "全球支付", "預留 PayPal / 信用卡 / 加密貨幣支付通道"],
+  [ShieldCheck, "正版安全", "涵蓋 500+ 款全球正版 APP 內購服務"],
+  [Rocket, "自動化極速出貨", "90% 以上產品及服務線上自動秒發"],
+  [Headphones, "7x24 多語言服務", "全世界線上呼叫中心提供服務"],
+  [Percent, "天天平價折扣不停", "享受每日全類目產品特價促銷"],
+  [Globe, "全球 APP 發行", "為 APP 開發者提供全球用戶發行服務"],
 ];
 
 function salesText(n) {
@@ -185,20 +185,21 @@ export default function Home() {
       </div>
 
       {/* Feature band */}
-      <section className="mt-12 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="bg-white rounded-3xl border border-orange-100 shadow-sm p-8">
-          <h2 className="font-head text-2xl font-extrabold text-center text-slate-900 mb-8">全球應用內購服務</h2>
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-6">
-            {FEATURES.map(([Icon, title, desc], i) => (
-              <div key={i} className="text-center">
-                <div className="h-14 w-14 rounded-2xl bg-gradient-to-br from-orange-100 to-amber-100 flex items-center justify-center mx-auto mb-3">
-                  <Icon className="h-7 w-7 text-orange-500" />
-                </div>
-                <div className="font-semibold text-sm text-slate-800">{title}</div>
-                <p className="text-xs text-slate-400 mt-1 leading-relaxed">{desc}</p>
+      <section className="mt-14 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="text-center mb-10">
+          <img src="/gogo589-logo.png" alt="gogo589" className="h-10 md:h-12 w-auto object-contain mx-auto" />
+          <div className="text-sm md:text-base tracking-[0.35em] text-slate-500 font-medium mt-2 pl-[0.35em]">全球應用內購服務</div>
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-x-6 gap-y-10">
+          {FEATURES.map(([Icon, title, desc], i) => (
+            <div key={i} className="text-center flex flex-col items-center">
+              <div className="h-16 w-16 md:h-[72px] md:w-[72px] rounded-[20px] bg-gradient-to-br from-orange-400 to-orange-500 flex items-center justify-center shadow-lg shadow-orange-200/70 mb-4">
+                <Icon className="h-8 w-8 md:h-9 md:w-9 text-white" strokeWidth={1.75} />
               </div>
-            ))}
-          </div>
+              <div className="font-bold text-sm md:text-base text-slate-800">{title}</div>
+              <p className="text-xs text-slate-400 mt-1.5 leading-relaxed max-w-[180px]">{desc}</p>
+            </div>
+          ))}
         </div>
       </section>
 
