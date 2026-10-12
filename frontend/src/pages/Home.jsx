@@ -1,15 +1,20 @@
 import React, { useEffect, useState, useRef } from "react";
 import { Link } from "react-router-dom";
-import { ChevronRight, ChevronLeft, Zap, Megaphone, ShieldCheck, Rocket, Headphones, Tag, Globe, Star, Users, Gift } from "lucide-react";
+import { ChevronRight, ChevronLeft, Zap, Megaphone, ShieldCheck, Rocket, Headphones, Tag, Globe, Star, Users, Gift, Percent, FileText } from "lucide-react";
 import { publicApi } from "@/lib/api";
 
+const PIMG = "https://static.prod-images.emergentagent.com/jobs/8c0ad436-0c2e-49bb-a5bb-0efc73c32f62/images/";
 const NEWS = [
-  { t: "雙十盛惠 | 全站充值立省最高 7%", d: "06-12", c: "from-rose-500 to-orange-500" },
-  { t: "新用戶註冊 | 首單最高享 9% OFF", d: "06-10", c: "from-orange-500 to-amber-500" },
-  { t: "會員日 | 每月領最高 8% 優惠券", d: "06-08", c: "from-violet-500 to-fuchsia-600" },
-  { t: "海外如何為抖音充值？完整教學指南", d: "06-05", c: "from-emerald-500 to-teal-600" },
-  { t: "小紅書薯幣有什麼用？海外購買指南", d: "06-03", c: "from-amber-500 to-yellow-500" },
-  { t: "跨境充值常見問題與到帳時間說明", d: "06-01", c: "from-cyan-500 to-blue-600" },
+  { img: PIMG + "39ae98f586060ad5b69976ce922491f48c54040922798b5ed10349676b662215.jpeg", t: "十一盛惠｜全站充值立省最高 7%", type: "promo" },
+  { img: PIMG + "df7e2e49230f68860ee9fad2f1b296f3bdd3d7bbac3a7ab579127753b3da0f91.jpeg", t: "中秋同樂｜充值最高享 7% OFF", type: "promo" },
+  { img: PIMG + "c91a909e2ccc13ca328283dabfefdfd1aa645679457f488264697a7281f7256d.jpeg", t: "金秋三重好券｜充值最高省 7%", type: "promo" },
+  { img: PIMG + "84b82d52bc003b68a749684c105cd74b005d2cb7a0296564723bce2db6b83e92.jpeg", t: "會員日優惠券｜每月送最高 8% OFF", type: "promo" },
+  { img: PIMG + "e93f5592b4a32550909fba4494e7a12f4405ef1f0d2af4795696a505042a8d30.jpeg", t: "月初滿減大禮包｜用券最高省 128 美金", type: "promo" },
+  { img: PIMG + "dbb362841e4a83aa5efc1f7b50d4b8235b96eb646e6be5244d719424e93925db.jpeg", t: "開學季「券」力全開｜新學期最高省 7%", type: "promo" },
+  { img: PIMG + "15a9df686e792e1c9ae72cad000cd79136df98bce2039217422acf67e67448f7.jpeg", t: "在國外怎麼幫社交平台充值？海外教學", type: "article" },
+  { img: PIMG + "95027518454c11a91b49cf79798c6fcfe3e1eb4fcc2f4b4122737c143f351aca.jpeg", t: "虛擬幣有什麼用？海外用戶充值指南", type: "article" },
+  { img: PIMG + "899567a5c0f4bff028245a26f4321eea9a5f56d3eca3c5187fcf00bd170e8d83.jpeg", t: "海外怎麼給短影音平台充值？完整教學", type: "article" },
+  { img: PIMG + "0221be504565b160e332aa877354fa4ec3247d3db28e7c88d0222e9730ef659f.jpeg", t: "海外如何充值直播幣？國外充值教學", type: "article" },
 ];
 
 const FEATURES = [
@@ -150,16 +155,28 @@ export default function Home() {
 
         {/* News & promo */}
         <section className="mt-10">
-          <SectionTitle title="新聞 & 促銷" to="/" />
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="font-head text-xl font-bold text-slate-900">新聞 & 促銷</h2>
+            <Link to="/" data-testid="news-more-link" className="text-xs font-semibold text-orange-600 bg-orange-50 border border-orange-100 rounded-full px-4 py-1.5 hover:bg-orange-100">查看更多</Link>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
             {NEWS.map((n, i) => (
-              <div key={i} data-testid={`news-card-${i}`} className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden hover:shadow-md transition-shadow cursor-pointer flex">
-                <div className={`w-24 shrink-0 bg-gradient-to-br ${n.c} flex items-center justify-center`}>
-                  <Megaphone className="h-7 w-7 text-white/80" />
+              <div key={i} data-testid={`news-card-${i}`} className="group bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden hover:shadow-md hover:-translate-y-0.5 transition-all cursor-pointer">
+                <div className="h-5 bg-gradient-to-r from-orange-400 to-amber-400 flex items-center gap-1 px-2.5">
+                  <span className="h-1.5 w-1.5 rounded-full bg-white/70" />
+                  <span className="h-1.5 w-1.5 rounded-full bg-white/70" />
+                  <span className="h-1.5 w-1.5 rounded-full bg-white/70" />
                 </div>
-                <div className="p-3 flex-1 min-w-0">
-                  <div className="text-sm font-medium text-slate-700 line-clamp-2">{n.t}</div>
-                  <div className="text-xs text-slate-400 mt-2">2026-{n.d}</div>
+                <div className="aspect-[3/2] overflow-hidden bg-orange-50">
+                  <img src={n.img} alt={n.t} className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                </div>
+                <div className="p-3 flex items-center gap-1.5">
+                  {n.type === "promo" ? (
+                    <span className="shrink-0 h-4 w-4 rounded bg-red-500 text-white flex items-center justify-center"><Percent className="h-2.5 w-2.5" strokeWidth={3} /></span>
+                  ) : (
+                    <span className="shrink-0 h-4 w-4 rounded bg-orange-100 text-orange-500 flex items-center justify-center"><FileText className="h-2.5 w-2.5" /></span>
+                  )}
+                  <span className="text-[13px] font-medium text-slate-700 truncate group-hover:text-orange-600">{n.t}</span>
                 </div>
               </div>
             ))}
