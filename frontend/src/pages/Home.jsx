@@ -341,7 +341,8 @@ function PagedGrid({ items, perPage = 10, testid }) {
                 <div className="w-full aspect-square rounded-[22px] overflow-hidden bg-white border border-slate-50 shadow-sm group-hover:shadow-md transition-shadow">
                   <img src={p.image} alt={p.name} draggable={false} className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-300 pointer-events-none" />
                 </div>
-                <div className="text-xs sm:text-[13px] text-slate-600 mt-2 line-clamp-1 w-full group-hover:text-orange-600">{p.name}</div>
+                <div className="text-xs sm:text-[13px] font-medium text-slate-800 mt-3 line-clamp-1 w-full px-0.5 group-hover:text-orange-600">{p.name}</div>
+                <span data-testid={`cat-buy-${p.id}`} className="mt-2.5 text-xs font-bold text-orange-500 bg-orange-100 group-hover:bg-orange-500 group-hover:text-white rounded-full px-5 py-1.5 transition-colors">立即購買</span>
               </Link>
             ))}
           </div>
