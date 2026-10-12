@@ -13,6 +13,7 @@ import Category from "@/pages/Category";
 import ProductDetail from "@/pages/ProductDetail";
 import Checkout from "@/pages/Checkout";
 import MyOrders from "@/pages/MyOrders";
+import Info from "@/pages/Info";
 import Admin from "@/pages/Admin";
 
 function StoreLayout() {
@@ -51,6 +52,7 @@ function App() {
                   <Route path="/product/:id" element={<ProductDetail />} />
                   <Route path="/checkout" element={<Checkout />} />
                   <Route path="/orders" element={<MyOrders />} />
+                  <Route path="/info/:slug" element={<Info />} />
                 </Route>
                 <Route path="/admin" element={<Admin />} />
                 <Route path="/sign-in/*" element={<AuthLayout><SignIn routing="path" path="/sign-in" signUpUrl="/sign-up" withSignUp /></AuthLayout>} />
