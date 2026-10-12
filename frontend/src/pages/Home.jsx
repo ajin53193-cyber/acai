@@ -122,27 +122,40 @@ export default function Home() {
           </Link>
         </section>
 
-        {/* Category sections (icon + name) */}
-        {categories.map((c) => {
-          const items = byCat(c.id).slice(0, 12);
-          if (items.length === 0) return null;
-          return (
-            <section key={c.id} className="mt-8">
-              <SectionTitle title={c.name} to={`/category/${c.id}`} icon={c.image} />
-              <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-3">
-                {items.map((p) => (
-                  <Link key={p.id} to={`/product/${p.id}`} data-testid={`cat-product-${p.id}`}
-                    className="group bg-white rounded-2xl border border-slate-100 shadow-sm p-3 flex flex-col items-center text-center hover:shadow-lg hover:-translate-y-0.5 transition-all">
-                    <div className="w-full aspect-square rounded-2xl overflow-hidden bg-white">
-                      <img src={p.image} alt={p.name} className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-300" />
+        {/* Hot categories: two-column panels */}
+        <section className="mt-10">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="font-head text-xl font-bold text-slate-900">熱門分類</h2>
+            <Link to="/category/livestream" data-testid="all-categories-link" className="text-xs font-semibold text-orange-600 bg-orange-50 border border-orange-100 rounded-full px-4 py-1.5 hover:bg-orange-100">全部分類</Link>
+          </div>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+            {categories.map((c) => {
+              const items = byCat(c.id).slice(0, 10);
+              if (items.length === 0) return null;
+              return (
+                <div key={c.id} data-testid={`cat-panel-${c.id}`} className="bg-white rounded-2xl border border-orange-100 shadow-sm p-5">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-2">
+                      <span className="h-5 w-1.5 rounded-full bg-gradient-to-b from-orange-400 to-amber-500" />
+                      <h3 className="font-bold text-slate-900">{c.name}</h3>
                     </div>
-                    <div className="text-sm font-semibold text-slate-800 mt-2.5 line-clamp-2 leading-tight min-h-[2.5rem] group-hover:text-orange-600">{p.name}</div>
-                  </Link>
-                ))}
-              </div>
-            </section>
-          );
-        })}
+                    <Link to={`/category/${c.id}`} className="flex items-center gap-0.5 text-xs text-slate-400 hover:text-orange-500">查看更多 <ChevronRight className="h-3.5 w-3.5" /></Link>
+                  </div>
+                  <div className="grid grid-cols-5 gap-x-3 gap-y-4">
+                    {items.map((p) => (
+                      <Link key={p.id} to={`/product/${p.id}`} data-testid={`cat-product-${p.id}`} className="group flex flex-col items-center text-center">
+                        <div className="w-full aspect-square rounded-2xl overflow-hidden bg-white">
+                          <img src={p.image} alt={p.name} className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                        </div>
+                        <div className="text-[11px] text-slate-600 mt-1.5 line-clamp-1 w-full group-hover:text-orange-600">{p.name}</div>
+                      </Link>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </section>
 
         {/* News & promo */}
         <section className="mt-10">
