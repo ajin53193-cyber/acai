@@ -79,10 +79,16 @@ export default function Home() {
           <Carousel testid="quick-carousel">
             {quick.map((p) => (
               <Link key={p.id} to={`/product/${p.id}`} data-testid={`quick-order-${p.id}`}
-                className="shrink-0 w-[150px] sm:w-[180px] bg-white rounded-xl border border-orange-100 p-3 flex flex-col items-center text-center hover:shadow-md hover:border-orange-300 transition-all">
-                <img src={p.image} alt={p.name} className="h-16 w-16 rounded-2xl object-cover" />
-                <div className="text-[13px] font-medium text-slate-700 line-clamp-1 mt-2 w-full">{p.name}</div>
-                <span className="mt-2 text-xs font-bold text-orange-600 bg-orange-100 rounded-full px-4 py-1">立即購買</span>
+                className="group shrink-0 w-[150px] sm:w-[180px] bg-white rounded-2xl border border-slate-100 shadow-sm p-3 hover:shadow-md hover:-translate-y-0.5 transition-all">
+                <div className="relative w-full aspect-square rounded-2xl overflow-hidden bg-slate-50">
+                  <img src={p.image} alt={p.name} className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                  {p.tags?.includes("熱銷") && <span className="absolute top-1.5 left-1.5 text-[10px] font-bold rounded-md px-1.5 py-0.5 bg-red-500 text-white">熱銷</span>}
+                </div>
+                <h3 className="font-semibold text-[13px] text-slate-800 line-clamp-1 mt-2.5 text-center group-hover:text-orange-600">{p.name}</h3>
+                <div className="flex items-center justify-between mt-2 text-[11px]">
+                  <span className="flex items-center gap-0.5 text-slate-400"><span className="text-orange-400">🔥</span>{salesText(p.sales_count)}</span>
+                  <span className="flex items-center gap-0.5 text-amber-500 font-semibold">{Math.round(p.rating)}<Star className="h-3 w-3 fill-amber-400 text-amber-400" /></span>
+                </div>
               </Link>
             ))}
           </Carousel>
@@ -200,28 +206,42 @@ export default function Home() {
 function Carousel({ children, testid }) {
   const ref = useRef(null);
   const [paused, setPaused] = useState(false);
+  const [center, setCenter] = useState(false);
 
+  const step = () => {
+    const el = ref.current;
+    if (!el || !el.children[0]) return 200;
+    return el.children[0].offsetWidth + 12;
+  };
   const scrollByDir = (dir) => {
     const el = ref.current;
-    if (!el) return;
-    el.scrollBy({ left: dir * el.clientWidth * 0.8, behavior: "smooth" });
+    if (el) el.scrollBy({ left: dir * step(), behavior: "smooth" });
   };
 
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
+    const check = () => setCenter(el.scrollWidth <= el.clientWidth + 2);
+    check();
+    const ro = new ResizeObserver(check);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [children]);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
     const timer = setInterval(() => {
-      if (paused) return;
+      if (paused || el.scrollWidth <= el.clientWidth + 2) return;
       if (el.scrollLeft + el.clientWidth >= el.scrollWidth - 8) {
         el.scrollTo({ left: 0, behavior: "smooth" });
       } else {
-        el.scrollBy({ left: el.clientWidth * 0.8, behavior: "smooth" });
+        el.scrollBy({ left: step(), behavior: "smooth" });
       }
     }, 3000);
     return () => clearInterval(timer);
   }, [paused]);
 
-  // drag to scroll
   const drag = useRef({ down: false, startX: 0, startLeft: 0, moved: false });
   const onDown = (e) => {
     const el = ref.current;
@@ -240,19 +260,19 @@ function Carousel({ children, testid }) {
     <div className="relative" data-testid={testid}
       onMouseEnter={() => setPaused(true)} onMouseLeave={() => { setPaused(false); endDrag(); }}>
       <button data-testid={`${testid}-prev`} onClick={() => scrollByDir(-1)}
-        className="absolute -left-3 top-1/2 -translate-y-1/2 z-10 h-9 w-9 rounded-full bg-white shadow-md border border-orange-100 flex items-center justify-center text-orange-500 hover:bg-orange-50">
+        className="absolute -left-4 top-1/2 -translate-y-1/2 z-10 h-9 w-9 rounded-full bg-white shadow-md border border-orange-100 flex items-center justify-center text-orange-500 hover:bg-orange-50">
         <ChevronLeft className="h-5 w-5" />
       </button>
       <div
         ref={ref}
-        className="flex gap-3 overflow-x-auto no-scrollbar pb-1 cursor-grab active:cursor-grabbing select-none"
+        className={`flex gap-3 overflow-x-auto no-scrollbar pb-1 cursor-grab active:cursor-grabbing select-none ${center ? "justify-center" : ""}`}
         onMouseDown={onDown} onMouseMove={onMove} onMouseUp={endDrag}
         onClickCapture={(e) => { if (drag.current.moved) { e.preventDefault(); e.stopPropagation(); } }}
       >
         {children}
       </div>
       <button data-testid={`${testid}-next`} onClick={() => scrollByDir(1)}
-        className="absolute -right-3 top-1/2 -translate-y-1/2 z-10 h-9 w-9 rounded-full bg-white shadow-md border border-orange-100 flex items-center justify-center text-orange-500 hover:bg-orange-50">
+        className="absolute -right-4 top-1/2 -translate-y-1/2 z-10 h-9 w-9 rounded-full bg-white shadow-md border border-orange-100 flex items-center justify-center text-orange-500 hover:bg-orange-50">
         <ChevronRight className="h-5 w-5" />
       </button>
     </div>
