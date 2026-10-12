@@ -70,8 +70,9 @@ export default function Header() {
       <div className="bg-white border-b border-orange-100 shadow-sm relative">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 md:h-[72px] flex items-center gap-3 md:gap-5">
           {/* Logo */}
-          <Link to="/" data-testid="logo-link" className="flex items-center shrink-0">
-            <img src="/gogo589-logo.png" alt="gogo589" className="h-8 md:h-10 w-auto object-contain" />
+          <Link to="/" data-testid="logo-link" className="flex flex-col items-start shrink-0 leading-none">
+            <img src="/gogo589-logo.png" alt="gogo589" className="h-8 md:h-9 w-auto object-contain" />
+            <div className="text-[10px] text-slate-400 font-medium mt-0.5 hidden sm:block">全球應用內購服務</div>
           </Link>
 
           {/* 所有服務 + search */}
