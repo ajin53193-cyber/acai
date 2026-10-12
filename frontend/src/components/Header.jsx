@@ -98,10 +98,13 @@ export default function Header() {
                 <DropdownMenuTrigger asChild>
                   <button
                     data-testid="register-promo-pill"
-                    className="hidden lg:flex items-center gap-1.5 bg-gradient-to-r from-amber-100 to-orange-100 text-orange-700 rounded-full pl-3 pr-4 py-1.5 text-xs font-bold border border-orange-200 hover:shadow-sm transition-shadow"
+                    className="hidden lg:flex items-center hover:opacity-90 transition-opacity"
                   >
-                    <Gift className="h-4 w-4" />
-                    <span className="leading-tight text-left">新用戶註冊<br />最高領 9% 優惠券</span>
+                    <img
+                      src="https://customer-assets-39nsmqrw.emergentagent.net/job_crossborder-topup/artifacts/b08198289aa5a07a_image.png"
+                      alt="新用戶註冊 最高領 9% 優惠券"
+                      className="h-11 w-auto object-contain"
+                    />
                   </button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-40">
