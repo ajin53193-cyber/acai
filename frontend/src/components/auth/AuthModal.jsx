@@ -182,7 +182,7 @@ function AuthModal({ open, onOpenChange }) {
       <DialogContent
         hideClose
         style={{ width: "calc(100% - 1.5rem)", maxWidth: "420px" }}
-        className="max-h-[92vh] overflow-x-hidden overflow-y-auto p-0 rounded-3xl border-0"
+        className="max-h-[92vh] overflow-x-hidden overflow-y-auto p-0 rounded-3xl border-0 grid-cols-[minmax(0,1fr)] [&>*]:min-w-0"
         data-testid="auth-modal"
       >
         {/* top accent */}
@@ -196,7 +196,7 @@ function AuthModal({ open, onOpenChange }) {
           <X className="h-5 w-5" />
         </button>
 
-        <div className="px-6 pb-6 pt-3">
+        <div className="px-6 pb-6 pt-3 w-full min-w-0 max-w-full">
           {/* tabs */}
           <div className="flex items-center gap-6 mb-5">
             {TABS.map(([key, label]) => (
@@ -235,11 +235,12 @@ function AuthModal({ open, onOpenChange }) {
                   </button>
                   <input
                     data-testid="auth-identifier"
+                size={1}
                     value={identifier}
                     onChange={(e) => setIdentifier(e.target.value)}
                     placeholder="手機號碼"
                     inputMode="tel"
-                    className="flex-1 bg-transparent text-base outline-none placeholder:text-slate-400"
+                    className="flex-1 min-w-0 bg-transparent text-base outline-none placeholder:text-slate-400"
                   />
                 </div>
                 {countryOpen && (
@@ -278,26 +279,29 @@ function AuthModal({ open, onOpenChange }) {
             ) : (
               <input
                 data-testid="auth-identifier"
+                size={1}
                 value={identifier}
                 onChange={(e) => setIdentifier(e.target.value)}
                 placeholder={tab === "account" ? "信箱 / 帳號" : "信箱"}
-                className="w-full h-14 rounded-2xl bg-slate-100 px-5 text-base outline-none focus:ring-2 focus:ring-orange-300 placeholder:text-slate-400"
+                className="w-full min-w-0 h-14 rounded-2xl bg-slate-100 px-5 text-base outline-none focus:ring-2 focus:ring-orange-300 placeholder:text-slate-400"
               />
             )}
 
             {tab === "account" ? (
               <input
                 data-testid="auth-password"
+                size={1}
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="密碼"
-                className="w-full h-14 rounded-2xl bg-slate-100 px-5 text-base outline-none focus:ring-2 focus:ring-orange-300 placeholder:text-slate-400"
+                className="w-full min-w-0 h-14 rounded-2xl bg-slate-100 px-5 text-base outline-none focus:ring-2 focus:ring-orange-300 placeholder:text-slate-400"
               />
             ) : (
               <div className="flex items-center gap-2 w-full">
                 <input
                   data-testid="auth-code"
+                  size={1}
                   value={code}
                   onChange={(e) => setCode(e.target.value)}
                   placeholder="驗證碼"
