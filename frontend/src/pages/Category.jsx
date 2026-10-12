@@ -81,7 +81,7 @@ export default function Category() {
                 data-testid={`product-card-${p.id}`}
                 className="group bg-white rounded-2xl border border-slate-100 shadow-sm p-3 flex flex-col items-center text-center hover:shadow-lg hover:-translate-y-0.5 transition-all"
               >
-                <div className="w-full aspect-square rounded-2xl overflow-hidden bg-slate-50">
+                <div className="w-full aspect-square rounded-2xl overflow-hidden bg-white">
                   <img src={p.image} alt={p.name} className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-300" />
                 </div>
                 <div className="text-sm font-semibold text-slate-800 mt-3 line-clamp-2 leading-tight min-h-[2.5rem] group-hover:text-orange-600">{p.name}</div>

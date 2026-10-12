@@ -587,18 +587,18 @@ async def seed():
         ])
     IMG = "https://static.prod-images.emergentagent.com/jobs/8c0ad436-0c2e-49bb-a5bb-0efc73c32f62/images/"
     ICONS = {
-        "shortvideo": IMG + "2afff934d1a09c03c9015dd3247bf4ec313ad9039be4f0e39107227402a741b1.jpeg",
-        "live": IMG + "9c51859d7c9a941645594bfb4f08386413561699163021542a8eb0c4fbc39ab4.jpeg",
-        "game": IMG + "f47b2447f1541391b29ce57a864660b61446b1a5172d91d5bee9c34c413fcbab.jpeg",
-        "music": IMG + "ada3497fc1ed122b41f50f9c7a05e7767b3a47c3d5450e5af1db83467ee7e40c.jpeg",
-        "social": IMG + "51b363575e9e59a02b02614111b030cef9f460e4ebae6bad73731e00d3de0b69.jpeg",
-        "voice": IMG + "08bb90dd0931b7083b0a4757ee509de0849b2fa24f485461320a8464f5156c8d.jpeg",
-        "reading": IMG + "9c614063e70f899b54afdf2f5c1c9b8b31b20b7571340e9db7309a9ad60d5437.jpeg",
-        "ai": IMG + "515dfdde16bc033e69e98d2a94d6f9e3f9e66717cbc9b47e00f848abee44b06e.jpeg",
-        "giftcard": IMG + "7469733762945643571d7fb8f35466cd4c75f01201b15f8caeb426bb8519970f.jpeg",
-        "point": IMG + "c741ed2a9e44f05e6d71f30ca2d57f02dcba5c2b6900aea5fb0308b3d1ddeca5.jpeg",
+        "shortvideo": IMG + "d93bf069a4441f481961df104adc6d5520dce8b9f814dea87db01b1a77b58624.jpeg",
+        "live": IMG + "075e084b415b957d4eacc8c6488262e269b678828929bb70ccd6b394307f1dca.jpeg",
+        "game": IMG + "8598efbdf15d5a8758bfd20f768a57beb1c95bc2771846a3c69fe5c367452b69.jpeg",
+        "music": IMG + "e0b4747868fc6041fe95e1844c11ba3683a65172fbde7f8185d30e6ba455d738.jpeg",
+        "social": IMG + "edb228e9d02295f6afd6cda56d4bd7040f2ea2c81d947904fe8c71c59eec3c03.jpeg",
+        "voice": IMG + "cf1a919cde2a31bbb35f74048189b91267c6abcb302d300a34f3dce3ac6c0bb9.jpeg",
+        "reading": IMG + "764156ecec10411bd5f9b950b9c697edb73e9175c0376698cc3df841637539a9.jpeg",
+        "ai": IMG + "fa7012c9684526cc801a7a73409f526d7ae20734e129a786081494e1dcbe18ff.jpeg",
+        "giftcard": IMG + "df165757e3fa2be6af11c3083267c24e1ed61f5ddc105b6ebfd19b84efce9c0d.jpeg",
+        "point": IMG + "521664001099b0c3c457bf82fcafbd877d4101d6d137bb792087f631ecd011b0.jpeg",
     }
-    SEED_VERSION = 5
+    SEED_VERSION = 7
     meta = await db.meta.find_one({"_id": "seed"})
     if not meta or meta.get("version") != SEED_VERSION:
         await db.categories.delete_many({})

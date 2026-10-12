@@ -80,7 +80,7 @@ export default function Home() {
             {quick.map((p) => (
               <Link key={p.id} to={`/product/${p.id}`} data-testid={`quick-order-${p.id}`}
                 className="group shrink-0 bg-white rounded-2xl border border-slate-100 shadow-sm p-3 flex flex-col items-center text-center hover:shadow-md hover:-translate-y-0.5 transition-all">
-                <div className="relative w-full aspect-square rounded-2xl overflow-hidden bg-slate-50">
+                <div className="relative w-full aspect-square rounded-2xl overflow-hidden bg-white">
                   <img src={p.image} alt={p.name} className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-300" />
                   {p.tags?.includes("熱銷") && <span className="absolute top-1.5 left-1.5 text-[10px] font-bold rounded-md px-1.5 py-0.5 bg-red-500 text-white">熱銷</span>}
                 </div>
@@ -98,7 +98,7 @@ export default function Home() {
             {hot.slice(0, 16).map((p) => (
               <Link key={p.id} to={`/product/${p.id}`} data-testid={`product-card-${p.id}`}
                 className="group shrink-0 w-[150px] sm:w-[180px] bg-white rounded-2xl border border-slate-100 shadow-sm p-3 hover:shadow-md hover:-translate-y-0.5 transition-all">
-                <div className="relative w-full aspect-square rounded-2xl overflow-hidden bg-slate-50">
+                <div className="relative w-full aspect-square rounded-2xl overflow-hidden bg-white">
                   <img src={p.image} alt={p.name} className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-300" />
                   {p.tags?.includes("熱銷") && <span className="absolute top-1.5 left-1.5 text-[10px] font-bold rounded-md px-1.5 py-0.5 bg-red-500 text-white">熱銷</span>}
                 </div>
@@ -137,7 +137,7 @@ export default function Home() {
                 {items.map((p) => (
                   <Link key={p.id} to={`/product/${p.id}`} data-testid={`cat-product-${p.id}`}
                     className="group bg-white rounded-2xl border border-slate-100 shadow-sm p-3 flex flex-col items-center text-center hover:shadow-lg hover:-translate-y-0.5 transition-all">
-                    <div className="w-full aspect-square rounded-2xl overflow-hidden bg-slate-50">
+                    <div className="w-full aspect-square rounded-2xl overflow-hidden bg-white">
                       <img src={p.image} alt={p.name} className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-300" />
                     </div>
                     <div className="text-sm font-semibold text-slate-800 mt-2.5 line-clamp-2 leading-tight min-h-[2.5rem] group-hover:text-orange-600">{p.name}</div>
