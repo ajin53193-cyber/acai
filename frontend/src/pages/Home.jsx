@@ -5,7 +5,6 @@ import { publicApi } from "@/lib/api";
 
 import { NEWS } from "@/lib/news";
 import { ArticleCard } from "@/pages/ArticleCenter";
-import { ActivityBanner } from "@/components/ActivityBanner";
 
 const FEATURES = [
   [ShieldCheck, "正版安全", "涵蓋 500+ 款全球正版 APP 內購服務"],
@@ -112,7 +111,7 @@ export default function Home() {
           <Link to="/sign-up" data-testid="promo-banner-1" className="block overflow-hidden rounded-2xl hover:shadow-lg transition-shadow">
             <img src="https://customer-assets-39nsmqrw.emergentagent.net/job_crossborder-topup/artifacts/b55a2354a230f99b_image.png" alt="新版上線有禮 5% OFF" className="w-full h-auto object-cover" />
           </Link>
-          <Link to="/category/games" data-testid="promo-banner-2" className="block overflow-hidden rounded-2xl hover:shadow-lg transition-shadow">
+          <Link to="/article" data-testid="promo-banner-2" className="block overflow-hidden rounded-2xl hover:shadow-lg transition-shadow">
             <img src="https://customer-assets-39nsmqrw.emergentagent.net/job_crossborder-topup/artifacts/3673631df7a58fe1_image.png" alt="精選活動合集 優惠一站搞定" className="w-full h-auto object-cover" />
           </Link>
         </section>
@@ -141,11 +140,6 @@ export default function Home() {
               );
             })}
           </div>
-        </section>
-
-        {/* Activity center banner */}
-        <section className="mt-10">
-          <ActivityBanner />
         </section>
 
         {/* News & promo */}
