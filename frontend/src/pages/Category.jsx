@@ -43,7 +43,7 @@ export default function Category() {
 
         {/* Category tabs */}
         <div className="bg-white rounded-2xl shadow-sm border border-orange-100 px-2 sm:px-4 mb-5">
-          <div className="flex overflow-x-auto no-scrollbar">
+          <div className="flex overflow-x-auto no-scrollbar justify-start md:justify-center">
             {categories.map((c) => {
               const active = c.id === id;
               return (
@@ -51,7 +51,7 @@ export default function Category() {
                   key={c.id}
                   data-testid={`tab-category-${c.id}`}
                   onClick={() => navigate(`/category/${c.id}`)}
-                  className={`relative whitespace-nowrap px-4 py-4 text-sm font-semibold transition-colors ${
+                  className={`relative whitespace-nowrap px-4 lg:px-5 py-4 text-sm font-semibold transition-colors ${
                     active ? "text-orange-600" : "text-slate-600 hover:text-orange-500"
                   }`}
                 >
