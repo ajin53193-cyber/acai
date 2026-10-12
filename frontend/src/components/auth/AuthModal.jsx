@@ -181,7 +181,8 @@ function AuthModal({ open, onOpenChange }) {
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
         hideClose
-        className="w-[calc(100%-1.5rem)] max-w-[420px] max-h-[92vh] overflow-x-hidden overflow-y-auto p-0 rounded-3xl border-0"
+        style={{ width: "calc(100% - 1.5rem)", maxWidth: "420px" }}
+        className="max-h-[92vh] overflow-x-hidden overflow-y-auto p-0 rounded-3xl border-0"
         data-testid="auth-modal"
       >
         {/* top accent */}
