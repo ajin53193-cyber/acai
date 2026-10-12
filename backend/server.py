@@ -1,0 +1,701 @@
+import os
+import uuid
+import logging
+from pathlib import Path
+from datetime import datetime, timezone, timedelta
+from typing import List, Optional
+
+import requests
+from fastapi import FastAPI, APIRouter, HTTPException, Depends
+from dotenv import load_dotenv
+from starlette.middleware.cors import CORSMiddleware
+from motor.motor_asyncio import AsyncIOMotorClient
+from pydantic import BaseModel, Field
+from pymongo import ReturnDocument
+
+ROOT_DIR = Path(__file__).parent
+load_dotenv(ROOT_DIR / '.env')
+
+mongo_url = os.environ['MONGO_URL']
+client = AsyncIOMotorClient(mongo_url)
+db = client[os.environ['DB_NAME']]
+
+app = FastAPI()
+api_router = APIRouter(prefix="/api")
+
+try:
+    from backend.clerk_auth import clerk_router, require_user
+except ModuleNotFoundError:
+    from clerk_auth import clerk_router, require_user
+
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
+
+# ----------------------------- Roles -----------------------------
+ROLES = ["admin", "member"]
+DEFAULT_ROLE = "member"
+RETIRED_ROLES = {}
+RANK = {r: len(ROLES) - i for i, r in enumerate(ROLES)}
+ENV = "live" if os.environ.get("CLERK_PUBLISHABLE_KEY", "").startswith("pk_live_") else "preview"
+IN_ENV = {"env": {"$in": [ENV, None]}}
+
+
+def effective_role(role) -> str:
+    role = RETIRED_ROLES.get(role, role)
+    return role if role in ROLES else DEFAULT_ROLE
+
+
+def _is_admin_email(user_id: str) -> bool:
+    admins = {e.strip().lower() for e in os.environ.get("ADMIN_EMAIL", "").split(",") if e.strip()}
+    if not admins:
+        return False
+    r = requests.get(f"https://api.clerk.com/v1/users/{user_id}", timeout=10,
+                     headers={"Authorization": f"Bearer {os.environ['CLERK_SECRET_KEY']}", "User-Agent": "emergent-app"})
+    r.raise_for_status()
+    return any(e["email_address"].lower() in admins and (e.get("verification") or {}).get("status") == "verified"
+               for e in r.json()["email_addresses"])
+
+
+def _clerk_user_info(user_id: str) -> dict:
+    try:
+        r = requests.get(f"https://api.clerk.com/v1/users/{user_id}", timeout=10,
+                         headers={"Authorization": f"Bearer {os.environ['CLERK_SECRET_KEY']}", "User-Agent": "emergent-app"})
+        r.raise_for_status()
+        d = r.json()
+        emails = d.get("email_addresses", [])
+        email = emails[0]["email_address"] if emails else ""
+        name = " ".join(x for x in [d.get("first_name"), d.get("last_name")] if x) or email
+        return {"email": email, "name": name}
+    except Exception:
+        return {"email": "", "name": ""}
+
+
+async def current_member(user: dict = Depends(require_user)) -> dict:
+    uid = user["user_id"]
+    member = await db.users.find_one({"user_id": uid}, {"_id": 0})
+    if member is None or not member.get("role"):
+        role = "admin" if _is_admin_email(uid) else DEFAULT_ROLE
+        info = _clerk_user_info(uid)
+        await db.users.update_one(
+            {"user_id": uid, "role": {"$in": [None, ""]}},
+            {"$set": {"role": role, "email": info["email"], "name": info["name"]}},
+        )
+        member = await db.users.find_one_and_update(
+            {"user_id": uid},
+            {"$setOnInsert": {"user_id": uid, "role": role, "email": info["email"], "name": info["name"],
+                              "created_at": datetime.now(timezone.utc).isoformat()}},
+            upsert=True, projection={"_id": 0}, return_document=ReturnDocument.AFTER)
+    if member.get("env") != ENV:
+        await db.users.update_one({"user_id": uid}, {"$set": {"env": ENV}})
+    return {**member, "env": ENV, "role": effective_role(member["role"])}
+
+
+def require_role(*roles: str):
+    async def check(member: dict = Depends(current_member)) -> dict:
+        if member["role"] not in roles:
+            raise HTTPException(status_code=403, detail="Not allowed")
+        return member
+    return check
+
+
+# ----------------------------- Models -----------------------------
+def now_iso():
+    return datetime.now(timezone.utc).isoformat()
+
+
+def new_id():
+    return str(uuid.uuid4())
+
+
+class Spec(BaseModel):
+    id: str = Field(default_factory=new_id)
+    label: str
+    price_usd: float
+    in_stock: bool = True
+
+
+class Product(BaseModel):
+    id: str = Field(default_factory=new_id)
+    name: str
+    category: str
+    brand: str = ""
+    image: str = ""
+    description: str = ""
+    tutorial: str = ""
+    account_field_label: str = "充值帳號"
+    account_field_hint: str = ""
+    specs: List[Spec] = []
+    tags: List[str] = []
+    sales_count: int = 0
+    rating: float = 5.0
+    sort_order: int = 0
+    active: bool = True
+    created_at: str = Field(default_factory=now_iso)
+
+
+class ProductIn(BaseModel):
+    name: str
+    category: str
+    brand: str = ""
+    image: str = ""
+    description: str = ""
+    tutorial: str = ""
+    account_field_label: str = "充值帳號"
+    account_field_hint: str = ""
+    specs: List[Spec] = []
+    tags: List[str] = []
+    sales_count: int = 0
+    rating: float = 5.0
+    sort_order: int = 0
+    active: bool = True
+
+
+class Currency(BaseModel):
+    code: str
+    symbol: str
+    name: str
+    flag: str = ""
+    rate_to_usd: float
+    active: bool = True
+
+
+class Review(BaseModel):
+    id: str = Field(default_factory=new_id)
+    product_id: str
+    author: str
+    rating: int = 5
+    content: str
+    images: List[str] = []
+    visible: bool = True
+    created_at: str = Field(default_factory=now_iso)
+
+
+class ReviewIn(BaseModel):
+    product_id: str
+    author: str
+    rating: int = 5
+    content: str
+    images: List[str] = []
+    visible: bool = True
+
+
+class Promo(BaseModel):
+    id: str = Field(default_factory=new_id)
+    code: str
+    discount_type: str = "percent"  # percent | fixed_usd
+    value: float = 0
+    min_order_usd: float = 0
+    active: bool = True
+    expires_at: Optional[str] = None
+    created_at: str = Field(default_factory=now_iso)
+
+
+class PromoIn(BaseModel):
+    code: str
+    discount_type: str = "percent"
+    value: float = 0
+    min_order_usd: float = 0
+    active: bool = True
+    expires_at: Optional[str] = None
+
+
+class OrderItemIn(BaseModel):
+    product_id: str
+    spec_id: str
+    quantity: int = 1
+
+
+class OrderIn(BaseModel):
+    items: List[OrderItemIn]
+    currency: str = "USD"
+    recharge_account: str
+    recharge_note: str = ""
+    contact: str = ""
+    promo_code: Optional[str] = None
+
+
+class StatusUpdate(BaseModel):
+    status: str
+    admin_note: Optional[str] = None
+
+
+ORDER_STATUSES = ["pending_payment", "paid", "processing", "shipped", "completed", "exception"]
+STATUS_LABELS = {
+    "pending_payment": "待支付", "paid": "已支付", "processing": "充值中",
+    "shipped": "已發貨", "completed": "已完成", "exception": "異常",
+}
+
+
+# ----------------------------- Public endpoints -----------------------------
+@api_router.get("/")
+async def root():
+    return {"message": "GlobalTopUp API"}
+
+
+@api_router.get("/currencies")
+async def get_currencies():
+    return await db.currencies.find({"active": True}, {"_id": 0}).to_list(100)
+
+
+@api_router.get("/categories")
+async def get_categories():
+    return await db.categories.find({}, {"_id": 0}).sort("sort_order", 1).to_list(100)
+
+
+@api_router.get("/products")
+async def get_products(category: Optional[str] = None, q: Optional[str] = None):
+    query = {"active": True}
+    if category:
+        query["category"] = category
+    if q:
+        query["name"] = {"$regex": q, "$options": "i"}
+    return await db.products.find(query, {"_id": 0}).sort([("sort_order", 1), ("sales_count", -1)]).to_list(500)
+
+
+@api_router.get("/products/{product_id}")
+async def get_product(product_id: str):
+    p = await db.products.find_one({"id": product_id}, {"_id": 0})
+    if not p:
+        raise HTTPException(status_code=404, detail="Product not found")
+    return p
+
+
+@api_router.get("/reviews")
+async def get_reviews(product_id: Optional[str] = None):
+    query = {"visible": True}
+    if product_id:
+        query["product_id"] = product_id
+    return await db.reviews.find(query, {"_id": 0}).sort("created_at", -1).to_list(200)
+
+
+@api_router.post("/promo/validate")
+async def validate_promo(payload: dict):
+    code = (payload.get("code") or "").strip().upper()
+    subtotal_usd = float(payload.get("subtotal_usd") or 0)
+    promo = await db.promos.find_one({"code": code, "active": True}, {"_id": 0})
+    if not promo:
+        raise HTTPException(status_code=404, detail="優惠碼無效")
+    if promo.get("expires_at"):
+        try:
+            if datetime.fromisoformat(promo["expires_at"]) < datetime.now(timezone.utc):
+                raise HTTPException(status_code=400, detail="優惠碼已過期")
+        except ValueError:
+            pass
+    if subtotal_usd < promo.get("min_order_usd", 0):
+        raise HTTPException(status_code=400, detail=f"訂單需滿 ${promo['min_order_usd']:.2f} 方可使用")
+    discount = promo["value"] / 100 * subtotal_usd if promo["discount_type"] == "percent" else promo["value"]
+    discount = min(discount, subtotal_usd)
+    return {"code": code, "discount_usd": round(discount, 2), "discount_type": promo["discount_type"], "value": promo["value"]}
+
+
+# ----------------------------- Helpers -----------------------------
+async def _compute_order(order: OrderIn):
+    items_out = []
+    subtotal_usd = 0.0
+    for it in order.items:
+        p = await db.products.find_one({"id": it.product_id}, {"_id": 0})
+        if not p:
+            raise HTTPException(status_code=404, detail="商品不存在")
+        spec = next((s for s in p["specs"] if s["id"] == it.spec_id), None)
+        if not spec:
+            raise HTTPException(status_code=404, detail="規格不存在")
+        qty = max(1, int(it.quantity))
+        line = spec["price_usd"] * qty
+        subtotal_usd += line
+        items_out.append({
+            "product_id": p["id"], "product_name": p["name"], "image": p.get("image", ""),
+            "spec_id": spec["id"], "spec_label": spec["label"],
+            "unit_price_usd": spec["price_usd"], "quantity": qty, "line_usd": round(line, 2),
+        })
+    discount_usd = 0.0
+    promo_code = None
+    if order.promo_code:
+        res = await validate_promo({"code": order.promo_code, "subtotal_usd": subtotal_usd})
+        discount_usd = res["discount_usd"]
+        promo_code = res["code"]
+    total_usd = max(0.0, subtotal_usd - discount_usd)
+    return items_out, round(subtotal_usd, 2), round(discount_usd, 2), round(total_usd, 2), promo_code
+
+
+# ----------------------------- User (auth) endpoints -----------------------------
+@api_router.get("/me")
+async def get_me(member: dict = Depends(current_member)):
+    return {"user_id": member["user_id"], "role": member["role"], "email": member.get("email", ""), "name": member.get("name", "")}
+
+
+@api_router.post("/orders")
+async def create_order(order: OrderIn, member: dict = Depends(current_member)):
+    if not order.items:
+        raise HTTPException(status_code=400, detail="購物車為空")
+    items, subtotal_usd, discount_usd, total_usd, promo_code = await _compute_order(order)
+    cur = await db.currencies.find_one({"code": order.currency, "active": True}, {"_id": 0}) or \
+        {"code": "USD", "symbol": "$", "rate_to_usd": 1.0}
+    order_no = "GT" + datetime.now(timezone.utc).strftime("%y%m%d") + uuid.uuid4().hex[:6].upper()
+    doc = {
+        "id": new_id(),
+        "order_no": order_no,
+        "user_id": member["user_id"],
+        "user_email": member.get("email", ""),
+        "items": items,
+        "currency": cur["code"],
+        "currency_symbol": cur["symbol"],
+        "rate_to_usd": cur["rate_to_usd"],
+        "subtotal_usd": subtotal_usd,
+        "discount_usd": discount_usd,
+        "total_usd": total_usd,
+        "promo_code": promo_code,
+        "recharge_account": order.recharge_account,
+        "recharge_note": order.recharge_note,
+        "contact": order.contact,
+        "status": "pending_payment",
+        "admin_note": "",
+        "timeline": [{"status": "pending_payment", "at": now_iso()}],
+        "created_at": now_iso(),
+        "paid_at": None,
+    }
+    await db.orders.insert_one(doc)
+    doc.pop("_id", None)
+    return doc
+
+
+@api_router.post("/orders/{order_id}/pay")
+async def pay_order(order_id: str, member: dict = Depends(current_member)):
+    o = await db.orders.find_one({"id": order_id, "user_id": member["user_id"]}, {"_id": 0})
+    if not o:
+        raise HTTPException(status_code=404, detail="訂單不存在")
+    if o["status"] != "pending_payment":
+        return o
+    tl = o.get("timeline", [])
+    tl.append({"status": "paid", "at": now_iso()})
+    await db.orders.update_one({"id": order_id}, {"$set": {"status": "paid", "paid_at": now_iso(), "timeline": tl}})
+    o["status"] = "paid"
+    o["paid_at"] = now_iso()
+    o["timeline"] = tl
+    for it in o["items"]:
+        await db.products.update_one({"id": it["product_id"]}, {"$inc": {"sales_count": it["quantity"]}})
+    return o
+
+
+@api_router.get("/orders")
+async def my_orders(status: Optional[str] = None, member: dict = Depends(current_member)):
+    query = {"user_id": member["user_id"]}
+    if status and status != "all":
+        query["status"] = status
+    return await db.orders.find(query, {"_id": 0}).sort("created_at", -1).to_list(500)
+
+
+@api_router.get("/orders/{order_id}")
+async def get_order(order_id: str, member: dict = Depends(current_member)):
+    scope = {} if member["role"] == "admin" else {"user_id": member["user_id"]}
+    o = await db.orders.find_one({"id": order_id, **scope}, {"_id": 0})
+    if not o:
+        raise HTTPException(status_code=404, detail="訂單不存在")
+    return o
+
+
+# ----------------------------- Admin endpoints -----------------------------
+@api_router.get("/admin/stats")
+async def admin_stats(admin: dict = Depends(require_role("admin"))):
+    orders = await db.orders.find({}, {"_id": 0}).to_list(5000)
+    revenue = sum(o["total_usd"] for o in orders if o["status"] in ("paid", "processing", "shipped", "completed"))
+    by_status = {s: 0 for s in ORDER_STATUSES}
+    for o in orders:
+        by_status[o["status"]] = by_status.get(o["status"], 0) + 1
+    pending_dispatch = by_status.get("paid", 0) + by_status.get("processing", 0)
+    product_count = await db.products.count_documents({})
+    user_count = await db.users.count_documents(IN_ENV)
+    return {
+        "revenue_usd": round(revenue, 2),
+        "order_count": len(orders),
+        "by_status": by_status,
+        "pending_dispatch": pending_dispatch,
+        "product_count": product_count,
+        "user_count": user_count,
+    }
+
+
+@api_router.get("/admin/products")
+async def admin_list_products(admin: dict = Depends(require_role("admin"))):
+    return await db.products.find({}, {"_id": 0}).sort("sort_order", 1).to_list(1000)
+
+
+@api_router.post("/admin/products")
+async def admin_create_product(body: ProductIn, admin: dict = Depends(require_role("admin"))):
+    p = Product(**body.model_dump())
+    await db.products.insert_one(p.model_dump())
+    return p.model_dump()
+
+
+@api_router.put("/admin/products/{product_id}")
+async def admin_update_product(product_id: str, body: ProductIn, admin: dict = Depends(require_role("admin"))):
+    r = await db.products.find_one_and_update(
+        {"id": product_id}, {"$set": body.model_dump()},
+        projection={"_id": 0}, return_document=ReturnDocument.AFTER)
+    if not r:
+        raise HTTPException(status_code=404, detail="Not found")
+    return r
+
+
+@api_router.delete("/admin/products/{product_id}")
+async def admin_delete_product(product_id: str, admin: dict = Depends(require_role("admin"))):
+    r = await db.products.delete_one({"id": product_id})
+    if r.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Not found")
+    return {"ok": True}
+
+
+@api_router.get("/admin/orders")
+async def admin_list_orders(status: Optional[str] = None, admin: dict = Depends(require_role("admin"))):
+    query = {}
+    if status and status != "all":
+        query["status"] = status
+    return await db.orders.find(query, {"_id": 0}).sort("created_at", -1).to_list(2000)
+
+
+@api_router.patch("/admin/orders/{order_id}")
+async def admin_update_order(order_id: str, body: StatusUpdate, admin: dict = Depends(require_role("admin"))):
+    if body.status not in ORDER_STATUSES:
+        raise HTTPException(status_code=400, detail="Invalid status")
+    o = await db.orders.find_one({"id": order_id}, {"_id": 0})
+    if not o:
+        raise HTTPException(status_code=404, detail="Not found")
+    tl = o.get("timeline", [])
+    if not tl or tl[-1]["status"] != body.status:
+        tl.append({"status": body.status, "at": now_iso()})
+    update = {"status": body.status, "timeline": tl}
+    if body.admin_note is not None:
+        update["admin_note"] = body.admin_note
+    await db.orders.update_one({"id": order_id}, {"$set": update})
+    return {**o, **update}
+
+
+@api_router.get("/admin/currencies")
+async def admin_list_currencies(admin: dict = Depends(require_role("admin"))):
+    return await db.currencies.find({}, {"_id": 0}).to_list(100)
+
+
+@api_router.put("/admin/currencies/{code}")
+async def admin_update_currency(code: str, body: Currency, admin: dict = Depends(require_role("admin"))):
+    await db.currencies.update_one({"code": code}, {"$set": body.model_dump()}, upsert=True)
+    return body.model_dump()
+
+
+@api_router.get("/admin/promos")
+async def admin_list_promos(admin: dict = Depends(require_role("admin"))):
+    return await db.promos.find({}, {"_id": 0}).sort("created_at", -1).to_list(200)
+
+
+@api_router.post("/admin/promos")
+async def admin_create_promo(body: PromoIn, admin: dict = Depends(require_role("admin"))):
+    data = body.model_dump()
+    data["code"] = data["code"].strip().upper()
+    p = Promo(**data)
+    await db.promos.insert_one(p.model_dump())
+    return p.model_dump()
+
+
+@api_router.put("/admin/promos/{promo_id}")
+async def admin_update_promo(promo_id: str, body: PromoIn, admin: dict = Depends(require_role("admin"))):
+    data = body.model_dump()
+    data["code"] = data["code"].strip().upper()
+    r = await db.promos.find_one_and_update({"id": promo_id}, {"$set": data},
+                                            projection={"_id": 0}, return_document=ReturnDocument.AFTER)
+    if not r:
+        raise HTTPException(status_code=404, detail="Not found")
+    return r
+
+
+@api_router.delete("/admin/promos/{promo_id}")
+async def admin_delete_promo(promo_id: str, admin: dict = Depends(require_role("admin"))):
+    r = await db.promos.delete_one({"id": promo_id})
+    if r.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Not found")
+    return {"ok": True}
+
+
+@api_router.get("/admin/reviews")
+async def admin_list_reviews(admin: dict = Depends(require_role("admin"))):
+    return await db.reviews.find({}, {"_id": 0}).sort("created_at", -1).to_list(500)
+
+
+@api_router.post("/admin/reviews")
+async def admin_create_review(body: ReviewIn, admin: dict = Depends(require_role("admin"))):
+    r = Review(**body.model_dump())
+    await db.reviews.insert_one(r.model_dump())
+    return r.model_dump()
+
+
+@api_router.put("/admin/reviews/{review_id}")
+async def admin_update_review(review_id: str, body: ReviewIn, admin: dict = Depends(require_role("admin"))):
+    r = await db.reviews.find_one_and_update({"id": review_id}, {"$set": body.model_dump()},
+                                             projection={"_id": 0}, return_document=ReturnDocument.AFTER)
+    if not r:
+        raise HTTPException(status_code=404, detail="Not found")
+    return r
+
+
+@api_router.delete("/admin/reviews/{review_id}")
+async def admin_delete_review(review_id: str, admin: dict = Depends(require_role("admin"))):
+    r = await db.reviews.delete_one({"id": review_id})
+    if r.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Not found")
+    return {"ok": True}
+
+
+@api_router.get("/users")
+async def list_users(admin: dict = Depends(require_role("admin"))):
+    people = await db.users.find(IN_ENV, {"_id": 0}).to_list(2000)
+    for p in people:
+        p["order_count"] = await db.orders.count_documents({"user_id": p["user_id"]})
+    return {"roles": [r for r in ROLES if RANK[r] <= RANK[admin["role"]]],
+            "users": [{**p, "role": effective_role(p.get("role"))} for p in people]}
+
+
+class RoleIn(BaseModel):
+    role: str
+
+
+@api_router.patch("/users/{user_id}/role")
+async def set_role(user_id: str, body: RoleIn, admin: dict = Depends(require_role("admin"))):
+    if body.role not in ROLES or RANK[body.role] > RANK[admin["role"]]:
+        raise HTTPException(status_code=403, detail="Not allowed")
+    target = await db.users.find_one({"user_id": user_id, **IN_ENV}, {"_id": 0})
+    if target is None:
+        raise HTTPException(status_code=404, detail="Not found")
+    if (effective_role(target.get("role")) == "admin" and body.role != "admin"
+            and await db.users.count_documents({"role": "admin", **IN_ENV}) <= 1):
+        raise HTTPException(status_code=409, detail="Keep at least one admin")
+    await db.users.update_one({"user_id": user_id}, {"$set": {"role": body.role}})
+    return {"user_id": user_id, "role": body.role}
+
+
+@api_router.get("/status-labels")
+async def status_labels():
+    return STATUS_LABELS
+
+
+# ----------------------------- Seed -----------------------------
+async def seed():
+    if await db.currencies.count_documents({}) == 0:
+        await db.currencies.insert_many([
+            {"code": "USD", "symbol": "$", "name": "美元", "flag": "🇺🇸", "rate_to_usd": 1.00, "active": True},
+            {"code": "HKD", "symbol": "HK$", "name": "港幣", "flag": "🇭🇰", "rate_to_usd": 7.82, "active": True},
+            {"code": "TWD", "symbol": "NT$", "name": "新台幣", "flag": "🇹🇼", "rate_to_usd": 32.20, "active": True},
+            {"code": "EUR", "symbol": "€", "name": "歐元", "flag": "🇪🇺", "rate_to_usd": 0.92, "active": True},
+            {"code": "JPY", "symbol": "¥", "name": "日圓", "flag": "🇯🇵", "rate_to_usd": 155.40, "active": True},
+            {"code": "GBP", "symbol": "£", "name": "英鎊", "flag": "🇬🇧", "rate_to_usd": 0.79, "active": True},
+        ])
+    if await db.categories.count_documents({}) == 0:
+        await db.categories.insert_many([
+            {"id": "douyin", "name": "抖音 / DOU+", "icon": "flame", "sort_order": 1},
+            {"id": "live", "name": "直播平台幣", "icon": "radio", "sort_order": 2},
+            {"id": "game", "name": "遊戲點卡", "icon": "gamepad-2", "sort_order": 3},
+            {"id": "vip", "name": "影音 VIP", "icon": "play", "sort_order": 4},
+            {"id": "giftcard", "name": "禮品卡", "icon": "gift", "sort_order": 5},
+        ])
+    if await db.products.count_documents({}) == 0:
+        def specs(pairs):
+            return [{"id": new_id(), "label": l, "price_usd": p, "in_stock": True} for l, p in pairs]
+        products = [
+            Product(name="抖音 DOU+ 加熱幣", category="douyin", brand="抖音",
+                    image="https://images.unsplash.com/photo-1611162617213-7d7a39e9b1d7?crop=entropy&cs=srgb&fm=jpg&q=85&w=800",
+                    description="抖音 DOU+ 官方加熱服務，提升影片曝光與互動。充值後由人工極速處理，24 小時內到帳。",
+                    tutorial="1. 選擇幣值規格\n2. 填寫抖音帳號 ID\n3. 完成付款後客服人工充值\n4. 於「我的訂單」查看進度",
+                    account_field_label="抖音帳號 ID", account_field_hint="請填寫抖音號（非暱稱），例如 douyin888",
+                    specs=specs([("300 幣", 4.99), ("500 幣", 7.99), ("1000 幣", 14.99), ("3000 幣", 42.99), ("5000 幣", 69.99)]),
+                    tags=["熱銷", "24H極速"], sales_count=1820, rating=4.9, sort_order=1),
+            Product(name="TikTok Coins 抖幣", category="live", brand="TikTok",
+                    image="https://images.unsplash.com/photo-1633412802994-5c058f151b66?crop=entropy&cs=srgb&fm=jpg&q=85&w=800",
+                    description="TikTok 直播打賞抖幣充值，支援全球帳號。人工發貨安全可靠。",
+                    tutorial="填寫 TikTok 帳號後下單，客服人工為您充值。",
+                    account_field_label="TikTok 帳號", account_field_hint="請填寫 @username",
+                    specs=specs([("70 幣", 1.09), ("350 幣", 4.99), ("700 幣", 9.99), ("1400 幣", 18.99), ("3500 幣", 45.99)]),
+                    tags=["熱銷"], sales_count=1320, rating=4.8, sort_order=2),
+            Product(name="Bigo Live 鑽石", category="live", brand="Bigo",
+                    image="https://images.unsplash.com/photo-1598550476439-6847785fcea6?crop=entropy&cs=srgb&fm=jpg&q=85&w=800",
+                    description="Bigo Live 直播鑽石充值，主播打賞必備。",
+                    tutorial="填寫 Bigo ID 後下單。",
+                    account_field_label="Bigo ID", account_field_hint="個人資料頁的數字 ID",
+                    specs=specs([("100 鑽", 1.59), ("500 鑽", 7.49), ("1000 鑽", 14.49), ("5000 鑽", 69.99)]),
+                    tags=[], sales_count=760, rating=4.7, sort_order=3),
+            Product(name="原神 創世結晶", category="game", brand="miHoYo",
+                    image="https://images.unsplash.com/photo-1542751371-adc38448a05e?crop=entropy&cs=srgb&fm=jpg&q=85&w=800",
+                    description="原神創世結晶直充，支援國際服。人工代充安全到帳。",
+                    tutorial="提供遊戲 UID 與伺服器後下單。",
+                    account_field_label="遊戲 UID", account_field_hint="請同時於備註填寫伺服器（亞服/歐服/美服）",
+                    specs=specs([("60 結晶", 0.99), ("300+30 結晶", 4.99), ("980+110 結晶", 14.99), ("1980+260 結晶", 29.99), ("3280+600 結晶", 49.99)]),
+                    tags=["熱銷", "直充"], sales_count=2450, rating=4.9, sort_order=4),
+            Product(name="Netflix 禮品卡", category="giftcard", brand="Netflix",
+                    image="https://images.unsplash.com/photo-1574375927938-d5a98e8ffe85?crop=entropy&cs=srgb&fm=jpg&q=85&w=800",
+                    description="Netflix 官方禮品卡，自動發碼。",
+                    tutorial="下單後於訂單詳情與客服取得兌換碼。",
+                    account_field_label="收件 Email", account_field_hint="用於接收兌換碼",
+                    specs=specs([("US$15", 15.49), ("US$30", 30.49), ("US$60", 59.99), ("US$100", 98.99)]),
+                    tags=["禮品卡"], sales_count=540, rating=4.8, sort_order=5),
+            Product(name="Disney+ 會員 VIP", category="vip", brand="Disney+",
+                    image="https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?crop=entropy&cs=srgb&fm=jpg&q=85&w=800",
+                    description="Disney+ 影音會員充值，多時長可選。",
+                    tutorial="填寫帳號後人工開通。",
+                    account_field_label="Disney+ 帳號", account_field_hint="登入用 Email",
+                    specs=specs([("1 個月", 8.99), ("3 個月", 24.99), ("12 個月", 89.99)]),
+                    tags=["VIP"], sales_count=410, rating=4.7, sort_order=6),
+            Product(name="Spotify Premium", category="vip", brand="Spotify",
+                    image="https://images.unsplash.com/photo-1614680376593-902f74cf0d41?crop=entropy&cs=srgb&fm=jpg&q=85&w=800",
+                    description="Spotify Premium 會員充值。",
+                    tutorial="填寫帳號後人工開通。",
+                    account_field_label="Spotify 帳號", account_field_hint="登入用 Email",
+                    specs=specs([("1 個月", 9.99), ("3 個月", 27.99), ("6 個月", 52.99)]),
+                    tags=["VIP"], sales_count=380, rating=4.6, sort_order=7),
+            Product(name="快手 快幣", category="live", brand="快手",
+                    image="https://images.unsplash.com/photo-1526178613552-2b45c6c302f0?crop=entropy&cs=srgb&fm=jpg&q=85&w=800",
+                    description="快手直播快幣充值，人工極速到帳。",
+                    tutorial="填寫快手帳號後下單。",
+                    account_field_label="快手帳號", account_field_hint="快手 ID",
+                    specs=specs([("60 快幣", 0.99), ("300 快幣", 4.99), ("980 快幣", 15.99), ("3000 快幣", 46.99)]),
+                    tags=[], sales_count=620, rating=4.7, sort_order=8),
+        ]
+        await db.products.insert_many([p.model_dump() for p in products])
+        all_products = await db.products.find({}, {"_id": 0, "id": 1, "name": 1}).to_list(100)
+        reviews = []
+        samples = [
+            ("張**明", 5, "充值超快，下單 2 分鐘就到帳，客服態度很好！"),
+            ("Chen***", 5, "海外帳號也能充，價格比官方便宜，推薦。"),
+            ("小***花", 4, "整體不錯，就是晚上客服回覆稍慢一點。"),
+            ("Wong**", 5, "第三次購買了，穩定靠譜，會回購。"),
+            ("林***", 5, "介面清楚，繁中操作很順手，讚！"),
+        ]
+        for prod in all_products[:6]:
+            for a, r, c in samples:
+                reviews.append(Review(product_id=prod["id"], author=a, rating=r, content=c).model_dump())
+        await db.reviews.insert_many(reviews)
+    if await db.promos.count_documents({}) == 0:
+        await db.promos.insert_many([
+            Promo(code="GLOBAL2026", discount_type="percent", value=10, min_order_usd=0,
+                  expires_at=(datetime.now(timezone.utc) + timedelta(days=365)).isoformat()).model_dump(),
+            Promo(code="WELCOME5", discount_type="fixed_usd", value=5, min_order_usd=30,
+                  expires_at=(datetime.now(timezone.utc) + timedelta(days=365)).isoformat()).model_dump(),
+        ])
+
+
+app.include_router(api_router)
+app.include_router(clerk_router)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_credentials=True,
+    allow_origins=os.environ.get('CORS_ORIGINS', '*').split(','),
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+
+@app.on_event("startup")
+async def on_startup():
+    for old, new in RETIRED_ROLES.items():
+        await db.users.update_many({"role": old}, {"$set": {"role": new}})
+    await seed()
+
+
+@app.on_event("shutdown")
+async def shutdown_db_client():
+    client.close()

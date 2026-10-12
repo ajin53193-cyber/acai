@@ -1,0 +1,103 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+    --font-head: "Outfit", "Noto Sans TC", sans-serif;
+    --font-body: "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", sans-serif;
+    --font-mono: "JetBrains Mono", monospace;
+}
+
+body {
+    margin: 0;
+    font-family: var(--font-body);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    background: #F8FAFC;
+    color: #0F172A;
+}
+
+code, .font-mono {
+    font-family: var(--font-mono);
+}
+
+.font-head {
+    font-family: var(--font-head);
+}
+
+@layer base {
+    :root {
+        --background: 210 40% 98%;
+        --foreground: 222 47% 11%;
+        --card: 0 0% 100%;
+        --card-foreground: 222 47% 11%;
+        --popover: 0 0% 100%;
+        --popover-foreground: 222 47% 11%;
+        --primary: 221 100% 50%;
+        --primary-foreground: 0 0% 100%;
+        --secondary: 24 100% 50%;
+        --secondary-foreground: 0 0% 100%;
+        --muted: 210 40% 96%;
+        --muted-foreground: 215 16% 47%;
+        --accent: 222 60% 97%;
+        --accent-foreground: 221 100% 50%;
+        --destructive: 0 84% 60%;
+        --destructive-foreground: 0 0% 100%;
+        --border: 214 32% 91%;
+        --input: 214 32% 91%;
+        --ring: 221 100% 50%;
+        --radius: 0.75rem;
+    }
+    .dark {
+        --background: 222 47% 7%;
+        --foreground: 210 40% 98%;
+        --card: 222 44% 10%;
+        --card-foreground: 210 40% 98%;
+        --popover: 222 44% 10%;
+        --popover-foreground: 210 40% 98%;
+        --primary: 221 100% 60%;
+        --primary-foreground: 0 0% 100%;
+        --secondary: 24 100% 55%;
+        --secondary-foreground: 0 0% 100%;
+        --muted: 217 33% 17%;
+        --muted-foreground: 215 20% 65%;
+        --accent: 217 33% 17%;
+        --accent-foreground: 210 40% 98%;
+        --destructive: 0 62% 45%;
+        --destructive-foreground: 0 0% 98%;
+        --border: 217 33% 20%;
+        --input: 217 33% 20%;
+        --ring: 221 100% 60%;
+    }
+}
+
+@layer base {
+    * {
+        @apply border-border;
+    }
+    body {
+        @apply bg-background text-foreground;
+    }
+    h1, h2, h3, h4 {
+        font-family: var(--font-head);
+    }
+}
+
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+@keyframes marquee {
+    0% { transform: translateX(0); }
+    100% { transform: translateX(-50%); }
+}
+.animate-marquee {
+    animation: marquee 22s linear infinite;
+}
+
+.cl-footerAction__signIn, .cl-footer { font-family: var(--font-body); }
+
+@layer base {
+    [data-debug-wrapper="true"] {
+        display: contents !important;
+    }
+}

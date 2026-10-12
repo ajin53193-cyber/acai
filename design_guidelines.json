@@ -1,0 +1,173 @@
+{
+  "brand": {
+    "name": "GlobalTopUp",
+    "name_zh": "環球充值",
+    "tagline": "海外華人首選數字商品與直播幣跨境充值平台",
+    "language": "zh-TW",
+    "app_type": "e-commerce"
+  },
+  "design_archetype": "THE PERFORMANCE PRO & SWISS HIGH-CONTRAST (E-Commerce High Trust)",
+  "color_palette": {
+    "theme": "light_primary_with_dark_admin",
+    "primary": {
+      "main": "#0052FF",
+      "hover": "#0041CC",
+      "active": "#003299",
+      "light": "#EFF4FF",
+      "contrast_text": "#FFFFFF"
+    },
+    "secondary": {
+      "main": "#FF6B00",
+      "hover": "#E05E00",
+      "light": "#FFF4EC",
+      "contrast_text": "#FFFFFF"
+    },
+    "accent_gaming": {
+      "neon_purple": "#7C3AED",
+      "emerald_green": "#10B981",
+      "amber_gold": "#F59E0B"
+    },
+    "neutrals": {
+      "background": "#F8FAFC",
+      "surface": "#FFFFFF",
+      "surface_subtle": "#F1F5F9",
+      "border": "#E2E8F0",
+      "border_dark": "#CBD5E1",
+      "text_primary": "#0F172A",
+      "text_secondary": "#475569",
+      "text_muted": "#94A3B8"
+    },
+    "status": {
+      "pending_payment": "#F59E0B",
+      "paid": "#3B82F6",
+      "processing": "#8B5CF6",
+      "shipped": "#06B6D4",
+      "completed": "#10B981",
+      "failed_exception": "#EF4444"
+    }
+  },
+  "typography": {
+    "headline_font": "Outfit, 'Noto Sans TC', sans-serif",
+    "body_font": "'PingFang TC', 'Microsoft JhengHei', sans-serif",
+    "mono_font": "'JetBrains Mono', monospace",
+    "scale": {
+      "h1": "text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight",
+      "h2": "text-2xl sm:text-3xl font-bold tracking-tight",
+      "h3": "text-xl sm:text-2xl font-bold",
+      "h4": "text-lg font-semibold",
+      "body": "text-sm sm:text-base leading-relaxed",
+      "caption": "text-xs text-slate-500 font-medium"
+    }
+  },
+  "layout_and_spacing": {
+    "desktop_max_width": "max-w-7xl mx-auto px-4 sm:px-6 lg:px-8",
+    "grid_system": {
+      "product_grid": "grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 sm:gap-4 md:gap-6",
+      "hero_bento": "grid grid-cols-1 lg:grid-cols-12 gap-6",
+      "spec_card_grid": "grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3",
+      "admin_grid": "grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4"
+    },
+    "mobile_specials": {
+      "sticky_bottom_bar": "fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md border-t border-slate-200 p-3 z-50 flex items-center gap-3 md:hidden shadow-lg",
+      "category_pills_scroll": "flex overflow-x-auto no-scrollbar gap-2 py-2 px-1"
+    }
+  },
+  "currencies": [
+    { "code": "USD", "symbol": "$", "rate_to_usd": 1.00, "flag": "🇺🇸", "name": "美元" },
+    { "code": "HKD", "symbol": "HK$", "rate_to_usd": 7.82, "flag": "🇭🇰", "name": "港幣" },
+    { "code": "TWD", "symbol": "NT$", "rate_to_usd": 32.20, "flag": "🇹🇼", "name": "新台幣" },
+    { "code": "EUR", "symbol": "€", "rate_to_usd": 0.92, "flag": "🇪🇺", "name": "歐元" },
+    { "code": "JPY", "symbol": "¥", "rate_to_usd": 155.40, "flag": "🇯🇵", "name": "日圓" },
+    { "code": "GBP", "symbol": "£", "rate_to_usd": 0.79, "flag": "🇬🇧", "name": "英鎊" }
+  ],
+  "image_urls": {
+    "hero_banners": [
+      {
+        "url": "https://images.unsplash.com/photo-1542751371-adc38448a05e?crop=entropy&cs=srgb&fm=jpg&q=85",
+        "category": "Dou+ & Live Stream Recharge Banner",
+        "description": "Professional esport gamer setup with vibrant lighting"
+      },
+      {
+        "url": "https://images.unsplash.com/photo-1610041321420-a596dd14ebc9?crop=entropy&cs=srgb&fm=jpg&q=85",
+        "category": "Gift Cards & Entertainment",
+        "description": "Gamer wearing headset in dark blue ambient lighting"
+      }
+    ],
+    "avatars": [
+      {
+        "url": "https://images.unsplash.com/photo-1740252117027-4275d3f84385?crop=entropy&cs=srgb&fm=jpg&q=85",
+        "category": "User Profile Avatar",
+        "description": "3D Stylized character avatar"
+      }
+    ]
+  },
+  "key_features_and_flows": {
+    "header": {
+      "components": [
+        "Top utility bar with multi-currency selector (USD/HKD/TWD/EUR/JPY/GBP) with flag icons",
+        "Language dropdown (繁體中文 primary)",
+        "Main navigation with logo (GlobalTopUp 環球充值), Search input, Category dropdown",
+        "Quick access: My Orders, Shopping Cart drawer trigger, Customer Service floating widget, User Profile / Auth Modal button"
+      ]
+    },
+    "home_page": {
+      "sections": [
+        "Top Announcement Bar ('24小時人工極速發貨 | 官方授權正品充值')",
+        "Hero Carousel + Fast Recharge Entrance Cards (抖音/DOU+，微信/全民K歌，遊戲點卡，影音VIP)",
+        "Live Recharge Ticker ('用戶 ***892 成功充值 1000 DOU+幣 | 1分鐘前')",
+        "Hot Categories Tabs with Product Grid (Cards displaying discount badges, sales count, multi-currency live converted prices)",
+        "Non-Refundable & Security Guarantee Banner ('溫馨提示：本站充值屬虛擬商品人工作業，完成後不可退款')",
+        "Customer Reviews & Ratings Carousel",
+        "Footer with Payment Method Badges (Mock Credit Card, Apple Pay, PayPal, Crypto) & Help Links"
+      ]
+    },
+    "product_detail_page": {
+      "components": [
+        "Product Title with Brand Badge & 24h Express Delivery tag",
+        "Specification Card Selector (e.g., 300 幣, 500 幣, 1000 幣, 3000 幣) with selected state styling",
+        "Quantity Counter (+ / - button with min/max rules)",
+        "Real-time Price Calculator automatically adjusted by selected currency rate",
+        "Recharge Account Input Form (Account ID / Phone / Server ID with input validation & hint image)",
+        "Promo Code / Coupon Toggle and Discount calculation",
+        "Non-Refundable Notice Checkbox required before checkout",
+        "Tabbed Section: Product Details, Recharge Tutorial, Customer Reviews (with star counts & screenshots)",
+        "Desktop Quick Buy sidebar & Mobile Fixed Bottom Bar ('加入購物車' + '立即購買')"
+      ]
+    },
+    "checkout_modal_and_page": {
+      "components": [
+        "Order Summary Card with itemized break-down (Original price, FX conversion, Discount, Total)",
+        "Account Confirmation Preview to prevent wrong topup ID",
+        "Mock Payment Selector (Test Credit Card, Test Apple Pay, Test Crypto)",
+        "Instant One-Click Test Pay Button triggers simulated order flow: 待支付 -> 已支付 -> 充值中"
+      ]
+    },
+    "user_center": {
+      "auth": "Support 4 Login Methods: Google, Apple, Email OTP, Mobile SMS, Account Password",
+      "order_tracking": [
+        "Filterable order list by status: 全部, 待支付, 已支付, 充值中, 已發貨, 已完成, 異常",
+        "Order detail drawer with live timeline step indicator",
+        "Copyable Order No, Account ID, and Contact Support button with pre-filled order ID"
+      ]
+    },
+    "admin_panel": {
+      "route": "/admin",
+      "sections": [
+        "Overview Dashboard: Revenue metrics, pending manual dispatches count, active currency exchange rates",
+        "Product Management: Add/edit products, manage specs (DOU+ coins, VIP cards), update stock/base prices",
+        "Order Management: Real-time order stream, status transition buttons ('開始充值', '確認人工發貨', '標記異常'), account details copy tool",
+        "Customer Service & Tickets: Live support chat simulation & ticket resolution",
+        "Exchange Rate Manager: Live adjustment of currency FX rates and markup margins",
+        "Promotions & Promo Code Manager: Create discount codes (e.g. 'GLOBAL2026')",
+        "Review Management: Moderation for customer reviews",
+        "User Management: View user accounts, order histories"
+      ]
+    }
+  },
+  "instructions_to_main_agent": {
+    "testing_requirements": "Add data-testid to every button, input, card, menu item, currency tab, and modal trigger.",
+    "state_management": "Use React context or local state to store active currency, exchange rates, cart items, user session, and order history. Mock payment must create real order records in local storage or state so the admin panel can view and dispatch them.",
+    "language_tone": "Strictly use Traditional Chinese (繁體中文) for text content (e.g., 購物車, 立即購買, 充值帳號, 訂單狀態, 人工發貨, 優惠碼).",
+    "theme_rules": "No generic centered slop. Make generous use of cards, clear grid gaps, micro-interactions with framer-motion, sonner toasts for feedback, and crisp high-contrast UI."
+  }
+}
