@@ -1,9 +1,11 @@
 import React, { useEffect, useState, useRef } from "react";
 import { Link } from "react-router-dom";
-import { ChevronRight, ChevronLeft, Zap, Megaphone, ShieldCheck, Rocket, Headphones, Tag, Globe, Star, Users, Gift, Percent, FileText } from "lucide-react";
+import { ChevronRight, ChevronLeft, Zap, Megaphone, ShieldCheck, Rocket, Headphones, Tag, Globe, Star, Users, Gift, Percent } from "lucide-react";
 import { publicApi } from "@/lib/api";
 
 import { NEWS } from "@/lib/news";
+import { ArticleCard } from "@/pages/ArticleCenter";
+import { ActivityBanner } from "@/components/ActivityBanner";
 
 const FEATURES = [
   [ShieldCheck, "正版安全", "涵蓋 500+ 款全球正版 APP 內購服務"],
@@ -141,6 +143,11 @@ export default function Home() {
           </div>
         </section>
 
+        {/* Activity center banner */}
+        <section className="mt-10">
+          <ActivityBanner />
+        </section>
+
         {/* News & promo */}
         <section className="mt-10">
           <div className="flex items-center justify-between mb-4">
@@ -148,26 +155,7 @@ export default function Home() {
             <Link to="/article" data-testid="news-more-link" className="text-xs font-semibold text-orange-600 bg-orange-50 border border-orange-100 rounded-full px-4 py-1.5 hover:bg-orange-100">查看更多</Link>
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
-            {NEWS.map((n, i) => (
-              <Link to={`/article/${n.id}`} key={n.id} data-testid={`news-card-${i}`} className="group block bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden hover:shadow-md hover:-translate-y-0.5 transition-all">
-                <div className="h-5 bg-gradient-to-r from-orange-400 to-amber-400 flex items-center gap-1 px-2.5">
-                  <span className="h-1.5 w-1.5 rounded-full bg-white/70" />
-                  <span className="h-1.5 w-1.5 rounded-full bg-white/70" />
-                  <span className="h-1.5 w-1.5 rounded-full bg-white/70" />
-                </div>
-                <div className="aspect-[3/2] overflow-hidden bg-orange-50">
-                  <img src={n.img} alt={n.t} className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-300" />
-                </div>
-                <div className="p-3 flex items-center gap-1.5">
-                  {n.type === "promo" ? (
-                    <span className="shrink-0 h-4 w-4 rounded bg-red-500 text-white flex items-center justify-center"><Percent className="h-2.5 w-2.5" strokeWidth={3} /></span>
-                  ) : (
-                    <span className="shrink-0 h-4 w-4 rounded bg-orange-100 text-orange-500 flex items-center justify-center"><FileText className="h-2.5 w-2.5" /></span>
-                  )}
-                  <span className="text-[13px] font-medium text-slate-700 truncate group-hover:text-orange-600">{n.t}</span>
-                </div>
-              </Link>
-            ))}
+            {NEWS.map((n, i) => <ArticleCard key={n.id} n={n} testId={`news-card-${i}`} />)}
           </div>
         </section>
       </div>
