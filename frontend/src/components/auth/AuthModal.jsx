@@ -181,7 +181,7 @@ function AuthModal({ open, onOpenChange }) {
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
         hideClose
-        className="max-w-[460px] p-0 overflow-hidden rounded-3xl border-0"
+        className="w-[calc(100%-1.5rem)] max-w-[420px] max-h-[92vh] overflow-x-hidden overflow-y-auto p-0 rounded-3xl border-0"
         data-testid="auth-modal"
       >
         {/* top accent */}
@@ -195,7 +195,7 @@ function AuthModal({ open, onOpenChange }) {
           <X className="h-5 w-5" />
         </button>
 
-        <div className="px-7 pb-7 pt-3">
+        <div className="px-6 pb-6 pt-3">
           {/* tabs */}
           <div className="flex items-center gap-6 mb-5">
             {TABS.map(([key, label]) => (
@@ -294,19 +294,20 @@ function AuthModal({ open, onOpenChange }) {
                 className="w-full h-14 rounded-2xl bg-slate-100 px-5 text-base outline-none focus:ring-2 focus:ring-orange-300 placeholder:text-slate-400"
               />
             ) : (
-              <div className="relative">
+              <div className="flex items-center gap-2">
                 <input
                   data-testid="auth-code"
                   value={code}
                   onChange={(e) => setCode(e.target.value)}
                   placeholder="驗證碼"
-                  className="w-full h-14 rounded-2xl bg-slate-100 pl-5 pr-32 text-base outline-none focus:ring-2 focus:ring-orange-300 placeholder:text-slate-400"
+                  inputMode="numeric"
+                  className="flex-1 min-w-0 h-14 rounded-2xl bg-slate-100 px-5 text-base outline-none focus:ring-2 focus:ring-orange-300 placeholder:text-slate-400"
                 />
                 <button
                   data-testid="auth-send-code"
                   onClick={sendCode}
                   disabled={loading}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 h-10 px-4 rounded-xl bg-white text-orange-500 font-bold text-sm shadow-sm hover:bg-orange-50 disabled:opacity-50"
+                  className="shrink-0 h-14 px-4 rounded-2xl bg-white text-orange-500 font-bold text-sm border border-orange-100 shadow-sm hover:bg-orange-50 disabled:opacity-50 whitespace-nowrap"
                 >
                   發送驗證碼
                 </button>
