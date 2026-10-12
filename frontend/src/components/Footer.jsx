@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { Music2, Heart, Star, Apple, CreditCard } from "lucide-react";
+import { Star, Apple, CreditCard } from "lucide-react";
 
 const PAY_BADGES = [
   <span className="font-black italic text-base text-[#1A1F71]">VISA</span>,
@@ -43,24 +43,13 @@ export default function Footer() {
     <footer className="mt-14 bg-gradient-to-b from-[#F0872E] to-[#E8792A] text-white">
       {/* Top: payments + follow */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-7">
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
-          <div className="flex flex-wrap items-center gap-2.5">
-            {PAY_BADGES.map((b, i) => (
-              <span key={i} data-testid={`pay-badge-${i}`} className="bg-white rounded-md h-9 min-w-[48px] px-3 flex items-center justify-center shadow-sm">
-                {b}
-              </span>
-            ))}
-            <span className="text-white/70 tracking-widest text-lg">•••</span>
-          </div>
-          <div className="flex items-center gap-3 shrink-0">
-            <span className="font-bold text-sm">關注我們</span>
-            <a href="/" data-testid="social-tiktok" className="h-9 w-9 rounded-full bg-black flex items-center justify-center hover:scale-105 transition-transform">
-              <Music2 className="h-4 w-4 text-white" />
-            </a>
-            <a href="/" data-testid="social-red" className="h-9 w-9 rounded-full bg-[#FF2442] flex items-center justify-center hover:scale-105 transition-transform">
-              <Heart className="h-4 w-4 text-white fill-white" />
-            </a>
-          </div>
+        <div className="flex flex-wrap items-center gap-2.5">
+          {PAY_BADGES.map((b, i) => (
+            <span key={i} data-testid={`pay-badge-${i}`} className="bg-white rounded-md h-9 min-w-[48px] px-3 flex items-center justify-center shadow-sm">
+              {b}
+            </span>
+          ))}
+          <span className="text-white/70 tracking-widest text-lg">•••</span>
         </div>
       </div>
 
