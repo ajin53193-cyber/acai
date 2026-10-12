@@ -64,7 +64,6 @@ function AuthModal({ open, onOpenChange }) {
     await setter({ session: sessionId });
     toast.success("登入成功");
     close();
-    window.location.assign("/");
   };
 
   async function sendCode() {

@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { useSearchParams } from "react-router-dom";
-import { Show, SignInButton } from "@clerk/react";
+import { Show } from "@clerk/react";
+import { useAuthModal } from "@/components/auth/AuthModal";
 import { Copy, Package, Loader2, Check } from "lucide-react";
 import { toast } from "sonner";
 import { useApi } from "@/lib/api";
@@ -210,6 +211,7 @@ function OrdersInner() {
 }
 
 export default function MyOrders() {
+  const { openAuth } = useAuthModal();
   return (
     <>
       <Show when="signed-in"><OrdersInner /></Show>
@@ -218,7 +220,7 @@ export default function MyOrders() {
           <Package className="h-12 w-12 text-primary mx-auto mb-4" />
           <h2 className="font-head text-xl font-bold text-slate-900 mb-2">請先登入</h2>
           <p className="text-sm text-slate-500 mb-5">登入後查看您的訂單與充值進度</p>
-          <SignInButton><button className="h-11 px-6 rounded-full bg-primary text-white font-semibold">登入 / 註冊</button></SignInButton>
+          <button onClick={openAuth} data-testid="orders-login-btn" className="h-11 px-6 rounded-full bg-primary text-white font-semibold">登入 / 註冊</button>
         </div>
       </Show>
     </>

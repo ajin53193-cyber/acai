@@ -62,7 +62,6 @@ export function ForgotPassword({ onBack, onClose }) {
         await setActive({ session: r.createdSessionId });
         toast.success("密碼已重設，已為您登入");
         onClose();
-        window.location.assign("/");
         return;
       }
       toast.error("需要額外驗證步驟，請聯繫客服");

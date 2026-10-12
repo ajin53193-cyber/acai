@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Show, Navigate, SignInButton } from "@clerk/react";
+import { Show } from "@clerk/react";
+import { useAuthModal } from "@/components/auth/AuthModal";
 import { Tag, ShieldCheck, Loader2, CheckCircle2, CreditCard, Smartphone, Bitcoin } from "lucide-react";
 import { toast } from "sonner";
 import { publicApi, useApi } from "@/lib/api";
@@ -218,6 +219,7 @@ function CheckoutInner() {
 }
 
 export default function Checkout() {
+  const { openAuth } = useAuthModal();
   return (
     <>
       <Show when="signed-in"><CheckoutInner /></Show>
@@ -226,9 +228,7 @@ export default function Checkout() {
           <CheckCircle2 className="h-12 w-12 text-primary mx-auto mb-4" />
           <h2 className="font-head text-xl font-bold text-slate-900 mb-2">請先登入</h2>
           <p className="text-sm text-slate-500 mb-5">登入後即可填寫充值信息並下單</p>
-          <SignInButton>
-            <button className="h-11 px-6 rounded-full bg-primary text-white font-semibold" data-testid="checkout-login-btn">登入 / 註冊</button>
-          </SignInButton>
+          <button onClick={openAuth} className="h-11 px-6 rounded-full bg-primary text-white font-semibold" data-testid="checkout-login-btn">登入 / 註冊</button>
         </div>
       </Show>
     </>

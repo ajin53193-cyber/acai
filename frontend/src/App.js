@@ -1,8 +1,10 @@
 import "@/App.css";
 import { BrowserRouter, Routes, Route, Outlet } from "react-router-dom";
-import { SignIn, SignUp, AuthenticateWithRedirectCallback } from "@clerk/react";
+import { AuthenticateWithRedirectCallback, useUser } from "@clerk/react";
+import { useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import ClerkAuthProvider from "@/components/auth/ClerkAuthProvider";
-import { AuthModalProvider } from "@/components/auth/AuthModal";
+import { AuthModalProvider, useAuthModal } from "@/components/auth/AuthModal";
 import { CurrencyProvider } from "@/context/CurrencyContext";
 import { CartProvider } from "@/context/CartContext";
 import Header from "@/components/Header";
@@ -35,12 +37,16 @@ function StoreLayout() {
   );
 }
 
-function AuthLayout({ children }) {
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 to-blue-950 flex items-center justify-center px-4 py-10">
-      {children}
-    </div>
-  );
+function AuthRedirect() {
+  const navigate = useNavigate();
+  const { openAuth } = useAuthModal();
+  const { isLoaded, isSignedIn } = useUser();
+  useEffect(() => {
+    if (!isLoaded) return;
+    navigate("/", { replace: true });
+    if (!isSignedIn) openAuth();
+  }, [isLoaded, isSignedIn, navigate, openAuth]);
+  return null;
 }
 
 function App() {
@@ -60,11 +66,11 @@ function App() {
                   <Route path="/info/:slug" element={<Info />} />
                   <Route path="/article" element={<ArticleCenter />} />
                   <Route path="/article/:id" element={<ArticleDetail />} />
+                  <Route path="/sign-in/*" element={<AuthRedirect />} />
+                  <Route path="/sign-up/*" element={<AuthRedirect />} />
                 </Route>
                 <Route path="/admin" element={<Admin />} />
                 <Route path="/sso-callback" element={<AuthenticateWithRedirectCallback signInFallbackRedirectUrl="/" signUpFallbackRedirectUrl="/" />} />
-                <Route path="/sign-in/*" element={<AuthLayout><SignIn routing="path" path="/sign-in" signUpUrl="/sign-up" withSignUp /></AuthLayout>} />
-                <Route path="/sign-up/*" element={<AuthLayout><SignUp routing="path" path="/sign-up" signInUrl="/sign-in" /></AuthLayout>} />
               </Routes>
             </CartProvider>
           </CurrencyProvider>
