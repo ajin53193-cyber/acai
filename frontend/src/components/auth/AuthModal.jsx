@@ -216,7 +216,9 @@ function AuthModal({ open, onOpenChange }) {
             ))}
           </div>
 
-          <div className="text-sm font-bold text-orange-500 mb-4">新用戶首次登入將自動註冊</div>
+          {codeTabs && (
+            <div className="text-sm font-bold text-orange-500 mb-4">新用戶首次登入將自動註冊</div>
+          )}
 
           {/* fields */}
           <div className="space-y-3">
