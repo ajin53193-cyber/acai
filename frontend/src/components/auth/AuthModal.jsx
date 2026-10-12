@@ -308,7 +308,7 @@ function AuthModal({ open, onOpenChange }) {
                   data-testid="auth-send-code"
                   onClick={sendCode}
                   disabled={loading}
-                  className="shrink-0 h-14 px-4 rounded-2xl bg-white text-orange-500 font-bold text-sm border border-orange-100 shadow-sm hover:bg-orange-50 disabled:opacity-50 whitespace-nowrap"
+                  className="shrink-0 h-14 px-4 rounded-2xl bg-orange-100 text-orange-600 font-bold text-sm hover:bg-orange-200 disabled:opacity-50 whitespace-nowrap transition-colors"
                 >
                   發送驗證碼
                 </button>
