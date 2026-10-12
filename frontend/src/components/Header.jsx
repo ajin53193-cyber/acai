@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Show, SignInButton, UserButton, useUser } from "@clerk/react";
-import { Search, ShoppingCart, Headphones, ChevronDown, Shield, Package, Menu, X, UserRound, Gift } from "lucide-react";
+import { Search, ShoppingCart, Headphones, ChevronDown, Shield, Package, Menu, X, UserRound, Gift,
+  Tv, Gamepad2, MessageCircle, Music, Smile, Mic, HeartHandshake, CreditCard, BookOpen, Rocket, Cpu } from "lucide-react";
 import { publicApi, useApi } from "@/lib/api";
 import { useCart } from "@/context/CartContext";
 import CurrencySelector from "@/components/CurrencySelector";
@@ -12,6 +13,20 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
+const CAT_ICONS = {
+  livestream: [Tv, "from-orange-400 to-orange-500"],
+  games: [Gamepad2, "from-rose-400 to-orange-500"],
+  social: [MessageCircle, "from-green-400 to-emerald-500"],
+  "video-music": [Music, "from-teal-300 to-cyan-400"],
+  play: [Smile, "from-rose-400 to-red-400"],
+  voice: [Mic, "from-fuchsia-400 to-pink-500"],
+  life: [HeartHandshake, "from-sky-300 to-blue-400"],
+  pointcard: [CreditCard, "from-indigo-300 to-violet-400"],
+  literary: [BookOpen, "from-amber-300 to-yellow-400"],
+  accelerator: [Rocket, "from-orange-300 to-amber-400"],
+  ai: [Cpu, "from-blue-400 to-indigo-500"],
+};
+
 export default function Header() {
   const navigate = useNavigate();
   const { count, setOpen } = useCart();
@@ -21,6 +36,7 @@ export default function Header() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [query, setQuery] = useState("");
   const [mobileNav, setMobileNav] = useState(false);
+  const [servicesOpen, setServicesOpen] = useState(false);
 
   useEffect(() => {
     publicApi.get("/categories").then((r) => setCategories(r.data)).catch(() => {});
@@ -49,7 +65,7 @@ export default function Header() {
       </div>
 
       {/* Main header */}
-      <div className="bg-white border-b border-orange-100 shadow-sm">
+      <div className="bg-white border-b border-orange-100 shadow-sm relative">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 md:h-[72px] flex items-center gap-3 md:gap-5">
           {/* Logo */}
           <Link to="/" data-testid="logo-link" className="flex items-center gap-2 shrink-0">
@@ -62,21 +78,13 @@ export default function Header() {
 
           {/* 所有服務 + search */}
           <div className="hidden md:flex flex-1 items-center gap-2 max-w-3xl">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <button data-testid="all-categories-trigger" className="flex items-center gap-1 h-11 px-3 rounded-full text-sm font-semibold text-slate-700 hover:text-orange-600 whitespace-nowrap">
-                  所有服務 <ChevronDown className="h-4 w-4" />
-                </button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" className="w-52">
-                {categories.map((c) => (
-                  <DropdownMenuItem key={c.id} data-testid={`menu-category-${c.id}`} onClick={() => navigate(`/category/${c.id}`)} className="gap-2 cursor-pointer">
-                    {c.image && <img src={c.image} alt="" className="h-5 w-5 rounded object-cover" />}
-                    {c.name}
-                  </DropdownMenuItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
+            <button
+              data-testid="all-categories-trigger"
+              onClick={() => setServicesOpen((v) => !v)}
+              className="flex items-center gap-1 h-11 px-3 rounded-full text-sm font-semibold text-slate-700 hover:text-orange-600 whitespace-nowrap"
+            >
+              所有服務 <ChevronDown className={`h-4 w-4 transition-transform ${servicesOpen ? "rotate-180" : ""}`} />
+            </button>
             <form onSubmit={doSearch} className="flex-1 relative">
               <input
                 data-testid="search-input"
@@ -161,6 +169,36 @@ export default function Header() {
             </button>
           </div>
         </div>
+
+        {/* 所有服務 mega menu */}
+        {servicesOpen && (
+          <>
+            <div className="fixed inset-0 z-30" onClick={() => setServicesOpen(false)} />
+            <div className="absolute left-0 right-0 top-full z-40 px-4">
+              <div className="max-w-5xl mx-auto bg-white rounded-2xl shadow-2xl border border-orange-100 p-6 mt-1">
+                <div className="grid grid-cols-4 sm:grid-cols-5 lg:grid-cols-6 gap-x-4 gap-y-6">
+                  {categories.map((c) => {
+                    const [Icon, bg] = CAT_ICONS[c.id] || [Tv, "from-slate-300 to-slate-400"];
+                    return (
+                      <button
+                        key={c.id}
+                        data-testid={`menu-category-${c.id}`}
+                        onClick={() => { setServicesOpen(false); navigate(`/category/${c.id}`); }}
+                        className="flex flex-col items-center gap-2 group"
+                      >
+                        <span className={`h-14 w-14 rounded-2xl bg-gradient-to-br ${bg} flex items-center justify-center text-white shadow-sm group-hover:scale-105 transition-transform`}>
+                          <Icon className="h-7 w-7" />
+                        </span>
+                        <span className="text-xs font-medium text-slate-700 group-hover:text-orange-600 text-center leading-tight">{c.name}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          </>
+        )}
+
 
         {/* Mobile search + nav */}
         {mobileNav && (

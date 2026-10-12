@@ -1,7 +1,12 @@
 import { useEffect, useState } from "react";
 import { useParams, useSearchParams, Link, useNavigate } from "react-router-dom";
+import { Star, Users } from "lucide-react";
 import { publicApi } from "@/lib/api";
-import ProductCard from "@/components/ProductCard";
+
+function salesText(n) {
+  if (!n) return "0";
+  return n >= 1000 ? `${Math.round(n / 1000)}k+` : `${n}+`;
+}
 
 export default function Category() {
   const { id } = useParams();
@@ -27,66 +32,70 @@ export default function Category() {
   const catName = q ? `搜尋「${q}」` : categories.find((c) => c.id === id)?.name || "全部商品";
 
   return (
-    <div className="bg-slate-50 min-h-[70vh]">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5 flex gap-5">
-        {/* Sidebar */}
-        <aside className="hidden md:block w-44 shrink-0">
-          <div className="bg-white rounded-xl border border-slate-200 overflow-hidden sticky top-28">
-            <div className="px-4 py-3 text-sm font-bold text-slate-900 border-b border-slate-100">全部分類</div>
-            <nav className="py-1">
-              {categories.map((c) => (
-                <Link
+    <div className="bg-gradient-to-b from-orange-50/60 to-slate-50 min-h-[70vh]">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5">
+        {/* Breadcrumb */}
+        <div className="flex items-center gap-1.5 text-sm text-slate-400 mb-4">
+          <Link to="/" className="hover:text-orange-500">首頁</Link>
+          <span>/</span>
+          <span className="text-slate-700 font-medium" data-testid="category-title">{catName}</span>
+        </div>
+
+        {/* Category tabs */}
+        <div className="bg-white rounded-2xl shadow-sm border border-orange-100 px-2 sm:px-4 mb-5">
+          <div className="flex overflow-x-auto no-scrollbar">
+            {categories.map((c) => {
+              const active = c.id === id;
+              return (
+                <button
                   key={c.id}
-                  to={`/category/${c.id}`}
-                  data-testid={`sidebar-category-${c.id}`}
-                  className={`flex items-center gap-2 px-4 py-2.5 text-sm transition-colors ${
-                    c.id === id ? "bg-primary/5 text-primary font-semibold border-l-2 border-primary" : "text-slate-600 hover:bg-slate-50"
+                  data-testid={`tab-category-${c.id}`}
+                  onClick={() => navigate(`/category/${c.id}`)}
+                  className={`relative whitespace-nowrap px-4 py-4 text-sm font-semibold transition-colors ${
+                    active ? "text-orange-600" : "text-slate-600 hover:text-orange-500"
                   }`}
                 >
-                  {c.image && <img src={c.image} alt="" className="h-5 w-5 rounded object-cover" />}
                   {c.name}
-                </Link>
-              ))}
-            </nav>
+                  {active && <span className="absolute left-1/2 -translate-x-1/2 bottom-2 h-1 w-6 rounded-full bg-orange-500" />}
+                </button>
+              );
+            })}
           </div>
-        </aside>
+        </div>
 
-        {/* Main */}
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center justify-between mb-4">
-            <h1 className="font-head text-xl font-bold text-slate-900" data-testid="category-title">{catName}</h1>
-            <span className="text-sm text-slate-400">共 {products.length} 件</span>
-          </div>
-
-          {/* mobile category pills */}
-          <div className="md:hidden flex overflow-x-auto no-scrollbar gap-2 mb-4">
-            {categories.map((c) => (
-              <button
-                key={c.id}
-                onClick={() => navigate(`/category/${c.id}`)}
-                className={`whitespace-nowrap text-xs font-semibold rounded-full px-3 py-1.5 ${c.id === id ? "bg-primary text-white" : "bg-white border border-slate-200 text-slate-600"}`}
-              >
-                {c.name}
-              </button>
+        {/* Product grid */}
+        {loading ? (
+          <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-7 gap-3 sm:gap-4">
+            {Array.from({ length: 14 }).map((_, i) => (
+              <div key={i} className="aspect-[4/5] bg-white rounded-2xl animate-pulse" />
             ))}
           </div>
-
-          {loading ? (
-            <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 gap-3">
-              {Array.from({ length: 10 }).map((_, i) => (
-                <div key={i} className="aspect-[3/4] bg-white rounded-xl animate-pulse" />
-              ))}
-            </div>
-          ) : products.length === 0 ? (
-            <div className="text-center py-20 text-slate-400">沒有找到相關商品</div>
-          ) : (
-            <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 gap-3">
-              {products.map((p) => (
-                <ProductCard key={p.id} product={p} />
-              ))}
-            </div>
-          )}
-        </div>
+        ) : products.length === 0 ? (
+          <div className="text-center py-20 text-slate-400">沒有找到相關商品</div>
+        ) : (
+          <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-7 gap-3 sm:gap-4">
+            {products.map((p) => (
+              <Link
+                key={p.id}
+                to={`/product/${p.id}`}
+                data-testid={`product-card-${p.id}`}
+                className="group bg-white rounded-2xl border border-slate-100 p-3 flex flex-col items-center text-center hover:shadow-lg hover:border-orange-200 transition-all"
+              >
+                <div className="relative w-full aspect-square rounded-xl overflow-hidden bg-slate-50">
+                  <img src={p.image} alt={p.name} className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                  {p.tags?.includes("熱銷") && (
+                    <span className="absolute top-1.5 left-1.5 text-[10px] font-bold rounded-md px-1.5 py-0.5 bg-red-500 text-white">熱銷</span>
+                  )}
+                </div>
+                <div className="text-[13px] font-medium text-slate-800 mt-2 line-clamp-2 leading-tight min-h-[2.3rem] group-hover:text-orange-600">{p.name}</div>
+                <div className="flex items-center justify-between w-full mt-1 text-[11px] text-slate-400">
+                  <span className="flex items-center gap-0.5"><Users className="h-3 w-3" />{salesText(p.sales_count)}</span>
+                  <span className="flex items-center gap-0.5 text-amber-500 font-semibold">{p.rating}<Star className="h-3 w-3 fill-amber-400 text-amber-400" /></span>
+                </div>
+              </Link>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

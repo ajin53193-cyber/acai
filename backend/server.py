@@ -598,7 +598,7 @@ async def seed():
         "giftcard": IMG + "c7ddeaee58430ba51acd8620281bcff8c5506ba87439f986e9c63e9d60fa9c60.jpeg",
         "point": IMG + "1e6a7d3c5a06305d790bbe7d40055291674f1b34daa986ae4117e714119502ef.jpeg",
     }
-    SEED_VERSION = 3
+    SEED_VERSION = 4
     meta = await db.meta.find_one({"_id": "seed"})
     if not meta or meta.get("version") != SEED_VERSION:
         await db.categories.delete_many({})
@@ -615,7 +615,9 @@ async def seed():
         ("play", "陪玩陪聊", ICONS["voice"]),
         ("voice", "語音交友", ICONS["voice"]),
         ("literary", "文學動漫", ICONS["reading"]),
-        ("pointcard", "平臺點卡 / 禮品卡", ICONS["point"]),
+        ("pointcard", "平臺點卡", ICONS["point"]),
+        ("life", "生活日常", ICONS["giftcard"]),
+        ("accelerator", "加速工具", ICONS["point"]),
         ("ai", "人工智慧 AI", ICONS["ai"]),
     ]
     if await db.categories.count_documents({}) == 0:
@@ -638,6 +640,8 @@ async def seed():
             "voice": (ICONS["voice"], COIN, ["他ta星球 星幣", "咕咕語音 鑽石", "氧氣語音 金幣", "MOMI 金幣", "微光 光點", "知聊 聊幣", "SUSU 充值", "西柚語音 CUCU"]),
             "literary": (ICONS["reading"], VIP, ["騰訊動漫 會員", "晉江文學城", "起點讀書", "知乎鹽選 會員", "bilibili 漫畫", "快看漫畫 VIP", "QQ閱讀 書幣", "刺蝟貓 充值"]),
             "pointcard": (ICONS["giftcard"], CARD, ["蘋果 iTunes 中國區", "Steam 錢包", "Google Play 點數", "Netflix 禮品卡", "Spotify Premium", "PSN 點數卡", "Razer Gold", "Xbox 禮品卡"]),
+            "life": (ICONS["giftcard"], COIN, ["美團 充值", "餓了麼 會員", "滴滴出行 券", "高德打車", "瑞幸咖啡 券", "盒馬 充值", "叮咚買菜", "順豐寄件"]),
+            "accelerator": (ICONS["point"], VIP, ["奇遊加速器", "UU 加速器", "雷神加速器", "迅遊加速器", "Biubiu 加速器", "AK 加速器", "薯條加速器", "輕蜂加速"]),
             "ai": (ICONS["ai"], VIP, ["ChatGPT Plus", "Claude Pro", "文心一言 會員", "Midjourney", "通義千問 會員", "Kimi 會員", "豆包 會員", "妙鴨相機"]),
         }
         hot = {"抖音抖幣充值", "快幣", "王者榮耀 點券", "原神 創世結晶", "小紅書 薯幣", "貓耳FM 鑽石", "Bigo Live 鑽石", "Netflix 禮品卡", "ChatGPT Plus", "全民K歌 K幣"}
