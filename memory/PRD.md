@@ -29,6 +29,12 @@
 - 後端：Product 新增 subtitle/content_html/delivery_fields/source_id，Spec 新增 sale_price_usd/badge；OrderIn 新增 delivery_info；新端點 `GET /api/products/home`（快速下單/熱門/各分類前 20）；`/api/products` 列表排除大欄位。
 - 前端：首頁改用 /products/home；商品頁顯示副標題、角標、原價刪除線、Kavip HTML 說明與「下單需填寫」；結賬頁依商品 `delivery_fields` 動態產生表單（含下拉/密碼）並送出 delivery_info；我的訂單/後台顯示填寫資料；分類頁分頁（42/頁）+ 圖片 lazy。E2E 實測（杏雨直播：登入方式下拉+手機+密碼+暱稱）下單成功。
 
+- 2026-06-12：**圖片本地化**：`scripts/migrate_images.py` 將 2,498 張商品圖上傳至 Emergent Object Storage（`gogo589/products/{id}.ext`），`backend/storage.py`；後端 `GET /api/img/{path}` 代理輸出（記憶體快取 + 30 天 Cache-Control）；product.image 改為 `/api/img/...`（原網址存 image_source）。
+- 2026-06-12：**限購規則**：依規格角標判斷 — 含「每日一單」→每帳號 24h 限 1 份；「每月一單」→30 天 1 份；「新客/新用戶/新使用者」→僅首單 1 份。後端 `_check_daily_limit` 於 POST /orders 強制（409），`GET /api/products/{id}/daily-limit` 回傳已鎖規格；前台商品頁顯示提示條、已達限購灰角標、阻擋加入。
+- 2026-06-12：**搜尋聯想**：`GET /api/products/suggest?q=`（名稱/品牌/副標題，8 筆含圖）；Header `SearchBox.jsx` 下拉（關鍵字高亮、鍵盤上下、查看全部）。
+- 2026-06-12：**分類頁**改 Kavip 版面（橘色漸層＋裝飾、7 欄白卡、21/頁、‹ 1 2 3 … 12 › 分頁器 `Pager`）。
+- 2026-06-12：**評價同步**：`scripts/crawl_comments.py` 經 `pro-api/openapi/product-comment/list` 抓全站 464 則評價（日期、國家/地區、回購次數、客服回覆）；用戶名改為遮罩信箱 `首字****末字@domain`；語言依地區：CN→簡體(OpenCC)、TW/HK/MO/MY/SG/未知→繁體、其他→英文（gpt-5.4-mini 翻譯，快取於 kavip_translations.json）；英文評價地區顯示英文國名。商品 rating/review_count 依評價重算。商品頁評價區改版（平均分、地區數、載入更多）。
+
 ## 待辦（優先序）
 - P0：testing_agent 跑後台訂單狀態流轉 + 回歸（前台 E2E 已由主代理手測通過）。
 - P1：結帳頁多幣別匯率計算驗證。

@@ -147,7 +147,7 @@ function CheckoutInner() {
       toast.success("付款成功（測試），訂單已提交！");
       navigate(`/orders?order=${order.id}`);
     } catch (e) {
-      toast.error(e.response?.data?.detail || "下單失敗，請稍後再試");
+      toast.error(e.response?.data?.detail || "下單失敗，請稍後再試", { duration: e.response?.status === 409 ? 7000 : 4000 });
     } finally {
       setLoading(false);
     }

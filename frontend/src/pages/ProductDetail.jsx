@@ -2,7 +2,8 @@ import { useEffect, useMemo, useState } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { Star, Minus, Plus, ShoppingCart, Sparkles, CalendarCheck, Gift, Tags, BadgePercent, ChevronLeft, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
-import { publicApi } from "@/lib/api";
+import { publicApi, useApi } from "@/lib/api";
+import { useUser } from "@clerk/react";
 import { useCurrency } from "@/context/CurrencyContext";
 import { useCart } from "@/context/CartContext";
 import ProductCard from "@/components/ProductCard";
@@ -28,6 +29,9 @@ export default function ProductDetail() {
   const navigate = useNavigate();
   const { format } = useCurrency();
   const { addItem, setOpen, count } = useCart();
+  const { isSignedIn } = useUser();
+  const callApi = useApi();
+  const [limit, setLimit] = useState({ used_spec_ids: [], is_new_customer: true });
 
   const [product, setProduct] = useState(null);
   const [category, setCategory] = useState(null);
@@ -36,6 +40,7 @@ export default function ProductDetail() {
   const [specId, setSpecId] = useState(null);
   const [qty, setQty] = useState(1);
   const [tab, setTab] = useState("desc");
+  const [reviewsShown, setReviewsShown] = useState(10);
 
   useEffect(() => {
     window.scrollTo(0, 0);
@@ -50,6 +55,16 @@ export default function ProductDetail() {
     publicApi.get("/reviews", { params: { product_id: id } }).then((r) => setReviews(r.data));
   }, [id]);
 
+  useEffect(() => {
+    if (!isSignedIn) return;
+    callApi({ method: "GET", url: `/products/${id}/daily-limit` }).then((r) => setLimit(r.data)).catch(() => {});
+  }, [id, isSignedIn, callApi]);
+
+  const limitKind = (s) => { const b = s.badge || ""; return b.includes("每月一單") ? "monthly" : b.includes("每日一單") ? "daily" : /新客|新用戶|新使用者/.test(b) ? "newcomer" : null; };
+  const specLimited = (s) => !!limitKind(s);
+  const specLocked = (s) => { const k = limitKind(s); return ((k === "daily" || k === "monthly") && limit.used_spec_ids.includes(s.id)) || (k === "newcomer" && !limit.is_new_customer); };
+  const limitText = (s) => { const k = limitKind(s); return k === "monthly" ? "每月一單" : k === "daily" ? "每日一單" : "新用戶專享"; };
+
   const spec = useMemo(() => product?.specs.find((s) => s.id === specId), [product, specId]);
   const totalUsd = (spec?.price_usd || 0) * qty;
   const originalUsd = (spec?.sale_price_usd || 0) * qty;
@@ -58,6 +73,8 @@ export default function ProductDetail() {
 
   const handleAdd = (buyNow = false) => {
     if (!spec) return;
+    if (specLocked(spec)) return toast.error(limitKind(spec) === "newcomer" ? "此規格為新用戶專享，僅限首單購買，請選擇其他規格" : `此規格為${limitText(spec)}特價，您已購買過，請稍後再來或選擇其他規格`);
+    if (specLimited(spec) && qty > 1) return toast.error(`${limitText(spec)}規格每次限購 1 份`);
     addItem(product, spec, qty);
     if (buyNow) navigate("/checkout");
     else { toast.success("已加入購物車"); setOpen(true); }
@@ -117,18 +134,20 @@ export default function ProductDetail() {
             <div className="flex flex-wrap gap-3 sm:gap-4">
               {product.specs.map((s, i) => {
                 const sel = s.id === specId;
+                const locked = specLocked(s);
                 return (
                   <button
                     key={s.id}
                     data-testid={`spec-option-${s.id}`}
                     disabled={!s.in_stock}
                     onClick={() => setSpecId(s.id)}
+                    title={locked ? "已達限購" : undefined}
                     className={`relative h-14 min-w-[140px] px-6 rounded-xl text-sm font-medium transition-all ${
                       sel ? "border-2 border-orange-400 bg-orange-50 text-orange-600" : "border border-transparent bg-slate-100 text-slate-700 hover:bg-orange-50"
-                    } ${!s.in_stock ? "opacity-40 cursor-not-allowed" : ""}`}
+                    } ${!s.in_stock ? "opacity-40 cursor-not-allowed" : ""} ${locked ? "opacity-50" : ""}`}
                   >
                     {s.badge && (
-                      <span className="absolute -top-2.5 right-0 rounded-full bg-orange-500 text-white text-[10px] px-2 py-0.5">{s.badge}</span>
+                      <span className={`absolute -top-2.5 right-0 rounded-full text-white text-[10px] px-2 py-0.5 ${locked ? "bg-slate-400" : "bg-orange-500"}`}>{locked ? "已達限購" : s.badge}</span>
                     )}
                     {s.label}
                     {!s.in_stock && <span className="ml-1 text-[10px] text-red-400">缺貨</span>}
@@ -138,6 +157,13 @@ export default function ProductDetail() {
             </div>
           </div>
 
+          {spec && specLimited(spec) && (
+            <div data-testid="daily-limit-notice" className={`mx-5 sm:mx-8 mb-4 rounded-xl px-4 py-2.5 text-sm ${specLocked(spec) ? "bg-slate-100 text-slate-600" : "bg-orange-50 text-orange-600"}`}>
+              {specLocked(spec)
+                ? (limitKind(spec) === "newcomer" ? "「新用戶專享」規格僅限首次下單使用，請選擇其他規格。" : `您已購買過此「${limitText(spec)}」規格，${limitKind(spec) === "monthly" ? "30 天後" : "明天"}即可再次購買；也可選擇其他規格。`)
+                : (limitKind(spec) === "newcomer" ? "此規格為「新用戶專享」特價：僅限首單購買 1 份。" : `此規格為「${limitText(spec)}」特價：每個帳號${limitKind(spec) === "monthly" ? "每月" : "每天"}限購 1 份。`)}
+            </div>
+          )}
           <div className="relative bg-[#FFF6EC] [background-image:radial-gradient(rgba(255,255,255,0.9)_1.5px,transparent_1.5px)] [background-size:14px_14px] px-5 sm:px-8 py-5">
             <div className="bg-white rounded-2xl px-5 py-4 flex flex-col md:flex-row md:items-center gap-4">
               <div className="flex items-center gap-4">
@@ -201,17 +227,48 @@ export default function ProductDetail() {
             <p className="mt-1">請多次確認您的充值帳號（{product.account_field_label}）及相關資訊是否正確，如因您充值帳號輸入錯誤但充值成功的，系統不予退款。</p>
           </div>
         ) : (
-          <div className="mt-4 space-y-3" data-testid="product-reviews">
-            {reviews.length === 0 && <div className="bg-white rounded-3xl p-8 text-center text-slate-400 text-sm">暫無評價</div>}
-            {reviews.map((r) => (
-              <div key={r.id} className="bg-white rounded-2xl p-4">
-                <div className="flex items-center justify-between">
-                  <span className="font-semibold text-sm text-slate-700">{r.author}</span>
-                  <div className="flex gap-0.5">{Array.from({ length: 5 }).map((_, i) => <Star key={i} className={`h-3.5 w-3.5 ${i < r.rating ? "fill-amber-400 text-amber-400" : "text-slate-200"}`} />)}</div>
+          <div className="mt-4 bg-white rounded-3xl p-5 sm:p-6" data-testid="product-reviews">
+            {reviews.length === 0 ? (
+              <div className="py-8 text-center text-slate-400 text-sm">暫無評價</div>
+            ) : (
+              <>
+                <div className="flex items-center gap-4 pb-4 border-b border-dashed border-slate-200">
+                  <span className="font-head text-4xl font-extrabold text-orange-500">{(reviews.reduce((a, r) => a + r.rating, 0) / reviews.length).toFixed(1)}</span>
+                  <div>
+                    <div className="flex gap-0.5">{Array.from({ length: 5 }).map((_, i) => <Star key={i} className={`h-4 w-4 ${i < Math.round(reviews.reduce((a, r) => a + r.rating, 0) / reviews.length) ? "fill-amber-400 text-amber-400" : "text-slate-200"}`} />)}</div>
+                    <div className="text-xs text-slate-400 mt-1">共 {reviews.length} 則評價 · 來自 {new Set(reviews.map((r) => r.area).filter(Boolean)).size || 1} 個地區</div>
+                  </div>
                 </div>
-                <p className="text-sm text-slate-600 mt-2">{r.content}</p>
-              </div>
-            ))}
+                <div className="divide-y divide-slate-100">
+                  {reviews.slice(0, reviewsShown).map((r) => (
+                    <div key={r.id} className="py-4" data-testid={`review-${r.id}`}>
+                      <div className="flex items-start gap-3">
+                        <span className="h-9 w-9 shrink-0 rounded-full bg-gradient-to-br from-orange-400 to-amber-500 text-white flex items-center justify-center text-sm font-bold uppercase">{(r.author || "u")[0]}</span>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                            <span className="font-semibold text-sm text-slate-800" data-testid="review-author">{r.author}</span>
+                            <div className="flex gap-0.5">{Array.from({ length: 5 }).map((_, i) => <Star key={i} className={`h-3.5 w-3.5 ${i < r.rating ? "fill-amber-400 text-amber-400" : "text-slate-200"}`} />)}</div>
+                            {r.buy_count > 1 && <span className="text-[11px] rounded-full bg-orange-50 text-orange-500 px-2 py-0.5">回購 {r.buy_count} 次</span>}
+                          </div>
+                          <div className="text-xs text-slate-400 mt-1">
+                            {r.created_at?.slice(0, 10)}{r.area ? ` · ${r.area}` : ""}
+                          </div>
+                          {r.content ? (
+                            <p className="text-sm text-slate-700 mt-2 leading-relaxed">{r.content}</p>
+                          ) : (
+                            <p className="text-sm text-slate-400 mt-2 italic">{r.lang === "en" ? "Rated without comment" : r.lang === "zh-CN" ? "用户未填写评价内容" : "用戶未填寫評價內容"}</p>
+                          )}
+                          {r.reply && <div className="mt-2 rounded-xl bg-orange-50 px-3 py-2 text-xs text-slate-600"><span className="font-semibold text-orange-500">客服回覆：</span>{r.reply}</div>}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                {reviews.length > reviewsShown && (
+                  <button data-testid="reviews-more" onClick={() => setReviewsShown((n) => n + 10)} className="mt-2 w-full h-10 rounded-full bg-slate-100 text-sm font-semibold text-slate-600 hover:bg-orange-50 hover:text-orange-600">載入更多評價</button>
+                )}
+              </>
+            )}
           </div>
         )}
 

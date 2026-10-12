@@ -7,6 +7,9 @@ from typing import Dict, List, Optional
 
 import requests
 from fastapi import FastAPI, APIRouter, HTTPException, Depends
+from fastapi.responses import Response
+from fastapi.concurrency import run_in_threadpool
+import storage as objstore
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -273,6 +276,35 @@ async def get_products(category: Optional[str] = None, q: Optional[str] = None):
     return await db.products.find(query, proj).sort([("sort_order", 1), ("sales_count", -1)]).to_list(3000)
 
 
+_img_cache: Dict[str, tuple] = {}
+
+
+@api_router.get("/img/{path:path}")
+async def serve_image(path: str):
+    if path not in _img_cache:
+        try:
+            data, ct = await run_in_threadpool(objstore.get_object, path)
+        except Exception:
+            raise HTTPException(status_code=404, detail="圖片不存在")
+        if len(_img_cache) > 4000:
+            _img_cache.clear()
+        _img_cache[path] = (data, ct)
+    data, ct = _img_cache[path]
+    return Response(content=data, media_type=ct, headers={"Cache-Control": "public, max-age=2592000, immutable"})
+
+
+@api_router.get("/products/suggest")
+async def suggest_products(q: str = ""):
+    q = q.strip()
+    if len(q) < 1:
+        return []
+    import re as _re
+    rx = {"$regex": _re.escape(q), "$options": "i"}
+    proj = {"_id": 0, "id": 1, "name": 1, "image": 1, "category": 1, "subtitle": 1}
+    rows = await db.products.find({"active": True, "$or": [{"name": rx}, {"brand": rx}, {"subtitle": rx}]}, proj).sort([("sort_order", 1), ("sales_count", -1)]).to_list(8)
+    return rows
+
+
 @api_router.get("/products/home")
 async def get_home_products():
     proj = {"_id": 0, "content_html": 0, "delivery_fields": 0, "description": 0, "tutorial": 0}
@@ -298,7 +330,7 @@ async def get_reviews(product_id: Optional[str] = None):
     query = {"visible": True}
     if product_id:
         query["product_id"] = product_id
-    return await db.reviews.find(query, {"_id": 0}).sort("created_at", -1).to_list(200)
+    return await db.reviews.find(query, {"_id": 0}).sort("created_at", -1).to_list(500)
 
 
 @api_router.get("/promos/public")
@@ -357,6 +389,64 @@ async def _compute_order(order: OrderIn):
     return items_out, round(subtotal_usd, 2), round(discount_usd, 2), round(total_usd, 2), promo_code
 
 
+def _limit_kind(badge: str):
+    b = badge or ""
+    if "每月一單" in b:
+        return "monthly"
+    if "每日一單" in b:
+        return "daily"
+    if "新客" in b or "新用戶" in b or "新使用者" in b:
+        return "newcomer"
+    return None
+
+
+async def _daily_limited_specs(user_id: str, product_ids: List[str]):
+    """Return {spec_id: last_bought_iso} for this user within 30 days."""
+    since = (datetime.now(timezone.utc) - timedelta(days=30)).isoformat()
+    cur = db.orders.find({"user_id": user_id, "status": {"$ne": "cancelled"}, "created_at": {"$gte": since}, "items.product_id": {"$in": product_ids}}, {"_id": 0, "items.spec_id": 1, "created_at": 1})
+    used = {}
+    async for o in cur:
+        for it in o.get("items", []):
+            used[it["spec_id"]] = max(used.get(it["spec_id"], ""), o["created_at"])
+    return used
+
+
+def _is_locked(kind: str, last_iso: Optional[str]) -> bool:
+    if not last_iso:
+        return False
+    window = timedelta(days=30) if kind == "monthly" else timedelta(hours=24)
+    return datetime.fromisoformat(last_iso) > datetime.now(timezone.utc) - window
+
+
+async def _check_daily_limit(order: OrderIn, user_id: str):
+    pids = [it.product_id for it in order.items]
+    used = await _daily_limited_specs(user_id, pids)
+    has_orders = await db.orders.count_documents({"user_id": user_id, "status": {"$ne": "cancelled"}}) > 0
+    seen = set()
+    for it in order.items:
+        p = await db.products.find_one({"id": it.product_id}, {"_id": 0, "specs": 1, "name": 1})
+        spec = next((s for s in p["specs"] if s["id"] == it.spec_id), None)
+        if not spec:
+            continue
+        kind = _limit_kind(spec.get("badge"))
+        if kind in ("daily", "monthly"):
+            if _is_locked(kind, used.get(it.spec_id)) or it.spec_id in seen or int(it.quantity) > 1:
+                unit = "每月" if kind == "monthly" else "每日"
+                raise HTTPException(status_code=409, detail=f"「{p['name']} {spec['label']}」為{unit}一單特價規格，每個帳號{unit}限購 1 份，請稍後再來或選擇其他規格")
+            seen.add(it.spec_id)
+        elif kind == "newcomer" and (has_orders or int(it.quantity) > 1):
+            raise HTTPException(status_code=409, detail=f"「{p['name']} {spec['label']}」為新用戶專享規格，僅限首單購買 1 份，請選擇其他規格")
+
+
+@api_router.get("/products/{product_id}/daily-limit")
+async def product_daily_limit(product_id: str, member: dict = Depends(current_member)):
+    used = await _daily_limited_specs(member["user_id"], [product_id])
+    p = await db.products.find_one({"id": product_id}, {"_id": 0, "specs": 1}) or {"specs": []}
+    locked = [s["id"] for s in p["specs"] if _limit_kind(s.get("badge")) in ("daily", "monthly") and _is_locked(_limit_kind(s.get("badge")), used.get(s["id"]))]
+    has_orders = await db.orders.count_documents({"user_id": member["user_id"], "status": {"$ne": "cancelled"}}) > 0
+    return {"used_spec_ids": locked, "is_new_customer": not has_orders}
+
+
 # ----------------------------- User (auth) endpoints -----------------------------
 @api_router.get("/me")
 async def get_me(member: dict = Depends(current_member)):
@@ -368,6 +458,7 @@ async def create_order(order: OrderIn, member: dict = Depends(current_member)):
     if not order.items:
         raise HTTPException(status_code=400, detail="購物車為空")
     items, subtotal_usd, discount_usd, total_usd, promo_code = await _compute_order(order)
+    await _check_daily_limit(order, member["user_id"])
     cur = await db.currencies.find_one({"code": order.currency, "active": True}, {"_id": 0}) or \
         {"code": "USD", "symbol": "$", "rate_to_usd": 1.0}
     order_no = "GT" + datetime.now(timezone.utc).strftime("%y%m%d") + uuid.uuid4().hex[:6].upper()
@@ -523,7 +614,7 @@ async def admin_update_currency(code: str, body: Currency, admin: dict = Depends
 
 @api_router.get("/admin/promos")
 async def admin_list_promos(admin: dict = Depends(require_role("admin"))):
-    return await db.promos.find({}, {"_id": 0}).sort("created_at", -1).to_list(200)
+    return await db.promos.find({}, {"_id": 0}).sort("created_at", -1).to_list(500)
 
 
 @api_router.post("/admin/promos")
@@ -810,6 +901,15 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.on_event("startup")
+async def init_objstore():
+    try:
+        await run_in_threadpool(objstore.init_storage)
+        logger.info("Object storage initialized")
+    except Exception as e:
+        logger.error(f"Storage init failed: {e}")
 
 
 @app.on_event("startup")

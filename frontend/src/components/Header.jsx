@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { Show, SignInButton, UserButton, useUser } from "@clerk/react";
 import { Search, ShoppingCart, Headphones, ChevronDown, Shield, Package, Menu, X, UserRound, Gift,
   Tv, Gamepad2, MessageCircle, Music, Smile, Mic, HeartHandshake, CreditCard, BookOpen, Rocket, Cpu } from "lucide-react";
+import { SearchBox } from "@/components/SearchBox";
 import { publicApi, useApi } from "@/lib/api";
 import { useCart } from "@/context/CartContext";
 import { useCurrency } from "@/context/CurrencyContext";
@@ -38,7 +39,6 @@ export default function Header() {
   const callApi = useApi();
   const [categories, setCategories] = useState([]);
   const [isAdmin, setIsAdmin] = useState(false);
-  const [query, setQuery] = useState("");
   const [mobileNav, setMobileNav] = useState(false);
   const [servicesOpen, setServicesOpen] = useState(false);
 
@@ -50,11 +50,6 @@ export default function Header() {
     if (!isSignedIn) return setIsAdmin(false);
     callApi({ method: "GET", url: "/me" }).then((r) => setIsAdmin(r.data.role === "admin")).catch(() => setIsAdmin(false));
   }, [isSignedIn, callApi]);
-
-  const doSearch = (e) => {
-    e.preventDefault();
-    if (query.trim()) navigate(`/category/all?q=${encodeURIComponent(query.trim())}`);
-  };
 
   return (
     <header className="sticky top-0 z-40 w-full">
@@ -86,18 +81,7 @@ export default function Header() {
             >
               所有服務 <ChevronDown className={`h-4 w-4 transition-transform ${servicesOpen ? "rotate-180" : ""}`} />
             </button>
-            <form onSubmit={doSearch} className="flex-1 relative">
-              <input
-                data-testid="search-input"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder="請輸入需搜尋的商品名"
-                className="w-full h-11 rounded-full border-2 border-orange-200 bg-orange-50/40 pl-5 pr-14 text-sm outline-none focus:border-orange-400 focus:bg-white transition-colors"
-              />
-              <button data-testid="search-submit" className="absolute right-1 top-1 h-9 w-11 rounded-full bg-gradient-to-r from-orange-500 to-amber-500 flex items-center justify-center text-white">
-                <Search className="h-4 w-4" />
-              </button>
-            </form>
+            <SearchBox />
           </div>
 
           {/* Right actions */}
@@ -204,10 +188,7 @@ export default function Header() {
         {/* Mobile search + nav */}
         {mobileNav && (
           <div className="md:hidden border-t border-orange-100 bg-white px-4 py-3 space-y-3">
-            <form onSubmit={doSearch} className="relative">
-              <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="請輸入需搜尋的商品名" className="w-full h-10 rounded-full border-2 border-orange-200 bg-orange-50/40 pl-4 pr-10 text-sm outline-none" />
-              <button className="absolute right-1 top-1 h-8 w-8 rounded-full bg-orange-500 flex items-center justify-center text-white"><Search className="h-4 w-4" /></button>
-            </form>
+            <SearchBox compact />
             <div className="grid grid-cols-2 gap-2">
               {categories.map((c) => (
                 <button key={c.id} onClick={() => { navigate(`/category/${c.id}`); setMobileNav(false); }} className="flex items-center gap-2 text-sm text-slate-700 bg-orange-50 rounded-lg px-3 py-2">
