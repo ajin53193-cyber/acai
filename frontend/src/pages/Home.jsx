@@ -128,7 +128,7 @@ export default function Home() {
             <h2 className="font-head text-xl font-bold text-slate-900">熱門分類</h2>
             <Link to="/category/livestream" data-testid="all-categories-link" className="text-xs font-semibold text-orange-600 bg-orange-50 border border-orange-100 rounded-full px-4 py-1.5 hover:bg-orange-100">全部分類</Link>
           </div>
-          <div className="space-y-5">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
             {categories.slice(0, 6).map((c) => {
               const items = byCat(c.id).slice(0, 20);
               if (items.length === 0) return null;
