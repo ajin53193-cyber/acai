@@ -84,7 +84,7 @@ export default function Home() {
                   <img src={p.image} alt={p.name} className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-300" />
                   {p.tags?.includes("熱銷") && <span className="absolute top-1.5 left-1.5 text-[10px] font-bold rounded-md px-1.5 py-0.5 bg-red-500 text-white">熱銷</span>}
                 </div>
-                <h3 className="font-semibold text-[13px] text-slate-800 line-clamp-1 -mt-2 w-full group-hover:text-orange-600">{p.name}</h3>
+                <h3 className="font-semibold text-[13px] leading-normal text-slate-800 truncate mt-1 w-full group-hover:text-orange-600">{p.name}</h3>
                 <span className="mt-2 text-xs font-bold text-orange-600 bg-orange-100 group-hover:bg-orange-500 group-hover:text-white rounded-full px-5 py-1.5 transition-colors">立即購買</span>
               </Link>
             ))}
@@ -102,7 +102,7 @@ export default function Home() {
                   <img src={p.image} alt={p.name} className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-300" />
                   {p.tags?.includes("熱銷") && <span className="absolute top-1.5 left-1.5 text-[10px] font-bold rounded-md px-1.5 py-0.5 bg-red-500 text-white">熱銷</span>}
                 </div>
-                <h3 className="font-semibold text-[13px] text-slate-800 line-clamp-1 mt-2.5 text-center group-hover:text-orange-600">{p.name}</h3>
+                <h3 className="font-semibold text-[13px] leading-normal text-slate-800 truncate mt-2.5 text-center w-full group-hover:text-orange-600">{p.name}</h3>
                 <div className="flex items-center justify-between mt-2 text-[11px]">
                   <span className="flex items-center gap-0.5 text-slate-400"><span className="text-orange-400">🔥</span>{salesText(p.sales_count)}</span>
                   <span className="flex items-center gap-0.5 text-amber-500 font-semibold">{Math.round(p.rating)}<Star className="h-3 w-3 fill-amber-400 text-amber-400" /></span>
@@ -341,7 +341,7 @@ function PagedGrid({ items, perPage = 10, testid }) {
                 <div className="w-full aspect-square rounded-[22px] overflow-hidden bg-white border border-slate-50 shadow-sm group-hover:shadow-md transition-shadow">
                   <img src={p.image} alt={p.name} draggable={false} className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-300 pointer-events-none" />
                 </div>
-                <div className="text-xs sm:text-[13px] text-slate-600 mt-2 line-clamp-1 w-full group-hover:text-orange-600">{p.name}</div>
+                <div className="text-xs sm:text-[13px] leading-normal text-slate-600 mt-2 truncate w-full group-hover:text-orange-600">{p.name}</div>
               </Link>
             ))}
           </div>
