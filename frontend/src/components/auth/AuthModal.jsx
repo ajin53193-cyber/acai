@@ -40,12 +40,22 @@ function AuthModal({ open, onOpenChange }) {
   const [loading, setLoading] = useState(false);
   const [dialCode, setDialCode] = useState("+886");
   const [view, setView] = useState("login");
+  const [trust, setTrust] = useState(null);
 
   const switchTab = (t) => {
     setTab(t);
     setSent(false);
     setCode("");
     setIsSignUp(false);
+    setTrust(null);
+  };
+
+  const resendTrust = async () => {
+    if (!trust) return;
+    await signIn.prepareSecondFactor(
+      trust.strategy === "email_code" ? { strategy: "email_code", emailAddressId: trust.emailAddressId } : { strategy: "phone_code", phoneNumberId: trust.phoneNumberId }
+    );
+    toast.success("驗證碼已重新發送");
   };
 
   const close = () => { onOpenChange(false); setView("login"); };
@@ -105,9 +115,26 @@ function AuthModal({ open, onOpenChange }) {
           setLoading(false);
           return toast.error("請輸入帳號與密碼");
         }
-        const r = await signIn.create({ identifier, password });
-        if (r.status === "complete") return await finish(r.createdSessionId, setSignInActive);
-        toast.error(r.status === "needs_client_trust" ? "瀏覽器環境驗證未通過，請改用一般瀏覽器重試" : "需要額外驗證步驟");
+        if (trust) {
+          if (!code) { setLoading(false); return toast.error("請輸入驗證碼"); }
+          const r = await signIn.attemptSecondFactor({ strategy: trust.strategy, code: code.trim() });
+          if (r.status === "complete") return await finish(r.createdSessionId, setSignInActive);
+          toast.error("驗證未完成，請重試");
+        } else {
+          const r = await signIn.create({ identifier, password });
+          if (r.status === "complete") return await finish(r.createdSessionId, setSignInActive);
+          if (r.status === "needs_client_trust" || r.status === "needs_second_factor") {
+            const f = r.supportedSecondFactors?.find((x) => x.strategy === "email_code") || r.supportedSecondFactors?.find((x) => x.strategy === "phone_code");
+            if (!f) return toast.error("此帳號需要額外驗證，但未設定可用的驗證方式");
+            await signIn.prepareSecondFactor(
+              f.strategy === "email_code" ? { strategy: "email_code", emailAddressId: f.emailAddressId } : { strategy: "phone_code", phoneNumberId: f.phoneNumberId }
+            );
+            setTrust(f);
+            toast.success(`新裝置安全驗證：驗證碼已發送至 ${f.safeIdentifier || (f.strategy === "email_code" ? "您的信箱" : "您的手機")}`);
+          } else {
+            toast.error("需要額外驗證步驟");
+          }
+        }
       } else {
         if (!sent) {
           setLoading(false);
@@ -199,6 +226,9 @@ function AuthModal({ open, onOpenChange }) {
           {codeTabs && (
             <div className="text-sm font-bold text-orange-500 mb-4">新用戶首次登入將自動註冊</div>
           )}
+          {tab === "account" && trust && (
+            <div className="text-sm font-bold text-orange-500 mb-4" data-testid="auth-trust-hint">新裝置安全驗證：請輸入發送至 {trust.safeIdentifier || "您信箱"} 的驗證碼</div>
+          )}
 
           {/* fields */}
           <div className="space-y-3">
@@ -215,7 +245,20 @@ function AuthModal({ open, onOpenChange }) {
               />
             )}
 
-            {tab === "account" ? (
+            {tab === "account" && trust ? (
+              <div className="flex items-center gap-2 w-full">
+                <input
+                  data-testid="auth-trust-code"
+                  size={1}
+                  value={code}
+                  onChange={(e) => setCode(e.target.value)}
+                  placeholder="新裝置驗證碼"
+                  inputMode="numeric"
+                  className="flex-1 min-w-0 basis-0 h-14 rounded-2xl bg-slate-100 px-5 text-base outline-none focus:ring-2 focus:ring-orange-300 placeholder:text-slate-400"
+                />
+                <button data-testid="auth-trust-resend" onClick={resendTrust} className="shrink-0 h-14 px-4 rounded-2xl bg-orange-100 text-orange-600 font-bold text-sm hover:bg-orange-200 whitespace-nowrap transition-colors">重新發送</button>
+              </div>
+            ) : tab === "account" ? (
               <input
                 data-testid="auth-password"
                 size={1}
