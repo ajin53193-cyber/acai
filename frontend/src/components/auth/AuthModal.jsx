@@ -295,14 +295,14 @@ function AuthModal({ open, onOpenChange }) {
                 className="w-full h-14 rounded-2xl bg-slate-100 px-5 text-base outline-none focus:ring-2 focus:ring-orange-300 placeholder:text-slate-400"
               />
             ) : (
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 w-full">
                 <input
                   data-testid="auth-code"
                   value={code}
                   onChange={(e) => setCode(e.target.value)}
                   placeholder="驗證碼"
                   inputMode="numeric"
-                  className="flex-1 min-w-0 h-14 rounded-2xl bg-slate-100 px-5 text-base outline-none focus:ring-2 focus:ring-orange-300 placeholder:text-slate-400"
+                  className="flex-1 min-w-0 basis-0 h-14 rounded-2xl bg-slate-100 px-5 text-base outline-none focus:ring-2 focus:ring-orange-300 placeholder:text-slate-400"
                 />
                 <button
                   data-testid="auth-send-code"
