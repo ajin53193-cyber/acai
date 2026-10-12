@@ -1,181 +1,192 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { motion } from "framer-motion";
-import { Flame, Radio, Gamepad2, Play, Gift, ShieldCheck, Star, ArrowRight, Zap } from "lucide-react";
+import { ChevronRight, Zap, Megaphone, ShieldCheck, Rocket, Headphones, Tag, Globe } from "lucide-react";
 import { publicApi } from "@/lib/api";
 import ProductCard from "@/components/ProductCard";
-import LiveTicker from "@/components/LiveTicker";
 
-const CAT_ICONS = { douyin: Flame, live: Radio, game: Gamepad2, vip: Play, giftcard: Gift };
+const NEWS = [
+  { t: "雙十盛惠 | 全站充值立省最高 7%", c: "from-rose-500 to-orange-500" },
+  { t: "新用戶註冊 | 首單最高享 9% OFF", c: "from-blue-500 to-indigo-600" },
+  { t: "會員日 | 每月領最高 8% 優惠券", c: "from-violet-500 to-fuchsia-600" },
+  { t: "海外如何為抖音充值？完整教學指南", c: "from-emerald-500 to-teal-600" },
+  { t: "小紅書薯幣有什麼用？海外購買指南", c: "from-amber-500 to-orange-600" },
+  { t: "跨境充值常見問題與到帳時間說明", c: "from-cyan-500 to-blue-600" },
+];
+
+const FEATURES = [
+  [ShieldCheck, "正版安全", "涵蓋 500+ 款全球正版 App 內購服務"],
+  [Rocket, "極速出貨", "人工 24 小時極速處理，多數訂單數分鐘到帳"],
+  [Headphones, "7×24 客服", "全世界線上多語言客服竭誠服務"],
+  [Tag, "天天平價", "每日全類目特價促銷，折扣不停"],
+  [Globe, "全球支付", "預留 PayPal / 信用卡 / 加密貨幣支付通道"],
+];
 
 export default function Home() {
   const [categories, setCategories] = useState([]);
   const [products, setProducts] = useState([]);
-  const [reviews, setReviews] = useState([]);
-  const [activeTab, setActiveTab] = useState("all");
 
   useEffect(() => {
     publicApi.get("/categories").then((r) => setCategories(r.data)).catch(() => {});
     publicApi.get("/products").then((r) => setProducts(r.data)).catch(() => {});
-    publicApi.get("/reviews").then((r) => setReviews(r.data.slice(0, 8))).catch(() => {});
   }, []);
 
-  const filtered = activeTab === "all" ? products : products.filter((p) => p.category === activeTab);
+  const hot = [...products].sort((a, b) => b.sales_count - a.sales_count);
+  const quick = products.filter((p) => p.tags?.includes("熱銷")).slice(0, 6);
+  const byCat = (cid) => products.filter((p) => p.category === cid);
 
   return (
-    <div className="pb-10">
-      {/* Hero */}
-      <section className="bg-gradient-to-br from-slate-900 via-slate-900 to-blue-950 text-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 lg:py-16 grid lg:grid-cols-12 gap-8 items-center">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5 }}
-            className="lg:col-span-7"
-          >
-            <span className="inline-flex items-center gap-1.5 text-xs font-semibold bg-secondary/20 text-secondary rounded-full px-3 py-1 mb-4">
-              <Zap className="h-3.5 w-3.5" /> 24 小時人工極速發貨
-            </span>
-            <h1 className="font-head text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight leading-tight">
-              海外充值<span className="text-primary">·</span>一站搞定
-              <br />
-              <span className="bg-gradient-to-r from-primary to-cyan-400 bg-clip-text text-transparent">
-                抖音 DOU+、直播幣、遊戲點卡
-              </span>
+    <div className="bg-slate-50 pb-10">
+      {/* Hero banner */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4">
+        <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-orange-100 via-amber-50 to-orange-50 border border-orange-100">
+          <div className="relative z-10 px-6 sm:px-10 py-8 sm:py-12 max-w-[60%]">
+            <div className="text-sm font-semibold text-orange-500 mb-2">(UTC+8) 限時活動</div>
+            <h1 className="font-head text-3xl sm:text-4xl lg:text-5xl font-extrabold text-orange-600 leading-tight">
+              低價氪金 戰力超神
             </h1>
-            <p className="text-slate-300 mt-4 text-sm sm:text-base max-w-lg">
-              跨境用戶首選數字商品充值平台，支援多幣種顯示，官方授權正品，全程人工安全發貨。
-            </p>
-            <div className="flex flex-wrap gap-3 mt-6">
-              <Link
-                to="/category/douyin"
-                data-testid="hero-cta-primary"
-                className="h-12 px-6 rounded-full bg-primary text-white font-bold flex items-center gap-2 hover:bg-blue-600 transition-colors"
-              >
-                立即充值 <ArrowRight className="h-4 w-4" />
-              </Link>
-              <Link
-                to="/category/game"
-                className="h-12 px-6 rounded-full bg-white/10 text-white font-semibold flex items-center hover:bg-white/20 transition-colors"
-              >
-                遊戲直充
-              </Link>
+            <div className="font-head text-2xl sm:text-3xl lg:text-4xl font-extrabold text-slate-800 mt-2">
+              神券在手 下單省最高 <span className="text-orange-500">7%</span>
             </div>
-            <div className="mt-6">
-              <LiveTicker />
-            </div>
-          </motion.div>
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.5, delay: 0.1 }}
-            className="lg:col-span-5 hidden lg:block"
-          >
-            <img
-              src="https://images.unsplash.com/photo-1542751371-adc38448a05e?crop=entropy&cs=srgb&fm=jpg&q=85&w=900"
-              alt="gaming"
-              className="rounded-3xl shadow-2xl object-cover h-80 w-full"
-            />
-          </motion.div>
-        </div>
-      </section>
-
-      {/* Quick entrance cards */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-6 relative z-10">
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-          {categories.map((c, i) => {
-            const Icon = CAT_ICONS[c.id] || Flame;
-            return (
-              <motion.div
-                key={c.id}
-                initial={{ opacity: 0, y: 12 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: i * 0.05 }}
-              >
+            <div className="flex flex-wrap gap-2 mt-6">
+              {[["手遊", "games"], ["端遊", "games"], ["點卡官方速充", "pointcard"]].map(([label, cid]) => (
                 <Link
-                  to={`/category/${c.id}`}
-                  data-testid={`quick-entry-${c.id}`}
-                  className="flex flex-col items-center gap-2 bg-white rounded-2xl border border-slate-200 p-4 hover:shadow-lg hover:border-primary/40 transition-all"
+                  key={label}
+                  to={`/category/${cid}`}
+                  data-testid={`hero-pill-${cid}-${label}`}
+                  className="bg-white/80 hover:bg-white text-orange-600 font-semibold text-sm rounded-full px-5 py-2 border border-orange-200 transition-colors"
                 >
-                  <div className="h-11 w-11 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
-                    <Icon className="h-5 w-5" />
-                  </div>
-                  <span className="text-xs font-semibold text-slate-700 text-center">{c.name}</span>
+                  {label}
                 </Link>
-              </motion.div>
-            );
-          })}
+              ))}
+            </div>
+          </div>
+          <img
+            src="https://static.prod-images.emergentagent.com/jobs/8c0ad436-0c2e-49bb-a5bb-0efc73c32f62/images/2ad58532ad0f875a0c9c030d9069119b5960735a7e1383d2f707ce6813e0bc05.jpeg"
+            alt="hero"
+            className="absolute right-0 top-0 h-full w-[55%] object-cover object-left pointer-events-none"
+          />
         </div>
-      </section>
+      </div>
 
-      {/* Product grid with tabs */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-10">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="font-head text-2xl font-bold text-slate-900">熱門商品</h2>
+      {/* Announcement */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-3">
+        <div className="flex items-center gap-2 bg-orange-50 border border-orange-100 rounded-full px-4 py-2 text-xs sm:text-sm text-orange-700">
+          <Megaphone className="h-4 w-4 shrink-0" />
+          <span className="font-medium">GlobalTopUp 介面升級公告：全新繁中介面上線，人工極速發貨，祝您購物愉快！</span>
+          <ChevronRight className="h-4 w-4 ml-auto" />
         </div>
-        <div className="flex overflow-x-auto no-scrollbar gap-2 pb-3 mb-4">
-          <button
-            data-testid="home-tab-all"
-            onClick={() => setActiveTab("all")}
-            className={`whitespace-nowrap text-sm font-semibold rounded-full px-4 py-2 transition-colors ${
-              activeTab === "all" ? "bg-primary text-white" : "bg-white border border-slate-200 text-slate-600"
-            }`}
-          >
-            全部
-          </button>
-          {categories.map((c) => (
-            <button
-              key={c.id}
-              data-testid={`home-tab-${c.id}`}
-              onClick={() => setActiveTab(c.id)}
-              className={`whitespace-nowrap text-sm font-semibold rounded-full px-4 py-2 transition-colors ${
-                activeTab === c.id ? "bg-primary text-white" : "bg-white border border-slate-200 text-slate-600"
-              }`}
-            >
-              {c.name}
-            </button>
-          ))}
-        </div>
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 sm:gap-4">
-          {filtered.map((p) => (
-            <ProductCard key={p.id} product={p} />
-          ))}
-        </div>
-      </section>
+      </div>
 
-      {/* Non-refund banner */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-10">
-        <div className="bg-amber-50 border border-amber-200 rounded-2xl p-5 flex items-start gap-3">
-          <ShieldCheck className="h-6 w-6 text-amber-500 shrink-0 mt-0.5" />
-          <div>
-            <div className="font-semibold text-amber-800 text-sm">溫馨提示 · 無退款聲明</div>
-            <p className="text-xs text-amber-700 mt-1 leading-relaxed">
-              本站充值屬虛擬商品，由人工作業處理，一經充值完成恕不退款。下單前請務必確認充值帳號正確無誤。
-            </p>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        {/* Quick order */}
+        <section className="mt-5">
+          <div className="flex items-center gap-2 mb-3">
+            <Zap className="h-5 w-5 text-secondary" />
+            <h2 className="font-head text-lg font-bold text-slate-900">快速下單</h2>
+          </div>
+          <div className="grid grid-cols-3 sm:grid-cols-6 gap-3">
+            {quick.map((p) => (
+              <Link
+                key={p.id}
+                to={`/product/${p.id}`}
+                data-testid={`quick-order-${p.id}`}
+                className="bg-white rounded-xl border border-slate-200 p-2.5 flex flex-col items-center text-center hover:shadow-md hover:border-primary/40 transition-all"
+              >
+                <img src={p.image} alt={p.name} className="h-14 w-14 rounded-xl object-cover" />
+                <div className="text-[12px] font-medium text-slate-700 line-clamp-1 mt-1.5 w-full">{p.name}</div>
+                <span className="mt-1.5 text-[11px] font-bold text-white bg-secondary rounded-full px-2.5 py-0.5">立即購買</span>
+              </Link>
+            ))}
+          </div>
+        </section>
+
+        {/* Hot products */}
+        <section className="mt-8">
+          <SectionTitle title="熱門商品" to="/category/livestream" />
+          <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-3">
+            {hot.slice(0, 12).map((p) => (
+              <ProductCard key={p.id} product={p} />
+            ))}
+          </div>
+        </section>
+
+        {/* Promo banners */}
+        <section className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-4">
+          <Link to="/category/pointcard" className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-primary to-blue-600 p-6 text-white h-32 flex flex-col justify-center">
+            <div className="font-head text-xl font-extrabold">新用戶註冊好禮</div>
+            <p className="text-sm text-white/85 mt-1">首單最高領 9% 優惠券，立即開通</p>
+            <div className="absolute -right-6 -bottom-6 h-32 w-32 rounded-full bg-white/10" />
+          </Link>
+          <Link to="/category/games" className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-secondary to-rose-500 p-6 text-white h-32 flex flex-col justify-center">
+            <div className="font-head text-xl font-extrabold">全站充值盛惠</div>
+            <p className="text-sm text-white/85 mt-1">熱門遊戲 / 直播幣 立省最高 7%</p>
+            <div className="absolute -right-6 -bottom-6 h-32 w-32 rounded-full bg-white/10" />
+          </Link>
+        </section>
+
+        {/* Category sections */}
+        {categories.map((c) => {
+          const items = byCat(c.id).slice(0, 12);
+          if (items.length === 0) return null;
+          return (
+            <section key={c.id} className="mt-8">
+              <SectionTitle title={c.name} to={`/category/${c.id}`} icon={c.image} />
+              <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-3">
+                {items.map((p) => (
+                  <ProductCard key={p.id} product={p} />
+                ))}
+              </div>
+            </section>
+          );
+        })}
+
+        {/* News & promo */}
+        <section className="mt-10">
+          <SectionTitle title="新聞 & 促銷" to="/" />
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+            {NEWS.map((n, i) => (
+              <div key={i} className="bg-white rounded-xl border border-slate-200 overflow-hidden hover:shadow-md transition-shadow cursor-pointer">
+                <div className={`h-24 bg-gradient-to-br ${n.c} flex items-center justify-center p-3`}>
+                  <Megaphone className="h-8 w-8 text-white/80" />
+                </div>
+                <div className="p-3 text-sm font-medium text-slate-700 line-clamp-2 min-h-[3rem]">{n.t}</div>
+              </div>
+            ))}
+          </div>
+        </section>
+      </div>
+
+      {/* Feature banner */}
+      <section className="mt-12 bg-slate-900 text-white">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+          <h2 className="font-head text-2xl font-extrabold text-center mb-8">全球應用內購服務</h2>
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-6">
+            {FEATURES.map(([Icon, title, desc], i) => (
+              <div key={i} className="text-center">
+                <div className="h-12 w-12 rounded-2xl bg-primary/20 flex items-center justify-center mx-auto mb-3">
+                  <Icon className="h-6 w-6 text-primary" />
+                </div>
+                <div className="font-semibold text-sm">{title}</div>
+                <p className="text-xs text-slate-400 mt-1 leading-relaxed">{desc}</p>
+              </div>
+            ))}
           </div>
         </div>
       </section>
+    </div>
+  );
+}
 
-      {/* Reviews */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-10">
-        <h2 className="font-head text-2xl font-bold text-slate-900 mb-4">用戶真實評價</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {reviews.map((r) => (
-            <div key={r.id} className="bg-white rounded-2xl border border-slate-200 p-4">
-              <div className="flex gap-0.5 mb-2">
-                {Array.from({ length: 5 }).map((_, i) => (
-                  <Star
-                    key={i}
-                    className={`h-3.5 w-3.5 ${i < r.rating ? "fill-amber-400 text-amber-400" : "text-slate-200"}`}
-                  />
-                ))}
-              </div>
-              <p className="text-sm text-slate-600 leading-relaxed line-clamp-3">{r.content}</p>
-              <div className="text-xs text-slate-400 mt-3">— {r.author}</div>
-            </div>
-          ))}
-        </div>
-      </section>
+function SectionTitle({ title, to, icon }) {
+  return (
+    <div className="flex items-center justify-between mb-3">
+      <div className="flex items-center gap-2">
+        {icon && <img src={icon} alt="" className="h-6 w-6 rounded-md object-cover" />}
+        <h2 className="font-head text-lg font-bold text-slate-900">{title}</h2>
+      </div>
+      <Link to={to} className="flex items-center gap-0.5 text-xs text-slate-400 hover:text-primary">
+        查看更多 <ChevronRight className="h-3.5 w-3.5" />
+      </Link>
     </div>
   );
 }

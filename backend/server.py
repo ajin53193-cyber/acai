@@ -585,15 +585,93 @@ async def seed():
             {"code": "JPY", "symbol": "¥", "name": "日圓", "flag": "🇯🇵", "rate_to_usd": 155.40, "active": True},
             {"code": "GBP", "symbol": "£", "name": "英鎊", "flag": "🇬🇧", "rate_to_usd": 0.79, "active": True},
         ])
+    IMG = "https://static.prod-images.emergentagent.com/jobs/8c0ad436-0c2e-49bb-a5bb-0efc73c32f62/images/"
+    ICONS = {
+        "shortvideo": IMG + "fb572be26a3c6978e9242f9a72edee61a3080c3a92c3a1d20129136acd833971.jpeg",
+        "live": IMG + "a67c553277b2ac7e28f59a0e8329709ddf1fa932fdaa1ca57c13f389f71c478e.jpeg",
+        "game": IMG + "593de716b10b89ef5a6fc320e1d98261a8a8626651ca1aa0ac2822bc372780e4.jpeg",
+        "music": IMG + "360165bb181aab58f7d846b6bc49a2d4df885fa932f96c64ce485155f9456210.jpeg",
+        "social": IMG + "ba12ab80a5ed868d1bd9fb2cdb7c489ebe5fb66b167f5f5ec3f8bcb2703171aa.jpeg",
+        "voice": IMG + "f3c8e7c0828053288bf1d9977d3e2e5f794228f1421623a4e440d0d7d0b6f318.jpeg",
+        "reading": IMG + "0887114a2f59f9494f7c062fbf7137e3b4274bac97b973edc327b8c418bdab0d.jpeg",
+        "ai": IMG + "a04db9280629926fcc5c145bfcb04b23616157fdf902b5078fd6ad3eafbaf15d.jpeg",
+        "giftcard": IMG + "c7ddeaee58430ba51acd8620281bcff8c5506ba87439f986e9c63e9d60fa9c60.jpeg",
+        "point": IMG + "1e6a7d3c5a06305d790bbe7d40055291674f1b34daa986ae4117e714119502ef.jpeg",
+    }
+    SEED_VERSION = 3
+    meta = await db.meta.find_one({"_id": "seed"})
+    if not meta or meta.get("version") != SEED_VERSION:
+        await db.categories.delete_many({})
+        await db.products.delete_many({})
+        await db.reviews.delete_many({})
+        await db.promos.delete_many({})
+        await db.meta.update_one({"_id": "seed"}, {"$set": {"version": SEED_VERSION}}, upsert=True)
+
+    CATS = [
+        ("livestream", "直播平臺", ICONS["live"]),
+        ("games", "遊戲充值", ICONS["game"]),
+        ("social", "社交平臺", ICONS["social"]),
+        ("video-music", "視頻音訊", ICONS["music"]),
+        ("play", "陪玩陪聊", ICONS["voice"]),
+        ("voice", "語音交友", ICONS["voice"]),
+        ("literary", "文學動漫", ICONS["reading"]),
+        ("pointcard", "平臺點卡 / 禮品卡", ICONS["point"]),
+        ("ai", "人工智慧 AI", ICONS["ai"]),
+    ]
     if await db.categories.count_documents({}) == 0:
         await db.categories.insert_many([
-            {"id": "douyin", "name": "抖音 / DOU+", "icon": "flame", "sort_order": 1},
-            {"id": "live", "name": "直播平台幣", "icon": "radio", "sort_order": 2},
-            {"id": "game", "name": "遊戲點卡", "icon": "gamepad-2", "sort_order": 3},
-            {"id": "vip", "name": "影音 VIP", "icon": "play", "sort_order": 4},
-            {"id": "giftcard", "name": "禮品卡", "icon": "gift", "sort_order": 5},
+            {"id": cid, "name": name, "icon": "", "image": icon, "sort_order": i + 1}
+            for i, (cid, name, icon) in enumerate(CATS)
         ])
     if await db.products.count_documents({}) == 0:
+        def specs(pairs):
+            return [{"id": new_id(), "label": l, "price_usd": p, "in_stock": True} for l, p in pairs]
+        COIN = [("60 幣", 0.99), ("300 幣", 4.99), ("980 幣", 14.99), ("1980 幣", 29.99), ("3280 幣", 49.99)]
+        VIP = [("1 個月", 8.99), ("3 個月", 24.99), ("12 個月", 89.99)]
+        CARD = [("US$10", 10.49), ("US$25", 25.49), ("US$50", 49.99), ("US$100", 98.99)]
+        CATALOG = {
+            "livestream": (ICONS["shortvideo"], COIN, ["抖音抖幣充值", "快幣", "bilibili直播 電池", "Bigo Live 鑽石", "虎牙幣", "陌陌幣", "YY直播 Y幣", "映客鑽石"]),
+            "games": (ICONS["game"], COIN, ["王者榮耀 點券", "和平精英 點券", "原神 創世結晶", "PUBG Mobile UC", "火影忍者 點券", "三角洲行動", "蛋仔派對 蛋幣", "逆水寒 金幣"]),
+            "social": (ICONS["social"], COIN, ["小紅書 薯幣", "QQ 黃鑽", "Soul Soul幣", "探探 會員", "Lofter 樂乎幣", "盒島 充值", "Weplay 充值", "HelloTalk HT幣"]),
+            "video-music": (ICONS["music"], VIP, ["貓耳FM 鑽石", "全民K歌 K幣", "bilibili 大會員", "騰訊視頻 VIP", "愛奇藝 VIP", "網易雲音樂 會員", "芒果TV 會員", "QQ音樂 綠鑽"]),
+            "play": (ICONS["voice"], COIN, ["TT語音 T豆", "比心 鑽石", "KOOK 充值", "撈月狗 狗糧", "Wefun 充值", "可樂語音", "不二開黑 金幣", "Yoho 充值"]),
+            "voice": (ICONS["voice"], COIN, ["他ta星球 星幣", "咕咕語音 鑽石", "氧氣語音 金幣", "MOMI 金幣", "微光 光點", "知聊 聊幣", "SUSU 充值", "西柚語音 CUCU"]),
+            "literary": (ICONS["reading"], VIP, ["騰訊動漫 會員", "晉江文學城", "起點讀書", "知乎鹽選 會員", "bilibili 漫畫", "快看漫畫 VIP", "QQ閱讀 書幣", "刺蝟貓 充值"]),
+            "pointcard": (ICONS["giftcard"], CARD, ["蘋果 iTunes 中國區", "Steam 錢包", "Google Play 點數", "Netflix 禮品卡", "Spotify Premium", "PSN 點數卡", "Razer Gold", "Xbox 禮品卡"]),
+            "ai": (ICONS["ai"], VIP, ["ChatGPT Plus", "Claude Pro", "文心一言 會員", "Midjourney", "通義千問 會員", "Kimi 會員", "豆包 會員", "妙鴨相機"]),
+        }
+        hot = {"抖音抖幣充值", "快幣", "王者榮耀 點券", "原神 創世結晶", "小紅書 薯幣", "貓耳FM 鑽石", "Bigo Live 鑽石", "Netflix 禮品卡", "ChatGPT Plus", "全民K歌 K幣"}
+        products = []
+        order = 0
+        for cat, _cname, _ in CATS:
+            icon, tmpl, names = CATALOG[cat]
+            for idx, pname in enumerate(names):
+                order += 1
+                tags = ["熱銷"] if pname in hot else []
+                sales = (1600 - idx * 150) * 600 + order * 97
+                products.append(Product(
+                    name=pname, category=cat, brand=pname.split(" ")[0][:8], image=icon,
+                    description=f"{pname} 海外代充服務，支援全球帳號，由人工極速處理，安全到帳。虛擬商品完成後不可退款，請確認帳號無誤後再下單。",
+                    tutorial="1. 選擇規格與數量\n2. 填寫充值帳號 / ID\n3. 完成付款（本期為測試支付）\n4. 客服人工充值並更新訂單狀態\n5. 於「我的訂單」查看進度",
+                    account_field_label="充值帳號 / ID", account_field_hint="請填寫正確的帳號 ID，部分商品需於備註附上區服 / 伺服器資訊",
+                    specs=specs(tmpl), tags=tags, sales_count=sales,
+                    rating=5.0 if idx % 3 else 4.9, sort_order=order,
+                ).model_dump())
+        await db.products.insert_many(products)
+        all_products = await db.products.find({}, {"_id": 0, "id": 1}).to_list(300)
+        samples = [
+            ("張**明", 5, "充值超快，下單 2 分鐘就到帳，客服態度很好！"),
+            ("Chen***", 5, "海外帳號也能充，價格比官方便宜，推薦。"),
+            ("小***花", 4, "整體不錯，就是晚上客服回覆稍慢一點。"),
+            ("Wong**", 5, "第三次購買了，穩定靠譜，會回購。"),
+            ("林***", 5, "介面清楚，繁中操作很順手，讚！"),
+        ]
+        reviews = []
+        for prod in all_products[:16]:
+            for a, r, c in samples:
+                reviews.append(Review(product_id=prod["id"], author=a, rating=r, content=c).model_dump())
+        await db.reviews.insert_many(reviews)
+    if False:
         def specs(pairs):
             return [{"id": new_id(), "label": l, "price_usd": p, "in_stock": True} for l, p in pairs]
         products = [

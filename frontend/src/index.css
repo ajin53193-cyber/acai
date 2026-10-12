@@ -27,25 +27,25 @@ code, .font-mono {
 
 @layer base {
     :root {
-        --background: 210 40% 98%;
-        --foreground: 222 47% 11%;
+        --background: 36 40% 99%;
+        --foreground: 24 20% 14%;
         --card: 0 0% 100%;
-        --card-foreground: 222 47% 11%;
+        --card-foreground: 24 20% 14%;
         --popover: 0 0% 100%;
-        --popover-foreground: 222 47% 11%;
-        --primary: 221 100% 50%;
+        --popover-foreground: 24 20% 14%;
+        --primary: 26 100% 52%;
         --primary-foreground: 0 0% 100%;
-        --secondary: 24 100% 50%;
+        --secondary: 16 90% 55%;
         --secondary-foreground: 0 0% 100%;
-        --muted: 210 40% 96%;
-        --muted-foreground: 215 16% 47%;
-        --accent: 222 60% 97%;
-        --accent-foreground: 221 100% 50%;
+        --muted: 30 30% 96%;
+        --muted-foreground: 25 15% 45%;
+        --accent: 32 100% 95%;
+        --accent-foreground: 26 100% 45%;
         --destructive: 0 84% 60%;
         --destructive-foreground: 0 0% 100%;
-        --border: 214 32% 91%;
-        --input: 214 32% 91%;
-        --ring: 221 100% 50%;
+        --border: 30 25% 90%;
+        --input: 30 25% 90%;
+        --ring: 26 100% 52%;
         --radius: 0.75rem;
     }
     .dark {
