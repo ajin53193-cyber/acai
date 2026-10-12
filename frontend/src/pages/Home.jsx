@@ -249,7 +249,9 @@ function Carousel({ children, testid }) {
   const endDrag = () => { drag.current.down = false; };
 
   const sized = React.Children.map(children, (c) =>
-    React.cloneElement(c, { style: { ...(c.props.style || {}), width: cardW, flex: "0 0 auto" } })
+    React.cloneElement(c, {
+      style: { ...(c.props.style || {}), width: cardW, flex: "0 0 auto", scrollSnapAlign: "start" },
+    })
   );
 
   return (
@@ -262,6 +264,7 @@ function Carousel({ children, testid }) {
       <div
         ref={ref}
         className="flex gap-3 overflow-x-auto no-scrollbar pb-1 cursor-grab active:cursor-grabbing select-none"
+        style={{ scrollSnapType: "x mandatory" }}
         onMouseDown={onDown} onMouseMove={onMove} onMouseUp={endDrag}
         onClickCapture={(e) => { if (drag.current.moved) { e.preventDefault(); e.stopPropagation(); } }}
       >
