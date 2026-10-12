@@ -1,19 +1,35 @@
 import { Link } from "react-router-dom";
-import { Music2, Heart, Star } from "lucide-react";
+import { Music2, Heart, Star, Apple, CreditCard } from "lucide-react";
 
 const PAY_BADGES = [
-  <span className="font-black italic text-sm text-[#1A1F71]">VISA</span>,
+  <span className="font-black italic text-base text-[#1A1F71]">VISA</span>,
   <span className="flex items-center gap-1">
-    <span className="flex items-center"><span className="h-3.5 w-3.5 rounded-full bg-[#EB001B]" /><span className="h-3.5 w-3.5 rounded-full bg-[#F79E1B] -ml-1.5" /></span>
-    <span className="font-bold text-[10px] text-slate-700">Mastercard</span>
+    <span className="flex items-center"><span className="h-4 w-4 rounded-full bg-[#EB001B]" /><span className="h-4 w-4 rounded-full bg-[#F79E1B] -ml-2" /></span>
+    <span className="font-bold text-[9px] text-slate-700">MasterCard</span>
   </span>,
-  <span className="font-extrabold italic text-sm"><span className="text-[#003087]">Pay</span><span className="text-[#009cde]">Pal</span></span>,
-  <span className="font-semibold text-sm text-slate-900"> Pay</span>,
-  <span className="font-bold text-sm text-[#1677FF]">支付寶</span>,
-  <span className="font-black text-[11px] text-[#f9664f]">Touch'nGo</span>,
-  <span className="font-black text-[11px] text-[#ec1c8e]">PayNow</span>,
-  <span className="font-semibold text-[11px] text-slate-700 leading-tight">臺灣ATM<br />銀行轉帳</span>,
-  <span className="font-semibold text-[11px] text-slate-700">台灣超商</span>,
+  <span className="flex items-center gap-0.5 font-extrabold italic text-sm">
+    <span className="text-[#003087]">Pay</span><span className="text-[#009cde]">Pal</span>
+  </span>,
+  <span className="flex items-center gap-0.5 font-semibold text-sm text-slate-900"><Apple className="h-4 w-4 fill-slate-900 text-slate-900" />Pay</span>,
+  <span className="flex items-center gap-1">
+    <span className="h-5 w-5 rounded-[5px] bg-[#1677FF] text-white text-[12px] font-black flex items-center justify-center">支</span>
+    <span className="font-bold text-[11px] text-[#1677FF]">支付寶</span>
+  </span>,
+  <span className="font-black text-[11px] leading-none text-center text-[#0a7cc1]">Touch<br />'nGo</span>,
+  <span className="font-black text-[11px] leading-none text-center"><span className="text-[#ec1c8e]">PAY</span><br /><span className="text-[#f6a623]">NOW</span></span>,
+  <span className="flex items-center gap-1">
+    <CreditCard className="h-4 w-4 text-slate-500" />
+    <span className="font-bold text-[10px] text-slate-700 leading-tight">臺灣ATM<br />銀行轉帳</span>
+  </span>,
+  <span className="flex flex-col items-center gap-0.5">
+    <span className="font-bold text-[9px] text-slate-700">台灣超商</span>
+    <span className="flex gap-0.5">
+      <span className="h-3.5 w-3.5 rounded-sm bg-[#ff7f00] text-white text-[7px] font-black flex items-center justify-center">7</span>
+      <span className="h-3.5 w-3.5 rounded-sm bg-[#008a3e] text-white text-[7px] font-black flex items-center justify-center">F</span>
+      <span className="h-3.5 w-3.5 rounded-sm bg-[#e60012] text-white text-[6px] font-black flex items-center justify-center">Hi</span>
+      <span className="h-3.5 w-3.5 rounded-sm bg-[#005bac] text-white text-[6px] font-black flex items-center justify-center">OK</span>
+    </span>
+  </span>,
 ];
 
 const COLS = [
