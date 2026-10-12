@@ -598,7 +598,7 @@ async def seed():
         "giftcard": IMG + "df165757e3fa2be6af11c3083267c24e1ed61f5ddc105b6ebfd19b84efce9c0d.jpeg",
         "point": IMG + "521664001099b0c3c457bf82fcafbd877d4101d6d137bb792087f631ecd011b0.jpeg",
     }
-    SEED_VERSION = 7
+    SEED_VERSION = 8
     meta = await db.meta.find_one({"_id": "seed"})
     if not meta or meta.get("version") != SEED_VERSION:
         await db.categories.delete_many({})
@@ -632,12 +632,12 @@ async def seed():
         VIP = [("1 個月", 8.99), ("3 個月", 24.99), ("12 個月", 89.99)]
         CARD = [("US$10", 10.49), ("US$25", 25.49), ("US$50", 49.99), ("US$100", 98.99)]
         CATALOG = {
-            "livestream": (ICONS["shortvideo"], COIN, ["抖音抖幣充值", "快幣", "bilibili直播 電池", "Bigo Live 鑽石", "虎牙幣", "陌陌幣", "YY直播 Y幣", "映客鑽石"]),
-            "games": (ICONS["game"], COIN, ["王者榮耀 點券", "和平精英 點券", "原神 創世結晶", "PUBG Mobile UC", "火影忍者 點券", "三角洲行動", "蛋仔派對 蛋幣", "逆水寒 金幣"]),
-            "social": (ICONS["social"], COIN, ["小紅書 薯幣", "QQ 黃鑽", "Soul Soul幣", "探探 會員", "Lofter 樂乎幣", "盒島 充值", "Weplay 充值", "HelloTalk HT幣"]),
-            "video-music": (ICONS["music"], VIP, ["貓耳FM 鑽石", "全民K歌 K幣", "bilibili 大會員", "騰訊視頻 VIP", "愛奇藝 VIP", "網易雲音樂 會員", "芒果TV 會員", "QQ音樂 綠鑽"]),
-            "play": (ICONS["voice"], COIN, ["TT語音 T豆", "比心 鑽石", "KOOK 充值", "撈月狗 狗糧", "Wefun 充值", "可樂語音", "不二開黑 金幣", "Yoho 充值"]),
-            "voice": (ICONS["voice"], COIN, ["他ta星球 星幣", "咕咕語音 鑽石", "氧氣語音 金幣", "MOMI 金幣", "微光 光點", "知聊 聊幣", "SUSU 充值", "西柚語音 CUCU"]),
+            "livestream": (ICONS["shortvideo"], COIN, ["抖音抖幣充值", "快幣", "bilibili直播 電池", "Bigo Live 鑽石", "虎牙幣", "陌陌幣", "YY直播 Y幣", "映客鑽石", "花椒直播 花椒豆", "一直播 粒子", "酷狗直播 星幣", "繁星直播 星鑽", "六間房 六幣", "NOW直播 玫瑰", "來瘋直播 來瘋幣", "章魚直播 魚丸", "龍珠直播 龍珠", "17LIVE 鑽石", "Uplive 金幣", "Twitch Bits"]),
+            "games": (ICONS["game"], COIN, ["王者榮耀 點券", "和平精英 點券", "原神 創世結晶", "PUBG Mobile UC", "火影忍者 點券", "三角洲行動", "蛋仔派對 蛋幣", "逆水寒 金幣", "崩壞星穹鐵道 星瓊", "絕區零 菲林", "陰陽師 勾玉", "第五人格 回聲", "明日方舟 合成玉", "夢幻西遊 仙玉", "傳說對決 鑽石", "Free Fire 鑽石", "Mobile Legends 鑽石", "金鏟鏟之戰 點券", "光遇 創作蠟燭", "元夢之星 星鑽"]),
+            "social": (ICONS["social"], COIN, ["小紅書 薯幣", "QQ 黃鑽", "Soul Soul幣", "探探 會員", "Lofter 樂乎幣", "盒島 充值", "Weplay 充值", "HelloTalk HT幣", "微博 會員", "積目 會員", "伊對 玫瑰", "青藤之戀 會員", "Summer 充值", "一周CP 會員", "Tinder 會員", "Bumble 會員", "他趣 金幣", "回聲 充值", "陌陌 陌陌幣", "心動 充值"]),
+            "video-music": (ICONS["music"], VIP, ["貓耳FM 鑽石", "全民K歌 K幣", "bilibili 大會員", "騰訊視頻 VIP", "愛奇藝 VIP", "網易雲音樂 會員", "芒果TV 會員", "QQ音樂 綠鑽", "優酷 VIP", "酷狗音樂 會員", "酷我音樂 會員", "咪咕音樂 會員", "喜馬拉雅 會員", "蜻蜓FM 會員", "荔枝FM 充值", "懶人聽書 會員", "番茄暢聽 會員", "唱吧 K幣", "西瓜視頻 充值", "Spotify 會員"]),
+            "play": (ICONS["voice"], COIN, ["TT語音 T豆", "比心 鑽石", "KOOK 充值", "撈月狗 狗糧", "Wefun 充值", "可樂語音", "不二開黑 金幣", "Yoho 充值", "魚泡泡 充值", "嗨皮 充值", "開黑啦 充值", "咪呀 充值", "魚耳 充值", "大神 充值", "暴雞電競 充值", "猴急 充值", "戰吼 充值", "玩吧 金幣", "一起玩 金幣", "螃蟹電競 充值"]),
+            "voice": (ICONS["voice"], COIN, ["他ta星球 星幣", "咕咕語音 鑽石", "氧氣語音 金幣", "MOMI 金幣", "微光 光點", "知聊 聊幣", "SUSU 充值", "西柚語音 CUCU", "嗨吧語音 充值", "糖果語音 充值", "一耳語音 充值", "遇見語音 充值", "音遇 音符", "吱呀 充值", "遞爪 充值", "克拉克拉 充值", "貓耳語音 充值", "心遇 充值", "連信 金幣", "伴伴 充值"]),
             "literary": (ICONS["reading"], VIP, ["騰訊動漫 會員", "晉江文學城", "起點讀書", "知乎鹽選 會員", "bilibili 漫畫", "快看漫畫 VIP", "QQ閱讀 書幣", "刺蝟貓 充值"]),
             "pointcard": (ICONS["giftcard"], CARD, ["蘋果 iTunes 中國區", "Steam 錢包", "Google Play 點數", "Netflix 禮品卡", "Spotify Premium", "PSN 點數卡", "Razer Gold", "Xbox 禮品卡"]),
             "life": (ICONS["giftcard"], COIN, ["美團 充值", "餓了麼 會員", "滴滴出行 券", "高德打車", "瑞幸咖啡 券", "盒馬 充值", "叮咚買菜", "順豐寄件"]),
