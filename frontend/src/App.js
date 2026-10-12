@@ -1,7 +1,8 @@
 import "@/App.css";
 import { BrowserRouter, Routes, Route, Outlet } from "react-router-dom";
-import { SignIn, SignUp } from "@clerk/react";
+import { SignIn, SignUp, AuthenticateWithRedirectCallback } from "@clerk/react";
 import ClerkAuthProvider from "@/components/auth/ClerkAuthProvider";
+import { AuthModalProvider } from "@/components/auth/AuthModal";
 import { CurrencyProvider } from "@/context/CurrencyContext";
 import { CartProvider } from "@/context/CartContext";
 import Header from "@/components/Header";
@@ -18,15 +19,17 @@ import Admin from "@/pages/Admin";
 
 function StoreLayout() {
   return (
-    <div className="min-h-screen flex flex-col">
-      <Header />
-      <main className="flex-1">
-        <Outlet />
-      </main>
-      <Footer />
-      <CartDrawer />
-      <ServiceWidget />
-    </div>
+    <AuthModalProvider>
+      <div className="min-h-screen flex flex-col">
+        <Header />
+        <main className="flex-1">
+          <Outlet />
+        </main>
+        <Footer />
+        <CartDrawer />
+        <ServiceWidget />
+      </div>
+    </AuthModalProvider>
   );
 }
 
@@ -55,6 +58,7 @@ function App() {
                   <Route path="/info/:slug" element={<Info />} />
                 </Route>
                 <Route path="/admin" element={<Admin />} />
+                <Route path="/sso-callback" element={<AuthenticateWithRedirectCallback signInFallbackRedirectUrl="/" signUpFallbackRedirectUrl="/" />} />
                 <Route path="/sign-in/*" element={<AuthLayout><SignIn routing="path" path="/sign-in" signUpUrl="/sign-up" withSignUp /></AuthLayout>} />
                 <Route path="/sign-up/*" element={<AuthLayout><SignUp routing="path" path="/sign-up" signInUrl="/sign-in" /></AuthLayout>} />
               </Routes>

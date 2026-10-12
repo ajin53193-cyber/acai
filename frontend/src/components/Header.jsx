@@ -6,6 +6,7 @@ import { Search, ShoppingCart, Headphones, ChevronDown, Shield, Package, Menu, X
 import { publicApi, useApi } from "@/lib/api";
 import { useCart } from "@/context/CartContext";
 import { useCurrency } from "@/context/CurrencyContext";
+import { useAuthModal } from "@/components/auth/AuthModal";
 import CurrencySelector from "@/components/CurrencySelector";
 import {
   DropdownMenu,
@@ -33,6 +34,7 @@ export default function Header() {
   const { count, setOpen } = useCart();
   const { active } = useCurrency();
   const { isSignedIn } = useUser();
+  const { openAuth } = useAuthModal();
   const callApi = useApi();
   const [categories, setCategories] = useState([]);
   const [isAdmin, setIsAdmin] = useState(false);
@@ -115,10 +117,10 @@ export default function Header() {
                   </button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-40">
-                  <DropdownMenuItem data-testid="promo-register" onClick={() => navigate("/sign-up")} className="cursor-pointer gap-2">
+                  <DropdownMenuItem data-testid="promo-register" onClick={openAuth} className="cursor-pointer gap-2">
                     <Gift className="h-4 w-4 text-orange-500" /> 立即註冊
                   </DropdownMenuItem>
-                  <DropdownMenuItem data-testid="promo-login" onClick={() => navigate("/sign-in")} className="cursor-pointer gap-2">
+                  <DropdownMenuItem data-testid="promo-login" onClick={openAuth} className="cursor-pointer gap-2">
                     <UserRound className="h-4 w-4 text-slate-500" /> 會員登入
                   </DropdownMenuItem>
                 </DropdownMenuContent>
@@ -128,7 +130,7 @@ export default function Header() {
             {!isSignedIn ? (
               <button
                 data-testid="header-signin-btn"
-                onClick={() => navigate("/sign-in")}
+                onClick={openAuth}
                 className="flex items-center gap-1.5 h-10 pl-3 pr-5 rounded-full text-sm font-semibold text-orange-500 bg-orange-100/70 hover:bg-orange-100 transition-colors"
               >
                 <UserRound className="h-5 w-5" /> <span className="hidden sm:inline">登入</span>
