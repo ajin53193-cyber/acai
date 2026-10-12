@@ -15,6 +15,8 @@ import ProductDetail from "@/pages/ProductDetail";
 import Checkout from "@/pages/Checkout";
 import MyOrders from "@/pages/MyOrders";
 import Info from "@/pages/Info";
+import ArticleCenter from "@/pages/ArticleCenter";
+import ArticleDetail from "@/pages/ArticleDetail";
 import Admin from "@/pages/Admin";
 
 function StoreLayout() {
@@ -56,6 +58,8 @@ function App() {
                   <Route path="/checkout" element={<Checkout />} />
                   <Route path="/orders" element={<MyOrders />} />
                   <Route path="/info/:slug" element={<Info />} />
+                  <Route path="/article" element={<ArticleCenter />} />
+                  <Route path="/article/:id" element={<ArticleDetail />} />
                 </Route>
                 <Route path="/admin" element={<Admin />} />
                 <Route path="/sso-callback" element={<AuthenticateWithRedirectCallback signInFallbackRedirectUrl="/" signUpFallbackRedirectUrl="/" />} />

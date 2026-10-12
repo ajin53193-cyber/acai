@@ -1,9 +1,11 @@
 import { createContext, useContext, useState, useCallback } from "react";
-import { useSignIn, useSignUp } from "@clerk/react";
+import { useSignIn, useSignUp } from "@clerk/react/legacy";
 import { Link } from "react-router-dom";
-import { X, Apple, ChevronDown, Search } from "lucide-react";
+import { X, Apple } from "lucide-react";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import { PhoneInput, toE164, isValidPhone } from "./PhoneInput";
+import { ForgotPassword } from "./ForgotPassword";
 
 const Ctx = createContext({ openAuth: () => {} });
 export const useAuthModal = () => useContext(Ctx);
@@ -25,29 +27,6 @@ const TABS = [
   ["account", "帳號登入"],
 ];
 
-const COUNTRIES = [
-  { flag: "🇹🇼", name: "中國台灣", code: "+886" },
-  { flag: "🇭🇰", name: "香港", code: "+852" },
-  { flag: "🇨🇳", name: "中國大陸", code: "+86" },
-  { flag: "🇺🇸", name: "美國", code: "+1" },
-  { flag: "🇨🇦", name: "加拿大", code: "+1" },
-  { flag: "🇬🇧", name: "英國", code: "+44" },
-  { flag: "🇲🇾", name: "馬來西亞", code: "+60" },
-  { flag: "🇸🇬", name: "新加坡", code: "+65" },
-  { flag: "🇯🇵", name: "日本", code: "+81" },
-  { flag: "🇰🇷", name: "韓國", code: "+82" },
-  { flag: "🇦🇺", name: "澳洲", code: "+61" },
-  { flag: "🇫🇷", name: "法國", code: "+33" },
-  { flag: "🇩🇪", name: "德國", code: "+49" },
-  { flag: "🇺🇦", name: "烏克蘭", code: "+380" },
-  { flag: "🇬🇭", name: "加納", code: "+233" },
-  { flag: "🇹🇭", name: "泰國", code: "+66" },
-  { flag: "🇻🇳", name: "越南", code: "+84" },
-  { flag: "🇮🇩", name: "印尼", code: "+62" },
-  { flag: "🇵🇭", name: "菲律賓", code: "+63" },
-  { flag: "🇮🇳", name: "印度", code: "+91" },
-];
-
 function AuthModal({ open, onOpenChange }) {
   const { signIn, setActive: setSignInActive, isLoaded: siLoaded } = useSignIn();
   const { signUp, setActive: setSignUpActive, isLoaded: suLoaded } = useSignUp();
@@ -60,9 +39,7 @@ function AuthModal({ open, onOpenChange }) {
   const [agree, setAgree] = useState(true);
   const [loading, setLoading] = useState(false);
   const [dialCode, setDialCode] = useState("+886");
-  const [countryOpen, setCountryOpen] = useState(false);
-  const [countrySearch, setCountrySearch] = useState("");
-  const country = COUNTRIES.find((c) => c.code === dialCode) || COUNTRIES[0];
+  const [view, setView] = useState("login");
 
   const switchTab = (t) => {
     setTab(t);
@@ -71,7 +48,7 @@ function AuthModal({ open, onOpenChange }) {
     setIsSignUp(false);
   };
 
-  const close = () => onOpenChange(false);
+  const close = () => { onOpenChange(false); setView("login"); };
 
   const finish = async (sessionId, setter) => {
     await setter({ session: sessionId });
@@ -83,8 +60,8 @@ function AuthModal({ open, onOpenChange }) {
   async function sendCode() {
     if (!siLoaded || !suLoaded) return;
     if (!identifier) return toast.error(tab === "phone" ? "請輸入手機號碼" : "請輸入信箱");
-    const phoneFull = dialCode + identifier.replace(/[^0-9]/g, "").replace(/^0+/, "");
-    if (tab === "phone" && !/^\+[1-9]\d{6,14}$/.test(phoneFull))
+    const phoneFull = toE164(dialCode, identifier);
+    if (tab === "phone" && !isValidPhone(phoneFull))
       return toast.error("請輸入正確的手機號碼");
     setLoading(true);
     try {
@@ -196,6 +173,9 @@ function AuthModal({ open, onOpenChange }) {
           <X className="h-5 w-5" />
         </button>
 
+        {view === "forgot" ? (
+          <ForgotPassword onBack={() => setView("login")} onClose={close} />
+        ) : (
         <div className="px-6 pb-6 pt-3 w-full min-w-0 max-w-full">
           {/* tabs */}
           <div className="flex items-center gap-6 mb-5">
@@ -223,61 +203,7 @@ function AuthModal({ open, onOpenChange }) {
           {/* fields */}
           <div className="space-y-3">
             {tab === "phone" ? (
-              <div className="relative">
-                <div className="flex items-center w-full h-14 rounded-2xl bg-slate-100 px-3 focus-within:ring-2 focus-within:ring-orange-300">
-                  <button
-                    type="button"
-                    data-testid="auth-country-btn"
-                    onClick={() => setCountryOpen((v) => !v)}
-                    className="flex items-center gap-1.5 pr-3 mr-2 border-r border-slate-300 shrink-0"
-                  >
-                    <span className="text-xl leading-none">{country.flag}</span>
-                    <span className="font-semibold text-slate-700">{dialCode}</span>
-                    <ChevronDown className={`h-4 w-4 text-slate-500 transition-transform ${countryOpen ? "rotate-180" : ""}`} />
-                  </button>
-                  <input
-                    data-testid="auth-identifier"
-                size={1}
-                    value={identifier}
-                    onChange={(e) => setIdentifier(e.target.value)}
-                    placeholder="手機號碼"
-                    inputMode="tel"
-                    className="flex-1 min-w-0 bg-transparent text-base outline-none placeholder:text-slate-400"
-                  />
-                </div>
-                {countryOpen && (
-                  <div className="absolute z-20 left-0 right-0 mt-2 bg-white rounded-2xl shadow-xl border border-slate-100 p-3" data-testid="auth-country-list">
-                    <div className="flex items-center gap-2 bg-slate-100 rounded-xl px-3 h-11 mb-2">
-                      <Search className="h-4 w-4 text-slate-400" />
-                      <input
-                        autoFocus
-                        value={countrySearch}
-                        onChange={(e) => setCountrySearch(e.target.value)}
-                        placeholder="搜尋國家/地區或區號"
-                        className="flex-1 bg-transparent outline-none text-sm placeholder:text-slate-400"
-                      />
-                    </div>
-                    <div className="max-h-64 overflow-y-auto no-scrollbar">
-                      {COUNTRIES.filter(
-                        (c) => c.name.includes(countrySearch) || c.code.includes(countrySearch)
-                      ).map((c) => (
-                        <button
-                          key={c.name}
-                          data-testid={`auth-country-${c.code}`}
-                          onClick={() => { setDialCode(c.code); setCountryOpen(false); setCountrySearch(""); }}
-                          className="w-full flex items-center justify-between px-2 py-2.5 rounded-lg hover:bg-orange-50 transition-colors"
-                        >
-                          <span className="flex items-center gap-3">
-                            <span className="text-xl leading-none">{c.flag}</span>
-                            <span className="text-slate-700">{c.name}</span>
-                          </span>
-                          <span className="text-slate-400 font-medium">{c.code}</span>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
+              <PhoneInput dialCode={dialCode} setDialCode={setDialCode} value={identifier} onChange={setIdentifier} />
             ) : (
               <input
                 data-testid="auth-identifier"
@@ -352,7 +278,7 @@ function AuthModal({ open, onOpenChange }) {
           {/* helper links */}
           <div className="flex items-center justify-between mt-4 text-sm text-slate-500">
             <button data-testid="auth-resend" onClick={sendCode} className="hover:text-orange-500">收不到驗證碼？</button>
-            <Link to="/info/faq" onClick={close} className="hover:text-orange-500">忘記密碼？</Link>
+            <button data-testid="auth-forgot" onClick={() => setView("forgot")} className="hover:text-orange-500">忘記密碼？</button>
           </div>
 
           {/* divider */}
@@ -387,6 +313,7 @@ function AuthModal({ open, onOpenChange }) {
             </button>
           </div>
         </div>
+        )}
       </DialogContent>
     </Dialog>
   );
