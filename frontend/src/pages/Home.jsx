@@ -103,7 +103,7 @@ export default function Home() {
             {hot.slice(0, 16).map((p) => (
               <Link key={p.id} to={`/product/${p.id}`} data-testid={`product-card-${p.id}`}
                 className="group shrink-0 w-[150px] sm:w-[180px] bg-white rounded-2xl border border-slate-100 shadow-sm p-3 hover:shadow-md hover:-translate-y-0.5 transition-all">
-                <div className="relative w-full aspect-square rounded-2xl overflow-hidden bg-white">
+                <div className="relative w-[80%] mx-auto aspect-square rounded-2xl overflow-hidden bg-white">
                   <img src={p.image} alt={p.name} className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-300" />
                   {p.tags?.includes("熱銷") && <span className="absolute top-1.5 left-1.5 text-[10px] font-bold rounded-md px-1.5 py-0.5 bg-red-500 text-white">熱銷</span>}
                 </div>
@@ -356,7 +356,7 @@ function PagedGrid({ items, perPage = 10, testid }) {
             style={{ scrollSnapAlign: "start" }}>
             {pg.map((p) => (
               <Link key={p.id} to={`/product/${p.id}`} draggable={false} data-testid={`cat-product-${p.id}`} className="group flex flex-col items-center text-center">
-                <div className="w-full aspect-square rounded-[22px] overflow-hidden bg-white border border-slate-50 shadow-sm group-hover:shadow-md transition-shadow">
+                <div className="w-[80%] aspect-square rounded-[22px] overflow-hidden bg-white border border-slate-50 shadow-sm group-hover:shadow-md transition-shadow">
                   <img src={p.image} alt={p.name} draggable={false} className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-300 pointer-events-none" />
                 </div>
                 <div className="text-xs sm:text-[13px] leading-normal text-slate-600 mt-2 truncate w-full group-hover:text-orange-600">{p.name}</div>
