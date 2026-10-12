@@ -5,6 +5,7 @@ import { Search, ShoppingCart, Headphones, ChevronDown, Shield, Package, Menu, X
   Tv, Gamepad2, MessageCircle, Music, Smile, Mic, HeartHandshake, CreditCard, BookOpen, Rocket, Cpu } from "lucide-react";
 import { publicApi, useApi } from "@/lib/api";
 import { useCart } from "@/context/CartContext";
+import { useCurrency } from "@/context/CurrencyContext";
 import CurrencySelector from "@/components/CurrencySelector";
 import {
   DropdownMenu,
@@ -30,6 +31,7 @@ const CAT_ICONS = {
 export default function Header() {
   const navigate = useNavigate();
   const { count, setOpen } = useCart();
+  const { active } = useCurrency();
   const { isSignedIn } = useUser();
   const callApi = useApi();
   const [categories, setCategories] = useState([]);
@@ -130,7 +132,7 @@ export default function Header() {
               <button
                 data-testid="header-signin-btn"
                 onClick={() => navigate("/sign-in")}
-                className="flex items-center gap-1 h-10 px-3 rounded-full text-sm font-semibold text-slate-700 hover:text-orange-600"
+                className="flex items-center gap-1.5 h-10 pl-3 pr-5 rounded-full text-sm font-semibold text-orange-500 bg-orange-100/70 hover:bg-orange-100 transition-colors"
               >
                 <UserRound className="h-5 w-5" /> <span className="hidden sm:inline">登入</span>
               </button>
@@ -148,20 +150,20 @@ export default function Header() {
               </>
             )}
 
-            <button data-testid="cart-trigger" onClick={() => setOpen(true)} className="relative p-2 rounded-lg hover:bg-orange-50 text-slate-700">
+            <button data-testid="cart-trigger" onClick={() => setOpen(true)} className="relative h-10 w-10 rounded-full bg-orange-100/70 hover:bg-orange-100 text-orange-500 flex items-center justify-center transition-colors">
               <ShoppingCart className="h-5 w-5" />
               {count > 0 && (
                 <span data-testid="cart-count" className="absolute -top-0.5 -right-0.5 h-4 min-w-4 px-1 rounded-full bg-orange-500 text-white text-[10px] font-bold flex items-center justify-center">{count}</span>
               )}
             </button>
 
-            <button className="hidden sm:flex p-2 rounded-lg hover:bg-orange-50 text-slate-700" title="線上客服">
+            <button data-testid="service-trigger" className="hidden sm:flex h-10 w-10 rounded-full bg-orange-100/70 hover:bg-orange-100 text-orange-500 items-center justify-center transition-colors" title="線上客服">
               <Headphones className="h-5 w-5" />
             </button>
 
-            <div className="hidden md:flex items-center gap-1 border-l border-slate-200 pl-2">
-              <CurrencySelector />
-              <span className="text-xs text-slate-500 font-medium">ZH-TW</span>
+            <div className="hidden md:flex items-center gap-2 pl-2 ml-1 border-l border-slate-200">
+              <CurrencySelector variant="circle" />
+              <span className="text-sm text-slate-500 font-medium whitespace-nowrap">ZH-TW / {active.code}</span>
             </div>
 
             <button data-testid="mobile-nav-toggle" onClick={() => setMobileNav((v) => !v)} className="md:hidden p-2 rounded-lg hover:bg-orange-50 text-slate-700">
