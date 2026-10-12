@@ -93,33 +93,49 @@ export default function Header() {
 
           {/* Right actions */}
           <div className="flex items-center gap-2 md:gap-3 ml-auto">
-            <Link
-              to="/sign-up"
-              data-testid="register-promo-pill"
-              className="hidden lg:flex items-center gap-1.5 bg-gradient-to-r from-amber-100 to-orange-100 text-orange-700 rounded-full pl-3 pr-4 py-1.5 text-xs font-bold border border-orange-200 hover:shadow-sm transition-shadow"
-            >
-              <Gift className="h-4 w-4" />
-              <span className="leading-tight">新用戶註冊<br />最高領 9% 優惠券</span>
-            </Link>
+            {!isSignedIn && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    data-testid="register-promo-pill"
+                    className="hidden lg:flex items-center gap-1.5 bg-gradient-to-r from-amber-100 to-orange-100 text-orange-700 rounded-full pl-3 pr-4 py-1.5 text-xs font-bold border border-orange-200 hover:shadow-sm transition-shadow"
+                  >
+                    <Gift className="h-4 w-4" />
+                    <span className="leading-tight text-left">新用戶註冊<br />最高領 9% 優惠券</span>
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-40">
+                  <DropdownMenuItem data-testid="promo-register" onClick={() => navigate("/sign-up")} className="cursor-pointer gap-2">
+                    <Gift className="h-4 w-4 text-orange-500" /> 立即註冊
+                  </DropdownMenuItem>
+                  <DropdownMenuItem data-testid="promo-login" onClick={() => navigate("/sign-in")} className="cursor-pointer gap-2">
+                    <UserRound className="h-4 w-4 text-slate-500" /> 會員登入
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
 
-            <Show when="signed-out">
-              <SignInButton>
-                <button data-testid="header-signin-btn" className="flex items-center gap-1 h-10 px-3 rounded-full text-sm font-semibold text-slate-700 hover:text-orange-600">
-                  <UserRound className="h-5 w-5" /> <span className="hidden sm:inline">登入</span>
-                </button>
-              </SignInButton>
-            </Show>
-            <Show when="signed-in">
-              <Link to="/orders" data-testid="my-orders-link" className="hidden sm:flex items-center gap-1 text-sm text-slate-600 hover:text-orange-600 px-1">
-                <Package className="h-5 w-5" />
-              </Link>
-              {isAdmin && (
-                <Link to="/admin" data-testid="admin-entry-link" className="hidden sm:flex items-center text-orange-600 px-1">
-                  <Shield className="h-5 w-5" />
+            {!isSignedIn ? (
+              <button
+                data-testid="header-signin-btn"
+                onClick={() => navigate("/sign-in")}
+                className="flex items-center gap-1 h-10 px-3 rounded-full text-sm font-semibold text-slate-700 hover:text-orange-600"
+              >
+                <UserRound className="h-5 w-5" /> <span className="hidden sm:inline">登入</span>
+              </button>
+            ) : (
+              <>
+                <Link to="/orders" data-testid="my-orders-link" className="hidden sm:flex items-center gap-1 text-sm text-slate-600 hover:text-orange-600 px-1">
+                  <Package className="h-5 w-5" />
                 </Link>
-              )}
-              <UserButton />
-            </Show>
+                {isAdmin && (
+                  <Link to="/admin" data-testid="admin-entry-link" className="hidden sm:flex items-center text-orange-600 px-1">
+                    <Shield className="h-5 w-5" />
+                  </Link>
+                )}
+                <UserButton />
+              </>
+            )}
 
             <button data-testid="cart-trigger" onClick={() => setOpen(true)} className="relative p-2 rounded-lg hover:bg-orange-50 text-slate-700">
               <ShoppingCart className="h-5 w-5" />
