@@ -114,15 +114,11 @@ export default function Home() {
 
         {/* Promo banners */}
         <section className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-4">
-          <Link to="/sign-up" className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-orange-500 to-amber-500 p-6 text-white h-32 flex flex-col justify-center">
-            <div className="font-head text-xl font-extrabold">新用戶註冊好禮</div>
-            <p className="text-sm text-white/90 mt-1">首單最高領 9% 優惠券，立即開通</p>
-            <Gift className="absolute right-5 bottom-4 h-16 w-16 text-white/20" />
+          <Link to="/sign-up" data-testid="promo-banner-1" className="block overflow-hidden rounded-2xl hover:shadow-lg transition-shadow">
+            <img src="https://customer-assets-39nsmqrw.emergentagent.net/job_crossborder-topup/artifacts/b55a2354a230f99b_image.png" alt="新版上線有禮 5% OFF" className="w-full h-auto object-cover" />
           </Link>
-          <Link to="/category/games" className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-rose-500 to-orange-500 p-6 text-white h-32 flex flex-col justify-center">
-            <div className="font-head text-xl font-extrabold">全站充值盛惠</div>
-            <p className="text-sm text-white/90 mt-1">熱門遊戲 / 直播幣 立省最高 7%</p>
-            <Zap className="absolute right-5 bottom-4 h-16 w-16 text-white/20" />
+          <Link to="/category/games" data-testid="promo-banner-2" className="block overflow-hidden rounded-2xl hover:shadow-lg transition-shadow">
+            <img src="https://customer-assets-39nsmqrw.emergentagent.net/job_crossborder-topup/artifacts/3673631df7a58fe1_image.png" alt="精選活動合集 優惠一站搞定" className="w-full h-auto object-cover" />
           </Link>
         </section>
 
