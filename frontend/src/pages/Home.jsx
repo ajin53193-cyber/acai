@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { Link } from "react-router-dom";
 import { ChevronRight, ChevronLeft, Zap, Megaphone, ShieldCheck, Rocket, Headphones, Tag, Globe, Star, Users, Gift } from "lucide-react";
 import { publicApi } from "@/lib/api";
@@ -206,27 +206,26 @@ export default function Home() {
 function Carousel({ children, testid }) {
   const ref = useRef(null);
   const [paused, setPaused] = useState(false);
-  const [center, setCenter] = useState(false);
-
-  const step = () => {
-    const el = ref.current;
-    if (!el || !el.children[0]) return 200;
-    return el.children[0].offsetWidth + 12;
-  };
-  const scrollByDir = (dir) => {
-    const el = ref.current;
-    if (el) el.scrollBy({ left: dir * step(), behavior: "smooth" });
-  };
+  const [cardW, setCardW] = useState(180);
+  const GAP = 12;
 
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
-    const check = () => setCenter(el.scrollWidth <= el.clientWidth + 2);
-    check();
-    const ro = new ResizeObserver(check);
+    const measure = () => {
+      const per = el.clientWidth < 500 ? 3 : el.clientWidth < 768 ? 4 : 6;
+      setCardW((el.clientWidth - GAP * (per - 1)) / per);
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
     ro.observe(el);
     return () => ro.disconnect();
   }, [children]);
+
+  const scrollByDir = (dir) => {
+    const el = ref.current;
+    if (el) el.scrollBy({ left: dir * (cardW + GAP), behavior: "smooth" });
+  };
 
   useEffect(() => {
     const el = ref.current;
@@ -236,11 +235,11 @@ function Carousel({ children, testid }) {
       if (el.scrollLeft + el.clientWidth >= el.scrollWidth - 8) {
         el.scrollTo({ left: 0, behavior: "smooth" });
       } else {
-        el.scrollBy({ left: step(), behavior: "smooth" });
+        el.scrollBy({ left: cardW + GAP, behavior: "smooth" });
       }
     }, 3000);
     return () => clearInterval(timer);
-  }, [paused]);
+  }, [paused, cardW]);
 
   const drag = useRef({ down: false, startX: 0, startLeft: 0, moved: false });
   const onDown = (e) => {
@@ -256,6 +255,10 @@ function Carousel({ children, testid }) {
   };
   const endDrag = () => { drag.current.down = false; };
 
+  const sized = React.Children.map(children, (c) =>
+    React.cloneElement(c, { style: { ...(c.props.style || {}), width: cardW, flex: "0 0 auto" } })
+  );
+
   return (
     <div className="relative" data-testid={testid}
       onMouseEnter={() => setPaused(true)} onMouseLeave={() => { setPaused(false); endDrag(); }}>
@@ -265,11 +268,11 @@ function Carousel({ children, testid }) {
       </button>
       <div
         ref={ref}
-        className={`flex gap-3 overflow-x-auto no-scrollbar pb-1 cursor-grab active:cursor-grabbing select-none ${center ? "justify-center" : ""}`}
+        className="flex gap-3 overflow-x-auto no-scrollbar pb-1 cursor-grab active:cursor-grabbing select-none"
         onMouseDown={onDown} onMouseMove={onMove} onMouseUp={endDrag}
         onClickCapture={(e) => { if (drag.current.moved) { e.preventDefault(); e.stopPropagation(); } }}
       >
-        {children}
+        {sized}
       </div>
       <button data-testid={`${testid}-next`} onClick={() => scrollByDir(1)}
         className="absolute -right-4 top-1/2 -translate-y-1/2 z-10 h-9 w-9 rounded-full bg-white shadow-md border border-orange-100 flex items-center justify-center text-orange-500 hover:bg-orange-50">
