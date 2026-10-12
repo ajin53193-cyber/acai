@@ -70,12 +70,8 @@ export default function Header() {
       <div className="bg-white border-b border-orange-100 shadow-sm relative">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 md:h-[72px] flex items-center gap-3 md:gap-5">
           {/* Logo */}
-          <Link to="/" data-testid="logo-link" className="flex items-center gap-2 shrink-0">
-            <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-orange-500 to-amber-500 flex items-center justify-center text-white font-black font-head text-lg shadow">G</div>
-            <div className="leading-tight">
-              <div className="font-head font-extrabold text-xl tracking-tight text-orange-600">GlobalTopUp</div>
-              <div className="text-[10px] text-slate-400 font-medium hidden sm:block">全球應用內購服務</div>
-            </div>
+          <Link to="/" data-testid="logo-link" className="flex items-center shrink-0">
+            <img src="/gogo589-logo.png" alt="gogo589" className="h-8 md:h-10 w-auto object-contain" />
           </Link>
 
           {/* 所有服務 + search */}
