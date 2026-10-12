@@ -79,19 +79,12 @@ export default function Category() {
                 key={p.id}
                 to={`/product/${p.id}`}
                 data-testid={`product-card-${p.id}`}
-                className="group bg-white rounded-2xl border border-slate-100 p-3 flex flex-col items-center text-center hover:shadow-lg hover:border-orange-200 transition-all"
+                className="group bg-white rounded-2xl border border-slate-100 shadow-sm p-3 flex flex-col items-center text-center hover:shadow-lg hover:-translate-y-0.5 transition-all"
               >
-                <div className="relative w-full aspect-square rounded-xl overflow-hidden bg-slate-50">
+                <div className="w-full aspect-square rounded-2xl overflow-hidden bg-slate-50">
                   <img src={p.image} alt={p.name} className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-300" />
-                  {p.tags?.includes("熱銷") && (
-                    <span className="absolute top-1.5 left-1.5 text-[10px] font-bold rounded-md px-1.5 py-0.5 bg-red-500 text-white">熱銷</span>
-                  )}
                 </div>
-                <div className="text-[13px] font-medium text-slate-800 mt-2 line-clamp-2 leading-tight min-h-[2.3rem] group-hover:text-orange-600">{p.name}</div>
-                <div className="flex items-center justify-between w-full mt-1 text-[11px] text-slate-400">
-                  <span className="flex items-center gap-0.5"><Users className="h-3 w-3" />{salesText(p.sales_count)}</span>
-                  <span className="flex items-center gap-0.5 text-amber-500 font-semibold">{p.rating}<Star className="h-3 w-3 fill-amber-400 text-amber-400" /></span>
-                </div>
+                <div className="text-sm font-semibold text-slate-800 mt-3 line-clamp-2 leading-tight min-h-[2.5rem] group-hover:text-orange-600">{p.name}</div>
               </Link>
             ))}
           </div>
