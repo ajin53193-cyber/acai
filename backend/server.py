@@ -587,18 +587,18 @@ async def seed():
         ])
     IMG = "https://static.prod-images.emergentagent.com/jobs/8c0ad436-0c2e-49bb-a5bb-0efc73c32f62/images/"
     ICONS = {
-        "shortvideo": IMG + "d93bf069a4441f481961df104adc6d5520dce8b9f814dea87db01b1a77b58624.jpeg",
-        "live": IMG + "075e084b415b957d4eacc8c6488262e269b678828929bb70ccd6b394307f1dca.jpeg",
-        "game": IMG + "8598efbdf15d5a8758bfd20f768a57beb1c95bc2771846a3c69fe5c367452b69.jpeg",
-        "music": IMG + "e0b4747868fc6041fe95e1844c11ba3683a65172fbde7f8185d30e6ba455d738.jpeg",
-        "social": IMG + "edb228e9d02295f6afd6cda56d4bd7040f2ea2c81d947904fe8c71c59eec3c03.jpeg",
-        "voice": IMG + "cf1a919cde2a31bbb35f74048189b91267c6abcb302d300a34f3dce3ac6c0bb9.jpeg",
-        "reading": IMG + "764156ecec10411bd5f9b950b9c697edb73e9175c0376698cc3df841637539a9.jpeg",
-        "ai": IMG + "fa7012c9684526cc801a7a73409f526d7ae20734e129a786081494e1dcbe18ff.jpeg",
-        "giftcard": IMG + "df165757e3fa2be6af11c3083267c24e1ed61f5ddc105b6ebfd19b84efce9c0d.jpeg",
-        "point": IMG + "521664001099b0c3c457bf82fcafbd877d4101d6d137bb792087f631ecd011b0.jpeg",
+        "shortvideo": "/icons/shortvideo.png",
+        "live": "/icons/live.png",
+        "game": "/icons/game.png",
+        "music": "/icons/music.png",
+        "social": "/icons/social.png",
+        "voice": "/icons/voice.png",
+        "reading": "/icons/reading.png",
+        "ai": "/icons/ai.png",
+        "giftcard": "/icons/giftcard.png",
+        "point": "/icons/point.png",
     }
-    SEED_VERSION = 8
+    SEED_VERSION = 9
     meta = await db.meta.find_one({"_id": "seed"})
     if not meta or meta.get("version") != SEED_VERSION:
         await db.categories.delete_many({})

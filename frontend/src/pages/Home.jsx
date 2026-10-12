@@ -87,7 +87,7 @@ export default function Home() {
                 className="group shrink-0 bg-white rounded-2xl border border-slate-100 shadow-sm p-3 flex flex-col items-center text-center hover:shadow-md transition-all">
                 <div className="relative w-full aspect-square rounded-2xl overflow-hidden bg-white">
                   <img src={p.image} alt={p.name} className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-300" />
-                  {p.tags?.includes("熱銷") && <span className="absolute top-1.5 left-1.5 text-[10px] font-bold rounded-md px-1.5 py-0.5 bg-red-500 text-white">熱銷</span>}
+                  {p.tags?.includes("熱銷") && <span className="absolute top-1.5 left-1.5 text-[10px] font-bold rounded-md px-1.5 py-0.5 bg-red-500 text-white z-10">熱銷</span>}
                 </div>
                 <h3 className="font-semibold text-[13px] leading-normal text-slate-800 truncate mt-3 w-full group-hover:text-orange-600">{p.name}</h3>
                 <span className="mt-3 text-xs font-bold text-orange-600 bg-orange-100 group-hover:bg-orange-500 group-hover:text-white rounded-full px-5 py-1.5 transition-colors">立即購買</span>
