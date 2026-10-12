@@ -80,12 +80,12 @@ export default function Home() {
             {quick.map((p) => (
               <Link key={p.id} to={`/product/${p.id}`} data-testid={`quick-order-${p.id}`}
                 className="group shrink-0 bg-white rounded-2xl border border-slate-100 shadow-sm p-3 flex flex-col items-center text-center hover:shadow-md transition-all">
-                <div className="relative w-full aspect-square rounded-2xl overflow-hidden bg-white">
+                <div className="relative w-24 h-24 sm:w-28 sm:h-28 rounded-2xl overflow-hidden bg-white">
                   <img src={p.image} alt={p.name} className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-300" />
                   {p.tags?.includes("熱銷") && <span className="absolute top-1.5 left-1.5 text-[10px] font-bold rounded-md px-1.5 py-0.5 bg-red-500 text-white">熱銷</span>}
                 </div>
                 <h3 className="font-semibold text-[13px] text-slate-800 line-clamp-1 mt-2.5 w-full group-hover:text-orange-600">{p.name}</h3>
-                <span className="mt-2 text-xs font-bold text-orange-600 bg-orange-100 group-hover:bg-orange-500 group-hover:text-white rounded-full px-5 py-1.5 transition-colors">立即購買</span>
+                <span className="mt-2.5 text-xs font-bold text-orange-600 bg-orange-100 group-hover:bg-orange-500 group-hover:text-white rounded-full px-5 py-1.5 transition-colors">立即購買</span>
               </Link>
             ))}
           </Carousel>
@@ -98,12 +98,12 @@ export default function Home() {
             {hot.slice(0, 16).map((p) => (
               <Link key={p.id} to={`/product/${p.id}`} data-testid={`product-card-${p.id}`}
                 className="group shrink-0 w-[150px] sm:w-[180px] bg-white rounded-2xl border border-slate-100 shadow-sm p-3 flex flex-col items-center text-center hover:shadow-md hover:-translate-y-0.5 transition-all">
-                <div className="relative w-full aspect-square rounded-2xl overflow-hidden bg-white">
+                <div className="relative w-24 h-24 sm:w-28 sm:h-28 rounded-2xl overflow-hidden bg-white">
                   <img src={p.image} alt={p.name} className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-300" />
                   {p.tags?.includes("熱銷") && <span className="absolute top-1.5 left-1.5 text-[10px] font-bold rounded-md px-1.5 py-0.5 bg-red-500 text-white">熱銷</span>}
                 </div>
                 <h3 className="font-semibold text-[13px] text-slate-800 line-clamp-1 mt-2.5 w-full group-hover:text-orange-600">{p.name}</h3>
-                <span className="mt-2 text-xs font-bold text-orange-600 bg-orange-100 group-hover:bg-orange-500 group-hover:text-white rounded-full px-5 py-1.5 transition-colors">立即購買</span>
+                <span className="mt-2.5 text-xs font-bold text-orange-600 bg-orange-100 group-hover:bg-orange-500 group-hover:text-white rounded-full px-5 py-1.5 transition-colors">立即購買</span>
               </Link>
             ))}
           </Carousel>
