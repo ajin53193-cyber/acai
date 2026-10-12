@@ -20,16 +20,16 @@ function salesText(n) {
 
 export default function Home() {
   const [categories, setCategories] = useState([]);
-  const [products, setProducts] = useState([]);
+  const [home, setHome] = useState({});
 
   useEffect(() => {
     publicApi.get("/categories").then((r) => setCategories(r.data)).catch(() => {});
-    publicApi.get("/products").then((r) => setProducts(r.data)).catch(() => {});
+    publicApi.get("/products/home").then((r) => setHome(r.data)).catch(() => {});
   }, []);
 
-  const hot = [...products].sort((a, b) => b.sales_count - a.sales_count);
-  const quick = products.filter((p) => p.tags?.includes("熱銷")).slice(0, 6);
-  const byCat = (cid) => products.filter((p) => p.category === cid);
+  const hot = home.hot || [];
+  const quick = (home.quick || []).slice(0, 6);
+  const byCat = (cid) => home.by_category?.[cid] || [];
 
   return (
     <div className="pb-0">

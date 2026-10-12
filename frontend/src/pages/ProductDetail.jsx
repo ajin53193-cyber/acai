@@ -52,7 +52,7 @@ export default function ProductDetail() {
 
   const spec = useMemo(() => product?.specs.find((s) => s.id === specId), [product, specId]);
   const totalUsd = (spec?.price_usd || 0) * qty;
-  const originalUsd = totalUsd * 1.1;
+  const originalUsd = (spec?.sale_price_usd || 0) * qty;
 
   if (!product) return <div className="max-w-7xl mx-auto px-4 py-20 text-center text-slate-400">載入中…</div>;
 
@@ -84,7 +84,7 @@ export default function ProductDetail() {
             </div>
             <div className="min-w-0">
               <h1 className="font-head text-xl sm:text-2xl font-bold text-slate-900" data-testid="product-title">{product.name}</h1>
-              <div className="mt-1.5 text-sm text-slate-600 truncate">{product.account_field_hint || `${product.brand} 海外代充服務，支援全球帳號`}</div>
+              <div className="mt-1.5 text-sm text-slate-600 truncate">{product.subtitle || product.account_field_hint || `${product.brand} 海外代充服務，支援全球帳號`}</div>
               <div className="mt-1.5 text-xs text-orange-500 flex items-center gap-3">
                 <span>&gt;&gt;極速發貨</span><span>&gt;&gt;正版安全</span><span>&gt;&gt;24小時營業</span>
                 <span className="hidden sm:flex items-center gap-1 text-amber-500"><Star className="h-3 w-3 fill-amber-400 text-amber-400" />{product.rating} · 已售 {product.sales_count}</span>
@@ -127,8 +127,8 @@ export default function ProductDetail() {
                       sel ? "border-2 border-orange-400 bg-orange-50 text-orange-600" : "border border-transparent bg-slate-100 text-slate-700 hover:bg-orange-50"
                     } ${!s.in_stock ? "opacity-40 cursor-not-allowed" : ""}`}
                   >
-                    {i === 0 && product.tags?.includes("熱銷") && (
-                      <span className="absolute -top-2.5 right-0 rounded-full bg-orange-500 text-white text-[10px] px-2 py-0.5">每日一單</span>
+                    {s.badge && (
+                      <span className="absolute -top-2.5 right-0 rounded-full bg-orange-500 text-white text-[10px] px-2 py-0.5">{s.badge}</span>
                     )}
                     {s.label}
                     {!s.in_stock && <span className="ml-1 text-[10px] text-red-400">缺貨</span>}
@@ -151,7 +151,7 @@ export default function ProductDetail() {
               <div className="md:ml-auto flex items-center gap-4 flex-wrap">
                 <div className="text-right">
                   <div className="text-sm text-slate-700">總計：<span className="font-head text-xl font-extrabold text-orange-500" data-testid="total-price">{format(totalUsd)}</span></div>
-                  <div className="text-xs text-slate-400 line-through" data-testid="original-price">{format(originalUsd)}</div>
+                  {originalUsd > totalUsd && <div className="text-xs text-slate-400 line-through" data-testid="original-price">{format(originalUsd)}</div>}
                 </div>
                 <button data-testid="cart-icon-btn" onClick={() => setOpen(true)} className="relative h-11 w-11 rounded-full bg-slate-900 text-white flex items-center justify-center hover:bg-slate-800">
                   <ShoppingCart className="h-5 w-5" />
@@ -180,14 +180,23 @@ export default function ProductDetail() {
               {TIPS.map(([a, b, c], i) => <li key={i}>{i + 1}.{a} <span className="text-orange-500 font-semibold">{b}</span>{c}</li>)}
             </ol>
             <p className="mt-3 text-red-500 font-semibold">本平臺不刷單、不返傭，刷信譽、兼職等理由均為詐騙行為，請勿相信！ 避免上當受騙！</p>
-            <div className="mt-6 font-bold text-slate-900">商品簡介：</div>
-            <p className="mt-1 whitespace-pre-line">{product.description}</p>
-            <div className="mt-6 font-bold text-slate-900">購買流程：</div>
-            <p className="mt-1 whitespace-pre-line">{product.tutorial}</p>
-            <div className="mt-6 font-bold text-slate-900">如何收貨：</div>
-            <p className="mt-1">1. 訂單完成後，請登入對應 App 或官網查詢餘額；請留意充值前的餘額，方便確認到帳情況。<br />2. 下單過程中若有任何疑問，請隨時聯繫我們的 7×24 小時線上客服。</p>
-            <div className="mt-6 font-bold text-slate-900">支付方式：</div>
-            <p className="mt-1">1. 接收全幣種支付；<br />2. 支援 PayPal 帳戶、各種信用卡以及本地支付方式。</p>
+            {product.delivery_fields?.length > 0 && (
+              <>
+                <div className="mt-6 font-bold text-slate-900">下單需填寫：</div>
+                <ul className="mt-1 list-disc pl-5">
+                  {product.delivery_fields.map((f) => <li key={f.name}>{f.name}{f.required ? "（必填）" : ""}{f.tips ? ` — ${f.tips}` : ""}</li>)}
+                </ul>
+              </>
+            )}
+            {product.content_html ? (
+              <div className="mt-6 kavip-content" data-testid="product-content-html" dangerouslySetInnerHTML={{ __html: product.content_html }} />
+            ) : (
+              <>
+                <div className="mt-6 font-bold text-slate-900">商品簡介：</div>
+                <p className="mt-1 whitespace-pre-line">{product.description}</p>
+                {product.tutorial && <><div className="mt-6 font-bold text-slate-900">購買流程：</div><p className="mt-1 whitespace-pre-line">{product.tutorial}</p></>}
+              </>
+            )}
             <div className="mt-6 font-bold text-slate-900">網站聲明：</div>
             <p className="mt-1">請多次確認您的充值帳號（{product.account_field_label}）及相關資訊是否正確，如因您充值帳號輸入錯誤但充值成功的，系統不予退款。</p>
           </div>

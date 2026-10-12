@@ -3,6 +3,8 @@ import { useParams, useSearchParams, Link, useNavigate } from "react-router-dom"
 import { Star, Users } from "lucide-react";
 import { publicApi } from "@/lib/api";
 
+const PER_PAGE = 42;
+
 function salesText(n) {
   if (!n) return "0";
   return n >= 1000 ? `${Math.round(n / 1000)}k+` : `${n}+`;
@@ -14,6 +16,7 @@ export default function Category() {
   const [searchParams] = useSearchParams();
   const q = searchParams.get("q") || "";
   const [products, setProducts] = useState([]);
+  const [page, setPage] = useState(1);
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -26,7 +29,7 @@ export default function Category() {
     const params = {};
     if (id && id !== "all") params.category = id;
     if (q) params.q = q;
-    publicApi.get("/products", { params }).then((r) => setProducts(r.data)).catch(() => {}).finally(() => setLoading(false));
+    publicApi.get("/products", { params }).then((r) => { setProducts(r.data); setPage(1); }).catch(() => {}).finally(() => setLoading(false));
   }, [id, q]);
 
   const catName = q ? `搜尋「${q}」` : categories.find((c) => c.id === id)?.name || "全部商品";
@@ -74,7 +77,7 @@ export default function Category() {
           <div className="text-center py-20 text-slate-400">沒有找到相關商品</div>
         ) : (
           <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-7 gap-3 sm:gap-4">
-            {products.map((p) => (
+            {products.slice((page - 1) * PER_PAGE, page * PER_PAGE).map((p) => (
               <Link
                 key={p.id}
                 to={`/product/${p.id}`}
@@ -82,10 +85,17 @@ export default function Category() {
                 className="group bg-white rounded-2xl border border-slate-100 shadow-sm p-3 flex flex-col items-center text-center hover:shadow-lg hover:-translate-y-0.5 transition-all"
               >
                 <div className="w-full aspect-square rounded-2xl overflow-hidden bg-white">
-                  <img src={p.image} alt={p.name} className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                  <img src={p.image} alt={p.name} loading="lazy" className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-300" />
                 </div>
                 <div className="text-sm font-semibold text-slate-800 mt-3 line-clamp-2 leading-tight min-h-[2.5rem] group-hover:text-orange-600">{p.name}</div>
               </Link>
+            ))}
+          </div>
+        )}
+        {products.length > PER_PAGE && (
+          <div className="mt-8 flex items-center justify-center gap-2 flex-wrap" data-testid="category-pagination">
+            {Array.from({ length: Math.ceil(products.length / PER_PAGE) }, (_, i) => i + 1).map((n) => (
+              <button key={n} data-testid={`category-page-${n}`} onClick={() => { setPage(n); window.scrollTo(0, 0); }} className={`h-9 min-w-9 px-2 rounded-full text-sm font-semibold ${n === page ? "bg-orange-500 text-white" : "bg-white text-slate-600 hover:text-orange-600 shadow-sm"}`}>{n}</button>
             ))}
           </div>
         )}

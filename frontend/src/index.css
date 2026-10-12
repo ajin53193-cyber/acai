@@ -101,3 +101,10 @@ code, .font-mono {
         display: contents !important;
     }
 }
+
+.kavip-content img { max-width: 100%; height: auto; border-radius: 12px; margin: 8px 0; }
+.kavip-content p { margin: 6px 0; }
+.kavip-content strong { color: #0f172a; }
+.kavip-content ul, .kavip-content ol { padding-left: 1.25rem; margin: 6px 0; }
+.kavip-content table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.kavip-content td, .kavip-content th { border: 1px solid #e2e8f0; padding: 6px 8px; }

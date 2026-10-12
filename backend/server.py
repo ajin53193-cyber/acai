@@ -3,7 +3,7 @@ import uuid
 import logging
 from pathlib import Path
 from datetime import datetime, timezone, timedelta
-from typing import List, Optional
+from typing import Dict, List, Optional
 
 import requests
 from fastapi import FastAPI, APIRouter, HTTPException, Depends
@@ -111,7 +111,19 @@ class Spec(BaseModel):
     id: str = Field(default_factory=new_id)
     label: str
     price_usd: float
+    sale_price_usd: Optional[float] = None
+    badge: str = ""
     in_stock: bool = True
+
+
+class DeliveryField(BaseModel):
+    code: str = "account"
+    name: str
+    required: bool = True
+    placeholder: str = ""
+    tips: str = ""
+    type: str = "text"  # text | select | password | textarea
+    options: List[str] = []
 
 
 class Product(BaseModel):
@@ -119,11 +131,15 @@ class Product(BaseModel):
     name: str
     category: str
     brand: str = ""
+    subtitle: str = ""
     image: str = ""
     description: str = ""
+    content_html: str = ""
     tutorial: str = ""
     account_field_label: str = "充值帳號"
     account_field_hint: str = ""
+    delivery_fields: List[DeliveryField] = []
+    source_id: str = ""
     specs: List[Spec] = []
     tags: List[str] = []
     sales_count: int = 0
@@ -137,11 +153,14 @@ class ProductIn(BaseModel):
     name: str
     category: str
     brand: str = ""
+    subtitle: str = ""
     image: str = ""
     description: str = ""
+    content_html: str = ""
     tutorial: str = ""
     account_field_label: str = "充值帳號"
     account_field_hint: str = ""
+    delivery_fields: List[DeliveryField] = []
     specs: List[Spec] = []
     tags: List[str] = []
     sales_count: int = 0
@@ -211,6 +230,7 @@ class OrderIn(BaseModel):
     recharge_account: str
     recharge_note: str = ""
     contact: str = ""
+    delivery_info: Dict[str, Dict[str, str]] = {}
     promo_code: Optional[str] = None
 
 
@@ -249,7 +269,20 @@ async def get_products(category: Optional[str] = None, q: Optional[str] = None):
         query["category"] = category
     if q:
         query["name"] = {"$regex": q, "$options": "i"}
-    return await db.products.find(query, {"_id": 0}).sort([("sort_order", 1), ("sales_count", -1)]).to_list(500)
+    proj = {"_id": 0, "content_html": 0, "delivery_fields": 0, "description": 0, "tutorial": 0}
+    return await db.products.find(query, proj).sort([("sort_order", 1), ("sales_count", -1)]).to_list(3000)
+
+
+@api_router.get("/products/home")
+async def get_home_products():
+    proj = {"_id": 0, "content_html": 0, "delivery_fields": 0, "description": 0, "tutorial": 0}
+    quick = await db.products.find({"active": True, "tags": "快速下單"}, proj).sort("sort_order", 1).to_list(12)
+    hot = await db.products.find({"active": True, "tags": "熱銷"}, proj).sort("sort_order", 1).to_list(16)
+    cats = await db.categories.find({}, {"_id": 0}).sort("sort_order", 1).to_list(50)
+    by_category = {}
+    for c in cats:
+        by_category[c["id"]] = await db.products.find({"active": True, "category": c["id"]}, proj).sort([("sort_order", 1), ("sales_count", -1)]).to_list(20)
+    return {"quick": quick, "hot": hot, "by_category": by_category}
 
 
 @api_router.get("/products/{product_id}")
@@ -354,6 +387,7 @@ async def create_order(order: OrderIn, member: dict = Depends(current_member)):
         "recharge_account": order.recharge_account,
         "recharge_note": order.recharge_note,
         "contact": order.contact,
+        "delivery_info": order.delivery_info,
         "status": "pending_payment",
         "admin_note": "",
         "timeline": [{"status": "pending_payment", "at": now_iso()}],

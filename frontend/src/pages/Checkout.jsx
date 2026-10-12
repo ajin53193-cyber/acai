@@ -59,8 +59,9 @@ function CheckoutInner() {
   const { items, subtotalUsd, clear, updateQty, removeItem } = useCart();
   const { format, code } = useCurrency();
 
-  const [account, setAccount] = useState("");
   const [note, setNote] = useState("");
+  const [fieldDefs, setFieldDefs] = useState({});
+  const [delivery, setDelivery] = useState({});
   const [name, setName] = useState("");
   const [email, setEmail] = useState(user?.primaryEmailAddress?.emailAddress || "");
   const [phone, setPhone] = useState("");
@@ -74,6 +75,17 @@ function CheckoutInner() {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => { publicApi.get("/promos/public").then((r) => setPromos(r.data)).catch(() => {}); }, []);
+  const productIds = [...new Set(items.map((i) => i.product_id))].join(",");
+  useEffect(() => {
+    productIds.split(",").filter(Boolean).forEach((pid) => {
+      if (fieldDefs[pid]) return;
+      publicApi.get(`/products/${pid}`).then((r) => {
+        const defs = r.data.delivery_fields?.length ? r.data.delivery_fields : [{ code: "account", name: r.data.account_field_label || "充值帳號 / ID", required: true, type: "text", options: [], tips: r.data.account_field_hint || "" }];
+        setFieldDefs((d) => ({ ...d, [pid]: { name: r.data.name, fields: defs } }));
+      }).catch(() => {});
+    });
+  }, [productIds]); // eslint-disable-line react-hooks/exhaustive-deps
+  const setField = (pid, name, value) => setDelivery((d) => ({ ...d, [pid]: { ...(d[pid] || {}), [name]: value } }));
   useEffect(() => { if (promo && subtotalUsd < (promo.min_order_usd || 0)) setPromo(null); }, [subtotalUsd, promo]);
 
   const discountUsd = promo?.discount_usd || 0;
@@ -102,7 +114,14 @@ function CheckoutInner() {
   };
 
   const submit = async () => {
-    if (!account.trim()) return toast.error("請填寫充值 ID");
+    for (const pid of Object.keys(fieldDefs)) {
+      for (const f of fieldDefs[pid].fields) {
+        if (f.required && !(delivery[pid]?.[f.name] || "").trim()) return toast.error(`請填寫「${f.name}」（${fieldDefs[pid].name}）`);
+      }
+    }
+    const firstPid = Object.keys(fieldDefs)[0];
+    const firstDef = fieldDefs[firstPid]?.fields.find((f) => f.code === "account") || fieldDefs[firstPid]?.fields[0];
+    const account = firstDef ? delivery[firstPid]?.[firstDef.name] || "" : "";
     if (!name.trim() || !email.trim() || !phone.trim()) return toast.error("請完整填寫聯絡資訊");
     if (!agree) return toast.error("請先閱讀並同意無退款聲明");
     setLoading(true);
@@ -115,6 +134,7 @@ function CheckoutInner() {
           items: items.map((i) => ({ product_id: i.product_id, spec_id: i.spec_id, quantity: i.quantity })),
           currency: code,
           recharge_account: account.trim(),
+          delivery_info: delivery,
           recharge_note: `${note.trim()}${note.trim() ? " · " : ""}支付方式：${PAY_METHODS.find((m) => m.id === payMethod)?.label}`,
           contact,
           promo_code: promo?.code || null,
@@ -179,10 +199,38 @@ function CheckoutInner() {
               <SectionTitle>遞送訊息</SectionTitle>
               <span className="rounded-full bg-orange-50 text-orange-500 text-sm px-4 py-1.5">我的帳號</span>
             </div>
-            <Label required>{items[0]?.account_field_label || "ID"}</Label>
-            <input data-testid="checkout-account-input" value={account} onChange={(e) => setAccount(e.target.value)} placeholder="請填寫需要充值的帳號 / ID" className={field} />
-            <div className="mt-5"><Label>昵稱 / 備註（區服、伺服器等）</Label></div>
-            <input data-testid="checkout-note-input" value={note} onChange={(e) => setNote(e.target.value)} placeholder="選填" className={field} />
+            <div className="space-y-5">
+              {Object.entries(fieldDefs).map(([pid, def]) => (
+                <div key={pid} data-testid={`delivery-group-${pid}`}>
+                  {Object.keys(fieldDefs).length > 1 && <div className="text-xs font-semibold text-orange-500 mb-2">{def.name}</div>}
+                  <div className="space-y-4">
+                    {def.fields.map((f) => (
+                      <div key={f.name}>
+                        <Label required={f.required}>{f.name}</Label>
+                        {f.type === "select" ? (
+                          <div className="relative">
+                            <select data-testid={`delivery-${pid}-${f.name}`} value={delivery[pid]?.[f.name] || ""} onChange={(e) => setField(pid, f.name, e.target.value)} className={`${field} appearance-none pr-10`}>
+                              <option value="">請選擇{f.name}</option>
+                              {f.options.map((o) => <option key={o} value={o}>{o}</option>)}
+                            </select>
+                            <ChevronDown className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
+                          </div>
+                        ) : f.type === "textarea" ? (
+                          <textarea data-testid={`delivery-${pid}-${f.name}`} value={delivery[pid]?.[f.name] || ""} onChange={(e) => setField(pid, f.name, e.target.value)} placeholder={f.placeholder || `請輸入${f.name}`} rows={3} className="w-full rounded-xl bg-slate-100 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-orange-300 placeholder:text-slate-400" />
+                        ) : (
+                          <input data-testid={`delivery-${pid}-${f.name}`} type={f.type === "password" ? "password" : "text"} value={delivery[pid]?.[f.name] || ""} onChange={(e) => setField(pid, f.name, e.target.value)} placeholder={f.placeholder || `請輸入${f.name}`} className={field} />
+                        )}
+                        {f.tips && <div className="mt-1.5 text-xs text-orange-500">{f.tips}</div>}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+              <div>
+                <Label>備註（選填）</Label>
+                <input data-testid="checkout-note-input" value={note} onChange={(e) => setNote(e.target.value)} placeholder="選填" className={field} />
+              </div>
+            </div>
           </div>
           <div className="md:pl-10">
             <div className="mb-6"><SectionTitle>聯絡資訊</SectionTitle></div>

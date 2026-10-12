@@ -25,6 +25,10 @@
 - 2026-06-12：登入修正：Clerk **Device Trust** 開啟 → 密碼登入回 `needs_client_trust`，modal 新增第二因子驗證碼輸入（prepareSecondFactor/attemptSecondFactor）。移除 Clerk 內建 /sign-in /sign-up 頁（改為回首頁並開啟自家 modal）；結賬/訂單頁登入按鈕改開 modal；登入成功不再整頁 reload。測試帳號見 test_credentials.md（`+clerk_test` 帳號驗證碼 424242）。
 - 2026-06-12：結賬頁 `/checkout` 依 Kavip cart 版面重做：購物車（可改數量/刪除）→ 商品總額 → 遞送訊息(ID/備註) + 聯絡資訊(姓名/信箱/手機/其他) → 優惠券卡片（新端點 `GET /api/promos/public`，點卡片套用）→ 支付方式(測試) + 明細 → 支付總額 + 立即支付。E2E 實測：登入→商品→立即購買→套券→模擬付款→訂單詳情 全通。
 
+- 2026-06-12：**Kavip 全站商品同步**：`/app/scripts/kavip_crawl.py`（API `pro-api/openapi/product/all` + SSR detail 頁 Nuxt payload 解碼 `nuxt_decode.py`）抓取 11 分類 / 2,498 商品：規格與價格（specialPrice/salePrice、每日一單等角標）、購買需填資料 `delivery_fields`（text/select/password/textarea + 提示）、副標題、HTML 商品說明、評價。`import_kavip.py` 寫入 Mongo（OpenCC 簡→繁），產品 id = Kavip productId；圖片直接引用 image.vpayfast.com。資料檔 `/app/scripts/kavip_data.json`。
+- 後端：Product 新增 subtitle/content_html/delivery_fields/source_id，Spec 新增 sale_price_usd/badge；OrderIn 新增 delivery_info；新端點 `GET /api/products/home`（快速下單/熱門/各分類前 20）；`/api/products` 列表排除大欄位。
+- 前端：首頁改用 /products/home；商品頁顯示副標題、角標、原價刪除線、Kavip HTML 說明與「下單需填寫」；結賬頁依商品 `delivery_fields` 動態產生表單（含下拉/密碼）並送出 delivery_info；我的訂單/後台顯示填寫資料；分類頁分頁（42/頁）+ 圖片 lazy。E2E 實測（杏雨直播：登入方式下拉+手機+密碼+暱稱）下單成功。
+
 ## 待辦（優先序）
 - P0：testing_agent 跑後台訂單狀態流轉 + 回歸（前台 E2E 已由主代理手測通過）。
 - P1：結帳頁多幣別匯率計算驗證。

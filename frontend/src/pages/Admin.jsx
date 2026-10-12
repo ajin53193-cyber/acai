@@ -275,6 +275,7 @@ function Orders({ callApi }) {
             <div className="grid grid-cols-2 gap-x-4 gap-y-1 mt-2 text-xs text-slate-400">
               <div>充值帳號：<span className="text-slate-200 font-semibold">{o.recharge_account}</span></div>
               <div>金額：{o.currency_symbol}{(o.total_usd * o.rate_to_usd).toFixed(2)} {o.currency}</div>
+              {o.delivery_info && Object.values(o.delivery_info).flatMap((f) => Object.entries(f)).map(([k, v]) => <div key={k}>{k}：<span className="text-slate-200">{v}</span></div>)}
               {o.recharge_note && <div>備註：{o.recharge_note}</div>}
               {o.contact && <div>聯絡：{o.contact}</div>}
               {o.admin_note && <div className="col-span-2 text-emerald-400">客服備註：{o.admin_note}</div>}

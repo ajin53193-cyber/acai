@@ -173,6 +173,9 @@ function OrdersInner() {
                     <span className="text-slate-400">充值帳號</span>
                     <button onClick={() => copy(detail.recharge_account)} className="font-semibold text-slate-700 flex items-center gap-1">{detail.recharge_account} <Copy className="h-3 w-3 text-slate-400" /></button>
                   </div>
+                  {detail.delivery_info && Object.values(detail.delivery_info).flatMap((f) => Object.entries(f)).map(([k, v]) => (
+                    <div key={k} className="flex justify-between gap-3"><span className="text-slate-400 shrink-0">{k}</span><span className="text-slate-700 text-right break-all">{k.includes("密碼") ? "••••••" : v}</span></div>
+                  ))}
                   {detail.recharge_note && <div className="flex justify-between"><span className="text-slate-400">備註</span><span className="text-slate-700">{detail.recharge_note}</span></div>}
                   {detail.contact && <div className="flex justify-between"><span className="text-slate-400">聯絡方式</span><span className="text-slate-700">{detail.contact}</span></div>}
                   {detail.admin_note && <div className="flex justify-between"><span className="text-slate-400">客服備註</span><span className="text-emerald-600">{detail.admin_note}</span></div>}
