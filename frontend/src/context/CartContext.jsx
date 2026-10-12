@@ -33,6 +33,7 @@ export function CartProvider({ children }) {
           product_id: product.id,
           product_name: product.name,
           image: product.image,
+          account_field_label: product.account_field_label,
           spec_id: spec.id,
           spec_label: spec.label,
           unit_price_usd: spec.price_usd,

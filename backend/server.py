@@ -268,6 +268,13 @@ async def get_reviews(product_id: Optional[str] = None):
     return await db.reviews.find(query, {"_id": 0}).sort("created_at", -1).to_list(200)
 
 
+@api_router.get("/promos/public")
+async def public_promos():
+    docs = await db.promos.find({"active": True}, {"_id": 0, "code": 1, "discount_type": 1, "value": 1, "min_order_usd": 1, "expires_at": 1}).to_list(50)
+    now = now_iso()
+    return [d for d in docs if not d.get("expires_at") or d["expires_at"] > now]
+
+
 @api_router.post("/promo/validate")
 async def validate_promo(payload: dict):
     code = (payload.get("code") or "").strip().upper()
