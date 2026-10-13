@@ -43,13 +43,21 @@ const COLS = [
 
 export default function Footer() {
   const [settings, setSettings] = useState({ whatsapp_link: "https://wa.me/", cs_label: "WhatsApp 掃碼聯繫客服" });
-  useEffect(() => { publicApi.get("/settings").then((r) => setSettings(r.data)).catch(() => {}); }, []);
+  const [logos, setLogos] = useState(null);
+  useEffect(() => {
+    publicApi.get("/settings").then((r) => setSettings(r.data)).catch(() => {});
+    publicApi.get("/payment-logos").then((r) => setLogos(r.data)).catch(() => setLogos([]));
+  }, []);
   return (
     <footer className="mt-14 bg-gradient-to-b from-[#F0872E] to-[#E8792A] text-white">
       {/* Top: payments + follow */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-7">
         <div className="flex flex-wrap items-center gap-2.5">
-          {PAY_BADGES.map((b, i) => (
+          {logos && logos.length > 0 ? logos.map((l) => (
+            <span key={l.id} data-testid={`pay-logo-${l.id}`} title={l.name} className="bg-white rounded-md h-9 min-w-[48px] px-2 flex items-center justify-center shadow-sm">
+              <img src={l.image} alt={l.name} className="h-6 max-w-[96px] object-contain" />
+            </span>
+          )) : PAY_BADGES.map((b, i) => (
             <span key={i} data-testid={`pay-badge-${i}`} className="bg-white rounded-md h-9 min-w-[48px] px-3 flex items-center justify-center shadow-sm">
               {b}
             </span>

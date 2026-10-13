@@ -4,7 +4,7 @@ import { Show, useUser } from "@clerk/react";
 import {
   LayoutDashboard, Package, ShoppingBag, Star, DollarSign, Tag, Users,
   Plus, Pencil, Trash2, X, Loader2, ArrowLeft, TrendingUp, Clock, ShieldAlert,
-  Settings,
+  Settings, CreditCard, ArrowUp, ArrowDown, ImagePlus,
 } from "lucide-react";
 import { toast } from "sonner";
 import { QRCodeSVG } from "qrcode.react";
@@ -22,6 +22,7 @@ const NAV = [
   ["promos", "優惠碼", Tag],
   ["users", "用戶管理", Users],
   ["settings", "網站設定", Settings],
+  ["paylogos", "支付Logo", CreditCard],
 ];
 
 const ALL_STATUSES = Object.keys(STATUS_LABELS);
@@ -67,6 +68,7 @@ function AdminInner() {
         {section === "currencies" && <Currencies callApi={callApi} />}
         {section === "promos" && <Promos callApi={callApi} />}
         {section === "settings" && <SiteSettings callApi={callApi} />}
+        {section === "paylogos" && <PaymentLogos callApi={callApi} />}
         {section === "users" && <UsersSec callApi={callApi} />}
       </main>
     </div>
@@ -539,6 +541,64 @@ function SiteSettings({ callApi }) {
           <div className="text-xs text-slate-400 mt-3">{form.cs_label}</div>
           <div className="text-[11px] text-slate-500 mt-1 break-all text-center">{form.whatsapp_link}</div>
         </div>
+      </div>
+    </div>
+  );
+}
+
+
+const readFile = (f) => new Promise((res) => { const r = new FileReader(); r.onload = () => res({ image_b64: r.result, image_name: f.name }); r.readAsDataURL(f); });
+
+function PaymentLogos({ callApi }) {
+  const [list, setList] = useState([]);
+  const [name, setName] = useState("");
+  const [file, setFile] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const load = useCallback(() => callApi({ method: "GET", url: "/admin/payment-logos" }).then((r) => setList(r.data)).catch(() => {}), [callApi]);
+  useEffect(() => { load(); }, [load]);
+
+  const add = async () => {
+    if (!file) return toast.error("請選擇 Logo 圖片");
+    setBusy(true);
+    try { await callApi({ method: "POST", url: "/admin/payment-logos", data: { name, ...(await readFile(file)) } }); toast.success("已新增"); setName(""); setFile(null); load(); }
+    catch (e) { toast.error(e.response?.data?.detail || "新增失敗"); }
+    setBusy(false);
+  };
+  const update = async (id, data) => { try { await callApi({ method: "PUT", url: `/admin/payment-logos/${id}`, data }); load(); } catch { toast.error("更新失敗"); } };
+  const remove = async (id) => { if (!window.confirm("確定刪除此 Logo？")) return; await callApi({ method: "DELETE", url: `/admin/payment-logos/${id}` }); toast.success("已刪除"); load(); };
+  const move = async (i, dir) => {
+    const j = i + dir; if (j < 0 || j >= list.length) return;
+    await update(list[i].id, { sort_order: list[j].sort_order }); await update(list[j].id, { sort_order: list[i].sort_order });
+  };
+  const replaceImg = async (id, f) => { if (!f) return; await update(id, await readFile(f)); toast.success("圖片已更新"); };
+  const inp = "h-11 rounded-xl bg-slate-800 border border-slate-700 px-4 text-sm text-white outline-none focus:border-orange-400";
+
+  return (
+    <div>
+      <SectionHeader title="支付方式 Logo（頁尾顯示）" />
+      <div className="bg-slate-800/60 rounded-2xl p-5 mb-6 flex flex-wrap items-end gap-3">
+        <label className="text-sm text-slate-300">名稱<br /><input data-testid="paylogo-name" value={name} onChange={(e) => setName(e.target.value)} placeholder="例如 VISA" className={`${inp} mt-1 w-48`} /></label>
+        <label className="text-sm text-slate-300">圖片（PNG/SVG/JPG，≤2M，建議透明底）<br />
+          <input data-testid="paylogo-file" type="file" accept="image/*" onChange={(e) => setFile(e.target.files?.[0] || null)} className="mt-1 block text-xs text-slate-400 file:mr-3 file:rounded-full file:border-0 file:bg-orange-500 file:px-4 file:py-2 file:text-white" />
+        </label>
+        <button data-testid="paylogo-add" onClick={add} disabled={busy} className="h-11 px-6 rounded-full bg-orange-500 hover:bg-orange-600 text-white font-semibold disabled:opacity-60 flex items-center gap-2"><Plus className="h-4 w-4" />新增</button>
+        <span className="text-xs text-slate-500">未新增任何 Logo 時，頁尾顯示系統內建的預設樣式。</span>
+      </div>
+      <div className="space-y-2">
+        {list.length === 0 && <div className="text-slate-500 text-sm">尚無上傳的 Logo</div>}
+        {list.map((l, i) => (
+          <div key={l.id} data-testid={`paylogo-row-${l.id}`} className={`flex items-center gap-4 bg-slate-800/60 rounded-xl px-4 py-3 ${l.active ? "" : "opacity-50"}`}>
+            <span className="bg-white rounded-md h-10 px-3 flex items-center justify-center"><img src={l.image} alt={l.name} className="h-6 max-w-[110px] object-contain" /></span>
+            <input defaultValue={l.name} onBlur={(e) => e.target.value !== l.name && update(l.id, { name: e.target.value })} className={`${inp} w-44`} data-testid={`paylogo-name-${l.id}`} />
+            <label className="h-9 px-3 rounded-full bg-slate-700 text-xs text-slate-200 flex items-center gap-1 cursor-pointer hover:bg-slate-600"><ImagePlus className="h-3.5 w-3.5" />更換圖片<input type="file" accept="image/*" className="hidden" onChange={(e) => replaceImg(l.id, e.target.files?.[0])} /></label>
+            <button onClick={() => update(l.id, { active: !l.active })} data-testid={`paylogo-toggle-${l.id}`} className={`h-9 px-3 rounded-full text-xs ${l.active ? "bg-emerald-500/20 text-emerald-300" : "bg-slate-700 text-slate-300"}`}>{l.active ? "顯示中" : "已隱藏"}</button>
+            <div className="ml-auto flex items-center gap-1">
+              <button onClick={() => move(i, -1)} className="h-8 w-8 rounded-lg bg-slate-700 flex items-center justify-center text-slate-300 hover:text-white"><ArrowUp className="h-4 w-4" /></button>
+              <button onClick={() => move(i, 1)} className="h-8 w-8 rounded-lg bg-slate-700 flex items-center justify-center text-slate-300 hover:text-white"><ArrowDown className="h-4 w-4" /></button>
+              <button onClick={() => remove(l.id)} data-testid={`paylogo-delete-${l.id}`} className="h-8 w-8 rounded-lg bg-red-500/20 flex items-center justify-center text-red-300 hover:text-red-200"><Trash2 className="h-4 w-4" /></button>
+            </div>
+          </div>
+        ))}
       </div>
     </div>
   );

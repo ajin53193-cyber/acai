@@ -469,6 +469,72 @@ async def put_settings(body: Dict[str, str], admin: dict = Depends(require_role(
     return await get_settings()
 
 
+# ----------------------------- Payment logos -----------------------------
+class PaymentLogoIn(BaseModel):
+    name: str = ""
+    image_b64: str = ""
+    image_name: str = "logo.png"
+    sort_order: Optional[int] = None
+    active: Optional[bool] = None
+
+
+async def _upload_b64(prefix: str, image_b64: str, image_name: str, max_mb: int = 2) -> str:
+    raw = base64.b64decode(image_b64.split(",")[-1])
+    if len(raw) > max_mb * 1024 * 1024:
+        raise HTTPException(status_code=400, detail=f"圖片大小需在 {max_mb}M 以內")
+    ext = (image_name.rsplit(".", 1)[-1] or "png").lower()
+    mimes = {"jpg": "image/jpeg", "jpeg": "image/jpeg", "png": "image/png", "gif": "image/gif", "webp": "image/webp", "svg": "image/svg+xml"}
+    if ext not in mimes:
+        raise HTTPException(status_code=400, detail="僅支援 PNG / JPG / GIF / WEBP / SVG")
+    res = await run_in_threadpool(objstore.put_object, f"{prefix}/{uuid.uuid4().hex}.{ext}", raw, mimes[ext])
+    return f"/api/img/{res['path']}"
+
+
+@api_router.get("/payment-logos")
+async def list_payment_logos():
+    return await db.payment_logos.find({"active": True}, {"_id": 0}).sort("sort_order", 1).to_list(50)
+
+
+@api_router.get("/admin/payment-logos")
+async def admin_payment_logos(admin: dict = Depends(require_role("admin"))):
+    return await db.payment_logos.find({}, {"_id": 0}).sort("sort_order", 1).to_list(50)
+
+
+@api_router.post("/admin/payment-logos")
+async def create_payment_logo(body: PaymentLogoIn, admin: dict = Depends(require_role("admin"))):
+    if not body.image_b64:
+        raise HTTPException(status_code=400, detail="請上傳 Logo 圖片")
+    count = await db.payment_logos.count_documents({})
+    doc = {"id": new_id(), "name": body.name.strip(), "image": await _upload_b64("gogo589/payments", body.image_b64, body.image_name),
+           "sort_order": body.sort_order if body.sort_order is not None else count + 1, "active": True if body.active is None else body.active, "created_at": now_iso()}
+    await db.payment_logos.insert_one(doc)
+    doc.pop("_id", None)
+    return doc
+
+
+@api_router.put("/admin/payment-logos/{lid}")
+async def update_payment_logo(lid: str, body: PaymentLogoIn, admin: dict = Depends(require_role("admin"))):
+    upd = {}
+    if body.name:
+        upd["name"] = body.name.strip()
+    if body.sort_order is not None:
+        upd["sort_order"] = body.sort_order
+    if body.active is not None:
+        upd["active"] = body.active
+    if body.image_b64:
+        upd["image"] = await _upload_b64("gogo589/payments", body.image_b64, body.image_name)
+    r = await db.payment_logos.find_one_and_update({"id": lid}, {"$set": upd}, projection={"_id": 0}, return_document=ReturnDocument.AFTER)
+    if not r:
+        raise HTTPException(status_code=404, detail="不存在")
+    return r
+
+
+@api_router.delete("/admin/payment-logos/{lid}")
+async def delete_payment_logo(lid: str, admin: dict = Depends(require_role("admin"))):
+    await db.payment_logos.delete_one({"id": lid})
+    return {"ok": True}
+
+
 # ----------------------------- Member center -----------------------------
 class ProfileIn(BaseModel):
     name: str = ""

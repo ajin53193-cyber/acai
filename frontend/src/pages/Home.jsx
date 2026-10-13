@@ -289,35 +289,36 @@ function PagedGrid({ items, perPage = 10, testid }) {
   };
 
   const onDown = (e) => {
+    if (e.pointerType !== "mouse" || e.button !== 0) return;
     const el = ref.current;
     drag.current = { down: true, startX: e.pageX, startLeft: el.scrollLeft, moved: false };
-    setDragging(true);
-    try { e.currentTarget.setPointerCapture(e.pointerId); } catch (_) {}
   };
   const onMove = (e) => {
     if (!drag.current.down) return;
     const el = ref.current;
     const dx = e.pageX - drag.current.startX;
-    if (Math.abs(dx) > 4) drag.current.moved = true;
+    if (!drag.current.moved && Math.abs(dx) < 8) return;
+    if (!drag.current.moved) { drag.current.moved = true; setDragging(true); }
     el.scrollLeft = drag.current.startLeft - dx;
   };
-  const onUp = (e) => {
+  const onUp = () => {
     if (!drag.current.down) return;
     drag.current.down = false;
+    if (!drag.current.moved) return;
     setDragging(false);
-    try { e.currentTarget.releasePointerCapture(e.pointerId); } catch (_) {}
     const el = ref.current;
     if (el) {
       const p = Math.max(0, Math.min(pages.length - 1, Math.round(el.scrollLeft / el.clientWidth)));
       setPage(p);
       goTo(p);
     }
+    setTimeout(() => { drag.current.moved = false; }, 0);
   };
 
   return (
     <div data-testid={testid}>
       <div ref={ref} onScroll={onScroll}
-        onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp}
+        onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp} onPointerLeave={onUp}
         onClickCapture={(e) => { if (drag.current.moved) { e.preventDefault(); e.stopPropagation(); } }}
         className="flex overflow-x-auto no-scrollbar cursor-grab active:cursor-grabbing select-none"
         style={{ scrollSnapType: dragging ? "none" : "x mandatory", touchAction: "pan-y" }}>
