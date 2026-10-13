@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="zh-Hant"><head><meta charset="utf-8">
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@500;700;900&display=swap');
+  html,body{margin:0;background:transparent}
+  .b{width:1080px;height:300px;position:relative;overflow:hidden;border-radius:36px;
+     background:linear-gradient(120deg,#FFB65C 0%,#F58A2B 50%,#EF6D18 100%);font-family:'Noto Sans TC',sans-serif;color:#fff}
+  .circle{position:absolute;border-radius:50%;background:rgba(255,255,255,.13)}
+  .c1{width:420px;height:420px;right:-120px;top:-230px}
+  .c2{width:260px;height:260px;left:-100px;bottom:-150px;background:rgba(255,255,255,.10)}
+  .dots{position:absolute;left:700px;bottom:22px;width:120px;height:70px;
+     background-image:radial-gradient(rgba(255,255,255,.35) 2.5px,transparent 3px);background-size:18px 18px}
+  .shine{position:absolute;left:0;right:0;top:0;height:50%;background:linear-gradient(180deg,rgba(255,255,255,.16),rgba(255,255,255,0))}
+  .logo{position:absolute;left:52px;top:34px;font-weight:900;font-size:38px;letter-spacing:-1px;text-shadow:0 3px 10px rgba(120,50,0,.18)}
+  .logo small{font-size:18px;font-weight:700;opacity:.92;margin-left:10px;letter-spacing:4px}
+  .h{position:absolute;left:52px;top:112px;font-size:42px;font-weight:900;white-space:nowrap;text-shadow:0 4px 12px rgba(120,50,0,.2);line-height:1}
+  .h em{font-style:normal;font-size:60px;color:#FFF1C9;text-shadow:0 4px 0 rgba(170,70,0,.25)}
+  .s{position:absolute;left:54px;top:196px;font-size:22px;font-weight:500;opacity:.95;letter-spacing:1px}
+  .btn{position:absolute;right:52px;top:118px;height:72px;padding:0 40px;border-radius:36px;background:#fff;color:#F0731C;font-size:30px;font-weight:900;
+       display:flex;align-items:center;gap:12px;box-shadow:0 12px 28px rgba(150,60,0,.28)}
+  .btn svg{width:30px;height:30px;stroke:#F0731C;fill:none;stroke-width:3;stroke-linecap:round;stroke-linejoin:round}
+  .coupon{position:absolute;right:80px;top:16px;width:190px;height:84px;border-radius:18px;background:#fff;transform:rotate(-8deg);
+          box-shadow:0 14px 30px rgba(150,60,0,.25);display:flex;align-items:center;justify-content:center;gap:14px;color:#F0731C}
+  .coupon b{font-size:46px;font-weight:900;letter-spacing:-2px}
+  .coupon span{font-size:18px;font-weight:700;line-height:1.1;text-align:left}
+  .coupon:before,.coupon:after{content:"";position:absolute;top:30px;width:24px;height:24px;border-radius:50%;background:#F58A2B}
+  .coupon:before{left:-12px}.coupon:after{right:-12px}
+</style></head><body>
+<div class="b">
+  <div class="circle c1"></div><div class="circle c2"></div><div class="dots"></div><div class="shine"></div>
+  <div class="logo">gogo589<small>全球應用內購服務</small></div>
+  <div class="h">新用戶註冊 最高領 <em>9%</em> 優惠券</div>
+  <div class="s">註冊即享首單優惠，海量正版 App 充值等你來</div>
+  <div class="coupon"><b>9%</b><span>新人<br>優惠券</span></div>
+  <div class="btn">立即註冊<svg viewBox="0 0 24 24"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg></div>
+</div>
+</body></html>

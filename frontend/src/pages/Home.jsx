@@ -188,7 +188,12 @@ export default function Home() {
       </section>
 
       {/* Register CTA band */}
-      <section className="mt-6 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <section className="mt-4 md:hidden px-4">
+        <button type="button" data-testid="cta-register-banner" onClick={openAuth} className="block w-full overflow-hidden rounded-2xl shadow-sm active:scale-[0.99] transition-transform">
+          <img src="/banners/register-mobile.png" alt="新用戶註冊，最高領 9% 優惠券，立即註冊" className="w-full h-auto" />
+        </button>
+      </section>
+      <section className="hidden md:block mt-6 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="relative overflow-hidden rounded-2xl sm:rounded-3xl bg-gradient-to-r from-orange-500 via-orange-500 to-amber-500 px-8 py-8 flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="text-white text-center sm:text-left">
             <div className="font-head text-2xl font-extrabold">新用戶註冊，最高領 9% 優惠券</div>
