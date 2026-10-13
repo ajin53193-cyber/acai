@@ -10,6 +10,7 @@ PROMPTS = {
  "topup": "A cute glossy 3D cartoon illustration of an orange leather wallet, slightly open, with shiny gold coins and a few small banknotes "
           "spilling out, one coin floating above with a sparkle, soft studio lighting, warm orange and gold palette, isolated on a plain solid "
           "flat orange background color #F39A3E with no gradient, no text, no shadows on the background, centered, square 1024x1024.",
+ "badge": "A flat vector-style illustration of a gold award rosette medal badge with a scalloped circular edge, concentric gold rings in the center, and two dark navy ribbon tails hanging below, clean minimal design, soft shading, isolated on a plain solid flat light peach background color #FFF1E3, no gradient background, no text, no shadows on the background, centered, square 1024x1024.",
  "topup2": "A cute glossy 3D cartoon illustration of a smiling orange wallet with gold coins popping out and a glowing plus sign above it, soft studio lighting, warm orange and gold palette, isolated on a plain solid flat light peach background color #FFF1E3, no gradient, no text, no background shadows, centered, square 1024x1024.",
  "transactions": "A cute glossy 3D cartoon illustration of a white paper receipt with orange list lines, a small magnifying glass leaning on it, and a few gold coins at the base, soft studio lighting, warm orange and gold palette, isolated on a plain solid flat light peach background color #FFF1E3, no gradient, no text, no background shadows, centered, square 1024x1024.",
 }
