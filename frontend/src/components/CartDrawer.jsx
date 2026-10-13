@@ -24,7 +24,7 @@ export default function CartDrawer() {
       <SheetContent className="w-full sm:max-w-md flex flex-col p-0" data-testid="cart-drawer">
         <SheetHeader className="px-5 py-4 border-b">
           <SheetTitle className="flex items-center gap-2 font-head">
-            <ShoppingBag className="h-5 w-5 text-primary" /> 購物車 ({items.length})
+            <ShoppingBag className="h-5 w-5 text-orange-500" /> 購物車 ({items.length})
           </SheetTitle>
         </SheetHeader>
 
@@ -34,7 +34,7 @@ export default function CartDrawer() {
             <p className="text-sm">購物車是空的</p>
             <button
               onClick={() => setOpen(false)}
-              className="text-primary text-sm font-semibold"
+              className="text-orange-500 text-sm font-semibold"
             >
               去逛逛 →
             </button>
@@ -57,7 +57,7 @@ export default function CartDrawer() {
                         <button
                           data-testid={`cart-dec-${i.key}`}
                           onClick={() => updateQty(i.key, i.quantity - 1)}
-                          className="p-1.5 text-slate-500 hover:text-primary"
+                          className="p-1.5 text-slate-500 hover:text-orange-500"
                         >
                           <Minus className="h-3 w-3" />
                         </button>
@@ -65,12 +65,12 @@ export default function CartDrawer() {
                         <button
                           data-testid={`cart-inc-${i.key}`}
                           onClick={() => updateQty(i.key, i.quantity + 1)}
-                          className="p-1.5 text-slate-500 hover:text-primary"
+                          className="p-1.5 text-slate-500 hover:text-orange-500"
                         >
                           <Plus className="h-3 w-3" />
                         </button>
                       </div>
-                      <span className="font-head font-bold text-primary text-sm">
+                      <span className="font-head font-bold text-orange-500 text-sm">
                         {format(i.unit_price_usd * i.quantity)}
                       </span>
                     </div>
@@ -96,7 +96,7 @@ export default function CartDrawer() {
               <button
                 data-testid="cart-checkout-btn"
                 onClick={checkout}
-                className="w-full h-12 rounded-xl bg-primary text-white font-bold hover:bg-blue-700 transition-colors"
+                className="w-full h-12 rounded-full bg-orange-500 text-white font-bold hover:bg-orange-600 transition-colors"
               >
                 前往結賬
               </button>

@@ -139,3 +139,13 @@ code, .font-mono {
 
 @keyframes ticker-up { from { transform: translateY(100%); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
 .animate-ticker { animation: ticker-up .45s ease-out both; }
+
+.gt-toast { display: flex; align-items: center; gap: 10px; width: fit-content !important; max-width: min(92vw, 420px); left: 0 !important; right: 0 !important; margin: 0 auto !important; padding: 10px 16px 10px 12px; border-radius: 9999px; background: #fff; color: #1e293b; font-size: 14px; line-height: 1.4; box-shadow: 0 12px 32px -12px rgba(232, 121, 42, 0.45), 0 2px 8px rgba(0,0,0,0.06); border: 1px solid rgba(240, 138, 60, 0.18); font-family: var(--font-body); }
+.gt-toast-title { font-weight: 500; }
+.gt-toast-desc { font-size: 12px; color: #64748b; }
+.gt-toast-icon { display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; border-radius: 9999px; flex-shrink: 0; }
+.gt-toast-icon-success { background: #FDEBD9; color: #F08A3C; }
+.gt-toast-icon-error { background: #FEE2E2; color: #EF4444; }
+.gt-toast-icon-info { background: #FDEBD9; color: #F08A3C; }
+.gt-toast-icon-warn { background: #FEF3C7; color: #D97706; }
+
