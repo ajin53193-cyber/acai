@@ -31,12 +31,12 @@ function OrderInfoForm({ order, callApi, onDone }) {
     catch (e) { toast.error(e.response?.data?.detail || "提交失敗"); }
     setBusy(false);
   };
-  if (order.info_submitted !== false) return <div data-testid="order-info-locked" className="w-full rounded-xl bg-slate-50 text-slate-500 text-xs px-3 py-2.5 text-center">充值資料已提交，等待人工處理；如帳號有誤將由客服駁回後開放修改</div>;
+  if (order.info_submitted !== false) return <div data-testid="order-info-locked" className="w-full rounded-xl bg-orange-50 text-orange-600 text-xs px-3 py-2.5 text-center">充值資料已提交，等待人工處理；如帳號有誤將由客服駁回後開放修改</div>;
   if (!open) return <button data-testid="order-info-edit" onClick={() => setOpen(true)} className="w-full h-10 rounded-xl border border-orange-300 text-orange-600 text-sm font-semibold hover:bg-orange-50">填寫充值資料</button>;
-  const inp = "w-full h-11 rounded-xl bg-white border border-slate-200 px-3 text-sm outline-none focus:ring-2 focus:ring-orange-300";
+  const inp = "w-full h-11 rounded-xl bg-slate-100 border-0 px-3 text-sm outline-none focus:ring-2 focus:ring-orange-300 placeholder:text-slate-400";
   return (
-    <div className="rounded-xl border-2 border-amber-300 bg-amber-50 p-4 text-sm space-y-3" data-testid="order-info-form">
-      <div className="font-bold text-amber-700">請填寫充值資料，提交後開始人工充值</div>
+    <div className="rounded-2xl border border-orange-300 bg-white p-4 text-sm space-y-3 shadow-[0_6px_20px_-12px_rgba(232,121,42,0.35)]" data-testid="order-info-form">
+      <div className="font-bold text-slate-900">請填寫充值資料<span className="text-orange-500">，提交後開始人工充值</span></div>
       {order.info_rejected && <div data-testid="order-info-reject-reason" className="rounded-lg bg-red-50 border border-red-200 text-red-600 text-xs px-3 py-2">後台駁回：{order.info_reject_reason}，請重新填寫後提交</div>}
       <div className="text-[11px] text-slate-500">提交後將無法自行修改，請務必核對無誤</div>
       {Object.entries(defs).map(([pid, d]) => (
@@ -174,11 +174,11 @@ function OrdersInner() {
 
       {/* Detail drawer */}
       <Sheet open={!!detail} onOpenChange={(v) => !v && setDetail(null)}>
-        <SheetContent className="w-full sm:max-w-md overflow-y-auto" data-testid="order-detail-drawer">
+        <SheetContent className="w-full sm:max-w-md overflow-y-auto bg-[#FFF4EA] border-l-0 [background-image:radial-gradient(rgba(255,255,255,0.9)_1.5px,transparent_1.5px)] [background-size:18px_18px]" data-testid="order-detail-drawer">
           {detail && (
             <>
               <SheetHeader>
-                <SheetTitle className="font-head">訂單詳情</SheetTitle>
+                <SheetTitle className="font-head text-slate-900 relative inline-block mx-auto"><span className="relative z-10">訂單詳情</span><span className="absolute left-0 right-0 bottom-0.5 h-2 bg-orange-200/80 rounded-sm" /></SheetTitle>
               </SheetHeader>
               <div className="mt-4 space-y-4">
                 <div className="flex items-center justify-between">
@@ -189,14 +189,14 @@ function OrdersInner() {
                 </div>
 
                 {/* Timeline */}
-                <div className="bg-slate-50 rounded-xl p-4">
+                <div className="bg-white rounded-2xl p-4 shadow-[0_6px_20px_-12px_rgba(232,121,42,0.35)]">
                   <div className="flex items-center justify-between">
                     {STATUS_ORDER.map((s, i) => {
                       const done = detail.timeline?.some((t) => t.status === s) || STATUS_ORDER.indexOf(detail.status) >= i;
                       return (
                         <div key={s} className="flex-1 flex flex-col items-center relative">
-                          {i > 0 && <div className={`absolute h-0.5 w-full right-1/2 top-3 ${done ? "bg-primary" : "bg-slate-200"}`} />}
-                          <div className={`relative z-10 h-6 w-6 rounded-full flex items-center justify-center text-[10px] ${done ? "bg-primary text-white" : "bg-slate-200 text-slate-400"}`}>
+                          {i > 0 && <div className={`absolute h-0.5 w-full right-1/2 top-3 ${done ? "bg-orange-400" : "bg-orange-100"}`} />}
+                          <div className={`relative z-10 h-6 w-6 rounded-full flex items-center justify-center text-[10px] ${done ? "bg-orange-500 text-white" : "bg-orange-100 text-orange-400"}`}>
                             {done ? <Check className="h-3 w-3" /> : i + 1}
                           </div>
                           <span className="text-[10px] text-slate-500 mt-1">{STATUS_LABELS[s]}</span>
@@ -210,7 +210,7 @@ function OrdersInner() {
                 {/* Items */}
                 <div className="space-y-2">
                   {detail.items.map((it, idx) => (
-                    <div key={idx} className="flex gap-3 bg-white border border-slate-100 rounded-xl p-2.5">
+                    <div key={idx} className="flex gap-3 bg-white rounded-2xl p-3 shadow-[0_6px_20px_-12px_rgba(232,121,42,0.35)]">
                       <img src={it.image} alt="" className="h-12 w-12 rounded-lg object-cover" />
                       <div className="flex-1">
                         <div className="text-sm font-semibold text-slate-800">{it.product_name}</div>
@@ -224,7 +224,7 @@ function OrdersInner() {
                   <OrderInfoForm order={detail} callApi={callApi} onDone={(o) => { setDetail(o); load(); }} />
                 )}
                 {/* Account info */}
-                <div className="bg-slate-50 rounded-xl p-4 text-sm space-y-2">
+                <div className="bg-white rounded-2xl p-4 text-sm space-y-2 shadow-[0_6px_20px_-12px_rgba(232,121,42,0.35)]">
                   <div className="flex justify-between">
                     <span className="text-slate-400">充值帳號</span>
                     <button onClick={() => copy(detail.recharge_account)} className="font-semibold text-slate-700 flex items-center gap-1">{detail.recharge_account} <Copy className="h-3 w-3 text-slate-400" /></button>
@@ -238,10 +238,10 @@ function OrdersInner() {
                 </div>
 
                 {/* Price */}
-                <div className="space-y-1.5 text-sm">
+                <div className="bg-white rounded-2xl p-4 space-y-1.5 text-sm shadow-[0_6px_20px_-12px_rgba(232,121,42,0.35)]">
                   <div className="flex justify-between text-slate-500"><span>小計</span><span>{money(detail.currency_symbol, detail.subtotal_usd, detail.rate_to_usd, detail.currency)}</span></div>
                   {detail.discount_usd > 0 && <div className="flex justify-between text-emerald-600"><span>優惠 {detail.promo_code}</span><span>-{money(detail.currency_symbol, detail.discount_usd, detail.rate_to_usd, detail.currency)}</span></div>}
-                  <div className="flex justify-between pt-2 border-t"><span className="font-semibold">應付</span><span className="font-head font-extrabold text-primary">{money(detail.currency_symbol, detail.total_usd, detail.rate_to_usd, detail.currency)}</span></div>
+                  <div className="flex justify-between pt-2 border-t border-dashed border-orange-100"><span className="font-semibold">應付</span><span className="font-head font-extrabold text-orange-500">{money(detail.currency_symbol, detail.total_usd, detail.rate_to_usd, detail.currency)}</span></div>
                 </div>
 
                 {detail.status === "pending_payment" && (
@@ -249,14 +249,14 @@ function OrdersInner() {
                     data-testid="order-pay-now-btn"
                     onClick={() => payNow(detail)}
                     disabled={paying}
-                    className="w-full h-11 rounded-xl bg-primary text-white font-bold disabled:opacity-60"
+                    className="w-full h-11 rounded-full bg-orange-500 text-white font-bold disabled:opacity-60"
                   >
                     {paying ? "處理中…" : "立即付款（測試）"}
                   </button>
                 )}
                 <button
                   onClick={() => { copy(detail.order_no); toast.info("已複製訂單編號，請提供給客服"); }}
-                  className="w-full h-11 rounded-xl border border-slate-200 text-slate-600 font-semibold text-sm"
+                  className="w-full h-11 rounded-full bg-white border border-orange-300 text-orange-500 font-semibold text-sm"
                 >
                   聯絡客服處理
                 </button>

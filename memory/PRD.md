@@ -87,3 +87,4 @@
 - 商品頁頂部改為 3 張 Banner 上下輪播(DetailBannerCarousel.jsx)：低價氪金 / 添加GOGO589到桌面(重製去除KAVIP, 點擊開教學彈窗) / 註冊送新客優惠包。
 - 手機狀態欄顏色：iOS26 Safari 取 sticky header 背景色，header 設為米白 #FFF4EA；加入 manifest.json 與桌面圖示。
 - 手機端購物車/結帳頁(Checkout.jsx)重構為 Kavip 樣式：獨立遞送/聯絡卡片、聯絡資訊可折疊、底部固定「支付總額+立即支付」欄；修復其他聯絡方式列橫向溢出。手機端輸入框統一 16px 防 iOS 自動縮放。
+- 充值資料提交後鎖定，僅後台「駁回充值資料」(POST /api/admin/orders/{id}/reject-info) 後用戶可重填；結帳頁移除遞送/聯絡區塊；訂單詳情抽屜改為平台米白圓點背景 + 白色圓角卡片風格。(iteration_8 通過)

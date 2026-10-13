@@ -1,0 +1,64 @@
+{
+  "summary": "Iteration 8 verified the new order-info submission LOCK + admin reject-info flow (backend + frontend) along with the Kavip Checkout restyle (delivery/contact sections removed, single-row wallet pay card). 8/8 backend pytest cases PASS; all frontend acceptance checks PASS. No critical issues found.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "verified_checks": {
+    "backend_pytest": {
+      "file": "/app/backend/tests/test_order_info_lock.py",
+      "report": "/app/test_reports/pytest/iter8_order_info_lock.xml",
+      "result": "8 passed in 3.92s",
+      "cases": [
+        "test_1_initial_state: paid order with empty info -> info_submitted=False",
+        "test_2_submit_info_success_and_lock: POST /orders/{id}/info 200, info_submitted=true, recharge_account auto-filled from first delivery field, GET re-verifies persistence",
+        "test_3_second_submit_locked: 2nd POST /orders/{id}/info -> 400 with detail containing '已提交'; stored value unchanged",
+        "test_4_admin_reject_info: POST /admin/orders/{id}/reject-info {reason:'帳號錯誤'} -> 200, info_submitted=false, info_rejected=true, info_reject_reason='帳號錯誤', timeline has info_rejected entry; member GET /orders echoes the same",
+        "test_5_member_resubmit_after_reject: POST /orders/{id}/info -> 200, info_submitted=true, info_rejected=false",
+        "test_6_reject_on_completed_order_400: after admin confirm -> reject-info 400 (detail mentions 付款/處理)",
+        "test_7_reject_non_existent_order_404",
+        "test_8_reject_requires_admin: member cannot call /admin/orders/{id}/reject-info (403)"
+      ]
+    },
+    "frontend_mobile_400x850": {
+      "orders_fill_flow": "Click order-fill-{id} opens drawer -> order-info-form visible, filled 抖音帳號 and clicked order-info-submit; after submit order-info-locked visible, no 修改充值資料 text, order-info-edit count=0",
+      "orders_after_admin_reject": "After /api/admin/orders/{id}/reject-info with reason '帳號錯誤UI', re-opened drawer shows order-info-reject-reason '後台駁回：帳號錯誤UI，請重新填寫後提交' and order-info-form is visible again for resubmission",
+      "checkout_sections_removed": "data-testid=checkout-name-input count=0, no 遞送訊息 or 聯絡資訊 section text found",
+      "checkout_pay_method_wallet": "pay-method-wallet count=1 with checkout-topup-link (前往充值) present as single-row card",
+      "footer_hidden_on_mobile_checkout": "<footer> has 0x0 bounding box (hidden via max-md:hidden)"
+    },
+    "frontend_desktop_1400x900": {
+      "checkout_sections_removed": "name-input=0, 遞送訊息/聯絡資訊 text absent",
+      "pay_method_wallet": "pay-method-wallet=1, checkout-topup-link=1",
+      "footer_visible_on_desktop_checkout": "<footer> 1400x422 visible"
+    },
+    "frontend_admin": {
+      "orders_tab_reject_button": "After signing in as admin, visiting /admin and clicking 訂單管理, 5 admin-order-reject-info-{id} buttons were present; clicking one with a window.prompt dialog accepted produces toast '已駁回，用戶可重新填寫充值資料' and the card shows status '已駁回，等待用戶重新填寫' (matches spec text on the card)"
+    }
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_order_info_lock.py",
+    "/app/test_reports/pytest/iter8_order_info_lock.xml",
+    "/app/tests/mint_ticket.py"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "React 'Each child in a list should have a unique key prop' warnings in CartDrawer and CheckoutInner render methods (observed in console on /checkout). Not functional but worth cleaning up — likely missing key= on a .map() in those components.",
+    "On MyOrders, OrderInfoForm initial state uses useState(order.info_submitted===false) but render path only reaches it from the detail sheet; the inline 'order-fill-{id}' pattern is clear, but having the form inside the drawer could be confused with the 'open' state logic — current behaviour works as intended.",
+    "Admin reject-info toast message in /admin ('已駁回，用戶可重新填寫充值資料') is slightly different from the spec reference text; the card STATUS text correctly reads '已駁回，等待用戶重新填寫'. Consider unifying copy if desired (non-blocking).",
+    "server.py admin_reject_info allows reject only when status in ('paid','processing'); spec example reject-on-completed returns 400 — this is working but the error message says '僅已付款 / 處理中的訂單可駁回充值資料' which is clear."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_order_info_lock.py (new)",
+    "/app/tests/mint_ticket.py (new helper for Clerk sign-in-token ticket)"
+  ],
+  "success_rate": {"backend": "100% (8/8)", "frontend": "100% — all acceptance checks pass"},
+  "test_credentials": "Clerk admin+clerk_test@shop.com (user_3Kc4MDW67YZmA1ym1sGkaMiLVwK) and tester+clerk_test@shop.com (user_3Kc4MFu2DHwZuy8itp5vS09nzaL). Backend auth via /app/tests/mint_token.py; browser auth via /app/tests/mint_ticket.py + Clerk.signIn.create({strategy:'ticket'}).",
+  "seed_data_creation": "Three paid orders of product 7814 spec 7814-74480 ($5.38) created and progressed through the submit/reject/resubmit/confirm flow; all cleaned up via /api/admin/orders/{id}/confirm at end (10 lingering paid orders completed). Member wallet balance remained >$300.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "To test MyOrders /orders flow: the OrderInfoForm lives inside the detail Sheet drawer (MyOrders.jsx:224), not the list card. Open it via click on data-testid=order-fill-{id}. Required field label comes from product.delivery_fields[*].name (NOT .code) — for product 7814 the key is '抖音帳號'. For auth in browser Playwright, use /app/tests/mint_ticket.py (sign_in_tokens -> ticket) + Clerk.signIn.create({strategy:'ticket'}) then Clerk.setActive. Tickets are single-use; mint one per sign-in. Member test user has >$300 wallet balance, enough for many $5.38 orders.",
+  "rca of the issue": "N/A — all checks passed. The LOCK semantics are enforced in server.py:787 (`if o.get('info_submitted') and not o.get('info_rejected'): 400 '充值資料已提交…'`) and the admin reset in server.py:807-816 (`info_submitted=False, info_rejected=True, info_reject_reason=...`). Frontend MyOrders.jsx:34 renders order-info-locked when info_submitted!==false, so the lock UI is correct, and after admin reject (info_submitted=false, info_rejected=true), MyOrders.jsx:40 shows the red reject-reason banner above the resubmit form."
+}
