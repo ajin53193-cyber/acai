@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { Wallet, ArrowDownLeft, ArrowUpRight } from "lucide-react";
+import { Wallet, ArrowDownLeft, ArrowUpRight, ArrowDownToLine, ShoppingBag } from "lucide-react";
 import { useApi } from "@/lib/api";
 import { useCurrency } from "@/context/CurrencyContext";
 import { Panel } from "./AccountLayout";
@@ -18,15 +18,24 @@ export function BalanceBanner({ data }) {
   const totalIn = data.transactions.filter((t) => t.amount_usd > 0).reduce((a, t) => a + t.amount_usd, 0);
   const totalOut = -data.transactions.filter((t) => t.amount_usd < 0).reduce((a, t) => a + t.amount_usd, 0);
   return (
-    <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#F0872E] to-[#F7A94A] text-white px-7 py-6 flex flex-col sm:flex-row sm:items-center gap-6">
-      <Wallet className="absolute -right-6 -bottom-8 h-40 w-40 text-white/10" strokeWidth={1} />
-      <div className="flex-1">
-        <div className="text-sm text-white/85">錢包餘額（USD）</div>
-        <div className="font-head text-4xl font-extrabold mt-1 tracking-tight" data-testid="wallet-balance">{format(data.balance_usd)}</div>
-      </div>
-      <div className="flex gap-8 sm:border-l sm:border-white/25 sm:pl-8 text-sm">
-        <div><div className="text-white/75">累計充值</div><div className="font-semibold text-lg mt-0.5">{format(totalIn)}</div></div>
-        <div><div className="text-white/75">累計消費</div><div className="font-semibold text-lg mt-0.5">{format(totalOut)}</div></div>
+    <div className="relative overflow-hidden rounded-2xl md:rounded-3xl bg-[#ED8D37] text-white shadow-[0_14px_30px_-16px_rgba(237,141,55,0.8)]" data-testid="wallet-hero-card">
+      <div className="absolute inset-y-0 left-0 w-3/5 bg-gradient-to-r from-[#E8762A] to-transparent" />
+      <div className="absolute -left-10 -top-16 h-44 w-44 rounded-full bg-white/10" />
+      <div className="absolute left-24 -bottom-20 h-40 w-40 rounded-full bg-white/[0.07]" />
+      <img src="/banners/wallet-hero.webp" alt="" className="absolute -right-2 md:right-4 top-1/2 -translate-y-1/2 h-[92%] md:h-[118%] w-auto max-w-none pointer-events-none select-none" style={{ WebkitMaskImage: "linear-gradient(to right, transparent, #000 30%)", maskImage: "linear-gradient(to right, transparent, #000 30%)" }} />
+      <div className="relative px-5 py-5 md:px-8 md:py-7">
+        <div className="inline-flex items-center gap-1.5 rounded-full bg-white/20 backdrop-blur px-2.5 py-1 text-[11px] md:text-xs font-medium"><Wallet className="h-3.5 w-3.5" />錢包餘額（USD）</div>
+        <div className="font-head text-[34px] md:text-5xl font-extrabold mt-2 tracking-tight leading-none drop-shadow-sm" data-testid="wallet-balance">{format(data.balance_usd)}</div>
+        <div className="mt-4 md:mt-6 flex gap-2.5 md:gap-3">
+          <div className="rounded-xl bg-white/15 backdrop-blur px-3 py-2 md:px-4 md:py-2.5 min-w-[108px]">
+            <div className="flex items-center gap-1 text-[11px] md:text-xs text-white/80"><ArrowDownToLine className="h-3 w-3" />累計充值</div>
+            <div className="font-head font-bold text-[15px] md:text-lg mt-0.5">{format(totalIn)}</div>
+          </div>
+          <div className="rounded-xl bg-white/15 backdrop-blur px-3 py-2 md:px-4 md:py-2.5 min-w-[108px]">
+            <div className="flex items-center gap-1 text-[11px] md:text-xs text-white/80"><ShoppingBag className="h-3 w-3" />累計消費</div>
+            <div className="font-head font-bold text-[15px] md:text-lg mt-0.5">{format(totalOut)}</div>
+          </div>
+        </div>
       </div>
     </div>
   );
