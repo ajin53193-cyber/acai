@@ -1,0 +1,21 @@
+{
+  "summary": "Iteration 6 tested Articles API (list, pagination, detail with view_count increment, 404, no 'kavip' leak), Product 7814 related=8 enrichment, and mobile/desktop frontend flows for ArticleCenter, ArticleDetail, Home news section, Category mobile picker/search drawer, Mobile ProductDetail (hidden footer, related 8 cards, product-tips, tabs), and desktop regression. All backend tests (6/6) and all frontend scenarios passed.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": [
+    {"screen": "Article detail (/article/vY19eRYDSP)", "issues": ["Promo screenshot image embedded in content_html still shows the old 'kavip' logo/UI (image asset content). Backend text search is clean; cover/body text contain no 'kavip'. If brand rename needs to extend into article screenshots, update the embedded image assets."]}
+  ]},
+  "test_report_links": ["/app/backend/tests/test_articles_related.py", "/app/test_reports/pytest/iter6.xml"],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "server.py exceeds 1500+ lines – consider splitting into routers/modules (products, articles, wallet, admin) for maintainability.",
+    "GET /api/articles list query lacks explicit upper bound on `size`; a huge size could stream many docs. Consider clamping size (e.g. min(size, 50))."
+  ],
+  "updated_files": ["/app/backend/tests/test_articles_related.py"],
+  "success_rate": {"backend": "100% (6/6)", "frontend": "100% (all critical flows)"},
+  "test_credentials": "N/A - all tested flows are public",
+  "seed_data_creation": "None",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Articles collection has 51 docs; product id 7814 is '抖音抖幣充值(抖音鑽石)' with 8 related products. Mobile viewport 400x900, use data-testid=category-mobile-bar, category-picker-btn, picker-category-{id}, article-card-N, article-page-N, news-card-N, related-products, product-tips, tab-desc, tab-reviews. Home page is heavy; use wait_until='domcontentloaded' instead of networkidle to avoid timeouts.",
+  "rca of the issue": "N/A - no issues"
+}

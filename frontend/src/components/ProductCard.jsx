@@ -12,9 +12,9 @@ export default function ProductCard({ product, simple = false }) {
     <Link
       to={`/product/${product.id}`}
       data-testid={`product-card-${product.id}`}
-      className={`group bg-white overflow-hidden ${simple ? "rounded-2xl border-0 p-2.5 text-center" : "rounded-xl border border-slate-200"} hover:shadow-md hover:border-primary/40 transition-all duration-200`}
+      className={`group bg-white overflow-hidden ${simple ? "rounded-2xl border-0 aspect-[1/1.3] flex flex-col items-center justify-center text-center px-2 py-2" : "rounded-xl border border-slate-200"} hover:shadow-md hover:border-primary/40 transition-all duration-200`}
     >
-      <div className={`relative aspect-square overflow-hidden ${simple ? "rounded-2xl bg-white" : "bg-slate-50"}`}>
+      <div className={`relative aspect-square overflow-hidden ${simple ? "rounded-[22%] bg-white w-[74%]" : "bg-slate-50"}`}>
         <img
           src={product.image}
           alt={product.name}
@@ -26,8 +26,8 @@ export default function ProductCard({ product, simple = false }) {
           </span>
         )}
       </div>
-      <div className="p-2">
-        <h3 className={`text-[13px] text-slate-800 leading-tight ${simple ? "truncate mt-1 font-normal text-[12px]" : "line-clamp-2 min-h-[2.4rem] font-medium"} group-hover:text-primary transition-colors`}>
+      <div className={simple ? "w-full px-1 pt-1" : "p-2"}>
+        <h3 className={`text-[13px] text-slate-800 leading-tight ${simple ? "truncate mt-2.5 font-normal text-[13px]" : "line-clamp-2 min-h-[2.4rem] font-medium"} group-hover:text-primary transition-colors`}>
           {product.name}
         </h3>
         <div className={`flex items-center justify-between mt-1 ${simple ? "hidden" : ""}`}>

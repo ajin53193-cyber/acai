@@ -80,3 +80,7 @@
 
 ## 2026-06 更新
 - 移动端商品详情页：分组切换按钮(13px/h-36)、规格按钮(14px/min-h-44 自适应换行)、角标(10px) 文字缩小以匹配 Kavip。
+- 相關推薦：爬取 Kavip get-product-related-recommend 存入 products.related_ids，API 回傳 related(補足 8 個)，移動端 4 欄近方形卡片。
+- 新聞資訊：爬取 Kavip 51 篇文章(scripts/crawl_articles.py)，品牌字樣改為 GOGO589/gogo589.com，圖片轉存 Object Storage；GET /api/articles、/api/articles/{id}（含閱讀量、上/下一篇）；ArticleCenter/ArticleDetail/Home 改為 API 驅動。
+- 移動端分類頁：分類選擇按鈕(Drawer 選單)+行內搜尋欄，隱藏頁首二級搜尋、麵包屑與分類 Tab；商品頁移動端隱藏頁腳。
+- 註：部分文章內 135editor.com 裝飾圖片仍為遠端連結（本機無法下載）。
