@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 48" width="160" height="48">
+  <rect x="1" y="1" width="70" height="46" rx="6" fill="#fff" stroke="#E5E7EB" stroke-width="2"/>
+  <text x="36" y="32" text-anchor="middle" font-family="Arial Black, Arial, Helvetica, sans-serif" font-weight="900" font-style="italic" font-size="22" fill="#1A1F71" letter-spacing="-1">VISA</text>
+  <rect x="89" y="1" width="70" height="46" rx="6" fill="#fff" stroke="#E5E7EB" stroke-width="2"/>
+  <circle cx="114" cy="24" r="14" fill="#EB001B"/>
+  <circle cx="134" cy="24" r="14" fill="#F79E1B"/>
+  <path d="M124 13.2a14 14 0 0 1 0 21.6a14 14 0 0 1 0-21.6z" fill="#FF5F00"/>
+</svg>

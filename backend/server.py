@@ -2,14 +2,16 @@ import os
 import uuid
 import base64
 import hashlib
+import hmac
 import logging
 from pathlib import Path
 from datetime import datetime, timezone, timedelta
 from typing import Dict, List, Optional
 
+import httpx
 import requests
-from fastapi import FastAPI, APIRouter, HTTPException, Depends
-from fastapi.responses import Response
+from fastapi import FastAPI, APIRouter, HTTPException, Depends, Request
+from fastapi.responses import Response, PlainTextResponse
 from fastapi.concurrency import run_in_threadpool
 import storage as objstore
 from dotenv import load_dotenv
@@ -571,7 +573,7 @@ async def delete_payment_logo(lid: str, admin: dict = Depends(require_role("admi
 
 
 # ----------------------------- Payment methods (wallet top-up) -----------------------------
-PM_CATEGORIES = ("card", "ewallet", "bank")
+PM_CATEGORIES = ("usdt", "card", "ewallet", "bank")
 PM_PROVIDERS = ("manual", "stripe", "paypal", "alipay", "wechat", "crypto", "other")
 PM_SECRET_KEYS = ("api_key", "api_secret", "webhook_secret")
 
@@ -592,18 +594,25 @@ class PaymentMethodIn(BaseModel):
 
 
 DEFAULT_PAYMENT_METHODS = [
-    {"name": "信用卡 / VISA / MasterCard", "category": "card", "provider": "stripe", "description": "支援 VISA、MasterCard、JCB、American Express，付款後即時入帳。"},
-    {"name": "Apple Pay / Google Pay", "category": "ewallet", "provider": "stripe", "description": "使用 Apple Pay 或 Google Pay 快速付款，即時入帳。"},
-    {"name": "PayPal", "category": "ewallet", "provider": "paypal", "description": "跳轉 PayPal 完成付款，手續費依 PayPal 規定。"},
-    {"name": "USDT 加密貨幣", "category": "ewallet", "provider": "crypto", "description": "支援 TRC20 / ERC20 USDT，鏈上確認後入帳。"},
-    {"name": "銀行轉帳", "category": "bank", "provider": "manual", "description": "轉帳後請聯繫客服提供轉帳憑證，人工核對後入帳（約 10–30 分鐘）。"},
+    {"name": "USDT 加密貨幣", "category": "usdt", "provider": "crypto", "image": "/payments/usdt.svg", "description": "支援 TRC20 / ERC20 USDT，鏈上確認後入帳。"},
+    {"name": "信用卡 / VISA / MasterCard", "category": "card", "provider": "stripe", "image": "/payments/visa-mastercard.svg", "description": "支援 VISA、MasterCard、JCB、American Express，付款後即時入帳。"},
+    {"name": "Apple Pay / Google Pay", "category": "ewallet", "provider": "stripe", "image": "/payments/apple-google-pay.svg", "description": "使用 Apple Pay 或 Google Pay 快速付款，即時入帳。"},
+    {"name": "PayPal", "category": "ewallet", "provider": "paypal", "image": "/payments/paypal.svg", "description": "跳轉 PayPal 完成付款，手續費依 PayPal 規定。"},
+    {"name": "銀行轉帳", "category": "bank", "provider": "manual", "image": "/payments/bank.svg", "description": "轉帳後請聯繫客服提供轉帳憑證，人工核對後入帳（約 10–30 分鐘）。"},
 ]
 
 
 async def _ensure_payment_methods():
     if await db.payment_methods.count_documents({}) == 0:
         for i, m in enumerate(DEFAULT_PAYMENT_METHODS):
-            await db.payment_methods.insert_one({"id": new_id(), **m, "image": "", "config": {}, "min_usd": 1, "max_usd": 10000, "fee_percent": 0, "sort_order": i + 1, "active": True, "created_at": now_iso()})
+            await db.payment_methods.insert_one({"id": new_id(), **m, "config": {}, "min_usd": 1, "max_usd": 10000, "fee_percent": 0, "sort_order": i + 1, "active": True, "created_at": now_iso()})
+        return
+    for i, m in enumerate(DEFAULT_PAYMENT_METHODS):
+        upd = {"sort_order": i + 1}
+        if m["category"] == "usdt":
+            upd["category"] = "usdt"
+        await db.payment_methods.update_one({"name": m["name"], "image": {"$in": ["", None]}}, {"$set": {"image": m["image"], **upd}})
+    await db.payment_methods.update_many({"provider": "crypto", "category": "ewallet"}, {"$set": {"category": "usdt"}})
 
 
 def _pm_public(m: dict) -> dict:
@@ -752,6 +761,121 @@ async def wallet_topup(body: TopUpIn, member: dict = Depends(current_member)):
     if pm:
         await db.users.update_one({"user_id": member["user_id"]}, {"$set": {"last_payment_method_id": pm["id"]}})
     return {"balance_usd": bal}
+
+
+# ----------------------------- USDT (TRC20) gateway -----------------------------
+def _usdt_fmt(v) -> str:
+    if isinstance(v, bool):
+        return str(v).lower()
+    if isinstance(v, float) and v.is_integer():
+        return str(int(v))
+    return str(v)
+
+
+def _usdt_sign(params: dict, secret: str) -> str:
+    items = sorted((k, _usdt_fmt(v)) for k, v in params.items() if k != "sign" and v is not None and v != "")
+    s = "&".join(f"{k}={v}" for k, v in items)
+    return hmac.new(secret.encode(), s.encode(), hashlib.sha256).hexdigest()
+
+
+def _usdt_creds(pm: Optional[dict]) -> tuple:
+    cfg = (pm or {}).get("config") or {}
+    key = cfg.get("api_key") or os.environ.get("USDT_PAY_API_KEY", "")
+    secret = cfg.get("api_secret") or os.environ.get("USDT_PAY_API_SECRET", "")
+    base = (cfg.get("base_url") or os.environ.get("USDT_PAY_BASE_URL", "")).rstrip("/")
+    if not (key and secret and base):
+        raise HTTPException(status_code=503, detail="USDT 支付尚未設定")
+    return key, secret, base
+
+
+async def _usdt_call(path: str, payload: dict, key: str, secret: str, base: str) -> dict:
+    payload = {"api_key": key, "timestamp": int(datetime.now(timezone.utc).timestamp()), "nonce": uuid.uuid4().hex, **payload}
+    payload["sign"] = _usdt_sign(payload, secret)
+    try:
+        async with httpx.AsyncClient(timeout=20) as client:
+            r = await client.post(f"{base}{path}", json=payload)
+        data = r.json()
+    except Exception as e:
+        logger.warning("usdt gateway error: %s", e)
+        raise HTTPException(status_code=502, detail="USDT 支付網關暫時無法連線，請稍後再試")
+    if data.get("code") not in (0, "0"):
+        raise HTTPException(status_code=502, detail=f"USDT 網關錯誤：{data.get('msg') or data.get('detail') or r.status_code}")
+    return data.get("data") or {}
+
+
+async def _usdt_settle(topup: dict, gw: dict) -> dict:
+    r = await db.topup_orders.find_one_and_update({"id": topup["id"], "status": "pending"},
+        {"$set": {"status": "paid", "paid_at": gw.get("paid_at") or now_iso(), "tx_id": gw.get("tx_id", ""), "pay_amount": gw.get("pay_amount", topup.get("pay_amount"))}},
+        projection={"_id": 0}, return_document=ReturnDocument.AFTER)
+    if r:
+        await _wallet_tx(topup["user_id"], "topup", float(topup["amount_usd"]), f"錢包充值（USDT {topup.get('network', 'TRC20')}）", ref=topup.get("order_no", ""))
+        await db.users.update_one({"user_id": topup["user_id"]}, {"$set": {"last_payment_method_id": topup.get("method_id", "")}})
+        return r
+    return await db.topup_orders.find_one({"id": topup["id"]}, {"_id": 0})
+
+
+@api_router.post("/me/wallet/topup/usdt")
+async def wallet_topup_usdt(body: TopUpIn, request: Request, member: dict = Depends(current_member)):
+    pm = await db.payment_methods.find_one({"id": body.method_id, "active": True, "provider": "crypto"}, {"_id": 0})
+    if not pm:
+        raise HTTPException(status_code=400, detail="USDT 支付方式無效或已停用")
+    lo, hi = float(pm.get("min_usd") or 1), float(pm.get("max_usd") or 10000)
+    if body.amount_usd < lo or body.amount_usd > hi:
+        raise HTTPException(status_code=400, detail=f"此支付方式單次充值金額需介於 USD${lo:g} ~ USD${hi:g}")
+    key, secret, base = _usdt_creds(pm)
+    public = (os.environ.get("APP_PUBLIC_URL") or request.headers.get("origin") or "").rstrip("/")
+    tid = new_id()
+    out_trade_no = f"TU{tid[:12].upper()}"
+    amount = round(float(body.amount_usd), 2)
+    gw = await _usdt_call("/api/v1/orders", {"amount_usdt": amount, "network": "TRC20", "out_trade_no": out_trade_no,
+                                             "notify_url": f"{public}/api/payments/usdt/notify", "remark": f"gogo589 wallet {member['user_id'][-6:]}"}, key, secret, base)
+    doc = {"id": tid, "user_id": member["user_id"], "method_id": pm["id"], "amount_usd": amount, "status": "pending", "out_trade_no": out_trade_no,
+           "order_no": gw.get("order_no", ""), "pay_amount": gw.get("pay_amount", amount), "network": gw.get("network", "TRC20"),
+           "wallet_address": gw.get("wallet_address", ""), "pay_url": gw.get("pay_url", ""), "expires_at": gw.get("expires_at", ""), "created_at": now_iso()}
+    await db.topup_orders.insert_one(doc)
+    doc.pop("_id", None)
+    return doc
+
+
+@api_router.get("/me/wallet/topup/{tid}")
+async def wallet_topup_status(tid: str, member: dict = Depends(current_member)):
+    t = await db.topup_orders.find_one({"id": tid, "user_id": member["user_id"]}, {"_id": 0})
+    if not t:
+        raise HTTPException(status_code=404, detail="充值單不存在")
+    if t["status"] == "pending":
+        pm = await db.payment_methods.find_one({"id": t.get("method_id")}, {"_id": 0})
+        try:
+            key, secret, base = _usdt_creds(pm)
+            gw = await _usdt_call("/api/v1/orders/query", {"out_trade_no": t["out_trade_no"]}, key, secret, base)
+            if gw.get("status") == "paid":
+                t = await _usdt_settle(t, gw)
+            elif gw.get("status") in ("expired", "cancelled", "closed", "failed"):
+                await db.topup_orders.update_one({"id": tid, "status": "pending"}, {"$set": {"status": gw["status"]}})
+                t["status"] = gw["status"]
+        except HTTPException:
+            pass
+    t["balance_usd"] = await _wallet(member["user_id"])
+    return t
+
+
+@api_router.post("/payments/usdt/notify")
+async def usdt_notify(request: Request):
+    try:
+        body = await request.json()
+    except Exception:
+        return PlainTextResponse("bad request", status_code=400)
+    t = await db.topup_orders.find_one({"out_trade_no": body.get("out_trade_no", "")}, {"_id": 0})
+    if not t:
+        return PlainTextResponse("order not found", status_code=404)
+    pm = await db.payment_methods.find_one({"id": t.get("method_id")}, {"_id": 0})
+    cfg = (pm or {}).get("config") or {}
+    secret = cfg.get("api_secret") or os.environ.get("USDT_PAY_API_SECRET", "")
+    if not secret or not hmac.compare_digest(_usdt_sign(body, secret), str(body.get("sign", ""))):
+        logger.warning("usdt notify bad sign for %s", body.get("out_trade_no"))
+        return PlainTextResponse("invalid sign", status_code=400)
+    if body.get("status") == "paid":
+        await _usdt_settle(t, body)
+    return PlainTextResponse("success")
 
 
 def _info_complete(o: dict, products: Dict[str, dict]) -> bool:

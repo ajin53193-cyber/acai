@@ -5,7 +5,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Switch } from "@/components/ui/switch";
 
 const inp = "w-full h-10 rounded-lg bg-slate-800 border border-slate-700 px-3 text-sm text-slate-100 outline-none focus:border-primary";
-const CATS = { card: "卡支付", ewallet: "電子錢包", bank: "銀行轉賬" };
+const CATS = { usdt: "USDT", card: "卡支付", ewallet: "電子錢包", bank: "銀行轉賬" };
 const PROVIDERS = { manual: "人工核對（無對接）", stripe: "Stripe", paypal: "PayPal", alipay: "支付寶", wechat: "微信支付", crypto: "加密貨幣", other: "其他" };
 const CONFIG_FIELDS = {
   manual: [["account_info", "收款帳戶資訊（顯示給客服核對）"]],
@@ -13,7 +13,7 @@ const CONFIG_FIELDS = {
   paypal: [["merchant_id", "Client ID"], ["api_secret", "Client Secret"], ["notify_url", "Return URL"]],
   alipay: [["merchant_id", "APPID"], ["api_secret", "應用私鑰"], ["notify_url", "異步通知地址"]],
   wechat: [["merchant_id", "商戶號 mch_id"], ["api_key", "APIv3 Key"], ["notify_url", "回調地址"]],
-  crypto: [["account_info", "收款錢包地址"], ["merchant_id", "網路（TRC20 / ERC20）"]],
+  crypto: [["base_url", "網關 API 網址（留空用系統預設）"], ["api_key", "網關 API Key"], ["api_secret", "網關 API Secret"], ["merchant_id", "網路（TRC20）"]],
   other: [["merchant_id", "商戶 ID"], ["api_key", "API Key"], ["api_secret", "API Secret"], ["notify_url", "回調地址"]],
 };
 const readFile = (f) => new Promise((res) => { const r = new FileReader(); r.onload = () => res({ image_b64: r.result, image_name: f.name }); r.readAsDataURL(f); });
