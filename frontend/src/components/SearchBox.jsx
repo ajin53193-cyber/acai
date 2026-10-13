@@ -58,13 +58,13 @@ export function SearchBox({ compact = false }) {
           placeholder={compact ? "請輸入商品名稱搜尋" : "請輸入需搜尋的商品名"}
           autoComplete="off"
           className={compact
-            ? "w-full h-12 rounded-2xl bg-white shadow-sm pl-4 pr-12 text-[15px] outline-none placeholder:text-slate-400 focus:ring-2 focus:ring-orange-200"
+            ? "w-full h-14 rounded-2xl bg-white shadow-sm pl-4 pr-14 text-base outline-none placeholder:text-slate-400 focus:ring-2 focus:ring-orange-200"
             : "w-full h-11 rounded-full border-2 border-orange-200 bg-orange-50/40 pl-5 pr-14 text-sm outline-none focus:border-orange-400 focus:bg-white transition-colors"}
         />
         <button data-testid={compact ? "mobile-search-submit" : "search-submit"} className={compact
           ? "absolute right-2 top-1/2 -translate-y-1/2 h-9 w-9 rounded-full flex items-center justify-center text-orange-500"
           : "absolute right-1 top-1 h-9 w-11 rounded-full bg-gradient-to-r from-orange-500 to-amber-500 flex items-center justify-center text-white"}>
-          <Search className={compact ? "h-5 w-5" : "h-4 w-4"} strokeWidth={2.2} />
+          <Search className={compact ? "h-6 w-6" : "h-4 w-4"} strokeWidth={2.2} />
         </button>
       </form>
       {open && items.length > 0 && (

@@ -48,21 +48,21 @@ export default function Home() {
       {/* Hero banner */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4">
         <div className="relative overflow-hidden rounded-2xl sm:rounded-3xl bg-gradient-to-r from-orange-100 via-amber-50 to-orange-50 border border-orange-100">
-          <div className="relative z-10 px-4 sm:px-10 py-6 sm:py-12 max-w-[60%]">
-            <div className="text-[11px] sm:text-sm font-semibold text-orange-500 mb-1.5 sm:mb-2">(UTC+8) 限時活動</div>
-            <h1 className="font-head text-xl sm:text-4xl lg:text-5xl font-extrabold text-orange-600 leading-tight">低價氪金 戰力超神</h1>
-            <div className="font-head text-base sm:text-3xl lg:text-4xl font-extrabold text-slate-800 mt-1 sm:mt-2">
+          <div className="relative z-10 px-4 sm:px-10 py-7 sm:py-12 max-w-[60%]">
+            <div className="text-xs sm:text-sm font-medium sm:font-semibold text-slate-500 sm:text-orange-500 mb-1.5 sm:mb-2">(UTC+8) 限時活動</div>
+            <h1 className="font-head text-[22px] sm:text-4xl lg:text-5xl font-extrabold text-orange-500 sm:text-orange-600 leading-tight whitespace-nowrap">低價氪金 戰力超神</h1>
+            <div className="font-head text-[19px] sm:text-3xl lg:text-4xl font-extrabold text-[#5a3a22] sm:text-slate-800 mt-1 sm:mt-2 whitespace-nowrap">
               神券在手 下單省最高 <span className="text-orange-500">7%</span>
             </div>
             <div className="flex flex-wrap gap-1.5 sm:gap-2 mt-4 sm:mt-6">
               {[["手遊", "games"], ["端遊", "games"], ["點卡官方速充", "pointcard"]].map(([label, cid]) => (
                 <Link key={label} to={`/category/${cid}`} data-testid={`hero-pill-${cid}-${label}`}
-                  className="bg-white/80 hover:bg-white text-orange-600 font-semibold text-[11px] sm:text-sm rounded-full px-3 sm:px-5 py-1 sm:py-2 border border-orange-200 transition-colors">{label}</Link>
+                  className="bg-white/90 hover:bg-white text-[#5a3a22] sm:text-orange-600 font-medium sm:font-semibold text-xs sm:text-sm rounded-full px-3.5 sm:px-5 py-1 sm:py-2 sm:border sm:border-orange-200 transition-colors">{label}</Link>
               ))}
             </div>
           </div>
           <img src="https://static.prod-images.emergentagent.com/jobs/8c0ad436-0c2e-49bb-a5bb-0efc73c32f62/images/2ad58532ad0f875a0c9c030d9069119b5960735a7e1383d2f707ce6813e0bc05.jpeg"
-            alt="hero" className="absolute right-0 top-0 h-full w-[55%] object-cover object-left pointer-events-none" />
+            alt="hero" className="absolute right-0 top-0 h-full w-[48%] sm:w-[55%] object-cover object-[35%_center] sm:object-left pointer-events-none" />
         </div>
       </div>
 
@@ -85,12 +85,12 @@ export default function Home() {
           <Carousel testid="quick-carousel">
             {quick.map((p) => (
               <Link key={p.id} to={`/product/${p.id}`} data-testid={`quick-order-${p.id}`}
-                className="group shrink-0 bg-white rounded-2xl border border-slate-100 shadow-sm p-3 flex flex-col items-center text-center hover:shadow-md transition-all">
-                <div className="relative w-[64%] aspect-square rounded-2xl overflow-hidden bg-white">
+                className="group shrink-0 bg-white rounded-2xl border border-slate-100 shadow-sm px-2 py-4 md:p-3 flex flex-col items-center text-center hover:shadow-md transition-all">
+                <div className="relative w-[58%] md:w-[64%] aspect-square rounded-2xl overflow-hidden bg-white">
                   <img src={p.image} alt={p.name} className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-300" />
                 </div>
-                <h3 className="font-semibold text-[13px] leading-normal text-slate-800 truncate mt-3 w-full group-hover:text-orange-600">{p.name}</h3>
-                <span className="mt-3 text-xs font-bold text-orange-600 bg-orange-100 group-hover:bg-orange-500 group-hover:text-white rounded-full px-5 py-1.5 transition-colors">立即購買</span>
+                <h3 className="font-semibold text-[14px] md:text-[13px] leading-normal text-slate-800 truncate mt-3 w-full group-hover:text-orange-600">{p.name}</h3>
+                <span className="mt-3 text-[13px] md:text-xs font-bold text-orange-500 md:text-orange-600 bg-orange-100/80 md:bg-orange-100 group-hover:bg-orange-500 group-hover:text-white rounded-full px-5 py-1.5 whitespace-nowrap transition-colors">立即購買</span>
               </Link>
             ))}
           </Carousel>
@@ -103,14 +103,14 @@ export default function Home() {
             {hot.slice(0, 16).map((p) => (
               <Link key={p.id} to={`/product/${p.id}`} data-testid={`product-card-${p.id}`}
                 className="group relative shrink-0 w-[150px] sm:w-[180px] bg-white rounded-2xl border border-slate-100 shadow-sm p-3 hover:shadow-md hover:-translate-y-0.5 transition-all">
-                {p.tags?.includes("熱銷") && <span className="absolute top-0 right-3 text-[10px] font-bold rounded-b-md px-2 py-0.5 bg-orange-400 text-white whitespace-nowrap">折扣</span>}
-                <div className="relative w-[64%] mx-auto aspect-square rounded-2xl overflow-hidden bg-white">
+                {p.tags?.includes("熱銷") && <span className="absolute -top-1.5 -right-0.5 md:top-0 md:right-3 text-xs md:text-[10px] font-bold rounded-tr-xl rounded-bl-xl md:rounded-none md:rounded-b-md px-3 md:px-2 py-1 md:py-0.5 bg-orange-400 text-white whitespace-nowrap">折扣</span>}
+                <div className="relative w-[58%] md:w-[64%] mx-auto aspect-square rounded-2xl overflow-hidden bg-white mt-2 md:mt-0">
                   <img src={p.image} alt={p.name} className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-300" />
                 </div>
-                <h3 className="font-semibold text-[13px] leading-normal text-slate-800 truncate mt-2.5 text-center w-full group-hover:text-orange-600">{p.name}</h3>
-                <div className="flex items-center justify-between mt-2 text-[11px]">
-                  <span className="flex items-center gap-0.5 text-slate-400"><span className="text-orange-400">🔥</span>{salesText(p.sales_count)}</span>
-                  <span className="flex items-center gap-0.5 text-amber-500 font-semibold">{Math.round(p.rating)}<Star className="h-3 w-3 fill-amber-400 text-amber-400" /></span>
+                <h3 className="font-semibold text-[14px] md:text-[13px] leading-normal text-slate-800 truncate mt-3 md:mt-2.5 text-center w-full group-hover:text-orange-600">{p.name}</h3>
+                <div className="flex items-center justify-between mt-3 md:mt-2 pt-2.5 md:pt-0 border-t md:border-0 border-slate-100 text-xs md:text-[11px]">
+                  <span className="flex items-center gap-0.5 text-slate-600 md:text-slate-400"><span className="text-orange-400">🔥</span>{salesText(p.sales_count)}</span>
+                  <span className="flex items-center gap-0.5 text-orange-500 md:text-amber-500 font-semibold">{Math.round(p.rating)}<Star className="h-3.5 w-3.5 md:h-3 md:w-3 fill-orange-400 md:fill-amber-400 text-orange-400 md:text-amber-400" /></span>
                 </div>
               </Link>
             ))}
@@ -131,7 +131,7 @@ export default function Home() {
         <section className="mt-8 md:mt-10">
           <div className="flex items-center justify-between mb-4">
             <MTitle>熱門分類</MTitle>
-            <Link to="/category/livestream" data-testid="all-categories-link" className="text-xs font-semibold text-orange-600 bg-orange-50 border border-orange-100 rounded-full px-4 py-1.5 hover:bg-orange-100">全部分類</Link>
+            <Link to="/category/livestream" data-testid="all-categories-link" className="text-sm md:text-xs font-medium md:font-semibold text-orange-500 md:text-orange-600 bg-orange-100/70 md:bg-orange-50 md:border md:border-orange-100 rounded-full px-4 py-1.5 hover:bg-orange-100">全部分類</Link>
           </div>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
             {categories.slice(0, 6).map((c) => {
@@ -365,7 +365,7 @@ function SectionTitle({ title, to, icon }) {  return (
         {icon && <img src={icon} alt="" className="h-6 w-6 rounded-md object-cover" />}
         <MTitle>{title}</MTitle>
       </div>
-      <Link to={to} className="flex items-center gap-0.5 text-xs text-orange-500 bg-orange-100/70 md:bg-transparent rounded-full px-3 py-1 md:px-0 md:py-0 md:text-slate-400 hover:text-orange-500">查看更多 <ChevronRight className="h-3.5 w-3.5 hidden md:block" /></Link>
+      <Link to={to} className="flex items-center gap-0.5 text-sm md:text-xs text-orange-500 bg-orange-100/70 md:bg-transparent rounded-full px-4 py-1.5 md:px-0 md:py-0 md:text-slate-400 hover:text-orange-500">查看更多 <ChevronRight className="h-3.5 w-3.5 hidden md:block" /></Link>
     </div>
   );
 }
