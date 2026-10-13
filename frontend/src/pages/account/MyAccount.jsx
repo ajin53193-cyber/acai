@@ -42,11 +42,6 @@ export default function MyAccount() {
     } catch (e) { toast.error(e?.errors?.[0]?.longMessage || e?.errors?.[0]?.message || "密碼更新失敗"); }
   };
 
-  const deleteAccount = async () => {
-    if (!window.confirm("確定要刪除帳號嗎？刪除後所有資料將無法恢復。")) return;
-    try { await user.delete(); window.location.href = "/"; } catch (e) { toast.error(e?.errors?.[0]?.longMessage || "刪除失敗，請聯繫客服"); }
-  };
-
   const email = user?.primaryEmailAddress?.emailAddress;
   const phone = user?.primaryPhoneNumber?.phoneNumber;
   const google = user?.externalAccounts?.some((a) => a.provider === "google");
@@ -63,7 +58,6 @@ export default function MyAccount() {
           <div className="mt-4 pl-2 max-md:pl-0 max-md:mt-0">
             <Row label="帳戶ID：">
               <span className="text-slate-800 font-medium" data-testid="account-no">{info?.account_no || "—"}</span>
-              <button data-testid="delete-account-btn" onClick={deleteAccount} className="rounded-full bg-orange-50 text-orange-500 text-sm px-4 py-1 hover:bg-orange-100">刪除帳號</button>
             </Row>
             <Row label="信箱：">
               <span className="text-slate-800 truncate">{email || "未綁定"}</span><Hint>（可用於登入）</Hint>
