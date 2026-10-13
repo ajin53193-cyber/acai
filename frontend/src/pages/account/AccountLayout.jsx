@@ -15,7 +15,7 @@ const NAV = [
 export const Panel = ({ title, right, children, testId }) => (
   <div className="md:bg-white md:rounded-3xl md:shadow-sm md:p-8 md:min-h-[70vh]" data-testid={testId}>
     <div className="flex items-center justify-between gap-4 mb-5 md:mb-6 max-md:px-1">
-      <h1 className="font-head text-xl md:text-lg font-bold md:font-semibold text-slate-900 relative inline-block"><span className="relative z-10">{title}</span><span className="md:hidden absolute left-0 right-0 bottom-0.5 h-2 bg-orange-200/80 rounded-sm" /></h1>
+      <h1 className="font-head text-xl md:text-lg font-bold md:font-semibold text-slate-900 relative inline-block whitespace-nowrap shrink-0"><span className="relative z-10">{title}</span><span className="md:hidden absolute left-0 right-0 bottom-0.5 h-2 bg-orange-200/80 rounded-sm" /></h1>
       {right}
     </div>
     {children}
@@ -26,9 +26,9 @@ export const Tag = ({ children }) => <span className="inline-block rounded-md bg
 export const Box = ({ children, className = "" }) => <div className={`rounded-2xl bg-slate-50 p-6 max-md:relative max-md:bg-white max-md:shadow-[0_6px_20px_-12px_rgba(232,121,42,0.35)] max-md:p-4 max-md:pt-12 ${className}`}>{children}</div>;
 export const OrangeBtn = ({ children, className = "", ...p }) => <button {...p} className={`h-12 px-12 rounded-full bg-orange-500 hover:bg-orange-600 text-white font-bold transition-colors disabled:opacity-60 ${className}`}>{children}</button>;
 export const SubTabs = ({ tabs, value, onChange, testPrefix = "subtab" }) => (
-  <div className="flex items-center gap-6 mb-6 flex-wrap">
+  <div className="flex items-center gap-6 max-md:gap-2 mb-6 max-md:mb-4 flex-wrap max-md:flex-nowrap max-md:overflow-x-auto no-scrollbar max-md:-mx-1 max-md:px-1">
     {tabs.map(([k, label]) => (
-      <button key={k} data-testid={`${testPrefix}-${k}`} onClick={() => onChange(k)} className={`text-sm font-medium transition-colors ${value === k ? "text-orange-500" : "text-slate-600 hover:text-orange-500"}`}>{label}</button>
+      <button key={k} data-testid={`${testPrefix}-${k}`} onClick={() => onChange(k)} className={`text-sm max-md:text-[13px] font-medium transition-colors whitespace-nowrap max-md:h-8 max-md:px-3.5 max-md:rounded-full ${value === k ? "text-orange-500 max-md:bg-orange-500 max-md:text-white" : "text-slate-600 hover:text-orange-500 max-md:bg-white max-md:shadow-sm"}`}>{label}</button>
     ))}
   </div>
 );

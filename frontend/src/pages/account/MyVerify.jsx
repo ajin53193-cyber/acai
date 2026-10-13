@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Award, Check, Plus } from "lucide-react";
+import { Award, Check, Plus, ShieldCheck, CreditCard } from "lucide-react";
 import { toast } from "sonner";
 import { useApi } from "@/lib/api";
 import { Panel, OrangeBtn, SubTabs } from "./AccountLayout";
@@ -117,17 +117,21 @@ export default function MyVerify() {
   }
 
   return (
-    <Panel title="我的認證" testId="verify-page" right={<div className="flex items-center gap-3 text-sm text-orange-500"><span>您還需要認證其他身分？</span><button data-testid="verify-add" onClick={() => setAdding(true)} className="h-10 px-5 rounded-full bg-orange-500 text-white font-semibold hover:bg-orange-600">點擊新增</button></div>}>
+    <Panel title="我的認證" testId="verify-page" right={<div className="flex items-center gap-2 md:gap-3 text-xs md:text-sm text-orange-500 shrink-0"><span className="hidden sm:inline">您還需要認證其他身分？</span><button data-testid="verify-add" onClick={() => setAdding(true)} className="h-8 md:h-10 px-4 md:px-5 rounded-full bg-orange-500 text-white font-semibold hover:bg-orange-600 whitespace-nowrap">點擊新增</button></div>}>
+      <p className="sm:hidden -mt-2 mb-3 px-1 text-xs text-orange-500">您還需要認證其他身分？點擊右上角新增</p>
       <SubTabs tabs={[["all", "全部"], ...Object.entries(STATUS)]} value={filter} onChange={setFilter} testPrefix="verify-filter" />
       {shown.length === 0 ? <EmptyState /> : (
         <div className="grid md:grid-cols-2 gap-4">
           {shown.map((v) => (
-            <div key={v.id} data-testid={`verify-item-${v.id}`} className="rounded-2xl bg-slate-50 p-5 text-sm">
-              <div className="flex items-center justify-between"><span className="font-semibold text-slate-800">{v.kind === "identity" ? "身份認證" : "金融卡"} · {v.doc_type}</span>
-                <span className={`rounded-full px-3 py-0.5 text-xs ${v.status === "approved" ? "bg-emerald-50 text-emerald-600" : v.status === "rejected" ? "bg-red-50 text-red-500" : "bg-orange-50 text-orange-500"}`}>{STATUS[v.status]}</span></div>
-              <div className="mt-2 text-slate-600">姓名：{v.name}</div>
-              <div className="mt-1 text-xs text-slate-400">{v.created_at?.slice(0, 19).replace("T", " ")}</div>
-              {v.admin_note && <div className="mt-2 text-xs text-slate-500">備註：{v.admin_note}</div>}
+            <div key={v.id} data-testid={`verify-item-${v.id}`} className="rounded-2xl bg-slate-50 max-md:bg-white max-md:shadow-[0_6px_20px_-12px_rgba(232,121,42,0.35)] p-4 md:p-5 text-sm flex gap-3">
+              <span className={`h-10 w-10 shrink-0 rounded-xl flex items-center justify-center ${v.status === "approved" ? "bg-emerald-50 text-emerald-500" : v.status === "rejected" ? "bg-red-50 text-red-500" : "bg-orange-50 text-orange-500"}`}>{v.kind === "identity" ? <ShieldCheck className="h-5 w-5" /> : <CreditCard className="h-5 w-5" />}</span>
+              <div className="flex-1 min-w-0">
+              <div className="flex items-center justify-between gap-2"><span className="font-semibold text-slate-800 truncate">{v.kind === "identity" ? "身份認證" : "金融卡"} · {v.doc_type}</span>
+                <span className={`shrink-0 rounded-full px-2.5 py-0.5 text-[11px] md:text-xs ${v.status === "approved" ? "bg-emerald-50 text-emerald-600" : v.status === "rejected" ? "bg-red-50 text-red-500" : "bg-orange-50 text-orange-500"}`}>{STATUS[v.status]}</span></div>
+              <div className="mt-1.5 text-[13px] md:text-sm text-slate-600">姓名：{v.name}</div>
+              <div className="mt-1 text-[11px] md:text-xs text-slate-400">{v.created_at?.slice(0, 16).replace("T", " ")}</div>
+              {v.admin_note && <div className="mt-2 rounded-lg bg-slate-50 md:bg-white px-2.5 py-1.5 text-[11px] md:text-xs text-slate-500">備註：{v.admin_note}</div>}
+              </div>
             </div>
           ))}
         </div>
