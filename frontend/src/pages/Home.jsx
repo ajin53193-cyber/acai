@@ -85,11 +85,11 @@ export default function Home() {
           <Carousel testid="quick-carousel">
             {quick.map((p) => (
               <Link key={p.id} to={`/product/${p.id}`} data-testid={`quick-order-${p.id}`}
-                className="group shrink-0 bg-white rounded-2xl border border-slate-100 shadow-sm px-2 py-3 md:p-3 flex flex-col items-center text-center hover:shadow-md transition-all">
+                className="group shrink-0 bg-white rounded-2xl border border-slate-100 shadow-sm px-1.5 py-3 md:p-3 flex flex-col items-center text-center hover:shadow-md transition-all">
                 <div className="relative w-[52%] md:w-[64%] aspect-square rounded-2xl overflow-hidden bg-white">
                   <img src={p.image} alt={p.name} className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-300" />
                 </div>
-                <h3 className="font-semibold text-[13px] leading-normal text-slate-800 truncate mt-2 md:mt-3 w-full group-hover:text-orange-600">{p.name}</h3>
+                <h3 className="font-semibold text-[12px] md:text-[13px] leading-normal text-slate-800 truncate mt-2 md:mt-3 w-full group-hover:text-orange-600">{p.name}</h3>
                 <span className="mt-2 md:mt-3 text-xs font-bold text-orange-500 md:text-orange-600 bg-orange-100/80 md:bg-orange-100 group-hover:bg-orange-500 group-hover:text-white rounded-full px-4 md:px-5 py-1 md:py-1.5 whitespace-nowrap transition-colors">立即購買</span>
               </Link>
             ))}
@@ -102,14 +102,14 @@ export default function Home() {
           <Carousel testid="hot-carousel">
             {hot.slice(0, 16).map((p) => (
               <Link key={p.id} to={`/product/${p.id}`} data-testid={`product-card-${p.id}`}
-                className="group relative shrink-0 w-[150px] sm:w-[180px] bg-white rounded-2xl border border-slate-100 shadow-sm p-3 hover:shadow-md hover:-translate-y-0.5 transition-all">
+                className="group relative shrink-0 w-[150px] sm:w-[180px] bg-white rounded-2xl border border-slate-100 shadow-sm p-2 md:p-3 hover:shadow-md hover:-translate-y-0.5 transition-all">
                 {p.tags?.includes("熱銷") && <span className="absolute -top-1 -right-0.5 md:top-0 md:right-3 text-[10px] font-bold rounded-tr-xl rounded-bl-xl md:rounded-none md:rounded-b-md px-2.5 md:px-2 py-0.5 bg-orange-400 text-white whitespace-nowrap">折扣</span>}
                 <div className="relative w-[52%] md:w-[64%] mx-auto aspect-square rounded-2xl overflow-hidden bg-white mt-1.5 md:mt-0">
                   <img src={p.image} alt={p.name} className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-300" />
                 </div>
-                <h3 className="font-semibold text-[13px] leading-normal text-slate-800 truncate mt-2 md:mt-2.5 text-center w-full group-hover:text-orange-600">{p.name}</h3>
+                <h3 className="font-semibold text-[12px] md:text-[13px] leading-normal text-slate-800 truncate mt-2 md:mt-2.5 text-center w-full group-hover:text-orange-600">{p.name}</h3>
                 <div className="flex items-center justify-between mt-2 pt-2 md:pt-0 border-t md:border-0 border-slate-100 text-[11px]">
-                  <span className="flex items-center gap-0.5 text-slate-600 md:text-slate-400"><span className="text-orange-400">🔥</span>{salesText(p.sales_count)}</span>
+                  <span className="flex items-center gap-0.5 text-slate-600 md:text-slate-400 text-[10px] md:text-[11px]"><span className="text-orange-400 text-[10px]">🔥</span>{salesText(p.sales_count)}</span>
                   <span className="flex items-center gap-0.5 text-orange-500 md:text-amber-500 font-semibold">{Math.round(p.rating)}<Star className="h-3 w-3 fill-orange-400 md:fill-amber-400 text-orange-400 md:text-amber-400" /></span>
                 </div>
               </Link>
@@ -209,7 +209,7 @@ function Carousel({ children, testid }) {
     const el = ref.current;
     if (!el) return;
     const measure = () => {
-      const per = el.clientWidth < 500 ? 2.85 : el.clientWidth < 768 ? 4 : 6;
+      const per = el.clientWidth < 500 ? 3 : el.clientWidth < 768 ? 4 : 6;
       setCardW((el.clientWidth - GAP * (per - 1)) / per);
     };
     measure();
