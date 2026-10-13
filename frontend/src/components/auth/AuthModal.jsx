@@ -184,16 +184,16 @@ function AuthModal({ open, onOpenChange }) {
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
         hideClose
-        className="auth-sheet !gap-0 max-md:!flex max-md:!flex-col max-md:!inset-0 max-md:!translate-x-0 max-md:!translate-y-0 max-md:!left-0 max-md:!top-0 max-md:!w-full max-md:!max-w-none max-md:!h-full max-md:!max-h-none max-md:!rounded-none md:w-[calc(100%-1.5rem)] md:max-w-[420px] md:max-h-[92vh] overflow-x-hidden overflow-y-auto p-0 border-0 md:rounded-3xl grid-cols-[minmax(0,1fr)] [&>*]:min-w-0 bg-white max-md:bg-[#FFF8F2]"
+        className="auth-sheet !gap-0 max-md:!flex max-md:!flex-col max-md:!inset-0 max-md:!translate-x-0 max-md:!translate-y-0 max-md:!left-0 max-md:!top-0 max-md:!w-full max-md:!max-w-none max-md:!h-full max-md:!max-h-none max-md:!rounded-none md:w-[calc(100%-1.5rem)] md:max-w-[420px] md:max-h-[92vh] overflow-x-hidden overflow-y-auto p-0 border-0 md:rounded-3xl grid-cols-[minmax(0,1fr)] [&>*]:min-w-0 bg-white"
         data-testid="auth-modal"
       >
         <DialogTitle className="sr-only">登入</DialogTitle>
         {/* mobile top bar */}
-        <div className="md:hidden flex items-center justify-between px-4 pt-4 pb-3 bg-white">
-          <button onClick={close} data-testid="auth-home" className="flex items-center gap-1.5 h-9 px-4 rounded-full bg-orange-100/80 text-orange-500 text-[15px] font-medium"><Home className="h-4 w-4" />首頁</button>
-          <button onClick={close} data-testid="auth-close" className="h-9 w-9 rounded-full bg-orange-100/80 text-orange-500 flex items-center justify-center"><X className="h-5 w-5" /></button>
+        <div className="md:hidden flex items-center justify-between px-4 pt-4 pb-4 bg-white">
+          <button onClick={close} data-testid="auth-home" className="flex items-center gap-1.5 h-10 px-5 rounded-full bg-[#FDEBD9] text-orange-500 text-base font-medium"><Home className="h-4 w-4" />首頁</button>
+          <button onClick={close} data-testid="auth-close" className="h-9 w-9 -mt-3 rounded-full bg-[#FDEBD9] text-orange-500 flex items-center justify-center"><X className="h-5 w-5" /></button>
         </div>
-        <div className="md:hidden flex items-center gap-2 bg-[#FCE6CF] px-4 py-3 text-[15px] font-bold text-orange-500"><Gift className="h-5 w-5" />新用戶註冊最高領9%優惠券</div>
+        <div className="md:hidden flex items-center gap-2 bg-[#FCE7D2] px-4 py-3.5 text-base font-bold text-orange-500"><Gift className="h-5 w-5" />新用戶註冊最高領9%優惠券</div>
         {/* desktop accent + close */}
         <div className="hidden md:block h-1.5 w-20 mx-auto mt-4 rounded-full bg-orange-500" />
         <button
@@ -207,15 +207,15 @@ function AuthModal({ open, onOpenChange }) {
         {view === "forgot" ? (
           <ForgotPassword onBack={() => setView("login")} onClose={close} />
         ) : (
-        <div className="px-5 md:px-6 pb-6 pt-5 md:pt-3 w-full min-w-0 max-w-full">
+        <div className="px-5 md:px-6 pb-6 pt-7 md:pt-3 w-full min-w-0 max-w-full">
           {/* tabs */}
-          <div className="flex items-center gap-6 mb-5">
+          <div className="flex items-center gap-6 mb-6 md:mb-5">
             {TABS.map(([key, label]) => (
               <button
                 key={key}
                 data-testid={`auth-tab-${key}`}
                 onClick={() => switchTab(key)}
-                className={`relative text-xl md:text-lg font-bold pb-1 transition-colors ${
+                className={`relative text-[22px] md:text-lg font-bold pb-1 transition-colors ${
                   tab === key ? "text-orange-500 md:text-orange-600" : "text-slate-800 md:text-slate-500 hover:text-slate-700"
                 }`}
               >
@@ -228,7 +228,7 @@ function AuthModal({ open, onOpenChange }) {
           </div>
 
           {codeTabs && (
-            <div className="text-sm font-bold text-orange-500 mb-4">新用戶首次登入將自動註冊</div>
+            <div className="text-[15px] md:text-sm font-bold text-orange-500 mb-5 md:mb-4 pl-0.5">新用戶首次登入將自動註冊</div>
           )}
           {tab === "account" && trust && (
             <div className="text-sm font-bold text-orange-500 mb-4" data-testid="auth-trust-hint">新裝置安全驗證：請輸入發送至 {trust.safeIdentifier || "您信箱"} 的驗證碼</div>
@@ -245,12 +245,12 @@ function AuthModal({ open, onOpenChange }) {
                 value={identifier}
                 onChange={(e) => setIdentifier(e.target.value)}
                 placeholder={tab === "account" ? "信箱 / 帳號" : "信箱"}
-                className="w-full min-w-0 h-14 rounded-2xl bg-white md:bg-slate-100 px-5 text-base outline-none focus:ring-2 focus:ring-orange-300 placeholder:text-slate-400"
+                className="w-full min-w-0 h-12 md:h-14 rounded-full md:rounded-2xl bg-[#F5F5F5] md:bg-slate-100 px-5 text-base outline-none focus:ring-2 focus:ring-orange-300 placeholder:text-slate-400"
               />
             )}
 
             {tab === "account" && trust ? (
-              <div className="flex items-center gap-2 w-full">
+              <div className="relative flex items-center gap-2 w-full">
                 <input
                   data-testid="auth-trust-code"
                   size={1}
@@ -258,9 +258,9 @@ function AuthModal({ open, onOpenChange }) {
                   onChange={(e) => setCode(e.target.value)}
                   placeholder="新裝置驗證碼"
                   inputMode="numeric"
-                  className="flex-1 min-w-0 basis-0 h-14 rounded-2xl bg-white md:bg-slate-100 px-5 text-base outline-none focus:ring-2 focus:ring-orange-300 placeholder:text-slate-400"
+                  className="flex-1 min-w-0 basis-0 h-12 md:h-14 rounded-full md:rounded-2xl bg-[#F5F5F5] md:bg-slate-100 px-5 text-base outline-none focus:ring-2 focus:ring-orange-300 placeholder:text-slate-400"
                 />
-                <button data-testid="auth-trust-resend" onClick={resendTrust} className="shrink-0 h-14 px-4 rounded-2xl bg-orange-100 text-orange-600 font-bold text-sm hover:bg-orange-200 whitespace-nowrap transition-colors">重新發送</button>
+                <button data-testid="auth-trust-resend" onClick={resendTrust} className="shrink-0 h-12 md:h-14 px-3 md:px-4 rounded-full md:rounded-2xl bg-orange-100 text-orange-500 md:text-orange-600 font-medium md:font-bold text-sm hover:bg-orange-200 whitespace-nowrap max-md:absolute max-md:right-1.5 max-md:top-1/2 max-md:-translate-y-1/2 max-md:h-9 transition-colors">重新發送</button>
               </div>
             ) : tab === "account" ? (
               <input
@@ -270,10 +270,10 @@ function AuthModal({ open, onOpenChange }) {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="密碼"
-                className="w-full min-w-0 h-14 rounded-2xl bg-white md:bg-slate-100 px-5 text-base outline-none focus:ring-2 focus:ring-orange-300 placeholder:text-slate-400"
+                className="w-full min-w-0 h-12 md:h-14 rounded-full md:rounded-2xl bg-[#F5F5F5] md:bg-slate-100 px-5 text-base outline-none focus:ring-2 focus:ring-orange-300 placeholder:text-slate-400"
               />
             ) : (
-              <div className="flex items-center gap-2 w-full">
+              <div className="relative flex items-center gap-2 w-full">
                 <input
                   data-testid="auth-code"
                   size={1}
@@ -281,13 +281,13 @@ function AuthModal({ open, onOpenChange }) {
                   onChange={(e) => setCode(e.target.value)}
                   placeholder="驗證碼"
                   inputMode="numeric"
-                  className="flex-1 min-w-0 basis-0 h-14 rounded-2xl bg-white md:bg-slate-100 px-5 text-base outline-none focus:ring-2 focus:ring-orange-300 placeholder:text-slate-400"
+                  className="flex-1 min-w-0 basis-0 h-12 md:h-14 rounded-full md:rounded-2xl bg-[#F5F5F5] md:bg-slate-100 px-5 text-base outline-none focus:ring-2 focus:ring-orange-300 placeholder:text-slate-400"
                 />
                 <button
                   data-testid="auth-send-code"
                   onClick={sendCode}
                   disabled={loading}
-                  className="shrink-0 h-14 px-4 rounded-2xl bg-orange-100 text-orange-600 font-bold text-sm hover:bg-orange-200 disabled:opacity-50 whitespace-nowrap transition-colors"
+                  className="shrink-0 h-12 md:h-14 px-3 md:px-4 rounded-full md:rounded-2xl bg-orange-100 md:bg-orange-100 text-orange-500 md:text-orange-600 font-medium md:font-bold text-sm hover:bg-orange-200 disabled:opacity-50 whitespace-nowrap transition-colors max-md:absolute max-md:right-1.5 max-md:top-1/2 max-md:-translate-y-1/2 max-md:h-9"
                 >
                   發送驗證碼
                 </button>
@@ -319,22 +319,22 @@ function AuthModal({ open, onOpenChange }) {
             data-testid="auth-submit"
             onClick={submit}
             disabled={loading}
-            className="w-full h-14 mt-5 rounded-full bg-orange-500 hover:bg-orange-600 text-white text-lg font-bold transition-colors disabled:opacity-60"
+            className="w-full h-[52px] md:h-14 mt-5 rounded-full bg-orange-500 hover:bg-orange-600 text-white text-xl md:text-lg font-bold transition-colors disabled:opacity-60"
           >
             {loading ? "處理中…" : "登入"}
           </button>
 
           {/* helper links */}
-          <div className="flex items-center justify-between mt-4 text-sm text-slate-500">
+          <div className="flex items-center justify-between mt-4 px-4 md:px-0 text-[15px] md:text-sm text-slate-500">
             <button data-testid="auth-resend" onClick={sendCode} className="hover:text-orange-500">收不到驗證碼？</button>
             <button data-testid="auth-forgot" onClick={() => setView("forgot")} className="hover:text-orange-500">忘記密碼？</button>
           </div>
 
           {/* divider */}
-          <div className="flex items-center gap-3 my-6">
-            <span className="flex-1 h-px bg-slate-200" />
-            <span className="text-sm text-slate-400">其他方式登入</span>
-            <span className="flex-1 h-px bg-slate-200" />
+          <div className="flex items-center gap-3 my-6 max-md:-mx-5 max-md:px-5 max-md:py-5 max-md:mt-8 max-md:[background-image:radial-gradient(#E5E7EB_1.5px,transparent_1.6px)] max-md:[background-size:14px_14px]">
+            <span className="hidden md:block flex-1 h-px bg-slate-200" />
+            <span className="text-base md:text-sm text-slate-500 md:text-slate-400 mx-auto md:mx-0">其他方式登入</span>
+            <span className="hidden md:block flex-1 h-px bg-slate-200" />
           </div>
 
           {/* social: Google + Apple only */}
