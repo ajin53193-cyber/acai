@@ -62,11 +62,6 @@ function OrderInfoForm({ order, callApi, onDone }) {
 
 const FILTERS = [["all", "全部"], ...Object.entries(STATUS_LABELS)];
 
-function money(sym, usd, rate, code) {
-  const amt = usd * rate;
-  const dec = ["JPY", "TWD"].includes(code) ? 0 : 2;
-  return `${sym}${amt.toLocaleString("en-US", { minimumFractionDigits: dec, maximumFractionDigits: dec })}`;
-}
 
 function OrdersInner() {
   const callApi = useApi();
@@ -234,13 +229,6 @@ function OrdersInner() {
                 </div>
                 )}
 
-                {/* Price */}
-                <div className="bg-white rounded-2xl p-4 space-y-1.5 text-sm shadow-[0_6px_20px_-12px_rgba(232,121,42,0.35)]">
-                  <div className="flex justify-between text-slate-500"><span>小計</span><span>{money(detail.currency_symbol, detail.subtotal_usd, detail.rate_to_usd, detail.currency)}</span></div>
-                  {detail.discount_usd > 0 && <div className="flex justify-between text-emerald-600"><span>優惠 {detail.promo_code}</span><span>-{money(detail.currency_symbol, detail.discount_usd, detail.rate_to_usd, detail.currency)}</span></div>}
-                  <div className="flex justify-between pt-2 border-t border-dashed border-orange-100"><span className="font-semibold">應付</span><span className="font-head font-extrabold text-orange-500">{money(detail.currency_symbol, detail.total_usd, detail.rate_to_usd, detail.currency)}</span></div>
-                </div>
-
                 {detail.status === "pending_payment" && (
                   <button
                     data-testid="order-pay-now-btn"
@@ -252,10 +240,11 @@ function OrdersInner() {
                   </button>
                 )}
                 <button
-                  onClick={() => { copy(detail.order_no); toast.info("已複製訂單編號，請提供給客服"); }}
+                  data-testid="order-detail-view-orders"
+                  onClick={() => setDetail(null)}
                   className="w-full h-11 rounded-full bg-white border border-orange-300 text-orange-500 font-semibold text-sm"
                 >
-                  聯絡客服處理
+                  查看訂單
                 </button>
               </div>
             </>
