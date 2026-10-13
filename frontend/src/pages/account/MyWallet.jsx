@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { Wallet, ArrowDownLeft, ArrowUpRight, ArrowDownToLine, ShoppingBag } from "lucide-react";
+import { Wallet, ArrowDownLeft, ArrowUpRight, ArrowDownToLine, ShoppingBag, ChevronRight } from "lucide-react";
 import { useApi } from "@/lib/api";
 import { useCurrency } from "@/context/CurrencyContext";
 import { Panel } from "./AccountLayout";
@@ -59,8 +59,8 @@ export function TxRow({ t }) {
 }
 
 const ACTIONS = [
-  ["/account/wallet/topup", "錢包充值 — 多種支付方式 · 即時入帳", "/banners/wallet-topup.jpg", "wallet-go-topup"],
-  ["/account/wallet/transactions", "交易紀錄 — 充值 · 付款 · 明細一目了然", "/banners/wallet-transactions.jpg", "wallet-go-transactions"],
+  { to: "/account/wallet/topup", title: "錢包充值", sub: "多種支付 · 即時入帳", btn: "立即充值", img: "/banners/wallet-topup-3d.webp", bg: "#FED5B5", tid: "wallet-go-topup" },
+  { to: "/account/wallet/transactions", title: "交易紀錄", sub: "充值 · 付款 · 明細", btn: "查看明細", img: "/banners/wallet-transactions-3d.webp", bg: "#F3CCAB", tid: "wallet-go-transactions" },
 ];
 
 export default function MyWallet() {
@@ -68,20 +68,28 @@ export default function MyWallet() {
   const last = data.transactions[0];
   return (
     <Panel title="我的錢包" testId="wallet-page">
-      <BalanceBanner data={data} />
-      <div className="mt-4 md:mt-6 grid grid-cols-2 gap-3 md:gap-4">
-        {ACTIONS.map(([to, alt, src, tid]) => (
-          <Link key={to} to={to} data-testid={tid} className="group block overflow-hidden rounded-xl md:rounded-2xl shadow-sm hover:shadow-lg transition-shadow">
-            <img src={src} alt={alt} className="w-full h-auto object-cover group-hover:scale-[1.02] transition-transform duration-300" />
-          </Link>
-        ))}
-      </div>
-      {last && (
-        <div className="mt-6 rounded-2xl bg-slate-50 px-6 py-3" data-testid="wallet-last-tx">
-          <div className="text-xs text-slate-400">最近一筆</div>
-          <TxRow t={last} />
+      <div className="pb-20 md:pb-0">
+        <BalanceBanner data={data} />
+        <div className="mt-4 md:mt-6 grid grid-cols-2 gap-3 md:gap-4">
+          {ACTIONS.map((a) => (
+            <Link key={a.to} to={a.to} data-testid={a.tid} style={{ backgroundColor: a.bg }} className="group relative block overflow-hidden rounded-xl md:rounded-2xl aspect-[16/10] md:aspect-[2.3/1] shadow-[0_8px_22px_-14px_rgba(232,121,42,0.5)] hover:shadow-lg transition-shadow">
+              <div className="absolute inset-y-0 left-0 w-2/3 bg-gradient-to-r from-white/40 to-transparent" />
+              <img src={a.img} alt="" className="absolute right-1 md:right-4 bottom-0 h-[86%] w-auto max-w-none group-hover:scale-105 transition-transform duration-300" />
+              <div className="relative h-full flex flex-col justify-center pl-3.5 md:pl-7 pr-[42%]">
+                <div className="font-head text-[17px] md:text-2xl font-extrabold text-[#5A2D0C] leading-tight">{a.title}</div>
+                <div className="mt-0.5 md:mt-1 text-[10px] md:text-sm text-[#8A5A3A] whitespace-nowrap">{a.sub}</div>
+                <span className="mt-2 md:mt-3 inline-flex self-start items-center gap-0.5 rounded-full bg-white text-orange-500 text-[10px] md:text-sm font-bold px-2.5 md:px-4 py-1 md:py-1.5 shadow-sm">{a.btn}<ChevronRight className="h-3 w-3 md:h-4 md:w-4" /></span>
+              </div>
+            </Link>
+          ))}
         </div>
-      )}
+        {last && (
+          <div className="mt-4 md:mt-6 relative rounded-2xl bg-white md:bg-slate-50 shadow-[0_6px_20px_-12px_rgba(232,121,42,0.35)] md:shadow-none px-4 md:px-6 pt-11 md:pt-4 pb-2 md:pb-3" data-testid="wallet-last-tx">
+            <span className="absolute left-0 top-0 rounded-tl-2xl rounded-br-xl bg-slate-800 text-white text-[13px] px-3.5 py-1.5 md:static md:rounded-md md:text-xs md:px-3 md:py-1 md:inline-block">最近一筆</span>
+            <TxRow t={last} />
+          </div>
+        )}
+      </div>
     </Panel>
   );
 }
