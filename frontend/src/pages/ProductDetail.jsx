@@ -95,8 +95,8 @@ export default function ProductDetail() {
             <span className="text-slate-600">{product.name}</span>
           </div>
 
-          <Link to="/sign-up" data-testid="detail-promo-banner" className="mt-0 md:mt-4 flex justify-center overflow-hidden rounded-2xl bg-gradient-to-r from-[#FFD9B0] via-[#FFE9D2] to-[#FFD9B0] h-[60px] sm:h-[150px]">
-            <img src="https://customer-assets-39nsmqrw.emergentagent.net/job_crossborder-topup/artifacts/b55a2354a230f99b_image.png" alt="新版上線有禮" className="h-full w-auto object-contain" />
+          <Link to="/sign-up" data-testid="detail-promo-banner" className="mt-0 md:mt-4 block overflow-hidden rounded-2xl">
+            <img src="/banners/detail-promo.png" alt="低價氪金 戰力超神 神券在手 下單省最高 7%" className="w-full h-auto block" />
           </Link>
 
           <div className="mt-4 md:mt-6 flex items-start md:items-center gap-3 md:gap-5">
