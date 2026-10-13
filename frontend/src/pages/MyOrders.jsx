@@ -142,28 +142,26 @@ function OrdersInner() {
                   <div className="text-xs text-slate-400 mt-1">{o.created_at?.slice(0, 19).replace("T", " ")}</div>
                 </div>
                 <div className="mt-4 flex gap-5">
-                  <button onClick={() => setDetail(o)} className="h-28 w-28 shrink-0 rounded-2xl bg-white p-2 shadow-sm"><img src={it?.image} alt="" className="h-full w-full object-contain rounded-xl" /></button>
+                  <button onClick={() => setDetail(o)} className="h-24 w-24 shrink-0 rounded-2xl bg-white p-2 shadow-sm"><img src={it?.image} alt="" className="h-full w-full object-contain rounded-xl" /></button>
                   <div className="flex-1 min-w-0 text-sm text-slate-800 space-y-1.5">
                     <div className="truncate">{it?.product_name}{o.items.length > 1 ? ` 等 ${o.items.length} 件` : ""}</div>
                     <div>{it?.spec_label} * {it?.quantity}</div>
                     {fields.slice(0, 1).map(([k, v]) => <div key={k} className="truncate">{k}: {k.includes("密碼") ? "••••••" : v}</div>)}
                     {!fields.length && o.recharge_account && <div className="truncate">ID: {o.recharge_account}</div>}
-                    <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
-                      <span className="text-orange-500 font-medium whitespace-nowrap">{o.currency}$ {(o.total_usd * o.rate_to_usd).toFixed(2)}</span>
-                      <div className="flex items-center gap-2 flex-wrap justify-end ml-auto">
-                        {o.status === "pending_payment" && <button data-testid={`order-delete-${o.id}`} onClick={() => removeOrder(o)} className="h-9 px-3 rounded-full bg-orange-50 text-orange-500 text-xs hover:bg-orange-100">刪除訂單</button>}
-                        <button data-testid={`order-reorder-${o.id}`} onClick={() => reorder(o)} className="h-9 px-4 rounded-full bg-slate-900 text-white text-xs hover:bg-slate-800">再來一單</button>
-                        {o.status === "paid" && o.info_submitted === false && (
-                          <button data-testid={`order-fill-${o.id}`} onClick={() => setDetail(o)} className="h-9 px-4 rounded-full bg-amber-500 text-white text-xs font-semibold hover:bg-amber-600">填寫充值資料</button>
-                        )}
-                        {o.status === "pending_payment" ? (
-                          <button data-testid={`order-pay-${o.id}`} onClick={() => payNow(o)} disabled={paying} className="h-9 px-4 rounded-full bg-orange-500 text-white text-xs font-semibold hover:bg-orange-600">去付款</button>
-                        ) : (
-                          <button data-testid={`order-detail-${o.id}`} onClick={() => setDetail(o)} className="h-9 px-4 rounded-full bg-orange-500 text-white text-xs font-semibold hover:bg-orange-600">查看詳情</button>
-                        )}
-                      </div>
-                    </div>
+                    <div className="text-orange-500 font-semibold pt-0.5">{o.currency}$ {(o.total_usd * o.rate_to_usd).toFixed(2)}</div>
                   </div>
+                </div>
+                <div className="mt-4 pt-3 border-t border-slate-200/70 flex items-center justify-end gap-2">
+                  {o.status === "pending_payment" && <button data-testid={`order-delete-${o.id}`} onClick={() => removeOrder(o)} className="h-9 px-4 rounded-full bg-white text-slate-600 text-xs hover:bg-orange-50 hover:text-orange-500 whitespace-nowrap">刪除訂單</button>}
+                  <button data-testid={`order-reorder-${o.id}`} onClick={() => reorder(o)} className="h-9 px-4 rounded-full bg-slate-900 text-white text-xs hover:bg-slate-800 whitespace-nowrap">再來一單</button>
+                  {o.status === "paid" && o.info_submitted === false && (
+                    <button data-testid={`order-fill-${o.id}`} onClick={() => setDetail(o)} className="h-9 px-4 rounded-full bg-amber-500 text-white text-xs font-semibold hover:bg-amber-600 whitespace-nowrap">填寫充值資料</button>
+                  )}
+                  {o.status === "pending_payment" ? (
+                    <button data-testid={`order-pay-${o.id}`} onClick={() => payNow(o)} disabled={paying} className="h-9 px-4 rounded-full bg-orange-500 text-white text-xs font-semibold hover:bg-orange-600 whitespace-nowrap">去付款</button>
+                  ) : (
+                    <button data-testid={`order-detail-${o.id}`} onClick={() => setDetail(o)} className="h-9 px-4 rounded-full bg-orange-500 text-white text-xs font-semibold hover:bg-orange-600 whitespace-nowrap">查看詳情</button>
+                  )}
                 </div>
               </div>
             );

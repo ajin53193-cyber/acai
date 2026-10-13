@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { Wallet, Plus, ReceiptText, ArrowDownLeft, ArrowUpRight } from "lucide-react";
+import { Wallet, ArrowDownLeft, ArrowUpRight } from "lucide-react";
 import { useApi } from "@/lib/api";
 import { useCurrency } from "@/context/CurrencyContext";
 import { Panel } from "./AccountLayout";
@@ -50,8 +50,8 @@ export function TxRow({ t }) {
 }
 
 const ACTIONS = [
-  ["/account/wallet/topup", "錢包充值", "立即充值", Plus, "wallet-go-topup", "from-[#F0872E] to-[#F7A94A]"],
-  ["/account/wallet/transactions", "交易紀錄", "查看明細", ReceiptText, "wallet-go-transactions", "from-[#F7A94A] to-[#FFC56E]"],
+  ["/account/wallet/topup", "錢包充值 — 多種支付方式 · 即時入帳", "/banners/wallet-topup.jpg", "wallet-go-topup"],
+  ["/account/wallet/transactions", "交易紀錄 — 充值 · 付款 · 明細一目了然", "/banners/wallet-transactions.jpg", "wallet-go-transactions"],
 ];
 
 export default function MyWallet() {
@@ -60,15 +60,10 @@ export default function MyWallet() {
   return (
     <Panel title="我的錢包" testId="wallet-page">
       <BalanceBanner data={data} />
-      <div className="mt-6 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-        {ACTIONS.map(([to, title, cta, Icon, tid, grad]) => (
-          <Link key={to} to={to} data-testid={tid} className="group bg-white rounded-2xl border border-slate-100 shadow-sm p-4 flex flex-col items-center text-center hover:shadow-md transition-all">
-            <div className={`relative w-[64%] aspect-square rounded-2xl overflow-hidden bg-gradient-to-br ${grad} flex items-center justify-center group-hover:scale-105 transition-transform duration-300`}>
-              <Wallet className="absolute -right-4 -bottom-4 h-20 w-20 text-white/15" strokeWidth={1.5} />
-              <Icon className="h-12 w-12 text-white relative" strokeWidth={2.2} />
-            </div>
-            <h3 className="font-semibold text-[15px] text-slate-800 mt-3 group-hover:text-orange-600">{title}</h3>
-            <span className="mt-3 text-xs font-bold text-orange-600 bg-orange-100 group-hover:bg-orange-500 group-hover:text-white rounded-full px-5 py-1.5 transition-colors">{cta}</span>
+      <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+        {ACTIONS.map(([to, alt, src, tid]) => (
+          <Link key={to} to={to} data-testid={tid} className="group block overflow-hidden rounded-2xl shadow-sm hover:shadow-lg transition-shadow">
+            <img src={src} alt={alt} className="w-full h-auto object-cover group-hover:scale-[1.02] transition-transform duration-300" />
           </Link>
         ))}
       </div>

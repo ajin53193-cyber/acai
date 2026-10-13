@@ -1,0 +1,49 @@
+{
+  "summary": "Iteration 4 end-to-end tested payment methods CRUD, member wallet 3-page split (hub/topup/transactions), order status filters (awaiting_info/waiting/completed/pending_payment), and admin 支付管理 tab. Backend pytest: 16/16 PASS (public /api/payment-methods masks config, 5 seeded methods present inc. 信用卡/Apple Pay/Google Pay/PayPal/USDT/銀行轉帳; admin CRUD masks api_key to sk_l••••56; PUT with masked value preserves original secret verified by follow-up public topup; 400 for bad category/provider/missing name; member 403 on admin endpoint; wallet topup below min_usd=5 → 400; valid topup credits balance, sets last_method_id, note contains method name; unknown method_id → 400; inactive method → 400; order filter awaiting_info / waiting / completed / pending_payment behave correctly; delete 200). Frontend Playwright: /account/wallet hub shows wallet-balance, wallet-go-topup, wallet-go-transactions, wallet-last-tx; sidebar 我的錢包 (account-nav-account-wallet) stays highlighted on subpages; wallet-back navigates to hub; top-up page pm-category-tabs with pm-cat-all/card/ewallet/bank filters pm-grid; clicking card sets aria-pressed=true, shows pm-description with method name; topup-preset-20 + topup-submit credits wallet (verified balance $663.02 → $683.02); after reload pm-recent-* badge shown on last-used method; /account/wallet/transactions tx-tab-all/in/out filter correctly (all + rows positive, all - rows negative); /orders tabs order-filter-all/pending_payment/awaiting_info/waiting/completed each render only matching 等待填寫資料 / 等待中 / 已完成 cards; admin → admin-nav-payments lists 5 rows, pm-add-btn + form (name/category=bank/description/provider=manual/cfg-account_info) + pm-form-save adds row; pm-toggle flips 啟用中/已停用 and the method disappears from public /api/payment-methods; pm-edit prefills form; pm-delete (window.confirm handled) removes row.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_results": {
+    "backend_pytest": "16/16 PASS",
+    "public_payment_methods_no_config": "PASS (5 seeded, config absent)",
+    "admin_create_masks_secret": "PASS (sk_live_abcdef123456 → sk_l••••56)",
+    "admin_put_masked_preserves_secret": "PASS (follow-up topup still works, admin GET still masked)",
+    "admin_bad_category_400": "PASS",
+    "admin_bad_provider_400": "PASS",
+    "admin_missing_name_400": "PASS",
+    "admin_member_403": "PASS",
+    "wallet_topup_below_min_400": "PASS",
+    "wallet_topup_valid_last_method_note": "PASS",
+    "wallet_topup_unknown_method_400": "PASS",
+    "wallet_topup_inactive_method_400": "PASS",
+    "orders_filter_awaiting_info": "PASS",
+    "orders_filter_waiting": "PASS",
+    "orders_filter_completed": "PASS",
+    "orders_filter_pending_payment": "PASS",
+    "admin_pm_delete": "PASS",
+    "frontend_wallet_hub": "PASS",
+    "frontend_wallet_topup_grid_select_submit": "PASS (balance +20, pm-recent badge appears)",
+    "frontend_wallet_transactions_tabs": "PASS",
+    "frontend_orders_tabs": "PASS",
+    "frontend_admin_payment_methods_crud_toggle_sync": "PASS"
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_payments_wallet_orders.py",
+    "/app/test_reports/pytest/iter4_payments.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "sidebar testid naming is account-nav-account-wallet (not sidebar-wallet). Review spec hinted sidebar-wallet; current naming is consistent across sidebar entries (account-nav-*) so acceptable, but worth standardising docs.",
+    "PaymentMethodsAdmin edit form has no explicit cancel button in the inline form — closing requires save (OK since save is idempotent, but a 取消 button would be nicer).",
+    "WalletTopUp success does not refresh the pm-recent badge until a reload; consider revalidating useWallet() immediately after successful top-up for instant 最近使用 feedback.",
+    "admin uses window.confirm for pm-delete and other destructive actions — consistent with other admin pages but still a UX gap (not themeable)."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_payments_wallet_orders.py (new)"
+  ],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "test_credentials": "Admin admin+clerk_test@shop.com / Gogo589!Admin#7x2Q and Member tester+clerk_test@shop.com / Gogo589!Tester#4m9Z, Clerk trust code 424242 (per /app/memory/test_credentials.md). Backend JWT via /app/tests/mint_token.py.",
+  "seed_data_creation": "During tests, tester wallet gained +10 +25 +20 (= +55 USD, final visible $683.02). One admin method created+deleted (TEST_UI_BANK via UI, TEST_QA_METHOD and TEST_DEL via API — all deleted at teardown; verify via GET /api/admin/payment-methods returns the original 5).",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Transactions and sidebar testids: tabs are tx-tab-all/in/out (via SubTabs testPrefix). Sidebar entries use account-nav-{slug} e.g. account-nav-account-wallet. Admin pm form uses select_option for category/provider (not click). Admin UI uses window.confirm — install page.on('dialog', handler) with asyncio.create_task(d.accept()) before any delete/toggle actions."
+}

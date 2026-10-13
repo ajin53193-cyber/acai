@@ -57,6 +57,12 @@
 
 - 2026-06-13：**修復**頁首耳機「客服」按鈕無反應（原本沒有 onClick）。`ServiceWidget` 改橘色主題、加入 WhatsApp 二維碼/按鈕（讀 `/api/settings`）與常見問題連結；匯出 `openService()`（自訂事件），頁首耳機與頁尾「網路客服」皆可開啟右下角客服面板。
 
+- 2026-06-13：**支付管理 + 錢包三頁拆分 + 訂單頁籤**（testing_agent iteration_4 全數通過：16 後端 + 前端 E2E）
+  - 後台「支付管理」`pages/admin/PaymentMethodsAdmin.jsx`：錢包充值支付方式 CRUD（名稱、分類 卡支付/電子錢包/銀行轉賬、Logo 上傳、付款說明、支付對接 provider + config（api_key/api_secret/webhook_secret 回傳遮罩、送回遮罩值則保留原值）、限額、手續費、啟用、排序）。`GET /api/payment-methods`（公開、無 config）、`/api/admin/payment-methods*`。首次自動種入 5 筆預設。原「支付Logo」頁籤改名「頁尾支付Logo」。
+  - 會員錢包：`/account/wallet` 首頁（餘額橫幅 + 兩張 AI 生成橫幅圖片按鈕 `public/banners/wallet-*.jpg`（Gemini Nano Banana，腳本 `scripts/gen_wallet_banners.py`）+ 最近一筆）、`/account/wallet/topup`（金額 + Kavip 式支付方式網格：分類頁籤、最近使用角標、選中橙框打勾、付款說明、限額；`POST /me/wallet/topup` 帶 `method_id`，記錄 `users.last_payment_method_id`）、`/account/wallet/transactions`（全部/入帳/支出）。側欄「我的錢包」子頁維持高亮。
+  - 我的訂單頁籤改為 全部/未付款/等待填寫資料/等待中/已完成（後端 `?status=awaiting_info|waiting`）；卡片標題列改兩行（編號+狀態 / 日期），按鈕統一置於卡片底部一列。
+  - 頁首「錢包 · 充值」改為淺橘膠囊「我的錢包」。
+
 ## 待辦（優先序）
 - P1：訂單狀態郵件/站內通知（用戶暫緩）。
 - P0：testing_agent 跑後台訂單狀態流轉 + 回歸（前台 E2E 已由主代理手測通過）。
