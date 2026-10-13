@@ -3,6 +3,7 @@ import { useParams, useSearchParams, Link, useNavigate } from "react-router-dom"
 import { ChevronLeft, ChevronRight, Gamepad2, Smile, MessageCircle, Gift, Search, X } from "lucide-react";
 import { publicApi } from "@/lib/api";
 import { Drawer, DrawerContent, DrawerTitle } from "@/components/ui/drawer";
+import { tr } from "@/i18n";
 
 const PER_PAGE = 21;
 
@@ -58,7 +59,7 @@ export default function Category() {
   }, [id, q]);
 
   const current = categories.find((c) => c.id === id);
-  const catName = q ? `搜尋「${q}」` : current?.name || "全部商品";
+  const catName = q ? tr("搜尋「{0}」", q) : current?.name || tr("全部商品");
   const submitSearch = (e) => { e.preventDefault(); if (kw.trim()) navigate(`/category/all?q=${encodeURIComponent(kw.trim())}`); };
   const totalPages = Math.ceil(products.length / PER_PAGE);
   const goPage = (n) => { setPage(n); window.scrollTo({ top: 0, behavior: "smooth" }); };
@@ -74,18 +75,18 @@ export default function Category() {
         <div className="md:hidden flex items-stretch gap-2 mb-4" data-testid="category-mobile-bar">
           <button data-testid="category-picker-btn" onClick={() => setPickerOpen(true)} className="shrink-0 h-12 px-3.5 rounded-xl bg-white flex items-center gap-2 text-[15px] text-slate-800">
             {current?.image ? <img src={current.image} alt="" className="h-6 w-6 object-contain" /> : <span className="h-6 w-6 rounded-md bg-orange-100" />}
-            <span className="whitespace-nowrap">{current?.name || "全部商品"}</span>
+            <span className="whitespace-nowrap">{current?.name || tr("全部商品")}</span>
           </button>
           <form onSubmit={submitSearch} className="flex-1 h-12 rounded-xl bg-white flex items-center px-3.5 min-w-0">
-            <input data-testid="category-search-input" value={kw} onChange={(e) => setKw(e.target.value)} placeholder="請輸入需搜尋的商品名" className="flex-1 min-w-0 bg-transparent outline-none text-[14px] text-slate-700 placeholder:text-slate-400" />
-            <button type="submit" aria-label="搜尋" data-testid="category-search-btn" className="text-orange-500 shrink-0"><Search className="h-5 w-5" /></button>
+            <input data-testid="category-search-input" value={kw} onChange={(e) => setKw(e.target.value)} placeholder={tr("請輸入需搜尋的商品名")} className="flex-1 min-w-0 bg-transparent outline-none text-[14px] text-slate-700 placeholder:text-slate-400" />
+            <button type="submit" aria-label={tr("搜尋")} data-testid="category-search-btn" className="text-orange-500 shrink-0"><Search className="h-5 w-5" /></button>
           </form>
         </div>
         <Drawer open={pickerOpen} onOpenChange={setPickerOpen}>
           <DrawerContent className="rounded-t-3xl px-4 pb-8" data-testid="category-picker">
             <div className="flex items-center justify-between py-3">
-              <DrawerTitle className="text-base font-semibold text-slate-800">選擇分類</DrawerTitle>
-              <button onClick={() => setPickerOpen(false)} aria-label="關閉" className="h-8 w-8 rounded-full bg-slate-100 flex items-center justify-center"><X className="h-4 w-4" /></button>
+              <DrawerTitle className="text-base font-semibold text-slate-800">{tr("選擇分類")}</DrawerTitle>
+              <button onClick={() => setPickerOpen(false)} aria-label={tr("關閉")} className="h-8 w-8 rounded-full bg-slate-100 flex items-center justify-center"><X className="h-4 w-4" /></button>
             </div>
             <div className="grid grid-cols-2 gap-2.5">
               {categories.map((c) => (
@@ -99,7 +100,7 @@ export default function Category() {
         </Drawer>
 
         <div className="max-md:hidden flex items-center gap-1.5 text-sm text-slate-400 mb-10">
-          <Link to="/" className="hover:text-orange-500">首頁</Link>
+          <Link to="/" className="hover:text-orange-500">{tr("首頁")}</Link>
           <span>/</span>
           <span className="text-slate-700 font-medium" data-testid="category-title">{catName}</span>
         </div>
@@ -128,7 +129,7 @@ export default function Category() {
             {Array.from({ length: 14 }).map((_, i) => <div key={i} className="aspect-[4/5] bg-white rounded-3xl animate-pulse" />)}
           </div>
         ) : products.length === 0 ? (
-          <div className="text-center py-20 text-slate-400">沒有找到相關商品</div>
+          <div className="text-center py-20 text-slate-400">{tr("沒有找到相關商品")}</div>
         ) : (
           <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-7 gap-2.5 sm:gap-5" data-testid="category-grid">
             {products.slice((page - 1) * PER_PAGE, page * PER_PAGE).map((p) => (

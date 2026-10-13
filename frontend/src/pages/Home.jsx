@@ -6,13 +6,14 @@ import { publicApi } from "@/lib/api";
 import { useAuthModal } from "@/components/auth/AuthModal";
 
 import { ArticleCard } from "@/pages/ArticleCenter";
+import { tr } from "@/i18n";
 
 const FEATURES = [
-  [ShieldCheck, "正版安全", "涵蓋 500+ 款全球正版 APP 內購服務"],
-  [Rocket, "自動化極速出貨", "90% 以上產品及服務線上自動秒發"],
-  [Headphones, "7x24 多語言服務", "全世界線上呼叫中心提供服務"],
-  [Percent, "天天平價折扣不停", "享受每日全類目產品特價促銷"],
-  [Globe, "全球 APP 發行", "為 APP 開發者提供全球用戶發行服務"],
+  [ShieldCheck, tr("正版安全"), tr("涵蓋 500+ 款全球正版 APP 內購服務")],
+  [Rocket, tr("自動化極速出貨"), tr("90% 以上產品及服務線上自動秒發")],
+  [Headphones, tr("7x24 多語言服務"), tr("全世界線上呼叫中心提供服務")],
+  [Percent, tr("天天平價折扣不停"), tr("享受每日全類目產品特價促銷")],
+  [Globe, tr("全球 APP 發行"), tr("為 APP 開發者提供全球用戶發行服務")],
 ];
 
 function salesText(n) {
@@ -42,21 +43,21 @@ export default function Home() {
       {!isSignedIn && (
         <div data-testid="mobile-register-bar" className="md:hidden fixed inset-x-0 bottom-0 z-40 bg-[#5a3a22] text-white px-4 h-14 flex items-center gap-3 safe-bottom-box">
           <Gift className="h-6 w-6 text-orange-300 shrink-0" />
-          <span className="text-sm font-medium truncate">新用戶註冊最高領 <span className="text-lg font-bold">9%</span>優惠券</span>
-          <button data-testid="mobile-register-btn" onClick={openAuth} className="ml-auto shrink-0 h-9 px-5 rounded-full bg-orange-500 text-white text-sm font-bold">立即註冊</button>
+          <span className="text-sm font-medium truncate">{tr("新用戶註冊最高領")} <span className="text-lg font-bold">9%</span>{tr("優惠券")}</span>
+          <button data-testid="mobile-register-btn" onClick={openAuth} className="ml-auto shrink-0 h-9 px-5 rounded-full bg-orange-500 text-white text-sm font-bold">{tr("立即註冊")}</button>
         </div>
       )}
       {/* Hero banner */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4">
         <div className="relative overflow-hidden rounded-2xl sm:rounded-3xl bg-gradient-to-r from-orange-100 via-amber-50 to-orange-50 border border-orange-100">
           <div className="relative z-10 px-4 sm:px-10 py-4 sm:py-12 max-w-[60%]">
-            <div className="text-[11px] sm:text-sm font-medium sm:font-semibold text-slate-500 sm:text-orange-500 mb-1 sm:mb-2">(UTC+8) 限時活動</div>
-            <h1 className="font-head text-[20px] sm:text-4xl lg:text-5xl font-extrabold text-orange-500 sm:text-orange-600 leading-tight whitespace-nowrap">低價氪金 戰力超神</h1>
+            <div className="text-[11px] sm:text-sm font-medium sm:font-semibold text-slate-500 sm:text-orange-500 mb-1 sm:mb-2">{tr("(UTC+8) 限時活動")}</div>
+            <h1 className="font-head text-[20px] sm:text-4xl lg:text-5xl font-extrabold text-orange-500 sm:text-orange-600 leading-tight whitespace-nowrap">{tr("低價氪金 戰力超神")}</h1>
             <div className="font-head text-[17px] sm:text-3xl lg:text-4xl font-extrabold text-[#5a3a22] sm:text-slate-800 mt-0.5 sm:mt-2 whitespace-nowrap">
-              神券在手 下單省最高 <span className="text-orange-500">7%</span>
+              {tr("神券在手 下單省最高")} <span className="text-orange-500">7%</span>
             </div>
             <div className="flex flex-nowrap sm:flex-wrap gap-1.5 sm:gap-2 mt-3 sm:mt-6 overflow-hidden">
-              {[["手遊", "games"], ["端遊", "games"], ["點卡官方速充", "pointcard"]].map(([label, cid]) => (
+              {[[tr("手遊"), "games"], [tr("端遊"), "games"], [tr("點卡官方速充"), "pointcard"]].map(([label, cid]) => (
                 <Link key={label} to={`/category/${cid}`} data-testid={`hero-pill-${cid}-${label}`}
                   className="bg-white/90 hover:bg-white text-[#5a3a22] sm:text-orange-600 font-medium sm:font-semibold text-[11px] sm:text-sm rounded-full px-3 sm:px-5 py-0.5 sm:py-2 sm:border sm:border-orange-200 whitespace-nowrap transition-colors">{label}</Link>
               ))}
@@ -71,7 +72,7 @@ export default function Home() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-2.5 md:mt-3">
         <Link to="/article" data-testid="home-announcement" className="flex items-center gap-3 bg-white/70 md:bg-orange-50 md:border md:border-orange-100 rounded-lg md:rounded-full pr-4 md:px-4 py-0 md:py-2 text-[13px] md:text-sm text-slate-700 md:text-orange-700 overflow-hidden">
           <span className="h-9 w-10 md:h-auto md:w-auto bg-orange-100/80 md:bg-transparent flex items-center justify-center shrink-0"><Volume2 className="h-4 w-4 text-orange-500 md:text-orange-700" /></span>
-          <span className="font-medium truncate"><span className="md:hidden">gogo589 用戶界面升級公告</span><span className="hidden md:inline">gogo589 介面升級公告：全新繁中介面上線，人工極速發貨，祝您購物愉快！</span></span>
+          <span className="font-medium truncate"><span className="md:hidden">{tr("gogo589 用戶界面升級公告")}</span><span className="hidden md:inline">{tr("gogo589 介面升級公告：全新繁中介面上線，人工極速發貨，祝您購物愉快！")}</span></span>
           <span className="h-4 w-4 rounded-full bg-orange-100 md:bg-transparent flex items-center justify-center shrink-0 md:ml-auto"><ChevronRight className="h-3 w-3 md:h-4 md:w-4 text-orange-500 md:text-orange-700" /></span>
         </Link>
       </div>
@@ -81,7 +82,7 @@ export default function Home() {
         <section className="mt-4 md:mt-5">
           <div className="flex items-center gap-2 mb-2.5 md:mb-3">
             <Zap className="hidden md:block h-5 w-5 text-secondary" />
-            <MTitle>快捷下單</MTitle>
+            <MTitle>{tr("快捷下單")}</MTitle>
           </div>
           <Carousel testid="quick-carousel">
             {quick.map((p) => (
@@ -91,7 +92,7 @@ export default function Home() {
                   <img src={p.image} alt={p.name} className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-300" />
                 </div>
                 <h3 className="font-semibold text-[12px] md:text-[13px] leading-normal text-slate-800 truncate mt-2 md:mt-3 w-full group-hover:text-orange-600">{p.name}</h3>
-                <span className="mt-2 md:mt-3 text-xs font-bold text-orange-500 md:text-orange-600 bg-orange-100/80 md:bg-orange-100 group-hover:bg-orange-500 group-hover:text-white rounded-full px-4 md:px-5 py-1 md:py-1.5 whitespace-nowrap transition-colors">立即購買</span>
+                <span className="mt-2 md:mt-3 text-xs font-bold text-orange-500 md:text-orange-600 bg-orange-100/80 md:bg-orange-100 group-hover:bg-orange-500 group-hover:text-white rounded-full px-4 md:px-5 py-1 md:py-1.5 whitespace-nowrap transition-colors">{tr("立即購買")}</span>
               </Link>
             ))}
           </Carousel>
@@ -99,12 +100,12 @@ export default function Home() {
 
         {/* Hot products */}
         <section className="mt-6 md:mt-8">
-          <SectionTitle title="熱門產品" to="/category/livestream" />
+          <SectionTitle title={tr("熱門產品")} to="/category/livestream" />
           <Carousel testid="hot-carousel">
             {hot.slice(0, 16).map((p) => (
               <Link key={p.id} to={`/product/${p.id}`} data-testid={`product-card-${p.id}`}
                 className="group relative shrink-0 w-[150px] sm:w-[180px] bg-white rounded-2xl border border-slate-100 shadow-sm p-2 md:p-3 hover:shadow-md hover:-translate-y-0.5 transition-all">
-                {p.tags?.includes("熱銷") && <span className="absolute -top-1 -right-0.5 md:top-0 md:right-3 text-[10px] font-bold rounded-tr-xl rounded-bl-xl md:rounded-none md:rounded-b-md px-2.5 md:px-2 py-0.5 bg-orange-400 text-white whitespace-nowrap">折扣</span>}
+                {p.tags?.includes(tr("熱銷")) && <span className="absolute -top-1 -right-0.5 md:top-0 md:right-3 text-[10px] font-bold rounded-tr-xl rounded-bl-xl md:rounded-none md:rounded-b-md px-2.5 md:px-2 py-0.5 bg-orange-400 text-white whitespace-nowrap">{tr("折扣")}</span>}
                 <div className="relative w-[52%] md:w-[64%] mx-auto aspect-square rounded-2xl overflow-hidden bg-white mt-1.5 md:mt-0">
                   <img src={p.image} alt={p.name} className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-300" />
                 </div>
@@ -121,18 +122,18 @@ export default function Home() {
         {/* Promo banners */}
         <section className="mt-6 md:mt-8 grid grid-cols-2 gap-3 md:gap-4">
           <Link to="/sign-up" data-testid="promo-banner-1" className="block overflow-hidden rounded-2xl hover:shadow-lg transition-shadow">
-            <img src="https://customer-assets-39nsmqrw.emergentagent.net/job_crossborder-topup/artifacts/b55a2354a230f99b_image.png" alt="新版上線有禮 5% OFF" className="w-full h-auto object-cover" />
+            <img src="https://customer-assets-39nsmqrw.emergentagent.net/job_crossborder-topup/artifacts/b55a2354a230f99b_image.png" alt={tr("新版上線有禮 5% OFF")} className="w-full h-auto object-cover" />
           </Link>
           <Link to="/article" data-testid="promo-banner-2" className="block overflow-hidden rounded-2xl hover:shadow-lg transition-shadow">
-            <img src="https://customer-assets-39nsmqrw.emergentagent.net/job_crossborder-topup/artifacts/3673631df7a58fe1_image.png" alt="精選活動合集 優惠一站搞定" className="w-full h-auto object-cover" />
+            <img src="https://customer-assets-39nsmqrw.emergentagent.net/job_crossborder-topup/artifacts/3673631df7a58fe1_image.png" alt={tr("精選活動合集 優惠一站搞定")} className="w-full h-auto object-cover" />
           </Link>
         </section>
 
         {/* Hot categories: 6 categories, each a 2-page swipeable 5x2 grid */}
         <section className="mt-8 md:mt-10">
           <div className="flex items-center justify-between mb-4">
-            <MTitle>熱門分類</MTitle>
-            <Link to="/category/livestream" data-testid="all-categories-link" className="text-xs font-medium md:font-semibold text-orange-500 md:text-orange-600 bg-orange-100/70 md:bg-orange-50 md:border md:border-orange-100 rounded-full px-3 py-1 hover:bg-orange-100">全部分類</Link>
+            <MTitle>{tr("熱門分類")}</MTitle>
+            <Link to="/category/livestream" data-testid="all-categories-link" className="text-xs font-medium md:font-semibold text-orange-500 md:text-orange-600 bg-orange-100/70 md:bg-orange-50 md:border md:border-orange-100 rounded-full px-3 py-1 hover:bg-orange-100">{tr("全部分類")}</Link>
           </div>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
             {categories.slice(0, 6).map((c) => {
@@ -145,7 +146,7 @@ export default function Home() {
                       <span className="h-5 w-1.5 rounded-full bg-gradient-to-b from-orange-400 to-amber-500" />
                       <h3 className="font-bold text-lg text-slate-900">{c.name}</h3>
                     </div>
-                    <Link to={`/category/${c.id}`} className="flex items-center gap-0.5 text-sm md:text-xs text-orange-500 md:text-slate-400 hover:text-orange-500">查看更多 <ChevronRight className="h-4 w-4 md:h-3.5 md:w-3.5" /></Link>
+                    <Link to={`/category/${c.id}`} className="flex items-center gap-0.5 text-sm md:text-xs text-orange-500 md:text-slate-400 hover:text-orange-500">{tr("查看更多")} <ChevronRight className="h-4 w-4 md:h-3.5 md:w-3.5" /></Link>
                   </div>
                   <PagedGrid items={items} perPage={isMobile ? 8 : 10} testid={`cat-paged-${c.id}`} />
                 </div>
@@ -157,8 +158,8 @@ export default function Home() {
         {/* News & promo */}
         <section className="mt-10">
           <div className="flex items-center justify-between mb-4">
-            <MTitle>新聞 & 促銷</MTitle>
-            <Link to="/article" data-testid="news-more-link" className="text-xs font-semibold text-orange-600 bg-orange-50 border border-orange-100 rounded-full px-4 py-1.5 hover:bg-orange-100">查看更多</Link>
+            <MTitle>{tr("新聞 & 促銷")}</MTitle>
+            <Link to="/article" data-testid="news-more-link" className="text-xs font-semibold text-orange-600 bg-orange-50 border border-orange-100 rounded-full px-4 py-1.5 hover:bg-orange-100">{tr("查看更多")}</Link>
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
             {news.map((n, i) => <ArticleCard key={n.id} n={n} testId={`news-card-${i}`} />)}
@@ -168,12 +169,12 @@ export default function Home() {
 
       {/* Feature band */}
       <section className="mt-8 md:hidden px-4" data-testid="features-mobile-banner">
-        <img src="/banners/features-mobile.png" alt="gogo589 全球應用內購服務：正版安全、極速出貨、7x24 客服、天天折扣、全球發行" className="w-full h-auto rounded-2xl shadow-sm" />
+        <img src="/banners/features-mobile.png" alt={tr("gogo589 全球應用內購服務：正版安全、極速出貨、7x24 客服、天天折扣、全球發行")} className="w-full h-auto rounded-2xl shadow-sm" />
       </section>
       <section className="hidden md:block mt-14 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center mb-10">
           <img src="/gogo589-logo.png" alt="gogo589" className="h-8 md:h-12 w-auto object-contain mx-auto" />
-          <div className="text-xs md:text-base tracking-[0.35em] text-slate-500 font-medium mt-2 pl-[0.35em]">全球應用內購服務</div>
+          <div className="text-xs md:text-base tracking-[0.35em] text-slate-500 font-medium mt-2 pl-[0.35em]">{tr("全球應用內購服務")}</div>
         </div>
         <div className="grid grid-cols-5 gap-x-1.5 md:gap-x-6 gap-y-10">
           {FEATURES.map(([Icon, title, desc], i) => (
@@ -191,16 +192,16 @@ export default function Home() {
       {/* Register CTA band */}
       <section className="mt-4 md:hidden px-4">
         <button type="button" data-testid="cta-register-banner" onClick={openAuth} className="block w-full overflow-hidden rounded-2xl shadow-sm active:scale-[0.99] transition-transform">
-          <img src="/banners/register-mobile.png" alt="新用戶註冊，最高領 9% 優惠券，立即註冊" className="w-full h-auto" />
+          <img src="/banners/register-mobile.png" alt={tr("新用戶註冊，最高領 9% 優惠券，立即註冊")} className="w-full h-auto" />
         </button>
       </section>
       <section className="hidden md:block mt-6 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="relative overflow-hidden rounded-2xl sm:rounded-3xl bg-gradient-to-r from-orange-500 via-orange-500 to-amber-500 px-8 py-8 flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="text-white text-center sm:text-left">
-            <div className="font-head text-2xl font-extrabold">新用戶註冊，最高領 9% 優惠券</div>
-            <p className="text-sm text-white/85 mt-1">註冊即享首單優惠，海量正版 App 充值等你來！</p>
+            <div className="font-head text-2xl font-extrabold">{tr("新用戶註冊，最高領 9% 優惠券")}</div>
+            <p className="text-sm text-white/85 mt-1">{tr("註冊即享首單優惠，海量正版 App 充值等你來！")}</p>
           </div>
-          <Link to="/sign-up" data-testid="cta-register-btn" className="shrink-0 bg-white text-orange-600 font-bold rounded-full px-8 py-3 hover:shadow-lg transition-shadow">立即註冊</Link>
+          <Link to="/sign-up" data-testid="cta-register-btn" className="shrink-0 bg-white text-orange-600 font-bold rounded-full px-8 py-3 hover:shadow-lg transition-shadow">{tr("立即註冊")}</Link>
           <Gift className="absolute right-40 -bottom-6 h-32 w-32 text-white/10 hidden lg:block" />
         </div>
       </section>
@@ -359,7 +360,7 @@ function PagedGrid({ items, perPage = 10, testid }) {
       {pages.length > 1 && (
         <div className="flex items-center justify-center gap-1.5 mt-5">
           {pages.map((_, i) => (
-            <button key={i} data-testid={`${testid}-dot-${i}`} onClick={() => goTo(i)} aria-label={`第 ${i + 1} 頁`}
+            <button key={i} data-testid={`${testid}-dot-${i}`} onClick={() => goTo(i)} aria-label={tr("第 {0} 頁", i + 1)}
               className={`h-2 md:h-1.5 rounded-full transition-all ${i === page ? "w-5 md:w-6 bg-orange-400" : "w-2 md:w-1.5 bg-orange-100 md:bg-slate-300 hover:bg-slate-400"}`} />
           ))}
         </div>
@@ -374,7 +375,7 @@ function SectionTitle({ title, to, icon }) {  return (
         {icon && <img src={icon} alt="" className="h-6 w-6 rounded-md object-cover" />}
         <MTitle>{title}</MTitle>
       </div>
-      <Link to={to} className="flex items-center gap-0.5 text-xs text-orange-500 bg-orange-100/70 md:bg-transparent rounded-full px-3 py-1 md:px-0 md:py-0 md:text-slate-400 hover:text-orange-500">查看更多 <ChevronRight className="h-3.5 w-3.5 hidden md:block" /></Link>
+      <Link to={to} className="flex items-center gap-0.5 text-xs text-orange-500 bg-orange-100/70 md:bg-transparent rounded-full px-3 py-1 md:px-0 md:py-0 md:text-slate-400 hover:text-orange-500">{tr("查看更多")} <ChevronRight className="h-3.5 w-3.5 hidden md:block" /></Link>
     </div>
   );
 }

@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import { Star, Users } from "lucide-react";
+import { tr } from "@/i18n";
 
 function salesText(n) {
   if (!n) return "0";
@@ -20,9 +21,9 @@ export default function ProductCard({ product, simple = false }) {
           alt={product.name}
           className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-300"
         />
-        {!simple && product.tags?.includes("熱銷") && (
+        {!simple && product.tags?.includes(tr("熱銷")) && (
           <span className="absolute top-1.5 left-1.5 text-[10px] font-bold rounded-md px-1.5 py-0.5 bg-red-500 text-white shadow-sm">
-            熱銷
+            {tr("熱銷")}
           </span>
         )}
       </div>

@@ -2,10 +2,11 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { Percent, FileText, Sparkles } from "lucide-react";
 import { publicApi } from "@/lib/api";
+import { tr } from "@/i18n";
 
 const PAGE_SIZE = 15;
 
-export const isPromo = (a) => /優惠|折扣|OFF|%|活動|盛惠|大禮包|好券|優惠券|會員日/.test(a.title || "");
+export const isPromo = (a) => /優惠|优惠|折扣|OFF|%|活動|活动|盛惠|大禮包|大礼包|好券|會員日|会员日|coupon|discount|promo|event|sale/i.test(a.title || "");
 
 export function ArticleCard({ n, testId }) {
   return (
@@ -50,7 +51,7 @@ export default function ArticleCenter() {
     <div className="min-h-[70vh]" data-testid="article-center">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 md:py-6">
         <div className="text-sm text-slate-400 mb-4 md:mb-6 flex items-center gap-1.5" data-testid="article-breadcrumb">
-          <Link to="/" className="hover:text-orange-600">首頁</Link><span>/</span><span className="text-slate-600">新聞資訊</span>
+          <Link to="/" className="hover:text-orange-600">{tr("首頁")}</Link><span>/</span><span className="text-slate-600">{tr("新聞資訊")}</span>
         </div>
 
         {loading ? (

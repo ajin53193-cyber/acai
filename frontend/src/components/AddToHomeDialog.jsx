@@ -1,9 +1,10 @@
 import { useState } from "react";
 import { X, Smartphone } from "lucide-react";
+import { tr } from "@/i18n";
 
 const TABS = [
-  ["ios", "iPhone / Safari", "/videos/desktop-ios.mp4", ["點擊 Safari 底部「分享」按鈕", "選擇「加入主畫面」", "點擊「新增」即可在桌面看到 gogo589 圖示"]],
-  ["android", "Android / Chrome", "/videos/desktop-android.mp4", ["點擊 Chrome 右上角「⋮」選單", "選擇「加到主畫面」", "點擊「新增」即可在桌面看到 gogo589 圖示"]],
+  ["ios", "iPhone / Safari", "/videos/desktop-ios.mp4", [tr("點擊 Safari 底部「分享」按鈕"), tr("選擇「加入主畫面」"), tr("點擊「新增」即可在桌面看到 gogo589 圖示")]],
+  ["android", "Android / Chrome", "/videos/desktop-android.mp4", [tr("點擊 Chrome 右上角「⋮」選單"), tr("選擇「加到主畫面」"), tr("點擊「新增」即可在桌面看到 gogo589 圖示")]],
 ];
 
 export function AddToHomeDialog({ onClose }) {
@@ -13,7 +14,7 @@ export function AddToHomeDialog({ onClose }) {
     <div data-testid="a2hs-dialog" className="fixed inset-0 z-[70] bg-black/50 flex items-center justify-center p-5" onClick={onClose}>
       <div className="bg-white w-full max-w-sm md:max-w-md rounded-3xl p-5 shadow-2xl max-h-[92vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-3">
-          <h3 className="text-base font-bold text-slate-900 flex items-center gap-2"><Smartphone className="h-5 w-5 text-orange-500" />新增到桌面</h3>
+          <h3 className="text-base font-bold text-slate-900 flex items-center gap-2"><Smartphone className="h-5 w-5 text-orange-500" />{tr("新增到桌面")}</h3>
           <button data-testid="a2hs-close" onClick={onClose} className="h-8 w-8 rounded-full bg-orange-50 text-orange-500 flex items-center justify-center"><X className="h-4 w-4" /></button>
         </div>
         <div className="flex gap-2 mb-3">
@@ -25,7 +26,7 @@ export function AddToHomeDialog({ onClose }) {
         <ol className="mt-3 space-y-1.5 text-sm text-slate-600">
           {steps.map((t, i) => <li key={t} className="flex gap-2"><span className="h-5 w-5 shrink-0 rounded-full bg-orange-100 text-orange-500 text-xs font-bold flex items-center justify-center">{i + 1}</span>{t}</li>)}
         </ol>
-        <div className="mt-2 text-[11px] text-slate-400">{label} 教學</div>
+        <div className="mt-2 text-[11px] text-slate-400">{label} {tr("教學")}</div>
       </div>
     </div>
   );

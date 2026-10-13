@@ -1,5 +1,8 @@
 import os
+import re
 import uuid
+import asyncio
+import json
 import base64
 import hashlib
 import hmac
@@ -14,6 +17,7 @@ from fastapi import FastAPI, APIRouter, HTTPException, Depends, Request
 from fastapi.responses import Response, PlainTextResponse
 from fastapi.concurrency import run_in_threadpool
 import storage as objstore
+from translate import Translator, to_simplified, to_traditional
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -183,6 +187,7 @@ class Currency(BaseModel):
     flag: str = ""
     rate_to_usd: float
     active: bool = True
+    auto_rate: Optional[bool] = None
 
 
 class Review(BaseModel):
@@ -261,7 +266,7 @@ async def root():
 
 @api_router.get("/currencies")
 async def get_currencies():
-    return await db.currencies.find({"active": True}, {"_id": 0}).to_list(100)
+    return await db.currencies.find({"active": True}, {"_id": 0}).sort("sort_order", 1).to_list(100)
 
 
 @api_router.get("/categories")
@@ -275,7 +280,11 @@ async def get_products(category: Optional[str] = None, q: Optional[str] = None):
     if category:
         query["category"] = category
     if q:
-        query["name"] = {"$regex": q, "$options": "i"}
+        ql = q.lower()
+        names = [src for src, en in translator.en.items() if ql in en.lower() and len(src) <= 80]
+        query["$or"] = [{"name": {"$regex": re.escape(v), "$options": "i"}} for v in {q, to_simplified(q), to_traditional(q)}]
+        if names:
+            query["$or"].append({"name": {"$in": names[:500]}})
     proj = {"_id": 0, "content_html": 0, "delivery_fields": 0, "description": 0, "tutorial": 0}
     return await db.products.find(query, proj).sort([("sort_order", 1), ("sales_count", -1)]).to_list(3000)
 
@@ -1339,13 +1348,36 @@ async def admin_update_order(order_id: str, body: StatusUpdate, admin: dict = De
 
 @api_router.get("/admin/currencies")
 async def admin_list_currencies(admin: dict = Depends(require_role("admin"))):
-    return await db.currencies.find({}, {"_id": 0}).to_list(100)
+    return await db.currencies.find({}, {"_id": 0}).sort("sort_order", 1).to_list(100)
 
 
 @api_router.put("/admin/currencies/{code}")
 async def admin_update_currency(code: str, body: Currency, admin: dict = Depends(require_role("admin"))):
-    await db.currencies.update_one({"code": code}, {"$set": body.model_dump()}, upsert=True)
-    return body.model_dump()
+    upd = body.model_dump()
+    if body.auto_rate is None:
+        upd.pop("auto_rate")
+    await db.currencies.update_one({"code": code}, {"$set": upd}, upsert=True)
+    return await db.currencies.find_one({"code": code}, {"_id": 0})
+
+
+@api_router.post("/admin/currencies/refresh")
+async def admin_refresh_rates(admin: dict = Depends(require_role("admin"))):
+    return await refresh_rates()
+
+
+@api_router.post("/cron/refresh-rates")
+async def cron_refresh_rates(request: Request):
+    # Cron endpoints must ack 2xx immediately; enqueue/background the actual work.
+    secret = os.environ.get("WEBHOOK_CRON_SECRET", "")
+    auth = request.headers.get("authorization", "")
+    if not secret or not auth.startswith("Bearer ") or not hmac.compare_digest(auth[7:], secret):
+        raise HTTPException(status_code=401, detail="unauthorized")
+    run_id = request.headers.get("x-webhook-id") or uuid.uuid4().hex
+    if await db.cron_runs.find_one({"run_id": run_id}):
+        return {"ok": True, "duplicate": True}
+    await db.cron_runs.insert_one({"run_id": run_id, "job": "refresh-rates", "created_at": now_iso()})
+    asyncio.create_task(refresh_rates())
+    return {"ok": True}
 
 
 @api_router.get("/admin/promos")
@@ -1443,16 +1475,48 @@ async def status_labels():
 
 
 # ----------------------------- Seed -----------------------------
+DEFAULT_CURRENCIES = [
+    {"code": "USD", "symbol": "$", "name": "美元", "flag": "🇺🇸", "rate_to_usd": 1.00},
+    {"code": "CNY", "symbol": "¥", "name": "人民幣", "flag": "🇨🇳", "rate_to_usd": 7.25},
+    {"code": "HKD", "symbol": "HK$", "name": "港幣", "flag": "🇭🇰", "rate_to_usd": 7.82},
+    {"code": "TWD", "symbol": "NT$", "name": "新台幣", "flag": "🇹🇼", "rate_to_usd": 32.20},
+    {"code": "SGD", "symbol": "S$", "name": "新加坡幣", "flag": "🇸🇬", "rate_to_usd": 1.35},
+    {"code": "MYR", "symbol": "RM", "name": "馬來西亞令吉", "flag": "🇲🇾", "rate_to_usd": 4.70},
+    {"code": "THB", "symbol": "฿", "name": "泰銖", "flag": "🇹🇭", "rate_to_usd": 36.50},
+    {"code": "JPY", "symbol": "¥", "name": "日圓", "flag": "🇯🇵", "rate_to_usd": 155.40},
+    {"code": "KRW", "symbol": "₩", "name": "韓元", "flag": "🇰🇷", "rate_to_usd": 1380.0},
+    {"code": "EUR", "symbol": "€", "name": "歐元", "flag": "🇪🇺", "rate_to_usd": 0.92},
+    {"code": "GBP", "symbol": "£", "name": "英鎊", "flag": "🇬🇧", "rate_to_usd": 0.79},
+    {"code": "AUD", "symbol": "A$", "name": "澳幣", "flag": "🇦🇺", "rate_to_usd": 1.52},
+    {"code": "CAD", "symbol": "C$", "name": "加幣", "flag": "🇨🇦", "rate_to_usd": 1.37},
+    {"code": "PHP", "symbol": "₱", "name": "菲律賓披索", "flag": "🇵🇭", "rate_to_usd": 57.0},
+    {"code": "IDR", "symbol": "Rp", "name": "印尼盾", "flag": "🇮🇩", "rate_to_usd": 16200.0},
+    {"code": "VND", "symbol": "₫", "name": "越南盾", "flag": "🇻🇳", "rate_to_usd": 25400.0},
+    {"code": "INR", "symbol": "₹", "name": "印度盧比", "flag": "🇮🇳", "rate_to_usd": 83.5},
+    {"code": "AED", "symbol": "د.إ", "name": "阿聯酋迪拉姆", "flag": "🇦🇪", "rate_to_usd": 3.67},
+]
+
+
+async def refresh_rates() -> dict:
+    try:
+        async with httpx.AsyncClient(timeout=20) as client:
+            r = await client.get("https://open.er-api.com/v6/latest/USD")
+        rates = r.json().get("rates") or {}
+    except Exception as e:
+        logger.warning("rate refresh failed: %s", e)
+        return {"updated": 0, "error": str(e)}
+    n = 0
+    async for c in db.currencies.find({"auto_rate": {"$ne": False}}, {"_id": 0, "code": 1}):
+        if rates.get(c["code"]):
+            await db.currencies.update_one({"code": c["code"]}, {"$set": {"rate_to_usd": round(float(rates[c["code"]]), 6), "rate_updated_at": now_iso()}})
+            n += 1
+    logger.info("rates refreshed: %d", n)
+    return {"updated": n}
+
+
 async def seed():
-    if await db.currencies.count_documents({}) == 0:
-        await db.currencies.insert_many([
-            {"code": "USD", "symbol": "$", "name": "美元", "flag": "🇺🇸", "rate_to_usd": 1.00, "active": True},
-            {"code": "HKD", "symbol": "HK$", "name": "港幣", "flag": "🇭🇰", "rate_to_usd": 7.82, "active": True},
-            {"code": "TWD", "symbol": "NT$", "name": "新台幣", "flag": "🇹🇼", "rate_to_usd": 32.20, "active": True},
-            {"code": "EUR", "symbol": "€", "name": "歐元", "flag": "🇪🇺", "rate_to_usd": 0.92, "active": True},
-            {"code": "JPY", "symbol": "¥", "name": "日圓", "flag": "🇯🇵", "rate_to_usd": 155.40, "active": True},
-            {"code": "GBP", "symbol": "£", "name": "英鎊", "flag": "🇬🇧", "rate_to_usd": 0.79, "active": True},
-        ])
+    for i, c in enumerate(DEFAULT_CURRENCIES):
+        await db.currencies.update_one({"code": c["code"]}, {"$setOnInsert": {**c, "active": True, "auto_rate": True}, "$set": {"sort_order": i}}, upsert=True)
     IMG = "https://static.prod-images.emergentagent.com/jobs/8c0ad436-0c2e-49bb-a5bb-0efc73c32f62/images/"
     ICONS = {
         "shortvideo": "/icons/shortvideo.png",
@@ -1627,8 +1691,38 @@ async def seed():
         ])
 
 
+translator = Translator(db)
+LOCALIZE_SKIP = ("/api/admin", "/api/img", "/api/payments", "/api/cron", "/api/me/wallet/topup", "/api/i18n")
+
+
+@api_router.get("/i18n/stats")
+async def i18n_stats():
+    return {"cached": len(translator.en), "pending": len(translator.pending)}
+
+
 app.include_router(api_router)
 app.include_router(clerk_router)
+
+
+@app.middleware("http")
+async def localize_response(request: Request, call_next):
+    response = await call_next(request)
+    lang = request.headers.get("x-lang", "")
+    path = request.url.path
+    if lang not in ("zh-CN", "en") or not path.startswith("/api") or path.startswith(LOCALIZE_SKIP) \
+            or response.status_code >= 300 or "application/json" not in (response.headers.get("content-type") or ""):
+        return response
+    body = b"".join([chunk async for chunk in response.body_iterator])
+    try:
+        data = json.loads(body)
+    except Exception:
+        return Response(content=body, status_code=response.status_code, headers=dict(response.headers), media_type="application/json")
+    data = translator.localize(data, lang, allow_long=isinstance(data, dict))
+    out = json.dumps(data, ensure_ascii=False).encode()
+    headers = {k: v for k, v in response.headers.items() if k.lower() != "content-length"}
+    headers["content-length"] = str(len(out))
+    return Response(content=out, status_code=response.status_code, headers=headers, media_type="application/json")
+
 
 app.add_middleware(
     CORSMiddleware,
@@ -1653,6 +1747,7 @@ async def on_startup():
     for old, new in RETIRED_ROLES.items():
         await db.users.update_many({"role": old}, {"$set": {"role": new}})
     await seed()
+    await translator.load()
 
 
 @app.on_event("shutdown")

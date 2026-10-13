@@ -1,11 +1,12 @@
 import axios from "axios";
 import { useAuth } from "@clerk/react";
 import { useCallback } from "react";
+import { API_LANG } from "@/i18n";
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 export const API = `${BACKEND_URL}/api`;
 
-export const publicApi = axios.create({ baseURL: API });
+export const publicApi = axios.create({ baseURL: API, headers: { "X-Lang": API_LANG } });
 
 export function useApi() {
   const { getToken } = useAuth();
@@ -17,6 +18,7 @@ export function useApi() {
         url: `${API}${config.url}`,
         headers: {
           ...(config.headers || {}),
+          "X-Lang": API_LANG,
           Authorization: token ? `Bearer ${token}` : undefined,
         },
       });

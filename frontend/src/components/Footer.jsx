@@ -4,6 +4,7 @@ import { QRCodeSVG } from "qrcode.react";
 import { publicApi } from "@/lib/api";
 import { openService } from "@/components/ServiceWidget";
 import { Star, Apple, CreditCard } from "lucide-react";
+import { tr } from "@/i18n";
 
 const PAY_BADGES = [
   <span className="font-black italic text-base text-[#1A1F71]">VISA</span>,
@@ -16,17 +17,17 @@ const PAY_BADGES = [
   </span>,
   <span className="flex items-center gap-0.5 font-semibold text-sm text-slate-900"><Apple className="h-4 w-4 fill-slate-900 text-slate-900" />Pay</span>,
   <span className="flex items-center gap-1">
-    <span className="h-5 w-5 rounded-[5px] bg-[#1677FF] text-white text-[12px] font-black flex items-center justify-center">支</span>
-    <span className="font-bold text-[11px] text-[#1677FF]">支付寶</span>
+    <span className="h-5 w-5 rounded-[5px] bg-[#1677FF] text-white text-[12px] font-black flex items-center justify-center">{tr("支")}</span>
+    <span className="font-bold text-[11px] text-[#1677FF]">{tr("支付寶")}</span>
   </span>,
   <span className="font-black text-[11px] leading-none text-center text-[#0a7cc1]">Touch<br />'nGo</span>,
   <span className="font-black text-[11px] leading-none text-center"><span className="text-[#ec1c8e]">PAY</span><br /><span className="text-[#f6a623]">NOW</span></span>,
   <span className="flex items-center gap-1">
     <CreditCard className="h-4 w-4 text-slate-500" />
-    <span className="font-bold text-[10px] text-slate-700 leading-tight">臺灣ATM<br />銀行轉帳</span>
+    <span className="font-bold text-[10px] text-slate-700 leading-tight">{tr("臺灣ATM")}<br />{tr("銀行轉帳")}</span>
   </span>,
   <span className="flex flex-col items-center gap-0.5">
-    <span className="font-bold text-[9px] text-slate-700">台灣超商</span>
+    <span className="font-bold text-[9px] text-slate-700">{tr("台灣超商")}</span>
     <span className="flex gap-0.5">
       <span className="h-3.5 w-3.5 rounded-sm bg-[#ff7f00] text-white text-[7px] font-black flex items-center justify-center">7</span>
       <span className="h-3.5 w-3.5 rounded-sm bg-[#008a3e] text-white text-[7px] font-black flex items-center justify-center">F</span>
@@ -37,13 +38,13 @@ const PAY_BADGES = [
 ];
 
 const COLS = [
-  ["關於我們", [["公司介紹", "/article/about-us"], ["隱私權政策", "/article/privacy-policy"], ["條款與條件", "/article/terms-conditions"], ["聯絡我們", "/article/contact-us"]]],
-  ["購物指南", [["購物流程", "/article/shopping"], ["出貨流程", "/article/delivery"], ["退款政策", "/article/refund-policy"], ["成為經銷商", "/article/reseller", true]]],
-  ["幫助訊息", [["活動中心", "/article"], ["常見問題", "/article/faq"], ["我的訂單", "/orders"], ["我的認證", "/account/verify"], ["我的優惠券", "/account/coupons"]]],
+  [tr("關於我們"), [[tr("公司介紹"), "/article/about-us"], [tr("隱私權政策"), "/article/privacy-policy"], [tr("條款與條件"), "/article/terms-conditions"], [tr("聯絡我們"), "/article/contact-us"]]],
+  [tr("購物指南"), [[tr("購物流程"), "/article/shopping"], [tr("出貨流程"), "/article/delivery"], [tr("退款政策"), "/article/refund-policy"], [tr("成為經銷商"), "/article/reseller", true]]],
+  [tr("幫助訊息"), [[tr("活動中心"), "/article"], [tr("常見問題"), "/article/faq"], [tr("我的訂單"), "/orders"], [tr("我的認證"), "/account/verify"], [tr("我的優惠券"), "/account/coupons"]]],
 ];
 
 export default function Footer() {
-  const [settings, setSettings] = useState({ whatsapp_link: "https://wa.me/", cs_label: "WhatsApp 掃碼聯繫客服" });
+  const [settings, setSettings] = useState({ whatsapp_link: "https://wa.me/", cs_label: tr("WhatsApp 掃碼聯繫客服") });
   const [logos, setLogos] = useState(null);
   useEffect(() => {
     publicApi.get("/settings").then((r) => setSettings(r.data)).catch(() => {});
@@ -100,10 +101,10 @@ export default function Footer() {
               </div>
               <div className="flex flex-col gap-2.5 md:gap-3 pt-1 min-w-0">
                 <div className="flex items-center gap-2">
-                  <span className="text-xs md:text-sm text-white/90 whitespace-nowrap">7*24 小時線上客服</span>
-                  <button type="button" onClick={openService} data-testid="footer-cs-btn" className="text-xs font-bold bg-white/25 md:bg-white text-white md:text-[#E8792A] rounded-full px-3 py-1 whitespace-nowrap hover:bg-orange-50 hover:text-[#E8792A]">在線客服</button>
+                  <span className="text-xs md:text-sm text-white/90 whitespace-nowrap">{tr("7*24 小時線上客服")}</span>
+                  <button type="button" onClick={openService} data-testid="footer-cs-btn" className="text-xs font-bold bg-white/25 md:bg-white text-white md:text-[#E8792A] rounded-full px-3 py-1 whitespace-nowrap hover:bg-orange-50 hover:text-[#E8792A]">{tr("在線客服")}</button>
                 </div>
-                <div className="text-xs md:text-sm text-white/90 whitespace-nowrap">WhatsApp 24 小時客服</div>
+                <div className="text-xs md:text-sm text-white/90 whitespace-nowrap">{tr("WhatsApp 24 小時客服")}</div>
                 <div className="hidden md:flex items-center gap-1.5">
                   <div className="flex">
                     {[0, 1, 2, 3, 4].map((i) => (
@@ -131,10 +132,10 @@ export default function Footer() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 md:py-5 flex flex-col md:flex-row md:items-center justify-between gap-1.5 md:gap-3 text-center md:text-left">
           <div className="flex items-center justify-center md:justify-start gap-4">
             <img src="/gogo589-logo.png" alt="gogo589" className="hidden md:block h-6 w-auto opacity-80" style={{ filter: "brightness(0) invert(1)" }} />
-            <span className="text-[13px] md:text-[11px] text-white/70">© 2015-2026 gogo589.com 版權所有，並保留所有權利</span>
+            <span className="text-[13px] md:text-[11px] text-white/70">{tr("© 2015-2026 gogo589.com 版權所有，並保留所有權利")}</span>
           </div>
           <div className="text-[12px] md:text-[11px] text-white/55 md:text-right leading-relaxed">
-            <div>Element colors Electronic Entertainment Limited · 本站為示範項目，支付為測試模式</div>
+            <div>{tr("Element colors Electronic Entertainment Limited · 本站為示範項目，支付為測試模式")}</div>
             <div>Address: 19H MAXGRAND PLAZA NO. 3 TAI YAU STREET SAN PO KONG KL, Hong Kong</div>
           </div>
         </div>

@@ -10,16 +10,17 @@ import { useCart } from "@/context/CartContext";
 import ProductCard from "@/components/ProductCard";
 import { DetailBannerCarousel } from "@/components/DetailBannerCarousel";
 import { AddToHomeDialog } from "@/components/AddToHomeDialog";
+import { tr, LANG } from "@/i18n";
 
 const PERKS = [
-  [Sparkles, "新用戶專享", "新用戶首單特惠"],
-  [CalendarCheck, "每日一單", "規格超低價每日限購"],
-  [Gift, "買就送不限量", "買得多送得多"],
-  [Tags, "組合特價", "搭配購買更划算"],
-  [BadgePercent, "特價不限量", "限時優惠不限購"],
+  [Sparkles, tr("新用戶專享"), tr("新用戶首單特惠")],
+  [CalendarCheck, tr("每日一單"), tr("規格超低價每日限購")],
+  [Gift, tr("買就送不限量"), tr("買得多送得多")],
+  [Tags, tr("組合特價"), tr("搭配購買更划算")],
+  [BadgePercent, tr("特價不限量"), tr("限時優惠不限購")],
 ];
 
-const badgeColor = (b = "") => /新用戶|每月一單/.test(b) ? "bg-fuchsia-500" : /每日一單|特價/.test(b) ? "bg-violet-500" : /送/.test(b) ? "bg-emerald-500" : /最低|免費/.test(b) ? "bg-red-500" : "bg-orange-500";
+const badgeColor = (b = "") => /新用戶|新用户|每月一單|每月一单|new user|monthly/i.test(b) ? "bg-fuchsia-500" : /每日一單|每日一单|特價|特价|daily|special/i.test(b) ? "bg-violet-500" : /送|gift|bonus|free/i.test(b) ? "bg-emerald-500" : /最低|免費|免费|lowest|cheapest/i.test(b) ? "bg-red-500" : "bg-orange-500";
 
 const PERK_SLIDES = ["/banners/perks-1.png", "/banners/perks-2.png"];
 
@@ -37,22 +38,31 @@ function PerksSlider() {
       <button data-testid="perks-next" onClick={() => go(idx + 1)} className="absolute right-1 md:-right-3 top-1/2 -translate-y-1/2 z-10 h-7 w-7 rounded-full bg-[#FFE4C8] text-orange-400 flex items-center justify-center shadow-sm"><ChevronRight className="h-4 w-4" /></button>
       <div ref={ref} onScroll={(e) => setIdx(Math.round(e.currentTarget.scrollLeft / e.currentTarget.clientWidth))}
         className="md:mx-6 flex overflow-x-auto no-scrollbar snap-x snap-mandatory md:rounded-2xl" data-testid="perks-strip">
-        {PERK_SLIDES.map((src, i) => (
-          <img key={src} src={src} alt={`購物權益 ${i + 1}`} data-testid={`perks-slide-${i}`} className="w-full shrink-0 snap-start h-auto block" />
+        {LANG === "en" ? [PERKS.slice(0, 3), PERKS.slice(3)].map((group, i) => (
+          <div key={i} data-testid={`perks-slide-${i}`} className="w-full shrink-0 snap-start grid grid-cols-3 gap-2 md:gap-6 bg-[#FFF3E6] px-4 md:px-10 py-5 md:py-8">
+            {group.map(([Icon, title, sub]) => (
+              <div key={title} className="flex items-center gap-2 md:gap-4">
+                <span className="h-9 w-9 md:h-14 md:w-14 shrink-0 rounded-full bg-[#FFE4C8] text-orange-500 flex items-center justify-center"><Icon className="h-4 w-4 md:h-7 md:w-7" /></span>
+                <div className="min-w-0"><div className="text-[12px] md:text-xl font-bold text-slate-800 leading-tight">{title}</div><div className="text-[10px] md:text-sm text-slate-500 mt-0.5 truncate">{sub}</div></div>
+              </div>
+            ))}
+          </div>
+        )) : PERK_SLIDES.map((src, i) => (
+          <img key={src} src={src} alt={tr("購物權益 {0}", i + 1)} data-testid={`perks-slide-${i}`} className="w-full shrink-0 snap-start h-auto block" />
         ))}
       </div>
     </div>
   );
 }
 
-const TICKER = ["如需使用其它幣種，請在網站右上角選擇", ">>極速發貨 >>正規安全 >>24小時營業"];
+const TICKER = [tr("如需使用其它幣種，請在網站右上角選擇"), tr(">>極速發貨 >>正規安全 >>24小時營業")];
 
 const TIPS = [
-  ["購買前請確認", "購物車商品資訊無誤", "。"],
-  ["接收", "全球幣種", "支付，請在網站上方選擇您的支付貨幣類型即可。"],
-  ["所有產品", "一經發貨，概不退款", "。"],
-  ["點卡類商品收貨後請", "儘快去對應的官方網站充值", "，不要隨便在協力廠商提供的地址使用。"],
-  ["請多次確認您的充值帳號及相關", "資訊是否正確", "，如因您充值帳號輸入錯誤但充值成功的，系統不予退款。"],
+  [tr("購買前請確認"), tr("購物車商品資訊無誤"), "。"],
+  [tr("接收"), tr("全球幣種"), tr("支付，請在網站上方選擇您的支付貨幣類型即可。")],
+  [tr("所有產品"), tr("一經發貨，概不退款"), "。"],
+  [tr("點卡類商品收貨後請"), tr("儘快去對應的官方網站充值"), tr("，不要隨便在協力廠商提供的地址使用。")],
+  [tr("請多次確認您的充值帳號及相關"), tr("資訊是否正確"), tr("，如因您充值帳號輸入錯誤但充值成功的，系統不予退款。")],
 ];
 
 export default function ProductDetail() {
@@ -95,24 +105,24 @@ export default function ProductDetail() {
     callApi({ method: "GET", url: `/products/${id}/daily-limit` }).then((r) => setLimit(r.data)).catch(() => {});
   }, [id, isSignedIn, callApi]);
 
-  const limitKind = (s) => { const b = s.badge || ""; return b.includes("每月一單") ? "monthly" : b.includes("每日一單") ? "daily" : /新客|新用戶|新使用者/.test(b) ? "newcomer" : null; };
+  const limitKind = (s) => { const b = s.badge || ""; return /每月一單|每月一单|monthly/i.test(b) ? "monthly" : /每日一單|每日一单|daily/i.test(b) ? "daily" : /新客|新用戶|新用户|新使用者|new (user|customer)/i.test(b) ? "newcomer" : null; };
   const specLimited = (s) => !!limitKind(s);
   const specLocked = (s) => { const k = limitKind(s); return ((k === "daily" || k === "monthly") && limit.used_spec_ids.includes(s.id)) || (k === "newcomer" && !limit.is_new_customer); };
-  const limitText = (s) => { const k = limitKind(s); return k === "monthly" ? "每月一單" : k === "daily" ? "每日一單" : "新用戶專享"; };
+  const limitText = (s) => { const k = limitKind(s); return k === "monthly" ? tr("每月一單") : k === "daily" ? tr("每日一單") : tr("新用戶專享"); };
 
   const spec = useMemo(() => product?.specs.find((s) => s.id === specId), [product, specId]);
   const totalUsd = (spec?.price_usd || 0) * qty;
   const originalUsd = (spec?.sale_price_usd || 0) * qty;
 
-  if (!product) return <div className="max-w-7xl mx-auto px-4 py-20 text-center text-slate-400">載入中…</div>;
+  if (!product) return <div className="max-w-7xl mx-auto px-4 py-20 text-center text-slate-400">{tr("載入中…")}</div>;
 
   const handleAdd = (buyNow = false) => {
     if (!spec) return;
-    if (specLocked(spec)) return toast.error(limitKind(spec) === "newcomer" ? "此規格為新用戶專享，僅限首單購買，請選擇其他規格" : `此規格為${limitText(spec)}特價，您已購買過，請稍後再來或選擇其他規格`);
-    if (specLimited(spec) && qty > 1) return toast.error(`${limitText(spec)}規格每次限購 1 份`);
+    if (specLocked(spec)) return toast.error(limitKind(spec) === "newcomer" ? tr("此規格為新用戶專享，僅限首單購買，請選擇其他規格") : tr("此規格為{0}特價，您已購買過，請稍後再來或選擇其他規格", limitText(spec)));
+    if (specLimited(spec) && qty > 1) return toast.error(tr("{0}規格每次限購 1 份", limitText(spec)));
     addItem(product, spec, qty);
     if (buyNow) navigate("/checkout");
-    else { toast.success("已加入購物車"); setOpen(true); }
+    else { toast.success(tr("已加入購物車")); setOpen(true); }
   };
 
   return (
@@ -121,7 +131,7 @@ export default function ProductDetail() {
       <div className="max-md:rounded-b-[28px] max-md:bg-[#FFEFDF] md:bg-gradient-to-b md:from-[#FFE9D2] md:via-[#FFF3E6] md:to-[#FFF8F1] md:rounded-b-[40px]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-3 md:pt-6 pb-5 md:pb-8">
           <div className="hidden md:flex text-xs text-slate-400 items-center gap-1.5" data-testid="product-breadcrumb">
-            <Link to="/" className="hover:text-orange-600">首頁</Link><span>/</span>
+            <Link to="/" className="hover:text-orange-600">{tr("首頁")}</Link><span>/</span>
             {category && <><Link to={`/category/${category.id}`} className="hover:text-orange-600">{category.name}</Link><span>/</span></>}
             <span className="text-slate-600">{product.name}</span>
           </div>
@@ -134,10 +144,10 @@ export default function ProductDetail() {
             </div>
             <div className="min-w-0">
               <h1 className="font-head text-base sm:text-2xl font-bold text-slate-900" data-testid="product-title">{product.name}</h1>
-              <div className="mt-1 md:mt-1.5 text-xs md:text-sm text-slate-500 md:text-slate-600 max-md:line-clamp-2 md:truncate">{product.subtitle || product.account_field_hint || `${product.brand} 海外代充服務，支援全球帳號`}</div>
+              <div className="mt-1 md:mt-1.5 text-xs md:text-sm text-slate-500 md:text-slate-600 max-md:line-clamp-2 md:truncate">{product.subtitle || product.account_field_hint || tr("{0} 海外代充服務，支援全球帳號", product.brand)}</div>
               <div className="mt-1 md:mt-1.5 text-xs text-orange-500 h-4 overflow-hidden relative" data-testid="detail-ticker">
                 <div key={tick} className="animate-ticker whitespace-nowrap">{TICKER[tick]}</div>
-                <span className="hidden sm:flex items-center gap-1 text-amber-500"><Star className="h-3 w-3 fill-amber-400 text-amber-400" />{product.rating} · 已售 {product.sales_count}</span>
+                <span className="hidden sm:flex items-center gap-1 text-amber-500"><Star className="h-3 w-3 fill-amber-400 text-amber-400" />{product.rating} {tr("· 已售")} {product.sales_count}</span>
               </div>
             </div>
           </div>
@@ -173,16 +183,16 @@ export default function ProductDetail() {
                     data-testid={`spec-option-${s.id}`}
                     disabled={!s.in_stock}
                     onClick={() => setSpecId(s.id)}
-                    title={locked ? "已達限購" : undefined}
+                    title={locked ? tr("已達限購") : undefined}
                     className={`relative min-h-11 py-1.5 md:py-0 md:h-14 md:min-w-[140px] px-2 md:px-6 rounded-lg md:rounded-xl text-[14px] md:text-sm font-normal transition-all leading-tight ${
                       sel ? "border border-orange-400 bg-orange-50/60 md:bg-orange-50 text-orange-500" : "border border-transparent bg-slate-100/80 md:bg-slate-100 text-slate-600 hover:bg-orange-50"
                     } ${!s.in_stock ? "opacity-40 cursor-not-allowed" : ""} ${locked ? "opacity-50" : ""}`}
                   >
                     {s.badge && (
-                      <span className={`absolute -top-2.5 right-0 rounded-md md:rounded-full text-white text-[10px] px-1.5 md:px-2 py-px md:py-0.5 whitespace-nowrap ${locked ? "bg-slate-400" : badgeColor(s.badge)}`}>{locked ? "已達限購" : s.badge}</span>
+                      <span className={`absolute -top-2.5 right-0 rounded-md md:rounded-full text-white text-[10px] px-1.5 md:px-2 py-px md:py-0.5 whitespace-nowrap ${locked ? "bg-slate-400" : badgeColor(s.badge)}`}>{locked ? tr("已達限購") : s.badge}</span>
                     )}
                     {s.label}
-                    {!s.in_stock && <span className="ml-1 text-[10px] text-red-400">缺貨</span>}
+                    {!s.in_stock && <span className="ml-1 text-[10px] text-red-400">{tr("缺貨")}</span>}
                   </button>
                 );
               })}
@@ -192,14 +202,14 @@ export default function ProductDetail() {
           {spec && specLimited(spec) && (
             <div data-testid="daily-limit-notice" className={`mx-5 sm:mx-8 mb-4 rounded-xl px-4 py-2.5 text-sm ${specLocked(spec) ? "bg-slate-100 text-slate-600" : "bg-orange-50 text-orange-600"}`}>
               {specLocked(spec)
-                ? (limitKind(spec) === "newcomer" ? "「新用戶專享」規格僅限首次下單使用，請選擇其他規格。" : `您已購買過此「${limitText(spec)}」規格，${limitKind(spec) === "monthly" ? "30 天後" : "明天"}即可再次購買；也可選擇其他規格。`)
-                : (limitKind(spec) === "newcomer" ? "此規格為「新用戶專享」特價：僅限首單購買 1 份。" : `此規格為「${limitText(spec)}」特價：每個帳號${limitKind(spec) === "monthly" ? "每月" : "每天"}限購 1 份。`)}
+                ? (limitKind(spec) === "newcomer" ? tr("「新用戶專享」規格僅限首次下單使用，請選擇其他規格。") : tr("您已購買過此「{0}」規格，{1}即可再次購買；也可選擇其他規格。", limitText(spec), limitKind(spec) === "monthly" ? tr("30 天後") : tr("明天")))
+                : (limitKind(spec) === "newcomer" ? tr("此規格為「新用戶專享」特價：僅限首單購買 1 份。") : tr("此規格為「{0}」特價：每個帳號{1}限購 1 份。", limitText(spec), limitKind(spec) === "monthly" ? tr("每月") : tr("每天")))}
             </div>
           )}
           <div className="relative bg-[#FFF6EC] [background-image:radial-gradient(rgba(255,255,255,0.9)_1.5px,transparent_1.5px)] [background-size:14px_14px] px-5 sm:px-8 py-5">
             <div className="bg-white rounded-2xl px-4 md:px-5 py-4 flex flex-row md:flex-row items-center justify-between md:justify-start gap-4">
               <div className="flex items-center gap-4">
-                <span className="hidden md:inline text-sm text-slate-600">購買數量</span>
+                <span className="hidden md:inline text-sm text-slate-600">{tr("購買數量")}</span>
                 <div className="flex items-center rounded-xl md:rounded-full border border-slate-200 md:border-0 bg-white md:bg-slate-100 h-10 md:h-9">
                   <button data-testid="qty-dec" onClick={() => setQty((q) => Math.max(1, q - 1))} className="h-9 w-9 flex items-center justify-center text-slate-500 hover:text-orange-500"><Minus className="h-4 w-4" /></button>
                   <span className="w-10 md:w-8 text-center text-sm font-semibold" data-testid="qty-value">{qty}</span>
@@ -208,27 +218,27 @@ export default function ProductDetail() {
               </div>
               <div className="md:ml-auto flex items-center gap-4 flex-wrap">
                 <div className="text-right">
-                  <div className="text-sm text-slate-700">總計：<span className="font-head text-xl font-extrabold text-orange-500" data-testid="total-price">{format(totalUsd)}</span></div>
+                  <div className="text-sm text-slate-700">{tr("總計：")}<span className="font-head text-xl font-extrabold text-orange-500" data-testid="total-price">{format(totalUsd)}</span></div>
                   {originalUsd > totalUsd && <div className="text-xs text-slate-400 line-through" data-testid="original-price">{format(originalUsd)}</div>}
                 </div>
                 <button data-testid="cart-icon-btn" onClick={() => setOpen(true)} className="relative hidden md:flex h-11 w-11 rounded-full bg-slate-900 text-white flex items-center justify-center hover:bg-slate-800">
                   <ShoppingCart className="h-5 w-5" />
                   <span className="absolute -top-1 -right-1 h-4 min-w-4 px-1 rounded-full bg-orange-500 text-[10px] font-bold flex items-center justify-center">{count}</span>
                 </button>
-                <button data-testid="add-to-cart-btn" onClick={() => handleAdd(false)} className="hidden md:inline-flex h-11 px-6 rounded-full bg-slate-900 text-white text-sm font-bold items-center hover:bg-slate-800 transition-colors">加入購物車</button>
-                <button data-testid="buy-now-btn" onClick={() => handleAdd(true)} className="hidden md:inline-flex h-11 px-7 rounded-full bg-orange-500 text-white text-sm font-bold items-center hover:bg-orange-600 transition-colors">立即購買</button>
+                <button data-testid="add-to-cart-btn" onClick={() => handleAdd(false)} className="hidden md:inline-flex h-11 px-6 rounded-full bg-slate-900 text-white text-sm font-bold items-center hover:bg-slate-800 transition-colors">{tr("加入購物車")}</button>
+                <button data-testid="buy-now-btn" onClick={() => handleAdd(true)} className="hidden md:inline-flex h-11 px-7 rounded-full bg-orange-500 text-white text-sm font-bold items-center hover:bg-orange-600 transition-colors">{tr("立即購買")}</button>
               </div>
             </div>
           </div>
         </div>
 
         <button type="button" data-testid="detail-a2hs-banner" onClick={() => setA2hs(true)} className="mt-4 block w-full overflow-hidden rounded-xl md:hidden">
-          <img src="/banners/detail-a2hs-wide.jpg" alt="添加官網至桌面，開啟一鍵充值 立即添加" className="w-full h-auto block" />
+          <img src="/banners/detail-a2hs-wide.jpg" alt={tr("添加官網至桌面，開啟一鍵充值 立即添加")} className="w-full h-auto block" />
         </button>
 
         {/* Tabs */}
         <div className="mt-6 md:mt-8 flex items-end" data-testid="detail-tabs">
-          {[["desc", "產品說明"], ["reviews", `評價(${reviews.length})`]].map(([k, label]) => (
+          {[["desc", tr("產品說明")], ["reviews", tr("評價({0})", reviews.length)]].map(([k, label]) => (
             <button key={k} data-testid={`tab-${k}`} onClick={() => setTab(k)} className={`h-11 px-5 md:px-7 rounded-t-2xl text-[15px] md:text-base transition-colors ${tab === k ? "bg-white text-orange-500" : "text-slate-700 hover:text-orange-500"}`}>
               {label}
             </button>
@@ -238,17 +248,17 @@ export default function ProductDetail() {
         {tab === "desc" ? (
           <div className={`bg-white rounded-b-3xl rounded-tr-3xl ${tab === "desc" ? "" : "rounded-tl-3xl"} p-4 sm:p-8 text-sm md:text-[15px] text-slate-600 leading-7`} data-testid="product-description">
             <div className="border border-dashed border-orange-400 rounded px-4 py-3 md:px-5 md:py-4 text-[15px] md:text-base leading-[1.9]" data-testid="product-tips">
-              <div className="font-semibold text-slate-800">溫馨提示：</div>
+              <div className="font-semibold text-slate-800">{tr("溫馨提示：")}</div>
               <ol>
                 {TIPS.map(([a, b, c], i) => <li key={i}>{i + 1}.{a} <span className="text-orange-500">{b}</span>{c}</li>)}
               </ol>
-              <p className="text-red-500">本平臺不刷單、不返傭，刷信譽、兼職等理由均為詐騙行為，請勿相信！ 避免上當受騙！</p>
+              <p className="text-red-500">{tr("本平臺不刷單、不返傭，刷信譽、兼職等理由均為詐騙行為，請勿相信！ 避免上當受騙！")}</p>
             </div>
             {product.delivery_fields?.length > 0 && (
               <>
-                <div className="mt-5 font-semibold text-slate-800">下單需填寫：</div>
+                <div className="mt-5 font-semibold text-slate-800">{tr("下單需填寫：")}</div>
                 <ul className="mt-1 list-disc pl-5">
-                  {product.delivery_fields.map((f) => <li key={f.name}>{f.name}{f.required ? "（必填）" : ""}{f.tips ? ` — ${f.tips}` : ""}</li>)}
+                  {product.delivery_fields.map((f) => <li key={f.name}>{f.name}{f.required ? tr("（必填）") : ""}{f.tips ? ` — ${f.tips}` : ""}</li>)}
                 </ul>
               </>
             )}
@@ -256,29 +266,29 @@ export default function ProductDetail() {
               <div className="mt-5 kavip-content" data-testid="product-content-html" dangerouslySetInnerHTML={{ __html: product.content_html }} />
             ) : (
               <>
-                <div className="mt-5 font-semibold text-slate-800">商品簡介：</div>
+                <div className="mt-5 font-semibold text-slate-800">{tr("商品簡介：")}</div>
                 <p className="mt-1 whitespace-pre-line">{product.description}</p>
-                {product.tutorial && <><div className="mt-5 font-semibold text-slate-800">購買流程：</div><p className="mt-1 whitespace-pre-line">{product.tutorial}</p></>}
+                {product.tutorial && <><div className="mt-5 font-semibold text-slate-800">{tr("購買流程：")}</div><p className="mt-1 whitespace-pre-line">{product.tutorial}</p></>}
               </>
             )}
             {!product.content_html && (
               <>
-                <div className="mt-5 font-semibold text-slate-800">網站聲明：</div>
-                <p className="mt-1">請多次確認您的充值帳號（{product.account_field_label}）及相關資訊是否正確，如因您充值帳號輸入錯誤但充值成功的，系統不予退款。</p>
+                <div className="mt-5 font-semibold text-slate-800">{tr("網站聲明：")}</div>
+                <p className="mt-1">{tr("請多次確認您的充值帳號（")}{product.account_field_label}{tr("）及相關資訊是否正確，如因您充值帳號輸入錯誤但充值成功的，系統不予退款。")}</p>
               </>
             )}
           </div>
         ) : (
           <div className="bg-white rounded-b-3xl rounded-tl-3xl p-5 sm:p-6" data-testid="product-reviews">
             {reviews.length === 0 ? (
-              <div className="py-8 text-center text-slate-400 text-sm">暫無評價</div>
+              <div className="py-8 text-center text-slate-400 text-sm">{tr("暫無評價")}</div>
             ) : (
               <>
                 <div className="flex items-center gap-4 pb-4 border-b border-dashed border-slate-200">
                   <span className="font-head text-4xl font-extrabold text-orange-500">{(reviews.reduce((a, r) => a + r.rating, 0) / reviews.length).toFixed(1)}</span>
                   <div>
                     <div className="flex gap-0.5">{Array.from({ length: 5 }).map((_, i) => <Star key={i} className={`h-4 w-4 ${i < Math.round(reviews.reduce((a, r) => a + r.rating, 0) / reviews.length) ? "fill-amber-400 text-amber-400" : "text-slate-200"}`} />)}</div>
-                    <div className="text-xs text-slate-400 mt-1">共 {reviews.length} 則評價 · 來自 {new Set(reviews.map((r) => r.area).filter(Boolean)).size || 1} 個地區</div>
+                    <div className="text-xs text-slate-400 mt-1">{tr("共")} {reviews.length} {tr("則評價 · 來自")} {new Set(reviews.map((r) => r.area).filter(Boolean)).size || 1} {tr("個地區")}</div>
                   </div>
                 </div>
                 <div className="divide-y divide-slate-100">
@@ -290,7 +300,7 @@ export default function ProductDetail() {
                           <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
                             <span className="font-semibold text-sm text-slate-800" data-testid="review-author">{r.author}</span>
                             <div className="flex gap-0.5">{Array.from({ length: 5 }).map((_, i) => <Star key={i} className={`h-3.5 w-3.5 ${i < r.rating ? "fill-amber-400 text-amber-400" : "text-slate-200"}`} />)}</div>
-                            {r.buy_count > 1 && <span className="text-[11px] rounded-full bg-orange-50 text-orange-500 px-2 py-0.5">回購 {r.buy_count} 次</span>}
+                            {r.buy_count > 1 && <span className="text-[11px] rounded-full bg-orange-50 text-orange-500 px-2 py-0.5">{tr("回購")} {r.buy_count} {tr("次")}</span>}
                           </div>
                           <div className="text-xs text-slate-400 mt-1">
                             {r.created_at?.slice(0, 10)}{r.area ? ` · ${r.area}` : ""}
@@ -298,16 +308,16 @@ export default function ProductDetail() {
                           {r.content ? (
                             <p className="text-sm text-slate-700 mt-2 leading-relaxed">{r.content}</p>
                           ) : (
-                            <p className="text-sm text-slate-400 mt-2 italic">{r.lang === "en" ? "Rated without comment" : r.lang === "zh-CN" ? "用户未填写评价内容" : "用戶未填寫評價內容"}</p>
+                            <p className="text-sm text-slate-400 mt-2 italic">{r.lang === "en" ? "Rated without comment" : r.lang === "zh-CN" ? tr("用户未填写评价内容") : tr("用戶未填寫評價內容")}</p>
                           )}
-                          {r.reply && <div className="mt-2 rounded-xl bg-orange-50 px-3 py-2 text-xs text-slate-600"><span className="font-semibold text-orange-500">客服回覆：</span>{r.reply}</div>}
+                          {r.reply && <div className="mt-2 rounded-xl bg-orange-50 px-3 py-2 text-xs text-slate-600"><span className="font-semibold text-orange-500">{tr("客服回覆：")}</span>{r.reply}</div>}
                         </div>
                       </div>
                     </div>
                   ))}
                 </div>
                 {reviews.length > reviewsShown && (
-                  <button data-testid="reviews-more" onClick={() => setReviewsShown((n) => n + 10)} className="mt-2 w-full h-10 rounded-full bg-slate-100 text-sm font-semibold text-slate-600 hover:bg-orange-50 hover:text-orange-600">載入更多評價</button>
+                  <button data-testid="reviews-more" onClick={() => setReviewsShown((n) => n + 10)} className="mt-2 w-full h-10 rounded-full bg-slate-100 text-sm font-semibold text-slate-600 hover:bg-orange-50 hover:text-orange-600">{tr("載入更多評價")}</button>
                 )}
               </>
             )}
@@ -316,7 +326,7 @@ export default function ProductDetail() {
 
         {related.length > 0 && (
           <section className="mt-10" data-testid="related-products">
-            <h2 className="font-head text-lg md:text-xl font-bold text-slate-900 mb-4 relative inline-block z-0 max-md:after:content-[''] max-md:after:absolute max-md:after:left-0 max-md:after:right-0 max-md:after:bottom-0.5 max-md:after:h-2 max-md:after:bg-orange-200/80 max-md:after:-z-10">相關推薦</h2>
+            <h2 className="font-head text-lg md:text-xl font-bold text-slate-900 mb-4 relative inline-block z-0 max-md:after:content-[''] max-md:after:absolute max-md:after:left-0 max-md:after:right-0 max-md:after:bottom-0.5 max-md:after:h-2 max-md:after:bg-orange-200/80 max-md:after:-z-10">{tr("相關推薦")}</h2>
             <div className="grid grid-cols-4 lg:grid-cols-8 gap-2 md:gap-3">
               {related.slice(0, 8).map((p) => <ProductCard key={p.id} product={p} simple />)}
             </div>
@@ -332,9 +342,9 @@ export default function ProductDetail() {
           <ShoppingCart className="h-5 w-5" />
           <span className="absolute -top-1 -right-1 h-4 min-w-4 px-1 rounded-full bg-orange-500 text-[10px] font-bold flex items-center justify-center">{count}</span>
         </button>
-        <button data-testid="mobile-add-to-cart-btn" onClick={() => handleAdd(false)} className="flex-1 h-12 rounded-full bg-slate-900 text-white font-bold text-base">加入購物車</button>
+        <button data-testid="mobile-add-to-cart-btn" onClick={() => handleAdd(false)} className="flex-1 h-12 rounded-full bg-slate-900 text-white font-bold text-base">{tr("加入購物車")}</button>
         <button data-testid="mobile-buy-now-btn" onClick={() => handleAdd(true)} className="flex-1 h-12 rounded-full bg-orange-500 text-white font-bold flex flex-col items-center justify-center leading-tight">
-          <span className="text-sm">立即購買</span>
+          <span className="text-sm">{tr("立即購買")}</span>
           <span className="text-[12px] font-bold" data-testid="mobile-total-price">{format(totalUsd)}</span>
         </button>
       </div>

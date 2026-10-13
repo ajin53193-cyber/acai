@@ -8,6 +8,7 @@ import {
 } from "@/components/ui/sheet";
 import { useCart } from "@/context/CartContext";
 import { useCurrency } from "@/context/CurrencyContext";
+import { tr } from "@/i18n";
 
 export default function CartDrawer() {
   const { items, open, setOpen, updateQty, removeItem, subtotalUsd } = useCart();
@@ -24,19 +25,19 @@ export default function CartDrawer() {
       <SheetContent className="w-full sm:max-w-md flex flex-col p-0" data-testid="cart-drawer">
         <SheetHeader className="px-5 py-4 border-b">
           <SheetTitle className="flex items-center gap-2 font-head">
-            <ShoppingBag className="h-5 w-5 text-orange-500" /> 購物車 ({items.length})
+            <ShoppingBag className="h-5 w-5 text-orange-500" /> {tr("購物車")} ({items.length})
           </SheetTitle>
         </SheetHeader>
 
         {items.length === 0 ? (
           <div className="flex-1 flex flex-col items-center justify-center text-slate-400 gap-3">
             <ShoppingBag className="h-12 w-12" />
-            <p className="text-sm">購物車是空的</p>
+            <p className="text-sm">{tr("購物車是空的")}</p>
             <button
               onClick={() => setOpen(false)}
               className="text-orange-500 text-sm font-semibold"
             >
-              去逛逛 →
+              {tr("去逛逛 →")}
             </button>
           </div>
         ) : (
@@ -88,7 +89,7 @@ export default function CartDrawer() {
 
             <div className="border-t px-5 py-4 space-y-3">
               <div className="flex items-center justify-between">
-                <span className="text-sm text-slate-500">小計</span>
+                <span className="text-sm text-slate-500">{tr("小計")}</span>
                 <span className="font-head font-extrabold text-xl text-slate-900">
                   {format(subtotalUsd)}
                 </span>
@@ -98,7 +99,7 @@ export default function CartDrawer() {
                 onClick={checkout}
                 className="w-full h-12 rounded-full bg-orange-500 text-white font-bold hover:bg-orange-600 transition-colors"
               >
-                前往結賬
+                {tr("前往結賬")}
               </button>
             </div>
           </>

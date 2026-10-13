@@ -3,14 +3,15 @@ import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { Show, useClerk } from "@clerk/react";
 import { UserRound, ClipboardList, ShieldCheck, Ticket, CircleHelp, LogOut, Wallet } from "lucide-react";
 import { useAuthModal } from "@/components/auth/AuthModal";
+import { tr } from "@/i18n";
 
 const NAV = [
-  ["/account", "我的帳戶", UserRound],
-  ["/account/wallet", "我的錢包", Wallet],
-  ["/orders", "我的訂單", ClipboardList],
-  ["/account/verify", "我的認證", ShieldCheck],
-  ["/account/coupons", "我的優惠券", Ticket],
-  ["/account/help", "幫助中心", CircleHelp],
+  ["/account", tr("我的帳戶"), UserRound],
+  ["/account/wallet", tr("我的錢包"), Wallet],
+  ["/orders", tr("我的訂單"), ClipboardList],
+  ["/account/verify", tr("我的認證"), ShieldCheck],
+  ["/account/coupons", tr("我的優惠券"), Ticket],
+  ["/account/help", tr("幫助中心"), CircleHelp],
 ];
 
 export const Panel = ({ title, right, children, testId, hideHeaderOnMobile = false }) => (
@@ -44,8 +45,8 @@ export default function AccountLayout() {
       <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-4 md:py-8">
         <Show when="signed-out">
           <div className="bg-white rounded-3xl p-16 text-center">
-            <p className="text-slate-500 mb-4">請先登入以進入會員中心</p>
-            <OrangeBtn onClick={openAuth} data-testid="account-login-btn">登入 / 註冊</OrangeBtn>
+            <p className="text-slate-500 mb-4">{tr("請先登入以進入會員中心")}</p>
+            <OrangeBtn onClick={openAuth} data-testid="account-login-btn">{tr("登入 / 註冊")}</OrangeBtn>
           </div>
         </Show>
         <Show when="signed-in">
@@ -58,7 +59,7 @@ export default function AccountLayout() {
                   </NavLink>
                 ))}
                 <button data-testid="account-nav-logout" onClick={() => signOut({ redirectUrl: "/" }).then(() => navigate("/"))} className="flex max-lg:flex-col max-lg:flex-none max-lg:w-1/6 items-center gap-3 max-lg:gap-1.5 px-5 max-lg:px-0.5 py-4 max-lg:py-1.5 rounded-2xl text-base max-lg:text-[10px] text-slate-600 hover:text-orange-500 whitespace-nowrap">
-                  <LogOut className="h-5 w-5 max-lg:h-[22px] max-lg:w-[22px] max-lg:text-slate-400" fill="currentColor" fillOpacity={0.18} strokeWidth={1.9} /><span>登出帳戶</span>
+                  <LogOut className="h-5 w-5 max-lg:h-[22px] max-lg:w-[22px] max-lg:text-slate-400" fill="currentColor" fillOpacity={0.18} strokeWidth={1.9} /><span>{tr("登出帳戶")}</span>
                 </button>
               </nav>
             </aside>

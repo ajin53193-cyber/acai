@@ -2,15 +2,16 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { AddToHomeDialog } from "@/components/AddToHomeDialog";
 import { useIsMobile } from "@/lib/useIsMobile";
+import { tr } from "@/i18n";
 
 const MOBILE_SLIDES = [
-  { key: "promo", src: "/banners/detail-promo.png", alt: "低價氪金 戰力超神 神券在手 下單省最高 7%", to: "/sign-up" },
-  { key: "a2hs", src: "/banners/detail-a2hs.png", alt: "添加 GOGO589 到桌面 快捷下單超方便", action: "a2hs" },
-  { key: "register", src: "/banners/detail-register.jpg", alt: "註冊送新客優惠包 下單最高省 9%", to: "/sign-up" },
+  { key: "promo", src: "/banners/detail-promo.png", alt: tr("低價氪金 戰力超神 神券在手 下單省最高 7%"), to: "/sign-up" },
+  { key: "a2hs", src: "/banners/detail-a2hs.png", alt: tr("添加 GOGO589 到桌面 快捷下單超方便"), action: "a2hs" },
+  { key: "register", src: "/banners/detail-register.jpg", alt: tr("註冊送新客優惠包 下單最高省 9%"), to: "/sign-up" },
 ];
 const PC_SLIDES = [
-  { key: "promo", src: "/banners/detail-promo-pc.png", alt: "低價氪金 戰力超神 神券在手 下單省最高 7%", to: "/sign-up" },
-  { key: "register", src: "/banners/detail-register-pc.png", alt: "註冊送新客優惠包 下單最高省 9%", to: "/sign-up" },
+  { key: "promo", src: "/banners/detail-promo-pc.png", alt: tr("低價氪金 戰力超神 神券在手 下單省最高 7%"), to: "/sign-up" },
+  { key: "register", src: "/banners/detail-register-pc.png", alt: tr("註冊送新客優惠包 下單最高省 9%"), to: "/sign-up" },
 ];
 
 export function DetailBannerCarousel() {

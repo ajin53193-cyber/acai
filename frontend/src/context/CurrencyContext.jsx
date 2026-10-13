@@ -23,7 +23,7 @@ export function CurrencyProvider({ children }) {
 
   const format = (usd) => {
     const amt = convert(usd);
-    const decimals = ["JPY", "TWD"].includes(active.code) ? 0 : 2;
+    const decimals = ["JPY", "TWD", "KRW", "VND", "IDR"].includes(active.code) ? 0 : 2;
     return `${active.symbol}${amt.toLocaleString("en-US", {
       minimumFractionDigits: decimals,
       maximumFractionDigits: decimals,

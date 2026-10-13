@@ -1,10 +1,10 @@
 export const STATUS_LABELS = {
-  pending_payment: "待支付",
-  paid: "等待中",
-  processing: "充值中",
-  shipped: "已發貨",
-  completed: "已完成",
-  exception: "異常",
+  pending_payment: tr("待支付"),
+  paid: tr("等待中"),
+  processing: tr("充值中"),
+  shipped: tr("已發貨"),
+  completed: tr("已完成"),
+  exception: tr("異常"),
 };
 
 export const STATUS_COLORS = {
@@ -16,7 +16,7 @@ export const STATUS_COLORS = {
   exception: "bg-red-100 text-red-700 border-red-200",
 };
 
-export const orderLabel = (o) => (o.status === "paid" && o.info_submitted === false ? "等待填寫資料" : STATUS_LABELS[o.status]);
+export const orderLabel = (o) => (o.status === "paid" && o.info_submitted === false ? tr("等待填寫資料") : STATUS_LABELS[o.status]);
 
 export const STATUS_ORDER = ["pending_payment", "paid", "processing", "shipped", "completed"];
 
@@ -32,3 +32,5 @@ export function StatusBadge({ status }) {
     </span>
   );
 }
+
+import { tr } from "@/i18n";

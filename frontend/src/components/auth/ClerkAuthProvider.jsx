@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ClerkProvider } from "@clerk/react";
+import { tr } from "@/i18n";
 
 const appearance = {
   variables: {
@@ -37,7 +38,7 @@ export default function ClerkAuthProvider({ children }) {
   }, []);
 
   if (unavailable)
-    return <p style={{ padding: 24 }}>登入服務暫時無法使用，請重新整理頁面再試一次。</p>;
+    return <p style={{ padding: 24 }}>{tr("登入服務暫時無法使用，請重新整理頁面再試一次。")}</p>;
   if (!config) return null;
   return (
     <ClerkProvider

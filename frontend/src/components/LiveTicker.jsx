@@ -1,23 +1,24 @@
 import { useEffect, useState } from "react";
 import { Radio } from "lucide-react";
+import { tr } from "@/i18n";
 
-const NAMES = ["***892", "***138", "Chen***", "***小花", "Wong**", "***666", "Lin***", "***520"];
-const ITEMS = ["1000 DOU+幣", "500 抖幣", "原神 980 結晶", "Netflix US$30", "Bigo 1000 鑽", "Spotify 3個月"];
-const TIMES = ["剛剛", "1分鐘前", "2分鐘前", "3分鐘前", "5分鐘前"];
+const NAMES = ["***892", "***138", "Chen***", tr("***小花"), "Wong**", "***666", "Lin***", "***520"];
+const ITEMS = [tr("1000 DOU+幣"), tr("500 抖幣"), tr("原神 980 結晶"), "Netflix US$30", tr("Bigo 1000 鑽"), tr("Spotify 3個月")];
+const TIMES = [tr("剛剛"), tr("1分鐘前"), tr("2分鐘前"), tr("3分鐘前"), tr("5分鐘前")];
 
 function rand(a) {
   return a[Math.floor(Math.random() * a.length)];
 }
 
 export default function LiveTicker() {
-  const [msg, setMsg] = useState(`用戶 ${rand(NAMES)} 成功充值 ${rand(ITEMS)} · ${rand(TIMES)}`);
+  const [msg, setMsg] = useState(tr("用戶 {0} 成功充值 {1} · {2}", rand(NAMES), rand(ITEMS), rand(TIMES)));
   const [visible, setVisible] = useState(true);
 
   useEffect(() => {
     const t = setInterval(() => {
       setVisible(false);
       setTimeout(() => {
-        setMsg(`用戶 ${rand(NAMES)} 成功充值 ${rand(ITEMS)} · ${rand(TIMES)}`);
+        setMsg(tr("用戶 {0} 成功充值 {1} · {2}", rand(NAMES), rand(ITEMS), rand(TIMES)));
         setVisible(true);
       }, 300);
     }, 3000);

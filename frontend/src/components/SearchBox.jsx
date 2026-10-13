@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Search } from "lucide-react";
 import { publicApi } from "@/lib/api";
+import { tr } from "@/i18n";
 
 export function SearchBox({ compact = false }) {
   const navigate = useNavigate();
@@ -55,7 +56,7 @@ export function SearchBox({ compact = false }) {
           onChange={(e) => setQuery(e.target.value)}
           onFocus={() => items.length && setOpen(true)}
           onKeyDown={onKey}
-          placeholder={compact ? "請輸入商品名稱搜尋" : "請輸入需搜尋的商品名"}
+          placeholder={compact ? tr("請輸入商品名稱搜尋") : tr("請輸入需搜尋的商品名")}
           autoComplete="off"
           className={compact
             ? "w-full h-10 rounded-xl bg-white shadow-sm pl-4 pr-11 text-sm outline-none placeholder:text-slate-400 focus:ring-2 focus:ring-orange-200"
@@ -87,7 +88,7 @@ export function SearchBox({ compact = false }) {
             </button>
           ))}
           <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={submit} data-testid="search-see-all" className="w-full px-4 py-2.5 text-xs font-semibold text-orange-500 bg-orange-50/40 hover:bg-orange-50 text-left">
-            查看「{query.trim()}」的全部結果 →
+            {tr("查看「")}{query.trim()}{tr("」的全部結果 →")}
           </button>
         </div>
       )}

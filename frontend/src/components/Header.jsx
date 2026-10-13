@@ -17,6 +17,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { tr, LANG } from "@/i18n";
 
 const CAT_ICONS = {
   livestream: [Tv, "from-orange-400 to-orange-500"],
@@ -39,7 +40,7 @@ export default function Header() {
   const { count, setOpen } = useCart();
   const { active } = useCurrency();
   const { isSignedIn, user } = useUser();
-  const accountLabel = user?.primaryEmailAddress?.emailAddress || user?.primaryPhoneNumber?.phoneNumber || user?.username || user?.fullName || "會員";
+  const accountLabel = user?.primaryEmailAddress?.emailAddress || user?.primaryPhoneNumber?.phoneNumber || user?.username || user?.fullName || tr("會員");
   const { openAuth } = useAuthModal();
   const callApi = useApi();
   const [categories, setCategories] = useState([]);
@@ -62,7 +63,7 @@ export default function Header() {
       <div style={{ height: "env(safe-area-inset-top)" }} />
       {/* Top promo bar */}
       <a href="https://www.dbto.ai/zh-CN?-affi-100506" target="_blank" rel="noreferrer" data-testid="promo-experience-btn" className="block bg-[#F7A23B]">
-        <img src="/banners/top-ai-promo.png" alt="最強 AI 免費試用，價格超實惠 立即體驗" className="w-full h-auto max-h-10 md:max-h-12 object-cover md:object-contain mx-auto block" />
+        <img src="/banners/top-ai-promo.png" alt={tr("最強 AI 免費試用，價格超實惠 立即體驗")} className="w-full h-auto max-h-10 md:max-h-12 object-cover md:object-contain mx-auto block" />
       </a>
 
       {/* Main header */}
@@ -75,7 +76,7 @@ export default function Header() {
           {/* Logo */}
           <Link to="/" data-testid="logo-link" className="flex flex-col items-start shrink-0 leading-none">
             <img src="/gogo589-logo.png" alt="gogo589" className="h-7 md:h-9 w-auto object-contain" />
-            <div className="text-[10px] text-slate-400 font-medium mt-0.5 hidden sm:block">全球應用內購服務</div>
+            <div className="text-[10px] text-slate-400 font-medium mt-0.5 hidden sm:block">{tr("全球應用內購服務")}</div>
           </Link>
 
           {/* 所有服務 + search */}
@@ -85,7 +86,7 @@ export default function Header() {
               onClick={() => setServicesOpen((v) => !v)}
               className="flex items-center gap-1 h-11 px-3 rounded-full text-sm font-semibold text-slate-700 hover:text-orange-600 whitespace-nowrap"
             >
-              所有服務 <ChevronDown className={`h-4 w-4 transition-transform ${servicesOpen ? "rotate-180" : ""}`} />
+              {tr("所有服務")} <ChevronDown className={`h-4 w-4 transition-transform ${servicesOpen ? "rotate-180" : ""}`} />
             </button>
             <SearchBox />
           </div>
@@ -101,17 +102,17 @@ export default function Header() {
                   >
                     <img
                       src="https://customer-assets-39nsmqrw.emergentagent.net/job_crossborder-topup/artifacts/b08198289aa5a07a_image.png"
-                      alt="新用戶註冊 最高領 9% 優惠券"
+                      alt={tr("新用戶註冊 最高領 9% 優惠券")}
                       className="h-11 w-auto object-contain"
                     />
                   </button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-40">
                   <DropdownMenuItem data-testid="promo-register" onClick={openAuth} className="cursor-pointer gap-2">
-                    <Gift className="h-4 w-4 text-orange-500" /> 立即註冊
+                    <Gift className="h-4 w-4 text-orange-500" /> {tr("立即註冊")}
                   </DropdownMenuItem>
                   <DropdownMenuItem data-testid="promo-login" onClick={openAuth} className="cursor-pointer gap-2">
-                    <UserRound className="h-4 w-4 text-slate-500" /> 會員登入
+                    <UserRound className="h-4 w-4 text-slate-500" /> {tr("會員登入")}
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
@@ -123,12 +124,12 @@ export default function Header() {
                 onClick={openAuth}
                 className="flex items-center gap-1.5 h-9 w-9 md:h-10 md:w-auto justify-center md:pl-3 md:pr-5 rounded-full text-sm font-semibold text-orange-500 bg-orange-100/60 md:bg-orange-100/70 hover:bg-orange-100 transition-colors"
               >
-                <UserRound className="h-[18px] w-[18px] md:h-5 md:w-5" strokeWidth={1.75} /> <span className="hidden md:inline">登入</span>
+                <UserRound className="h-[18px] w-[18px] md:h-5 md:w-5" strokeWidth={1.75} /> <span className="hidden md:inline">{tr("登入")}</span>
               </button>
             ) : (
               <>
-              <button data-testid="header-wallet-btn" onClick={() => navigate("/account/wallet")} title="我的錢包" className="hidden md:flex items-center gap-1.5 h-11 px-4 rounded-full bg-orange-100/70 hover:bg-orange-100 text-orange-500 text-sm font-medium transition-colors">
-                <Wallet className="h-4 w-4" /><span className="hidden md:inline">我的錢包</span>
+              <button data-testid="header-wallet-btn" onClick={() => navigate("/account/wallet")} title={tr("我的錢包")} className="hidden md:flex items-center gap-1.5 h-11 px-4 rounded-full bg-orange-100/70 hover:bg-orange-100 text-orange-500 text-sm font-medium transition-colors">
+                <Wallet className="h-4 w-4" /><span className="hidden md:inline">{tr("我的錢包")}</span>
               </button>
               <button data-testid="header-account-btn" onClick={() => navigate("/account")} className="flex items-center gap-2 h-9 w-9 md:h-11 md:w-auto justify-center md:justify-start md:pl-1.5 md:pr-4 rounded-full bg-orange-100/70 hover:bg-orange-100 text-orange-500 transition-colors max-w-[260px]">
                 <span className="h-8 w-8 rounded-full md:bg-white flex items-center justify-center shrink-0"><UserRound className="h-[18px] w-[18px] md:h-4 md:w-4 text-orange-500" strokeWidth={1.75} /></span>
@@ -144,13 +145,13 @@ export default function Header() {
               )}
             </button>
 
-            <button data-testid="service-trigger" onClick={openService} className="flex h-9 w-9 md:h-10 md:w-10 rounded-full bg-orange-100/60 md:bg-orange-100/70 hover:bg-orange-100 text-orange-500 items-center justify-center transition-colors" title="線上客服">
+            <button data-testid="service-trigger" onClick={openService} className="flex h-9 w-9 md:h-10 md:w-10 rounded-full bg-orange-100/60 md:bg-orange-100/70 hover:bg-orange-100 text-orange-500 items-center justify-center transition-colors" title={tr("線上客服")}>
               <Headphones className="h-[18px] w-[18px] md:h-5 md:w-5" strokeWidth={1.75} />
             </button>
 
             <div className="flex items-center gap-2 md:pl-2 md:ml-1 md:border-l border-slate-200">
               <CurrencySelector variant="circle" />
-              <span className="hidden md:inline text-sm text-slate-500 font-medium whitespace-nowrap">ZH-TW / {active.code}</span>
+              <span className="hidden md:inline text-sm text-slate-500 font-medium whitespace-nowrap">{LANG.toUpperCase()} / {active.code}</span>
             </div>
           </div>
         </div>
@@ -198,7 +199,7 @@ export default function Header() {
             <div className="absolute inset-0 bg-black/30" onClick={() => setMobileNav(false)} />
             <div className="absolute left-0 top-0 bottom-0 w-[73%] max-w-[320px] bg-white rounded-r-3xl shadow-2xl overflow-y-auto" style={{ paddingTop: "env(safe-area-inset-top)" }}>
               <div className="flex items-center justify-between px-5 pt-5 pb-4">
-                <Link to="/" onClick={() => setMobileNav(false)} data-testid="drawer-home" className="flex items-center gap-1.5 h-9 px-4 rounded-full bg-orange-100/80 text-orange-500 text-[15px] font-medium"><Home className="h-4 w-4" />首頁</Link>
+                <Link to="/" onClick={() => setMobileNav(false)} data-testid="drawer-home" className="flex items-center gap-1.5 h-9 px-4 rounded-full bg-orange-100/80 text-orange-500 text-[15px] font-medium"><Home className="h-4 w-4" />{tr("首頁")}</Link>
                 <button onClick={() => setMobileNav(false)} data-testid="drawer-close" className="h-9 w-9 rounded-full bg-orange-100/80 text-orange-500 flex items-center justify-center"><X className="h-5 w-5" /></button>
               </div>
               <div className="grid grid-cols-3 gap-y-7 px-4 pt-4 pb-8">
@@ -213,12 +214,12 @@ export default function Header() {
                 })}
                 <button data-testid="drawer-a2hs" onClick={() => { setMobileNav(false); setA2hs(true); }} className="flex flex-col items-center gap-2.5">
                   <span className="h-[62px] w-[62px] rounded-[18px] bg-gradient-to-br from-orange-400 to-orange-500 text-white flex items-center justify-center shadow-sm"><LayoutGrid className="h-7 w-7" strokeWidth={1.9} /></span>
-                  <span className="text-[13px] text-slate-700">新增桌面</span>
+                  <span className="text-[13px] text-slate-700">{tr("新增桌面")}</span>
                 </button>
                 {isAdmin && (
                   <Link to="/admin" onClick={() => setMobileNav(false)} className="flex flex-col items-center gap-2.5">
                     <span className="h-[62px] w-[62px] rounded-[18px] bg-gradient-to-br from-slate-700 to-slate-900 text-white flex items-center justify-center"><Shield className="h-7 w-7" strokeWidth={1.9} /></span>
-                    <span className="text-[13px] text-slate-700">管理後台</span>
+                    <span className="text-[13px] text-slate-700">{tr("管理後台")}</span>
                   </Link>
                 )}
               </div>

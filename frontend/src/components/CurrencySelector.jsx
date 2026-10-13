@@ -2,8 +2,8 @@ import { useState } from "react";
 import { useCurrency } from "@/context/CurrencyContext";
 import { ChevronDown, ArrowRightLeft, Languages, CircleDollarSign } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { tr, LANG, LANGS, setLang as applyLang } from "@/i18n";
 
-const LANGS = [["zh-TW", "繁體中文"], ["zh-CN", "简体中文"], ["en", "English"]];
 
 function Field({ icon: Icon, value, onChange, options, testId }) {
   return (
@@ -25,13 +25,13 @@ function Field({ icon: Icon, value, onChange, options, testId }) {
 export default function CurrencySelector({ dark = false, variant = "pill" }) {
   const { currencies, code, setCode, active } = useCurrency();
   const [open, setOpen] = useState(false);
-  const [lang, setLang] = useState(() => localStorage.getItem("gt_lang") || "zh-TW");
+  const [lang, setLang] = useState(LANG);
   const [draft, setDraft] = useState(code);
 
   const save = () => {
     setCode(draft);
-    localStorage.setItem("gt_lang", lang);
     setOpen(false);
+    if (lang !== LANG) applyLang(lang);
   };
 
   return (
@@ -59,7 +59,7 @@ export default function CurrencySelector({ dark = false, variant = "pill" }) {
         )}
       </PopoverTrigger>
       <PopoverContent align="end" sideOffset={14} className="w-[340px] rounded-3xl border-0 p-6 shadow-xl" data-testid="currency-panel">
-        <div className="text-lg font-semibold text-slate-800 mb-4">選擇您的語言和貨幣</div>
+        <div className="text-lg font-semibold text-slate-800 mb-4">{tr("選擇您的語言和貨幣")}</div>
         <div className="space-y-3">
           <Field icon={Languages} value={lang} onChange={setLang} options={LANGS} testId="lang-select" />
           <Field
@@ -75,7 +75,7 @@ export default function CurrencySelector({ dark = false, variant = "pill" }) {
           onClick={save}
           className="mt-5 w-full h-12 rounded-full bg-orange-500 hover:bg-orange-600 text-white text-base font-bold transition-colors"
         >
-          儲存設定
+          {tr("儲存設定")}
         </button>
       </PopoverContent>
     </Popover>

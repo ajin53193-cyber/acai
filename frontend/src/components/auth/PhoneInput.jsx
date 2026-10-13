@@ -1,33 +1,34 @@
 import { useState } from "react";
 import { ChevronDown, Search } from "lucide-react";
+import { tr } from "@/i18n";
 
 export const COUNTRIES = [
-  { flag: "🇹🇼", name: "中國台灣", code: "+886" },
-  { flag: "🇭🇰", name: "香港", code: "+852" },
-  { flag: "🇨🇳", name: "中國大陸", code: "+86" },
-  { flag: "🇺🇸", name: "美國", code: "+1" },
-  { flag: "🇨🇦", name: "加拿大", code: "+1" },
-  { flag: "🇬🇧", name: "英國", code: "+44" },
-  { flag: "🇲🇾", name: "馬來西亞", code: "+60" },
-  { flag: "🇸🇬", name: "新加坡", code: "+65" },
-  { flag: "🇯🇵", name: "日本", code: "+81" },
-  { flag: "🇰🇷", name: "韓國", code: "+82" },
-  { flag: "🇦🇺", name: "澳洲", code: "+61" },
-  { flag: "🇫🇷", name: "法國", code: "+33" },
-  { flag: "🇩🇪", name: "德國", code: "+49" },
-  { flag: "🇺🇦", name: "烏克蘭", code: "+380" },
-  { flag: "🇬🇭", name: "加納", code: "+233" },
-  { flag: "🇹🇭", name: "泰國", code: "+66" },
-  { flag: "🇻🇳", name: "越南", code: "+84" },
-  { flag: "🇮🇩", name: "印尼", code: "+62" },
-  { flag: "🇵🇭", name: "菲律賓", code: "+63" },
-  { flag: "🇮🇳", name: "印度", code: "+91" },
+  { flag: "🇹🇼", name: tr("中國台灣"), code: "+886" },
+  { flag: "🇭🇰", name: tr("香港"), code: "+852" },
+  { flag: "🇨🇳", name: tr("中國大陸"), code: "+86" },
+  { flag: "🇺🇸", name: tr("美國"), code: "+1" },
+  { flag: "🇨🇦", name: tr("加拿大"), code: "+1" },
+  { flag: "🇬🇧", name: tr("英國"), code: "+44" },
+  { flag: "🇲🇾", name: tr("馬來西亞"), code: "+60" },
+  { flag: "🇸🇬", name: tr("新加坡"), code: "+65" },
+  { flag: "🇯🇵", name: tr("日本"), code: "+81" },
+  { flag: "🇰🇷", name: tr("韓國"), code: "+82" },
+  { flag: "🇦🇺", name: tr("澳洲"), code: "+61" },
+  { flag: "🇫🇷", name: tr("法國"), code: "+33" },
+  { flag: "🇩🇪", name: tr("德國"), code: "+49" },
+  { flag: "🇺🇦", name: tr("烏克蘭"), code: "+380" },
+  { flag: "🇬🇭", name: tr("加納"), code: "+233" },
+  { flag: "🇹🇭", name: tr("泰國"), code: "+66" },
+  { flag: "🇻🇳", name: tr("越南"), code: "+84" },
+  { flag: "🇮🇩", name: tr("印尼"), code: "+62" },
+  { flag: "🇵🇭", name: tr("菲律賓"), code: "+63" },
+  { flag: "🇮🇳", name: tr("印度"), code: "+91" },
 ];
 
 export const toE164 = (dialCode, raw) => dialCode + raw.replace(/[^0-9]/g, "").replace(/^0+/, "");
 export const isValidPhone = (full) => /^\+[1-9]\d{6,14}$/.test(full);
 
-export function PhoneInput({ dialCode, setDialCode, value, onChange, placeholder = "手機號碼", testId = "auth-identifier" }) {
+export function PhoneInput({ dialCode, setDialCode, value, onChange, placeholder = tr("手機號碼"), testId = "auth-identifier" }) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
   const country = COUNTRIES.find((c) => c.code === dialCode) || COUNTRIES[0];
@@ -64,7 +65,7 @@ export function PhoneInput({ dialCode, setDialCode, value, onChange, placeholder
               size={1}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="搜尋國家/地區或區號"
+              placeholder={tr("搜尋國家/地區或區號")}
               className="flex-1 min-w-0 bg-transparent outline-none text-sm placeholder:text-slate-400"
             />
           </div>
