@@ -52,11 +52,11 @@ export default function AccountLayout() {
               <nav className="flex lg:flex-col gap-1 max-lg:gap-0 overflow-x-auto no-scrollbar w-full">
                 {NAV.map(([to, label, Icon]) => (
                   <NavLink key={to} to={to} end={to === "/account"} data-testid={`account-nav-${to.replace(/\//g, "-").slice(1)}`} className={({ isActive }) => `flex max-lg:flex-col max-lg:flex-none max-lg:w-1/5 items-center gap-3 max-lg:gap-1.5 px-5 max-lg:px-0.5 py-4 max-lg:py-1.5 rounded-2xl text-base max-lg:text-[11px] whitespace-nowrap transition-colors ${isActive ? "text-orange-500 font-medium" : "text-slate-600 hover:text-orange-500"}`}>
-                    <Icon className="h-5 w-5 max-lg:h-[22px] max-lg:w-[22px]" />{label}
+                    {({ isActive }) => (<><Icon className={`h-5 w-5 max-lg:h-6 max-lg:w-6 ${isActive ? "" : "max-lg:text-slate-400"}`} fill="currentColor" fillOpacity={isActive ? 0.25 : 0.18} strokeWidth={1.9} /><span className={isActive ? "" : "max-lg:text-slate-600"}>{label}</span></>)}
                   </NavLink>
                 ))}
                 <button data-testid="account-nav-logout" onClick={() => signOut({ redirectUrl: "/" }).then(() => navigate("/"))} className="flex max-lg:flex-col max-lg:flex-none max-lg:w-1/5 items-center gap-3 max-lg:gap-1.5 px-5 max-lg:px-0.5 py-4 max-lg:py-1.5 rounded-2xl text-base max-lg:text-[11px] text-slate-600 hover:text-orange-500 whitespace-nowrap">
-                  <LogOut className="h-5 w-5 max-lg:h-[22px] max-lg:w-[22px]" />登出帳戶
+                  <LogOut className="h-5 w-5 max-lg:h-6 max-lg:w-6 max-lg:text-slate-400" fill="currentColor" fillOpacity={0.18} strokeWidth={1.9} /><span>登出帳戶</span>
                 </button>
               </nav>
             </aside>
