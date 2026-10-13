@@ -1,0 +1,29 @@
+{
+  "summary": "Verified the StepUpModal Radix Dialog fix. Created a new merchant via '新增账户' which triggered the 428 step_up flow; the stepup-opcode input accepted typed text ('123456'), supported clear+retype, submission succeeded, the step-up modal closed, the create-account dialog closed, and the new merchant appeared in the accounts table with a '账户已创建' toast. Also verified the SECONDARY path: on an existing merchant row, '余额调整' with amount 1 triggered the same step-up modal; opcode input was typable, submit succeeded and modal closed. Core regression (input not typable because StepUpModal rendered outside the underlying Radix dialog) is RESOLVED.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "StepUpModal / Create-account Dialog", "issues": ["Console a11y warning: 'Missing Description or aria-describedby={undefined} for {DialogContent}' — add DialogDescription or aria-describedby to the create-account/adjust dialogs to silence warning (StepUpModal already includes DialogDescription)."]}
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [
+    "Remove the temporary operation security code (123456) from admin ajin53193@gmail.com now that the regression is verified.",
+    "(Optional) Add DialogDescription or aria-describedby to the create-account and adjust-balance DialogContent to resolve Radix a11y console warnings."
+  ],
+  "critical_code_review_comments": [
+    "StepUpModal correctly uses the project's Radix Dialog primitives; z-[90] class on DialogContent is a safe additional stacking hint. Portal from the ui/dialog ensures it mounts above the underlying create/adjust dialog, which is what fixes the pointer-events/focus trap.",
+    "lib/api.js axios interceptor pattern (requestStepUp -> retry with X-Op-Code/X-Op-Totp headers) works as designed; the 428 response is observed and transparent to the triggering page.",
+    "Consider surfacing a user-facing error (opts.error) when the retried request still fails (currently resolver.reject only logs 'cancelled')."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a (frontend-only)", "frontend": "100%"},
+  "test_credentials": "Admin ajin53193@gmail.com / admin888 ; op-code 123456",
+  "seed_data_creation": "Created one merchant TestMerchant1791914894 (tzfix_1791914894@demo.com, password merchant888) via the UI during the test. Also credited +1 USDT to an existing merchant row via adjust-balance.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "The step-up (StepUpModal) is now a Radix Dialog using @/components/ui/dialog. data-testid: stepup-modal, stepup-opcode, stepup-totp, stepup-submit, stepup-error. The admin requires op-code '123456' (no TOTP) when the backend returns 428 step_up. Accounts page is reached via nav-accounts-link (not by directly visiting /accounts after a hard reload — the SPA renders from /).",
+  "rca of the issue": "Prior StepUpModal rendered as a custom overlay outside the open Radix Dialog, so Radix's modal (which sets pointer-events:none on siblings and traps focus) prevented the step-up inputs from receiving focus/keystrokes. Fix: StepUpModal was converted to a Radix Dialog using the shared ui/dialog primitives, which mounts via DialogPortal above all other overlays and manages focus correctly, so its inputs are focusable and typable even when another Radix Dialog is open underneath."
+}
