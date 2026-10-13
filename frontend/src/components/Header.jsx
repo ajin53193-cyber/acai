@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useUser } from "@clerk/react";
-import { Search, ShoppingCart, Headphones, ChevronDown, ChevronRight, Shield, Package, Menu, X, UserRound, Gift, Wallet, Home,
+import { Search, ShoppingCart, Headphones, ChevronDown, ChevronRight, Shield, Package, Menu, X, UserRound, Gift, Wallet, Home, LayoutGrid,
   Tv, Gamepad2, MessageCircle, Music, Smile, Mic, HeartHandshake, CreditCard, BookOpen, Rocket, Cpu } from "lucide-react";
 import { SearchBox } from "@/components/SearchBox";
 import { publicApi, useApi } from "@/lib/api";
@@ -10,6 +10,7 @@ import { useCurrency } from "@/context/CurrencyContext";
 import { useAuthModal } from "@/components/auth/AuthModal";
 import CurrencySelector from "@/components/CurrencySelector";
 import { openService } from "@/components/ServiceWidget";
+import { AddToHomeDialog } from "@/components/AddToHomeDialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -44,6 +45,7 @@ export default function Header() {
   const [categories, setCategories] = useState([]);
   const [isAdmin, setIsAdmin] = useState(false);
   const [mobileNav, setMobileNav] = useState(false);
+  const [a2hs, setA2hs] = useState(false);
   const [servicesOpen, setServicesOpen] = useState(false);
 
   useEffect(() => {
@@ -208,6 +210,10 @@ export default function Header() {
                     </button>
                   );
                 })}
+                <button data-testid="drawer-a2hs" onClick={() => { setMobileNav(false); setA2hs(true); }} className="flex flex-col items-center gap-2.5">
+                  <span className="h-[62px] w-[62px] rounded-[18px] bg-gradient-to-br from-orange-400 to-orange-500 text-white flex items-center justify-center shadow-sm"><LayoutGrid className="h-7 w-7" strokeWidth={1.9} /></span>
+                  <span className="text-[13px] text-slate-700">新增桌面</span>
+                </button>
                 {isAdmin && (
                   <Link to="/admin" onClick={() => setMobileNav(false)} className="flex flex-col items-center gap-2.5">
                     <span className="h-[62px] w-[62px] rounded-[18px] bg-gradient-to-br from-slate-700 to-slate-900 text-white flex items-center justify-center"><Shield className="h-7 w-7" strokeWidth={1.9} /></span>
@@ -219,6 +225,7 @@ export default function Header() {
           </div>
         )}
       </div>
+      {a2hs && <AddToHomeDialog onClose={() => setA2hs(false)} />}
     </header>
   );
 }

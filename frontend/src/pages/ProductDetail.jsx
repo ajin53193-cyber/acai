@@ -142,6 +142,19 @@ export default function ProductDetail() {
           </div>
 
           <PerksSlider />
+          {product.group?.length > 1 && (
+            <div className="mt-4 md:mt-6 grid grid-cols-2 md:flex md:flex-wrap gap-3" data-testid="product-group-tabs">
+              {product.group.map((g) => {
+                const on = String(g.id) === String(product.id);
+                return (
+                  <Link key={g.id} to={`/product/${g.id}`} data-testid={`group-tab-${g.id}`} aria-current={on ? "page" : undefined}
+                    className={`h-14 md:h-12 md:px-8 rounded-2xl flex items-center justify-center text-[17px] md:text-base font-medium transition-colors ${on ? "bg-white border-2 border-orange-400 text-orange-500" : "bg-white/80 text-slate-700 hover:bg-white"}`}>
+                    {g.label}
+                  </Link>
+                );
+              })}
+            </div>
+          )}
         </div>
       </div>
 
