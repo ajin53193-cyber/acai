@@ -222,7 +222,7 @@ export default function ProductDetail() {
           </div>
         </div>
 
-        <button type="button" data-testid="detail-a2hs-banner" onClick={() => setA2hs(true)} className="mt-4 md:mt-6 block w-full overflow-hidden rounded-xl md:rounded-2xl">
+        <button type="button" data-testid="detail-a2hs-banner" onClick={() => setA2hs(true)} className="mt-4 block w-full overflow-hidden rounded-xl md:hidden">
           <img src="/banners/detail-a2hs-wide.jpg" alt="添加官網至桌面，開啟一鍵充值 立即添加" className="w-full h-auto block" />
         </button>
 
@@ -318,7 +318,7 @@ export default function ProductDetail() {
           <section className="mt-10" data-testid="related-products">
             <h2 className="font-head text-lg md:text-xl font-bold text-slate-900 mb-4 relative inline-block z-0 max-md:after:content-[''] max-md:after:absolute max-md:after:left-0 max-md:after:right-0 max-md:after:bottom-0.5 max-md:after:h-2 max-md:after:bg-orange-200/80 max-md:after:-z-10">相關推薦</h2>
             <div className="grid grid-cols-4 lg:grid-cols-8 gap-2 md:gap-3">
-              {related.slice(0, 8).map((p) => <ProductCard key={p.id} product={p} simple={isMobile} />)}
+              {related.slice(0, 8).map((p) => <ProductCard key={p.id} product={p} simple />)}
             </div>
           </section>
         )}
