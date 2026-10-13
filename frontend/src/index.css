@@ -12,6 +12,7 @@ html, body {
     background-color: #FFF4EA;
 }
 .safe-top-pad { padding-top: env(safe-area-inset-top) !important; }
+.safe-bottom-inset { padding-bottom: env(safe-area-inset-bottom); }
 .safe-bottom-pad { padding-bottom: calc(1rem + env(safe-area-inset-bottom)); }
 .safe-bottom-box { height: calc(3.5rem + env(safe-area-inset-bottom)); padding-bottom: env(safe-area-inset-bottom); }
 @media (max-width: 767px) {
