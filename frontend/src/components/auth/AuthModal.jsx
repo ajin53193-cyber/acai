@@ -1,7 +1,7 @@
 import { createContext, useContext, useState, useCallback } from "react";
 import { useSignIn, useSignUp } from "@clerk/react/legacy";
 import { Link } from "react-router-dom";
-import { X, Apple } from "lucide-react";
+import { X, Apple, Home, Gift } from "lucide-react";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { PhoneInput, toE164, isValidPhone } from "./PhoneInput";
@@ -184,17 +184,22 @@ function AuthModal({ open, onOpenChange }) {
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
         hideClose
-        style={{ width: "calc(100% - 1.5rem)", maxWidth: "420px" }}
-        className="max-h-[92vh] overflow-x-hidden overflow-y-auto p-0 rounded-3xl border-0 grid-cols-[minmax(0,1fr)] [&>*]:min-w-0"
+        className="auth-sheet !gap-0 max-md:!flex max-md:!flex-col max-md:!inset-0 max-md:!translate-x-0 max-md:!translate-y-0 max-md:!left-0 max-md:!top-0 max-md:!w-full max-md:!max-w-none max-md:!h-full max-md:!max-h-none max-md:!rounded-none md:w-[calc(100%-1.5rem)] md:max-w-[420px] md:max-h-[92vh] overflow-x-hidden overflow-y-auto p-0 border-0 md:rounded-3xl grid-cols-[minmax(0,1fr)] [&>*]:min-w-0 bg-white max-md:bg-[#FFF8F2]"
         data-testid="auth-modal"
       >
-        {/* top accent */}
         <DialogTitle className="sr-only">登入</DialogTitle>
-        <div className="h-1.5 w-20 mx-auto mt-4 rounded-full bg-orange-500" />
+        {/* mobile top bar */}
+        <div className="md:hidden flex items-center justify-between px-4 pt-4 pb-3 bg-white">
+          <button onClick={close} data-testid="auth-home" className="flex items-center gap-1.5 h-9 px-4 rounded-full bg-orange-100/80 text-orange-500 text-[15px] font-medium"><Home className="h-4 w-4" />首頁</button>
+          <button onClick={close} data-testid="auth-close" className="h-9 w-9 rounded-full bg-orange-100/80 text-orange-500 flex items-center justify-center"><X className="h-5 w-5" /></button>
+        </div>
+        <div className="md:hidden flex items-center gap-2 bg-[#FCE6CF] px-4 py-3 text-[15px] font-bold text-orange-500"><Gift className="h-5 w-5" />新用戶註冊最高領9%優惠券</div>
+        {/* desktop accent + close */}
+        <div className="hidden md:block h-1.5 w-20 mx-auto mt-4 rounded-full bg-orange-500" />
         <button
           onClick={close}
-          data-testid="auth-close"
-          className="absolute top-4 right-4 h-9 w-9 rounded-full bg-orange-50 text-orange-500 flex items-center justify-center hover:bg-orange-100"
+          data-testid="auth-close-desktop"
+          className="hidden md:flex absolute top-4 right-4 h-9 w-9 rounded-full bg-orange-50 text-orange-500 items-center justify-center hover:bg-orange-100"
         >
           <X className="h-5 w-5" />
         </button>
@@ -202,7 +207,7 @@ function AuthModal({ open, onOpenChange }) {
         {view === "forgot" ? (
           <ForgotPassword onBack={() => setView("login")} onClose={close} />
         ) : (
-        <div className="px-6 pb-6 pt-3 w-full min-w-0 max-w-full">
+        <div className="px-5 md:px-6 pb-6 pt-5 md:pt-3 w-full min-w-0 max-w-full">
           {/* tabs */}
           <div className="flex items-center gap-6 mb-5">
             {TABS.map(([key, label]) => (
@@ -210,13 +215,13 @@ function AuthModal({ open, onOpenChange }) {
                 key={key}
                 data-testid={`auth-tab-${key}`}
                 onClick={() => switchTab(key)}
-                className={`relative text-lg font-bold pb-1 transition-colors ${
-                  tab === key ? "text-orange-600" : "text-slate-500 hover:text-slate-700"
+                className={`relative text-xl md:text-lg font-bold pb-1 transition-colors ${
+                  tab === key ? "text-orange-500 md:text-orange-600" : "text-slate-800 md:text-slate-500 hover:text-slate-700"
                 }`}
               >
                 {label}
                 {tab === key && (
-                  <span className="absolute left-1/2 -translate-x-1/2 -bottom-0.5 h-1 w-7 rounded-full bg-orange-500" />
+                  <span className="hidden md:block absolute left-1/2 -translate-x-1/2 -bottom-0.5 h-1 w-7 rounded-full bg-orange-500" />
                 )}
               </button>
             ))}
@@ -240,7 +245,7 @@ function AuthModal({ open, onOpenChange }) {
                 value={identifier}
                 onChange={(e) => setIdentifier(e.target.value)}
                 placeholder={tab === "account" ? "信箱 / 帳號" : "信箱"}
-                className="w-full min-w-0 h-14 rounded-2xl bg-slate-100 px-5 text-base outline-none focus:ring-2 focus:ring-orange-300 placeholder:text-slate-400"
+                className="w-full min-w-0 h-14 rounded-2xl bg-white md:bg-slate-100 px-5 text-base outline-none focus:ring-2 focus:ring-orange-300 placeholder:text-slate-400"
               />
             )}
 
@@ -253,7 +258,7 @@ function AuthModal({ open, onOpenChange }) {
                   onChange={(e) => setCode(e.target.value)}
                   placeholder="新裝置驗證碼"
                   inputMode="numeric"
-                  className="flex-1 min-w-0 basis-0 h-14 rounded-2xl bg-slate-100 px-5 text-base outline-none focus:ring-2 focus:ring-orange-300 placeholder:text-slate-400"
+                  className="flex-1 min-w-0 basis-0 h-14 rounded-2xl bg-white md:bg-slate-100 px-5 text-base outline-none focus:ring-2 focus:ring-orange-300 placeholder:text-slate-400"
                 />
                 <button data-testid="auth-trust-resend" onClick={resendTrust} className="shrink-0 h-14 px-4 rounded-2xl bg-orange-100 text-orange-600 font-bold text-sm hover:bg-orange-200 whitespace-nowrap transition-colors">重新發送</button>
               </div>
@@ -265,7 +270,7 @@ function AuthModal({ open, onOpenChange }) {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="密碼"
-                className="w-full min-w-0 h-14 rounded-2xl bg-slate-100 px-5 text-base outline-none focus:ring-2 focus:ring-orange-300 placeholder:text-slate-400"
+                className="w-full min-w-0 h-14 rounded-2xl bg-white md:bg-slate-100 px-5 text-base outline-none focus:ring-2 focus:ring-orange-300 placeholder:text-slate-400"
               />
             ) : (
               <div className="flex items-center gap-2 w-full">
@@ -276,7 +281,7 @@ function AuthModal({ open, onOpenChange }) {
                   onChange={(e) => setCode(e.target.value)}
                   placeholder="驗證碼"
                   inputMode="numeric"
-                  className="flex-1 min-w-0 basis-0 h-14 rounded-2xl bg-slate-100 px-5 text-base outline-none focus:ring-2 focus:ring-orange-300 placeholder:text-slate-400"
+                  className="flex-1 min-w-0 basis-0 h-14 rounded-2xl bg-white md:bg-slate-100 px-5 text-base outline-none focus:ring-2 focus:ring-orange-300 placeholder:text-slate-400"
                 />
                 <button
                   data-testid="auth-send-code"
@@ -291,14 +296,16 @@ function AuthModal({ open, onOpenChange }) {
           </div>
 
           {/* agree */}
-          <label className="flex items-center gap-2 mt-5 text-sm text-slate-600 cursor-pointer select-none">
+          <label className="flex items-center justify-center md:justify-start gap-2.5 mt-5 text-sm text-slate-600 cursor-pointer select-none">
             <input
               type="checkbox"
+              className="peer sr-only"
               data-testid="auth-agree"
               checked={agree}
               onChange={(e) => setAgree(e.target.checked)}
-              className="h-4 w-4 accent-orange-500"
             />
+            <span className="h-5 w-5 rounded-full bg-orange-100 text-orange-500 flex items-center justify-center peer-checked:[&>svg]:opacity-100 shrink-0"><svg viewBox="0 0 24 24" className="h-3.5 w-3.5 opacity-0 transition-opacity" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12l5 5L20 7" /></svg></span>
+
             <span>
               已閱讀並同意{" "}
               <Link to="/info/terms" className="text-orange-600 hover:underline" onClick={close}>條款與條件</Link>{" "}

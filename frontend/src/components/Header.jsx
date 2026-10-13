@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useUser } from "@clerk/react";
-import { Search, ShoppingCart, Headphones, ChevronDown, ChevronRight, Shield, Package, Menu, X, UserRound, Gift, Wallet,
+import { Search, ShoppingCart, Headphones, ChevronDown, ChevronRight, Shield, Package, Menu, X, UserRound, Gift, Wallet, Home,
   Tv, Gamepad2, MessageCircle, Music, Smile, Mic, HeartHandshake, CreditCard, BookOpen, Rocket, Cpu } from "lucide-react";
 import { SearchBox } from "@/components/SearchBox";
 import { publicApi, useApi } from "@/lib/api";
@@ -194,16 +194,31 @@ export default function Header() {
 
         {/* Mobile search + nav */}
         {mobileNav && (
-          <div className="md:hidden border-t border-orange-100 bg-white px-4 py-3 space-y-3">
-            <div className="grid grid-cols-2 gap-2">
-              {categories.map((c) => (
-                <button key={c.id} onClick={() => { navigate(`/category/${c.id}`); setMobileNav(false); }} className="flex items-center gap-2 text-sm text-slate-700 bg-orange-50 rounded-lg px-3 py-2">
-                  {c.image && <img src={c.image} alt="" className="h-5 w-5 rounded object-cover" />} {c.name}
-                </button>
-              ))}
+          <div className="md:hidden fixed inset-0 z-50" data-testid="mobile-drawer">
+            <div className="absolute inset-0 bg-black/30" onClick={() => setMobileNav(false)} />
+            <div className="absolute left-0 top-0 bottom-0 w-[73%] max-w-[320px] bg-white rounded-r-3xl shadow-2xl overflow-y-auto">
+              <div className="flex items-center justify-between px-5 pt-5 pb-4">
+                <Link to="/" onClick={() => setMobileNav(false)} data-testid="drawer-home" className="flex items-center gap-1.5 h-9 px-4 rounded-full bg-orange-100/80 text-orange-500 text-[15px] font-medium"><Home className="h-4 w-4" />首頁</Link>
+                <button onClick={() => setMobileNav(false)} data-testid="drawer-close" className="h-9 w-9 rounded-full bg-orange-100/80 text-orange-500 flex items-center justify-center"><X className="h-5 w-5" /></button>
+              </div>
+              <div className="grid grid-cols-3 gap-y-7 px-4 pt-4 pb-8">
+                {categories.map((c) => {
+                  const [Icon, bg] = CAT_ICONS[c.id] || [Tv, "from-slate-300 to-slate-400"];
+                  return (
+                    <button key={c.id} data-testid={`drawer-cat-${c.id}`} onClick={() => { navigate(`/category/${c.id}`); setMobileNav(false); }} className="flex flex-col items-center gap-2.5">
+                      <span className={`h-[62px] w-[62px] rounded-[18px] bg-gradient-to-br ${bg} text-white flex items-center justify-center shadow-sm`}><Icon className="h-7 w-7" strokeWidth={1.9} /></span>
+                      <span className="text-[13px] text-slate-700">{c.name}</span>
+                    </button>
+                  );
+                })}
+                {isAdmin && (
+                  <Link to="/admin" onClick={() => setMobileNav(false)} className="flex flex-col items-center gap-2.5">
+                    <span className="h-[62px] w-[62px] rounded-[18px] bg-gradient-to-br from-slate-700 to-slate-900 text-white flex items-center justify-center"><Shield className="h-7 w-7" strokeWidth={1.9} /></span>
+                    <span className="text-[13px] text-slate-700">管理後台</span>
+                  </Link>
+                )}
+              </div>
             </div>
-            <Link to="/orders" onClick={() => setMobileNav(false)} className="block py-2 text-sm text-slate-700">我的訂單</Link>
-            {isAdmin && <Link to="/admin" onClick={() => setMobileNav(false)} className="block py-2 text-sm text-orange-600 font-semibold">管理後台</Link>}
           </div>
         )}
       </div>
