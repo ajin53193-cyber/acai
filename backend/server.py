@@ -324,7 +324,42 @@ async def get_product(product_id: str):
     p = await db.products.find_one({"id": product_id}, {"_id": 0})
     if not p:
         raise HTTPException(status_code=404, detail="Product not found")
+    rel_ids = p.pop("related_ids", None) or []
+    if rel_ids:
+        proj = {"_id": 0, "id": 1, "name": 1, "image": 1, "category": 1, "tags": 1, "sales_count": 1, "rating": 1}
+        docs = await db.products.find({"id": {"$in": rel_ids}, "active": True}, proj).to_list(20)
+        order = {i: n for n, i in enumerate(rel_ids)}
+        docs = sorted(docs, key=lambda d: order.get(d["id"], 99))
+        if len(docs) < 8:
+            seen = {d["id"] for d in docs} | {product_id}
+            extra = await db.products.find({"category": p.get("category"), "active": True, "id": {"$nin": list(seen)}}, proj).sort("sales_count", -1).to_list(8 - len(docs))
+            docs += extra
+        p["related"] = docs
+    else:
+        proj = {"_id": 0, "id": 1, "name": 1, "image": 1, "category": 1, "tags": 1, "sales_count": 1, "rating": 1}
+        p["related"] = await db.products.find({"category": p.get("category"), "active": True, "id": {"$ne": product_id}}, proj).sort("sales_count", -1).to_list(8)
     return p
+
+
+@api_router.get("/articles")
+async def list_articles(page: int = 1, size: int = 15):
+    q = {"active": True}
+    total = await db.articles.count_documents(q)
+    proj = {"_id": 0, "content_html": 0}
+    rows = await db.articles.find(q, proj).sort("sort_order", 1).skip((page - 1) * size).to_list(size)
+    return {"total": total, "rows": rows}
+
+
+@api_router.get("/articles/{article_id}")
+async def get_article(article_id: str):
+    a = await db.articles.find_one_and_update({"id": article_id, "active": True}, {"$inc": {"view_count": 1}}, projection={"_id": 0})
+    if not a:
+        raise HTTPException(status_code=404, detail="Article not found")
+    rows = await db.articles.find({"active": True}, {"_id": 0, "id": 1, "title": 1, "sort_order": 1}).sort("sort_order", 1).to_list(500)
+    idx = next((i for i, r in enumerate(rows) if r["id"] == article_id), -1)
+    a["prev"] = rows[idx - 1] if idx > 0 else None
+    a["next"] = rows[idx + 1] if 0 <= idx < len(rows) - 1 else None
+    return a
 
 
 @api_router.get("/reviews")

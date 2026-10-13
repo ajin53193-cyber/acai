@@ -82,7 +82,7 @@ export default function ProductDetail() {
       const first = r.data.specs.find((s) => s.in_stock) || r.data.specs[0];
       setSpecId(first?.id);
       publicApi.get("/categories").then((c) => setCategory(c.data.find((x) => x.id === r.data.category)));
-      publicApi.get("/products", { params: { category: r.data.category } }).then((p) => setRelated(p.data.filter((x) => x.id !== id).slice(0, 8)));
+      setRelated(r.data.related || []);
     });
     publicApi.get("/reviews", { params: { product_id: id } }).then((r) => setReviews(r.data));
   }, [id]);
@@ -256,8 +256,12 @@ export default function ProductDetail() {
                 {product.tutorial && <><div className="mt-5 font-semibold text-slate-800">購買流程：</div><p className="mt-1 whitespace-pre-line">{product.tutorial}</p></>}
               </>
             )}
-            <div className="mt-5 font-semibold text-slate-800">網站聲明：</div>
-            <p className="mt-1">請多次確認您的充值帳號（{product.account_field_label}）及相關資訊是否正確，如因您充值帳號輸入錯誤但充值成功的，系統不予退款。</p>
+            {!product.content_html && (
+              <>
+                <div className="mt-5 font-semibold text-slate-800">網站聲明：</div>
+                <p className="mt-1">請多次確認您的充值帳號（{product.account_field_label}）及相關資訊是否正確，如因您充值帳號輸入錯誤但充值成功的，系統不予退款。</p>
+              </>
+            )}
           </div>
         ) : (
           <div className="bg-white rounded-b-3xl rounded-tl-3xl p-5 sm:p-6" data-testid="product-reviews">
@@ -308,8 +312,8 @@ export default function ProductDetail() {
         {related.length > 0 && (
           <section className="mt-10" data-testid="related-products">
             <h2 className="font-head text-lg md:text-xl font-bold text-slate-900 mb-4 relative inline-block z-0 max-md:after:content-[''] max-md:after:absolute max-md:after:left-0 max-md:after:right-0 max-md:after:bottom-0.5 max-md:after:h-2 max-md:after:bg-orange-200/80 max-md:after:-z-10">相關推薦</h2>
-            <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-8 gap-3">
-              {related.map((p) => <ProductCard key={p.id} product={p} simple={isMobile} />)}
+            <div className="grid grid-cols-4 lg:grid-cols-8 gap-2 md:gap-3">
+              {related.slice(0, 8).map((p) => <ProductCard key={p.id} product={p} simple={isMobile} />)}
             </div>
           </section>
         )}

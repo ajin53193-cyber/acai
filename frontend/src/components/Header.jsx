@@ -35,7 +35,7 @@ const CAT_ICONS = {
 export default function Header() {
   const navigate = useNavigate();
   const { pathname } = useLocation();
-  const showMobileSearch = pathname === "/" || pathname.startsWith("/category") || pathname.startsWith("/search");
+  const showMobileSearch = pathname === "/" || pathname.startsWith("/search");
   const { count, setOpen } = useCart();
   const { active } = useCurrency();
   const { isSignedIn, user } = useUser();

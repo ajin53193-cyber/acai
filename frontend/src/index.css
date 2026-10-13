@@ -122,6 +122,10 @@ code, .font-mono {
 .kavip-content ul, .kavip-content ol { padding-left: 1.25rem; margin: 6px 0; }
 .kavip-content table { width: 100%; border-collapse: collapse; font-size: 13px; }
 .kavip-content td, .kavip-content th { border: 1px solid #e2e8f0; padding: 6px 8px; }
+.article-content section { max-width: 100% !important; box-sizing: border-box; }
+.article-content img { margin: 0 auto; display: block; border-radius: 8px; }
+.article-content a { color: #f97316; }
+.article-content h2, .article-content h3 { font-weight: 700; color: #0f172a; margin: 14px 0 6px; }
 
 @keyframes ticker-up { from { transform: translateY(100%); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
 .animate-ticker { animation: ticker-up .45s ease-out both; }

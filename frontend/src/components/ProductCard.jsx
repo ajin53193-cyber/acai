@@ -27,7 +27,7 @@ export default function ProductCard({ product, simple = false }) {
         )}
       </div>
       <div className="p-2">
-        <h3 className={`font-medium text-[13px] text-slate-800 leading-tight ${simple ? "truncate mt-1" : "line-clamp-2 min-h-[2.4rem]"} group-hover:text-primary transition-colors`}>
+        <h3 className={`text-[13px] text-slate-800 leading-tight ${simple ? "truncate mt-1 font-normal text-[12px]" : "line-clamp-2 min-h-[2.4rem] font-medium"} group-hover:text-primary transition-colors`}>
           {product.name}
         </h3>
         <div className={`flex items-center justify-between mt-1 ${simple ? "hidden" : ""}`}>

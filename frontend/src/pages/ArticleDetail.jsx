@@ -1,43 +1,51 @@
+import { useEffect, useState } from "react";
 import { useParams, Link, Navigate } from "react-router-dom";
-import { ChevronLeft } from "lucide-react";
-import { NEWS, ARTICLE_BODY } from "@/lib/news";
-import { ArticleCard } from "./ArticleCenter";
+import { ChevronLeft, ChevronRight } from "lucide-react";
+import { publicApi } from "@/lib/api";
 
 export default function ArticleDetail() {
   const { id } = useParams();
-  const n = NEWS.find((x) => x.id === id);
-  if (!n) return <Navigate to="/article" replace />;
-  const related = NEWS.filter((x) => x.id !== id && x.type === n.type).slice(0, 4);
+  const [a, setA] = useState(null);
+  const [missing, setMissing] = useState(false);
+
+  useEffect(() => {
+    setA(null);
+    window.scrollTo({ top: 0 });
+    publicApi.get(`/articles/${id}`).then((r) => setA(r.data)).catch(() => setMissing(true));
+  }, [id]);
+
+  if (missing) return <Navigate to="/article" replace />;
 
   return (
-    <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6" data-testid="article-detail">
-      <Link to="/article" data-testid="article-back" className="inline-flex items-center gap-1 text-sm text-slate-500 hover:text-orange-600">
-        <ChevronLeft className="h-4 w-4" /> 返回活動中心
-      </Link>
-      <article className="mt-4 bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden">
-        <img src={n.img} alt={n.t} className="w-full aspect-[3/1.4] object-cover" />
-        <div className="p-6 sm:p-8">
-          <span className={`inline-block rounded-full px-3 py-1 text-xs font-bold ${n.type === "promo" ? "bg-red-50 text-red-500" : "bg-orange-50 text-orange-600"}`}>
-            {n.type === "promo" ? "優惠活動" : "充值教學"}
-          </span>
-          <h1 className="font-head mt-3 text-2xl sm:text-3xl font-bold text-slate-900" data-testid="article-title">{n.t}</h1>
-          <div className="mt-2 text-xs text-slate-400">發布日期：{n.date}</div>
-          <div className="mt-6 space-y-4 text-[15px] leading-relaxed text-slate-700">
-            {ARTICLE_BODY[n.type].map((p, i) => <p key={i}>{p}</p>)}
+    <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-4 md:py-6" data-testid="article-detail">
+      <div className="text-sm text-slate-400 mb-4 md:mb-6 flex items-center gap-1.5" data-testid="article-breadcrumb">
+        <Link to="/" className="hover:text-orange-600">首頁</Link><span>/</span>
+        <Link to="/article" data-testid="article-back" className="hover:text-orange-600">新聞資訊</Link><span>/</span>
+        <span className="text-slate-600">新聞詳情</span>
+      </div>
+      {!a ? (
+        <div className="bg-white rounded-3xl h-[60vh] animate-pulse" />
+      ) : (
+        <article className="bg-white rounded-2xl md:rounded-3xl px-4 py-6 sm:px-10 sm:py-10">
+          <h1 className="font-head text-xl sm:text-3xl font-bold text-slate-900 text-center leading-snug" data-testid="article-title">{a.title}</h1>
+          <div className="mt-3 md:mt-4 flex items-center justify-center gap-4 text-xs md:text-sm text-slate-400">
+            <span data-testid="article-date">{a.published_at}</span>
+            <span data-testid="article-views">閱讀量：{a.view_count}次</span>
           </div>
-          <Link to="/" data-testid="article-cta" className="mt-8 inline-flex h-12 items-center rounded-full bg-orange-500 px-8 text-base font-bold text-white hover:bg-orange-600 transition-colors">
-            立即前往充值
-          </Link>
-        </div>
-      </article>
-
-      {related.length > 0 && (
-        <section className="mt-10">
-          <h2 className="font-head text-lg font-bold text-slate-900 mb-4">相關內容</h2>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-            {related.map((r, i) => <ArticleCard key={r.id} n={r} testId={`related-card-${i}`} />)}
+          <div className="mt-6 md:mt-8 kavip-content article-content text-[15px] leading-relaxed text-slate-700" data-testid="article-content" dangerouslySetInnerHTML={{ __html: a.content_html }} />
+          <div className="mt-8 md:mt-10 pt-5 border-t border-slate-100 flex flex-col sm:flex-row sm:justify-between gap-3 text-sm">
+            {a.prev ? (
+              <Link to={`/article/${a.prev.id}`} data-testid="article-prev" className="inline-flex items-center gap-1 text-slate-600 hover:text-orange-600 min-w-0">
+                <ChevronLeft className="h-4 w-4 shrink-0" /><span className="truncate">上一篇：{a.prev.title}</span>
+              </Link>
+            ) : <span />}
+            {a.next && (
+              <Link to={`/article/${a.next.id}`} data-testid="article-next" className="inline-flex items-center gap-1 text-slate-600 hover:text-orange-600 min-w-0 sm:justify-end">
+                <span className="truncate">下一篇：{a.next.title}</span><ChevronRight className="h-4 w-4 shrink-0" />
+              </Link>
+            )}
           </div>
-        </section>
+        </article>
       )}
     </div>
   );

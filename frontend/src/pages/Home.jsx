@@ -5,7 +5,6 @@ import { useUser } from "@clerk/react";
 import { publicApi } from "@/lib/api";
 import { useAuthModal } from "@/components/auth/AuthModal";
 
-import { NEWS } from "@/lib/news";
 import { ArticleCard } from "@/pages/ArticleCenter";
 
 const FEATURES = [
@@ -23,6 +22,7 @@ function salesText(n) {
 export default function Home() {
   const [categories, setCategories] = useState([]);
   const [home, setHome] = useState({});
+  const [news, setNews] = useState([]);
   const isMobile = useIsMobile();
   const { isSignedIn } = useUser();
   const { openAuth } = useAuthModal();
@@ -30,6 +30,7 @@ export default function Home() {
   useEffect(() => {
     publicApi.get("/categories").then((r) => setCategories(r.data)).catch(() => {});
     publicApi.get("/products/home").then((r) => setHome(r.data)).catch(() => {});
+    publicApi.get("/articles", { params: { page: 1, size: 10 } }).then((r) => setNews(r.data.rows)).catch(() => {});
   }, []);
 
   const hot = home.hot || [];
@@ -160,7 +161,7 @@ export default function Home() {
             <Link to="/article" data-testid="news-more-link" className="text-xs font-semibold text-orange-600 bg-orange-50 border border-orange-100 rounded-full px-4 py-1.5 hover:bg-orange-100">查看更多</Link>
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
-            {NEWS.map((n, i) => <ArticleCard key={n.id} n={n} testId={`news-card-${i}`} />)}
+            {news.map((n, i) => <ArticleCard key={n.id} n={n} testId={`news-card-${i}`} />)}
           </div>
         </section>
       </div>
