@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { Star, Minus, Plus, ShoppingCart, Sparkles, CalendarCheck, Gift, Tags, BadgePercent, ChevronLeft, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
@@ -18,6 +18,36 @@ const PERKS = [
 ];
 
 const badgeColor = (b = "") => /新用戶|每月一單/.test(b) ? "bg-fuchsia-500" : /每日一單|特價/.test(b) ? "bg-violet-500" : /送/.test(b) ? "bg-emerald-500" : /最低|免費/.test(b) ? "bg-red-500" : "bg-orange-500";
+
+function PerksSlider() {
+  const ref = useRef(null);
+  const [idx, setIdx] = useState(0);
+  const go = (dir) => {
+    const el = ref.current; if (!el) return;
+    const n = Math.max(0, Math.min(PERKS.length - 1, idx + dir));
+    setIdx(n);
+    const item = el.children[n];
+    if (item) el.scrollTo({ left: item.offsetLeft - 8, behavior: "smooth" });
+  };
+  return (
+    <div className="mt-4 md:mt-6 relative" data-testid="perks-slider">
+      <button data-testid="perks-prev" onClick={() => go(-1)} className="absolute -left-1 md:-left-3 top-1/2 -translate-y-1/2 z-10 h-7 w-7 rounded-full bg-[#FFE4C8] text-orange-400 flex items-center justify-center shadow-sm"><ChevronLeft className="h-4 w-4" /></button>
+      <button data-testid="perks-next" onClick={() => go(1)} className="absolute -right-1 md:-right-3 top-1/2 -translate-y-1/2 z-10 h-7 w-7 rounded-full bg-[#FFE4C8] text-orange-400 flex items-center justify-center shadow-sm"><ChevronRight className="h-4 w-4" /></button>
+      <div ref={ref} onScroll={(e) => { const el = e.currentTarget; const w = el.children[0]?.offsetWidth || 1; setIdx(Math.round(el.scrollLeft / (w + 24))); }}
+        className="mx-5 md:mx-6 flex overflow-x-auto no-scrollbar snap-x snap-mandatory gap-6 md:gap-10 bg-white/50 rounded-2xl px-3 md:px-5 py-2.5 md:py-3" data-testid="perks-strip">
+        {PERKS.map(([Icon, t, d]) => (
+          <div key={t} className="flex items-center gap-2.5 md:gap-3 shrink-0 snap-start">
+            <span className="h-10 w-10 md:h-12 md:w-12 rounded-full bg-[#FFE9D2] text-orange-500 flex items-center justify-center shrink-0"><Icon className="h-5 w-5 md:h-6 md:w-6" strokeWidth={1.9} /></span>
+            <div className="min-w-0">
+              <div className="text-[15px] md:text-base font-bold text-slate-800 whitespace-nowrap leading-tight">{t}</div>
+              <div className="text-[12px] md:text-[13px] text-slate-500 whitespace-nowrap mt-0.5">{d}</div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 const TICKER = ["如需使用其它幣種，請在網站右上角選擇", ">>極速發貨 >>正規安全 >>24小時營業"];
 
@@ -117,21 +147,7 @@ export default function ProductDetail() {
             </div>
           </div>
 
-          <div className="mt-4 md:mt-6 relative">
-            <ChevronLeft className="absolute -left-1 top-1/2 -translate-y-1/2 h-5 w-5 text-orange-300" />
-            <ChevronRight className="absolute -right-1 top-1/2 -translate-y-1/2 h-5 w-5 text-orange-300" />
-            <div className="mx-4 md:mx-5 flex md:grid overflow-x-auto no-scrollbar sm:grid-cols-3 lg:grid-cols-5 gap-5 md:gap-4 bg-white/40 rounded-2xl px-3 md:px-4 py-2.5 md:py-3" data-testid="perks-strip">
-              {PERKS.map(([Icon, t, d]) => (
-                <div key={t} className="flex items-center gap-2 md:gap-3 shrink-0">
-                  <span className="h-9 w-9 md:h-11 md:w-11 rounded-full bg-white md:bg-gradient-to-br md:from-orange-400 md:to-orange-500 text-orange-500 md:text-white flex items-center justify-center shrink-0 shadow-sm md:shadow"><Icon className="h-4 w-4 md:h-5 md:w-5" /></span>
-                  <div className="min-w-0">
-                    <div className="text-[13px] md:text-sm font-bold text-slate-800 whitespace-nowrap">{t}</div>
-                    <div className="text-[11px] md:text-xs text-slate-500 whitespace-nowrap">{d}</div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
+          <PerksSlider />
         </div>
       </div>
 
