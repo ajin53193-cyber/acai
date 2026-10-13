@@ -248,6 +248,11 @@ function Orders({ callApi }) {
   }, [callApi, filter]);
   useEffect(() => { load(); }, [load]);
 
+  const confirmTopup = async (o) => {
+    if (!window.confirm(`確認已完成人工充值？訂單 ${o.order_no} 將標記為「已完成」`)) return;
+    try { await callApi({ method: "POST", url: `/admin/orders/${o.id}/confirm` }); toast.success("已確認充值，訂單完成"); load(); }
+    catch (e) { toast.error(e.response?.data?.detail || "操作失敗"); }
+  };
   const changeStatus = async (o, status) => {
     await callApi({ method: "PATCH", url: `/admin/orders/${o.id}`, data: { status } });
     toast.success(`已更新為「${STATUS_LABELS[status]}」`);
@@ -287,6 +292,8 @@ function Orders({ callApi }) {
               {o.admin_note && <div className="col-span-2 text-emerald-400">客服備註：{o.admin_note}</div>}
             </div>
             <div className="flex flex-wrap items-center gap-2 mt-3">
+              {["paid", "processing", "shipped"].includes(o.status) && <button data-testid={`admin-order-confirm-${o.id}`} onClick={() => confirmTopup(o)} className="text-xs h-8 px-3 rounded-lg bg-emerald-500 text-white font-semibold">確認充值完成</button>}
+              {o.status === "paid" && o.info_submitted === false && <span className="text-xs text-amber-400">用戶尚未填寫充值資料</span>}
               {o.status === "paid" && <button data-testid={`admin-order-start-${o.id}`} onClick={() => changeStatus(o, "processing")} className="text-xs h-8 px-3 rounded-lg bg-violet-600 text-white">開始充值</button>}
               {o.status === "processing" && <button data-testid={`admin-order-ship-${o.id}`} onClick={() => changeStatus(o, "shipped")} className="text-xs h-8 px-3 rounded-lg bg-cyan-600 text-white">確認人工發貨</button>}
               {o.status === "shipped" && <button onClick={() => changeStatus(o, "completed")} className="text-xs h-8 px-3 rounded-lg bg-emerald-600 text-white">標記已完成</button>}

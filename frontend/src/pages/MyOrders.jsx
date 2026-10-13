@@ -6,8 +6,56 @@ import { useApi } from "@/lib/api";
 import { useCart } from "@/context/CartContext";
 import { Panel, SubTabs } from "@/pages/account/AccountLayout";
 import { useCurrency } from "@/context/CurrencyContext";
-import { StatusBadge, STATUS_LABELS, STATUS_ORDER } from "@/lib/status";
+import { StatusBadge, STATUS_LABELS, STATUS_ORDER, orderLabel } from "@/lib/status";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { publicApi } from "@/lib/api";
+
+function OrderInfoForm({ order, callApi, onDone }) {
+  const [defs, setDefs] = useState({});
+  const [vals, setVals] = useState(order.delivery_info || {});
+  const [open, setOpen] = useState(order.info_submitted === false);
+  const [busy, setBusy] = useState(false);
+  useEffect(() => {
+    const ids = [...new Set(order.items.map((i) => i.product_id))];
+    Promise.all(ids.map((pid) => publicApi.get(`/products/${pid}`).then((r) => [pid, r.data]).catch(() => [pid, null]))).then((rs) => {
+      const d = {};
+      rs.forEach(([pid, p]) => { if (p) d[pid] = { name: p.name, fields: p.delivery_fields?.length ? p.delivery_fields : [{ name: p.account_field_label || "充值帳號 / ID", required: true, type: "text", options: [] }] }; });
+      setDefs(d);
+    });
+  }, [order.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  const set = (pid, name, v) => setVals((d) => ({ ...d, [pid]: { ...(d[pid] || {}), [name]: v } }));
+  const submit = async () => {
+    for (const pid of Object.keys(defs)) for (const f of defs[pid].fields) if (f.required && !(vals[pid]?.[f.name] || "").trim()) return toast.error(`請填寫「${f.name}」`);
+    setBusy(true);
+    try { const r = await callApi({ method: "POST", url: `/orders/${order.id}/info`, data: { delivery_info: vals } }); toast.success("充值資料已提交，等待人工充值"); setOpen(false); onDone(r.data); }
+    catch (e) { toast.error(e.response?.data?.detail || "提交失敗"); }
+    setBusy(false);
+  };
+  if (!open) return <button data-testid="order-info-edit" onClick={() => setOpen(true)} className="w-full h-10 rounded-xl border border-orange-300 text-orange-600 text-sm font-semibold hover:bg-orange-50">修改充值資料</button>;
+  const inp = "w-full h-11 rounded-xl bg-white border border-slate-200 px-3 text-sm outline-none focus:ring-2 focus:ring-orange-300";
+  return (
+    <div className="rounded-xl border-2 border-amber-300 bg-amber-50 p-4 text-sm space-y-3" data-testid="order-info-form">
+      <div className="font-bold text-amber-700">{order.info_submitted === false ? "請填寫充值資料，提交後開始人工充值" : "修改充值資料"}</div>
+      {Object.entries(defs).map(([pid, d]) => (
+        <div key={pid} className="space-y-2">
+          {Object.keys(defs).length > 1 && <div className="text-xs font-semibold text-slate-500">{d.name}</div>}
+          {d.fields.map((f) => (
+            <div key={f.name}>
+              <div className="text-xs text-slate-600 mb-1">{f.required && <span className="text-red-500">*</span>}{f.name}</div>
+              {f.type === "select" ? (
+                <select data-testid={`order-info-${pid}-${f.name}`} value={vals[pid]?.[f.name] || ""} onChange={(e) => set(pid, f.name, e.target.value)} className={inp}><option value="">請選擇</option>{f.options.map((o) => <option key={o}>{o}</option>)}</select>
+              ) : (
+                <input data-testid={`order-info-${pid}-${f.name}`} type={f.type === "password" ? "password" : "text"} value={vals[pid]?.[f.name] || ""} onChange={(e) => set(pid, f.name, e.target.value)} placeholder={f.placeholder || `請輸入${f.name}`} className={inp} />
+              )}
+              {f.tips && <div className="text-[11px] text-orange-500 mt-1">{f.tips}</div>}
+            </div>
+          ))}
+        </div>
+      ))}
+      <button data-testid="order-info-submit" onClick={submit} disabled={busy} className="w-full h-11 rounded-full bg-orange-500 text-white font-bold hover:bg-orange-600 disabled:opacity-60">{busy ? "提交中…" : "提交充值資料"}</button>
+    </div>
+  );
+}
 
 const FILTERS = [["all", "全部"], ...Object.entries(STATUS_LABELS)];
 
@@ -54,12 +102,12 @@ function OrdersInner() {
   const payNow = async (order) => {
     setPaying(true);
     try {
-      const r = await callApi({ method: "POST", url: `/orders/${order.id}/pay` });
-      toast.success("付款成功（測試）");
+      const r = await callApi({ method: "POST", url: `/orders/${order.id}/pay-wallet` });
+      toast.success("錢包付款成功");
       setDetail(r.data);
       load();
-    } catch {
-      toast.error("付款失敗");
+    } catch (e) {
+      toast.error(e.response?.data?.detail || "付款失敗");
     } finally {
       setPaying(false);
     }
@@ -70,7 +118,7 @@ function OrdersInner() {
     catch (e) { toast.error(e.response?.data?.detail || "刪除失敗"); }
   };
   const reorder = (o) => { o.items.forEach((it) => addItem({ id: it.product_id, name: it.product_name, image: it.image }, { id: it.spec_id, label: it.spec_label, price_usd: it.unit_price_usd }, it.quantity)); navigate("/checkout"); };
-  const KAVIP_LABELS = { all: "全部", pending_payment: "未付款", paid: "待審核", processing: "認證中", exception: "出貨失敗", completed: "出貨完成" };
+  const KAVIP_LABELS = { all: "全部", pending_payment: "未付款", paid: "等待中", processing: "充值中", exception: "出貨失敗", completed: "已完成" };
 
   return (
     <Panel title="我的訂單" testId="orders-page">
@@ -89,7 +137,7 @@ function OrdersInner() {
                 <div className="flex items-center justify-between text-sm text-slate-500">
                   <span className="flex items-center gap-2">訂單編號: <span className="text-slate-700">{o.order_no}</span><button onClick={() => copy(o.order_no)} className="text-slate-400 hover:text-orange-500"><Copy className="h-3.5 w-3.5" /></button></span>
                   <span>{o.created_at?.slice(0, 19).replace("T", " ")}</span>
-                  <span className={o.status === "pending_payment" ? "text-slate-600" : o.status === "completed" ? "text-emerald-600" : "text-orange-500"}>{KAVIP_LABELS[o.status] || STATUS_LABELS[o.status]}</span>
+                  <span className={o.status === "pending_payment" ? "text-slate-600" : o.status === "completed" ? "text-emerald-600" : "text-orange-500"}>{orderLabel(o)}</span>
                 </div>
                 <div className="mt-4 flex gap-5">
                   <button onClick={() => setDetail(o)} className="h-28 w-28 shrink-0 rounded-2xl bg-white p-2 shadow-sm"><img src={it?.image} alt="" className="h-full w-full object-contain rounded-xl" /></button>
@@ -103,6 +151,9 @@ function OrdersInner() {
                       <div className="flex items-center gap-2 flex-wrap justify-end">
                         {o.status === "pending_payment" && <button data-testid={`order-delete-${o.id}`} onClick={() => removeOrder(o)} className="h-9 px-3 rounded-full bg-orange-50 text-orange-500 text-xs hover:bg-orange-100">刪除訂單</button>}
                         <button data-testid={`order-reorder-${o.id}`} onClick={() => reorder(o)} className="h-9 px-4 rounded-full bg-slate-900 text-white text-xs hover:bg-slate-800">再來一單</button>
+                        {o.status === "paid" && o.info_submitted === false && (
+                          <button data-testid={`order-fill-${o.id}`} onClick={() => setDetail(o)} className="h-9 px-4 rounded-full bg-amber-500 text-white text-xs font-semibold hover:bg-amber-600">填寫充值資料</button>
+                        )}
                         {o.status === "pending_payment" ? (
                           <button data-testid={`order-pay-${o.id}`} onClick={() => payNow(o)} disabled={paying} className="h-9 px-4 rounded-full bg-orange-500 text-white text-xs font-semibold hover:bg-orange-600">去付款</button>
                         ) : (
@@ -166,6 +217,9 @@ function OrdersInner() {
                   ))}
                 </div>
 
+                {["paid", "pending_payment"].includes(detail.status) && (
+                  <OrderInfoForm order={detail} callApi={callApi} onDone={(o) => { setDetail(o); load(); }} />
+                )}
                 {/* Account info */}
                 <div className="bg-slate-50 rounded-xl p-4 text-sm space-y-2">
                   <div className="flex justify-between">

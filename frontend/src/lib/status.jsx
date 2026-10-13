@@ -1,6 +1,6 @@
 export const STATUS_LABELS = {
   pending_payment: "待支付",
-  paid: "已支付",
+  paid: "等待中",
   processing: "充值中",
   shipped: "已發貨",
   completed: "已完成",
@@ -15,6 +15,8 @@ export const STATUS_COLORS = {
   completed: "bg-emerald-100 text-emerald-700 border-emerald-200",
   exception: "bg-red-100 text-red-700 border-red-200",
 };
+
+export const orderLabel = (o) => (o.status === "paid" && o.info_submitted === false ? "待填寫資料" : STATUS_LABELS[o.status]);
 
 export const STATUS_ORDER = ["pending_payment", "paid", "processing", "shipped", "completed"];
 

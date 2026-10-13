@@ -535,6 +535,111 @@ async def delete_payment_logo(lid: str, admin: dict = Depends(require_role("admi
     return {"ok": True}
 
 
+# ----------------------------- Wallet -----------------------------
+class TopUpIn(BaseModel):
+    amount_usd: float
+    method: str = "card"
+
+
+class OrderInfoIn(BaseModel):
+    delivery_info: Dict[str, Dict[str, str]] = {}
+    recharge_note: str = ""
+    contact: str = ""
+
+
+async def _wallet(user_id: str) -> float:
+    u = await db.users.find_one({"user_id": user_id}, {"_id": 0, "wallet_balance_usd": 1}) or {}
+    return float(u.get("wallet_balance_usd") or 0)
+
+
+async def _wallet_tx(user_id: str, kind: str, amount_usd: float, note: str, ref: str = ""):
+    bal = await _wallet(user_id)
+    new_bal = round(bal + amount_usd, 2)
+    if new_bal < -1e-9:
+        raise HTTPException(status_code=402, detail="錢包餘額不足，請先充值")
+    await db.users.update_one({"user_id": user_id}, {"$set": {"wallet_balance_usd": new_bal}}, upsert=True)
+    await db.wallet_transactions.insert_one({"id": new_id(), "user_id": user_id, "kind": kind, "amount_usd": round(amount_usd, 2), "balance_after_usd": new_bal, "note": note, "ref": ref, "created_at": now_iso()})
+    return new_bal
+
+
+@api_router.get("/me/wallet")
+async def get_wallet(member: dict = Depends(current_member)):
+    txs = await db.wallet_transactions.find({"user_id": member["user_id"]}, {"_id": 0}).sort("created_at", -1).to_list(100)
+    return {"balance_usd": await _wallet(member["user_id"]), "transactions": txs}
+
+
+@api_router.post("/me/wallet/topup")
+async def wallet_topup(body: TopUpIn, member: dict = Depends(current_member)):
+    if body.amount_usd < 1 or body.amount_usd > 10000:
+        raise HTTPException(status_code=400, detail="單次充值金額需介於 USD$1 ~ USD$10,000")
+    bal = await _wallet_tx(member["user_id"], "topup", float(body.amount_usd), f"錢包充值（{body.method}，測試支付）")
+    return {"balance_usd": bal}
+
+
+def _info_complete(o: dict, products: Dict[str, dict]) -> bool:
+    for it in o.get("items", []):
+        p = products.get(it["product_id"]) or {}
+        fields = p.get("delivery_fields") or []
+        vals = (o.get("delivery_info") or {}).get(it["product_id"]) or {}
+        for f in fields:
+            if f.get("required") and not (vals.get(f["name"]) or "").strip():
+                return False
+        if not fields and not (o.get("recharge_account") or "").strip() and not vals:
+            return False
+    return True
+
+
+@api_router.post("/orders/{order_id}/pay-wallet")
+async def pay_order_wallet(order_id: str, member: dict = Depends(current_member)):
+    o = await db.orders.find_one({"id": order_id, "user_id": member["user_id"]}, {"_id": 0})
+    if not o:
+        raise HTTPException(status_code=404, detail="訂單不存在")
+    if o["status"] != "pending_payment":
+        return o
+    await _wallet_tx(member["user_id"], "payment", -float(o["total_usd"]), f"訂單付款 {o['order_no']}", o["id"])
+    prods = {it["product_id"]: (await db.products.find_one({"id": it["product_id"]}, {"_id": 0, "delivery_fields": 1}) or {}) for it in o["items"]}
+    complete = _info_complete(o, prods)
+    tl = o.get("timeline", []) + [{"status": "paid", "at": now_iso()}]
+    upd = {"status": "paid", "paid_at": now_iso(), "timeline": tl, "payment_method": "wallet", "info_submitted": complete}
+    await db.orders.update_one({"id": order_id}, {"$set": upd})
+    for it in o["items"]:
+        await db.products.update_one({"id": it["product_id"]}, {"$inc": {"sales_count": it["quantity"]}})
+    return {**o, **upd}
+
+
+@api_router.post("/orders/{order_id}/info")
+async def submit_order_info(order_id: str, body: OrderInfoIn, member: dict = Depends(current_member)):
+    o = await db.orders.find_one({"id": order_id, "user_id": member["user_id"]}, {"_id": 0})
+    if not o:
+        raise HTTPException(status_code=404, detail="訂單不存在")
+    if o["status"] not in ("paid", "pending_payment"):
+        raise HTTPException(status_code=400, detail="此訂單已在處理中，無法修改資料")
+    merged = {**(o.get("delivery_info") or {}), **body.delivery_info}
+    prods = {it["product_id"]: (await db.products.find_one({"id": it["product_id"]}, {"_id": 0, "delivery_fields": 1}) or {}) for it in o["items"]}
+    tmp = {**o, "delivery_info": merged}
+    if not _info_complete(tmp, prods):
+        raise HTTPException(status_code=400, detail="請填寫所有必填的充值資料")
+    first = next(iter(merged.values()), {})
+    acct = next(iter(first.values()), o.get("recharge_account", ""))
+    upd = {"delivery_info": merged, "recharge_account": acct, "info_submitted": True, "info_submitted_at": now_iso(),
+           "recharge_note": body.recharge_note or o.get("recharge_note", ""), "contact": body.contact or o.get("contact", "")}
+    await db.orders.update_one({"id": order_id}, {"$set": upd})
+    return {**o, **upd}
+
+
+@api_router.post("/admin/orders/{order_id}/confirm")
+async def admin_confirm_topup(order_id: str, admin: dict = Depends(require_role("admin"))):
+    o = await db.orders.find_one({"id": order_id}, {"_id": 0})
+    if not o:
+        raise HTTPException(status_code=404, detail="訂單不存在")
+    if o["status"] not in ("paid", "processing", "shipped"):
+        raise HTTPException(status_code=400, detail="訂單尚未付款或已完成")
+    tl = o.get("timeline", []) + [{"status": "completed", "at": now_iso(), "by": admin.get("email", "admin")}]
+    upd = {"status": "completed", "completed_at": now_iso(), "timeline": tl, "confirmed_by": admin.get("email", "")}
+    await db.orders.update_one({"id": order_id}, {"$set": upd})
+    return {**o, **upd}
+
+
 # ----------------------------- Member center -----------------------------
 class ProfileIn(BaseModel):
     name: str = ""

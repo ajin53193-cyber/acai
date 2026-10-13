@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Show, useUser } from "@clerk/react";
-import { Minus, Plus, Trash2, CheckCircle2, CreditCard, Smartphone, Bitcoin, Ticket, ChevronDown } from "lucide-react";
+import { Minus, Plus, Trash2, CheckCircle2, Ticket, ChevronDown, Wallet } from "lucide-react";
+import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import { publicApi, useApi } from "@/lib/api";
 import { useCart } from "@/context/CartContext";
@@ -9,11 +10,6 @@ import { useCurrency } from "@/context/CurrencyContext";
 import { useAuthModal } from "@/components/auth/AuthModal";
 
 const field = "w-full h-12 rounded-xl bg-slate-100 px-4 text-sm outline-none focus:ring-2 focus:ring-orange-300 placeholder:text-slate-400";
-const PAY_METHODS = [
-  { id: "card", label: "信用卡 / Visa / Master", icon: CreditCard },
-  { id: "applepay", label: "Apple Pay / Google Pay", icon: Smartphone },
-  { id: "crypto", label: "加密貨幣 USDT", icon: Bitcoin },
-];
 const CONTACT_TYPES = ["微信", "Telegram", "WhatsApp", "LINE"];
 
 function SectionTitle({ children }) {
@@ -71,10 +67,11 @@ function CheckoutInner() {
   const [promo, setPromo] = useState(null);
   const [promos, setPromos] = useState([]);
   const [agree, setAgree] = useState(false);
-  const [payMethod, setPayMethod] = useState("card");
+  const [wallet, setWallet] = useState(null);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => { publicApi.get("/promos/public").then((r) => setPromos(r.data)).catch(() => {}); }, []);
+  useEffect(() => { callApi({ method: "GET", url: "/me/wallet" }).then((r) => setWallet(r.data.balance_usd)).catch(() => setWallet(0)); }, [callApi]);
   const productIds = [...new Set(items.map((i) => i.product_id))].join(",");
   useEffect(() => {
     productIds.split(",").filter(Boolean).forEach((pid) => {
@@ -114,16 +111,15 @@ function CheckoutInner() {
   };
 
   const submit = async () => {
-    for (const pid of Object.keys(fieldDefs)) {
-      for (const f of fieldDefs[pid].fields) {
-        if (f.required && !(delivery[pid]?.[f.name] || "").trim()) return toast.error(`請填寫「${f.name}」（${fieldDefs[pid].name}）`);
-      }
-    }
     const firstPid = Object.keys(fieldDefs)[0];
     const firstDef = fieldDefs[firstPid]?.fields.find((f) => f.code === "account") || fieldDefs[firstPid]?.fields[0];
     const account = firstDef ? delivery[firstPid]?.[firstDef.name] || "" : "";
     if (!name.trim() || !email.trim() || !phone.trim()) return toast.error("請完整填寫聯絡資訊");
     if (!agree) return toast.error("請先閱讀並同意無退款聲明");
+    if (wallet !== null && wallet < totalUsd) {
+      toast.error(`錢包餘額不足（${format(wallet)}），請先充值`, { duration: 6000 });
+      return navigate("/account/wallet");
+    }
     setLoading(true);
     try {
       const contact = `${name.trim()} | ${email.trim()} | ${phone.trim()}${other.trim() ? ` | ${otherType}: ${other.trim()}` : ""}`;
@@ -135,16 +131,15 @@ function CheckoutInner() {
           currency: code,
           recharge_account: account.trim(),
           delivery_info: delivery,
-          recharge_note: `${note.trim()}${note.trim() ? " · " : ""}支付方式：${PAY_METHODS.find((m) => m.id === payMethod)?.label}`,
+          recharge_note: note.trim(),
           contact,
           promo_code: promo?.code || null,
         },
       });
       const order = orderRes.data;
-      await new Promise((res) => setTimeout(res, 900));
-      await callApi({ method: "POST", url: `/orders/${order.id}/pay` });
+      const paid = await callApi({ method: "POST", url: `/orders/${order.id}/pay-wallet` });
       clear();
-      toast.success("付款成功（測試），訂單已提交！");
+      toast.success(paid.data.info_submitted ? "錢包付款成功，訂單等待人工充值" : "錢包付款成功，請到訂單填寫充值資料", { duration: 6000 });
       navigate(`/orders?order=${order.id}`);
     } catch (e) {
       toast.error(e.response?.data?.detail || "下單失敗，請稍後再試", { duration: e.response?.status === 409 ? 7000 : 4000 });
@@ -276,14 +271,16 @@ function CheckoutInner() {
         {/* Payment + summary */}
         <div className="bg-white rounded-3xl shadow-sm overflow-hidden" data-testid="checkout-summary-card">
           <div className="p-6 sm:p-8">
-            <SectionTitle>支付方式（測試模式）</SectionTitle>
-            <div className="mt-5 grid grid-cols-1 sm:grid-cols-3 gap-3">
-              {PAY_METHODS.map((m) => (
-                <button key={m.id} data-testid={`pay-method-${m.id}`} onClick={() => setPayMethod(m.id)} className={`h-16 rounded-2xl border-2 flex items-center justify-center gap-2 text-sm font-semibold transition-colors ${payMethod === m.id ? "border-orange-400 bg-orange-50 text-orange-600" : "border-slate-200 text-slate-600 hover:border-orange-200"}`}>
-                  <m.icon className="h-5 w-5" />{m.label}
-                </button>
-              ))}
+            <SectionTitle>支付方式</SectionTitle>
+            <div className="mt-5 rounded-2xl border-2 border-orange-400 bg-orange-50 p-5 flex flex-col sm:flex-row sm:items-center gap-4" data-testid="pay-method-wallet">
+              <span className="h-12 w-12 rounded-full bg-gradient-to-br from-orange-500 to-amber-500 text-white flex items-center justify-center shrink-0"><Wallet className="h-6 w-6" /></span>
+              <div className="flex-1">
+                <div className="font-bold text-slate-900">錢包餘額付款</div>
+                <div className="text-sm text-slate-600 mt-0.5">目前餘額：<span className="font-head font-extrabold text-orange-500" data-testid="checkout-wallet-balance">{wallet === null ? "…" : format(wallet)}</span>{wallet !== null && wallet < totalUsd && <span className="ml-2 text-red-500">餘額不足，還差 {format(totalUsd - wallet)}</span>}</div>
+              </div>
+              <Link to="/account/wallet" data-testid="checkout-topup-link" className="h-10 px-5 rounded-full bg-orange-500 text-white text-sm font-bold flex items-center hover:bg-orange-600">前往充值</Link>
             </div>
+            <div className="mt-3 text-xs text-slate-500">充值資料可於付款後至「我的訂單」補填；人工充值完成後訂單狀態將顯示「已完成」，之前為「等待中」。</div>
             <label className="mt-5 flex items-start gap-2 text-sm text-slate-600 cursor-pointer">
               <input type="checkbox" data-testid="checkout-agree-checkbox" checked={agree} onChange={(e) => setAgree(e.target.checked)} className="mt-0.5 h-4 w-4 accent-orange-500" />
               <span>我已閱讀並同意：虛擬商品人工充值，完成後 <span className="text-orange-500 font-semibold">恕不退款</span>，並確認充值帳號正確。</span>
@@ -299,7 +296,7 @@ function CheckoutInner() {
             <div className="bg-slate-100 rounded-full min-h-[72px] flex flex-col sm:flex-row items-center justify-between gap-3 px-6 sm:px-8 py-3">
               <div className="text-lg"><span className="font-bold text-slate-900">支付總額: </span><span className="font-head font-extrabold text-orange-500" data-testid="checkout-total">{format(totalUsd)}</span></div>
               <button data-testid="checkout-pay-btn" onClick={submit} disabled={loading} className="h-14 px-16 rounded-full bg-orange-500 hover:bg-orange-600 text-white text-lg font-bold transition-colors disabled:opacity-60 w-full sm:w-auto">
-                {loading ? "處理中…" : "立即支付"}
+                {loading ? "處理中…" : "使用錢包支付"}
               </button>
             </div>
           </div>

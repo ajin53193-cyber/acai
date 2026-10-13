@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useUser } from "@clerk/react";
-import { Search, ShoppingCart, Headphones, ChevronDown, Shield, Package, Menu, X, UserRound, Gift,
+import { Search, ShoppingCart, Headphones, ChevronDown, Shield, Package, Menu, X, UserRound, Gift, Wallet,
   Tv, Gamepad2, MessageCircle, Music, Smile, Mic, HeartHandshake, CreditCard, BookOpen, Rocket, Cpu } from "lucide-react";
 import { SearchBox } from "@/components/SearchBox";
 import { publicApi, useApi } from "@/lib/api";
@@ -121,10 +121,15 @@ export default function Header() {
                 <UserRound className="h-5 w-5" /> <span className="hidden sm:inline">登入</span>
               </button>
             ) : (
+              <>
+              <button data-testid="header-wallet-btn" onClick={() => navigate("/account/wallet")} title="錢包充值" className="flex items-center gap-1.5 h-11 px-3 rounded-full bg-orange-500 text-white text-sm font-bold hover:bg-orange-600 transition-colors">
+                <Wallet className="h-4 w-4" /><span className="hidden md:inline">錢包</span><span className="hidden lg:inline">· 充值</span>
+              </button>
               <button data-testid="header-account-btn" onClick={() => navigate("/account")} className="flex items-center gap-2 h-11 pl-1.5 pr-4 rounded-full bg-orange-100/70 hover:bg-orange-100 transition-colors max-w-[260px]">
                 <span className="h-8 w-8 rounded-full bg-white flex items-center justify-center shrink-0"><UserRound className="h-4 w-4 text-orange-500" /></span>
                 <span className="hidden sm:block text-sm text-orange-500 truncate" data-testid="header-account-label">{accountLabel}</span>
               </button>
+              </>
             )}
 
             <button data-testid="cart-trigger" onClick={() => setOpen(true)} className="relative h-10 w-10 rounded-full bg-orange-100/70 hover:bg-orange-100 text-orange-500 flex items-center justify-center transition-colors">

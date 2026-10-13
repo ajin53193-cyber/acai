@@ -21,6 +21,7 @@ import MyAccount from "@/pages/account/MyAccount";
 import MyVerify from "@/pages/account/MyVerify";
 import MyCoupons from "@/pages/account/MyCoupons";
 import HelpCenter from "@/pages/account/HelpCenter";
+import MyWallet from "@/pages/account/MyWallet";
 import Info from "@/pages/Info";
 import ArticleCenter from "@/pages/ArticleCenter";
 import ArticleDetail from "@/pages/ArticleDetail";
@@ -73,6 +74,7 @@ function App() {
                   <Route element={<AccountLayout />}>
                     <Route path="/account" element={<MyAccount />} />
                     <Route path="/orders" element={<MyOrders />} />
+                    <Route path="/account/wallet" element={<MyWallet />} />
                     <Route path="/account/verify" element={<MyVerify />} />
                     <Route path="/account/coupons" element={<MyCoupons />} />
                     <Route path="/account/help" element={<HelpCenter />} />

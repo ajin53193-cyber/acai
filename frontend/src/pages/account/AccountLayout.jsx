@@ -1,10 +1,11 @@
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { Show, useClerk } from "@clerk/react";
-import { UserRound, ClipboardList, ShieldCheck, Ticket, CircleHelp, LogOut } from "lucide-react";
+import { UserRound, ClipboardList, ShieldCheck, Ticket, CircleHelp, LogOut, Wallet } from "lucide-react";
 import { useAuthModal } from "@/components/auth/AuthModal";
 
 const NAV = [
   ["/account", "我的帳戶", UserRound],
+  ["/account/wallet", "我的錢包", Wallet],
   ["/orders", "我的訂單", ClipboardList],
   ["/account/verify", "我的認證", ShieldCheck],
   ["/account/coupons", "我的優惠券", Ticket],
