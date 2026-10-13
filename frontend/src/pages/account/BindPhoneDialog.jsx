@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { useUser } from "@clerk/react";
 import { toast } from "sonner";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { X } from "lucide-react";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { PhoneInput, toE164, isValidPhone } from "@/components/auth/PhoneInput";
 import { OrangeBtn } from "./AccountLayout";
 
@@ -57,29 +58,22 @@ export function BindPhoneDialog({ onClose }) {
 
   return (
     <Dialog open onOpenChange={onClose}>
-      <DialogContent className="w-[86vw] max-w-sm rounded-2xl md:rounded-3xl p-5 md:p-6" data-testid="bind-phone-dialog">
-        <DialogHeader><DialogTitle className="text-base md:text-lg font-bold text-slate-900">{pending ? "輸入簡訊驗證碼" : "綁定手機號碼"}</DialogTitle></DialogHeader>
-        {pending ? (
-          <>
-            <p className="text-[11px] md:text-xs text-slate-500 -mt-2" data-testid="bind-phone-sent-to">驗證碼已發送至 <span className="text-slate-800 font-semibold">{full}</span></p>
-            <div className="space-y-3 mt-2">
-              <input data-testid="bind-phone-code" inputMode="numeric" autoFocus maxLength={6} value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))} placeholder="請輸入 6 位驗證碼" className="w-full h-11 md:h-14 rounded-full md:rounded-2xl bg-slate-100 px-5 text-center tracking-[0.4em] text-base outline-none focus:ring-2 focus:ring-orange-300 placeholder:tracking-normal placeholder:text-sm" />
-              <OrangeBtn data-testid="bind-phone-submit" onClick={verify} disabled={busy || code.length < 4} className="w-full max-md:h-11 max-md:text-sm max-md:px-6">{busy ? "驗證中…" : "確認綁定"}</OrangeBtn>
-              <div className="flex items-center justify-between text-xs text-slate-500">
-                <button data-testid="bind-phone-back" onClick={() => { setPending(null); setCode(""); }} className="hover:text-orange-500">更換手機號碼</button>
-                <button data-testid="bind-phone-resend" onClick={sendCode} disabled={busy || left > 0} className="text-orange-500 disabled:text-slate-400">{left > 0 ? `${left} 秒後可重新發送` : "重新發送驗證碼"}</button>
-              </div>
-            </div>
-          </>
-        ) : (
-          <>
-            <p className="text-[11px] md:text-xs text-slate-500 -mt-2">綁定後可使用手機號碼登入，並接收訂單通知。</p>
-            <div className="space-y-3 mt-2">
-              <PhoneInput dialCode={dialCode} setDialCode={setDialCode} value={raw} onChange={setRaw} testId="bind-phone-input" />
-              <OrangeBtn data-testid="bind-phone-submit" onClick={sendCode} disabled={busy} className="w-full max-md:h-11 max-md:text-sm max-md:px-6">{busy ? "發送中…" : "發送驗證碼"}</OrangeBtn>
-            </div>
-          </>
-        )}
+      <DialogContent className="w-[88vw] max-w-sm rounded-2xl md:rounded-3xl p-5 md:p-6 border-0 bg-white [&>button]:hidden" data-testid="bind-phone-dialog">
+        <div className="flex items-center justify-between">
+          <DialogTitle className="text-base md:text-lg font-bold text-slate-900">綁定手機號碼</DialogTitle>
+          <button onClick={onClose} aria-label="關閉" data-testid="bind-phone-close" className="h-8 w-8 rounded-full bg-[#FDEBD9] text-orange-500 flex items-center justify-center"><X className="h-4 w-4" /></button>
+        </div>
+        <p className="text-xs text-slate-500 -mt-1">綁定後可使用手機號碼登入，並接收訂單通知。</p>
+        <div className="space-y-3 mt-1">
+          <PhoneInput dialCode={dialCode} setDialCode={setDialCode} value={raw} onChange={(v) => { setRaw(v); if (pending) { setPending(null); setCode(""); setLeft(0); } }} testId="bind-phone-input" />
+          <div className="relative">
+            <input data-testid="bind-phone-code" inputMode="numeric" maxLength={6} value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))} placeholder="請輸入簡訊驗證碼" className="w-full min-w-0 h-11 md:h-14 rounded-full md:rounded-2xl bg-[#F5F5F5] md:bg-slate-100 pl-5 pr-28 text-sm md:text-base outline-none focus:ring-2 focus:ring-orange-300 placeholder:text-slate-400" />
+            <button data-testid="bind-phone-send" onClick={sendCode} disabled={busy || left > 0} className="absolute right-1.5 top-1/2 -translate-y-1/2 h-8 md:h-10 px-3 md:px-4 rounded-full bg-orange-100 text-orange-500 text-xs md:text-sm font-medium whitespace-nowrap disabled:text-slate-400 disabled:bg-slate-200/70 transition-colors">
+              {left > 0 ? `${left}s 後重發` : pending ? "重新發送" : "發送驗證碼"}
+            </button>
+          </div>
+          <OrangeBtn data-testid="bind-phone-submit" onClick={verify} disabled={busy || !pending || code.length < 4} className="w-full max-md:h-11 max-md:text-sm max-md:px-6">{busy ? "處理中…" : "確認綁定"}</OrangeBtn>
+        </div>
       </DialogContent>
     </Dialog>
   );
