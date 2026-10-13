@@ -1,5 +1,5 @@
 import "@/App.css";
-import { BrowserRouter, Routes, Route, Outlet } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Outlet, useLocation } from "react-router-dom";
 import { AuthenticateWithRedirectCallback, useUser } from "@clerk/react";
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
@@ -30,6 +30,8 @@ import ArticleDetail from "@/pages/ArticleDetail";
 import Admin from "@/pages/Admin";
 
 function StoreLayout() {
+  const { pathname } = useLocation();
+  const hideFooterOnMobile = pathname.startsWith("/product/");
   return (
     <AuthModalProvider>
       <div className="min-h-screen flex flex-col site-bg" style={{ "--site-bg-pc": "url(/kavip-bg-pc.png)", "--site-bg-m": "url(/kavip-bg-m.png)" }}>
@@ -37,7 +39,7 @@ function StoreLayout() {
         <main className="flex-1">
           <Outlet />
         </main>
-        <Footer />
+        <div className={hideFooterOnMobile ? "max-md:hidden" : ""}><Footer /></div>
         <CartDrawer />
         <ServiceWidget />
       </div>
