@@ -784,6 +784,8 @@ async def submit_order_info(order_id: str, body: OrderInfoIn, member: dict = Dep
         raise HTTPException(status_code=404, detail="訂單不存在")
     if o["status"] not in ("paid", "pending_payment"):
         raise HTTPException(status_code=400, detail="此訂單已在處理中，無法修改資料")
+    if o.get("info_submitted") and not o.get("info_rejected"):
+        raise HTTPException(status_code=400, detail="充值資料已提交，如需修改請聯繫客服，待後台駁回後再重新填寫")
     merged = {**(o.get("delivery_info") or {}), **body.delivery_info}
     prods = {it["product_id"]: (await db.products.find_one({"id": it["product_id"]}, {"_id": 0, "delivery_fields": 1}) or {}) for it in o["items"]}
     tmp = {**o, "delivery_info": merged}
@@ -791,8 +793,25 @@ async def submit_order_info(order_id: str, body: OrderInfoIn, member: dict = Dep
         raise HTTPException(status_code=400, detail="請填寫所有必填的充值資料")
     first = next(iter(merged.values()), {})
     acct = next(iter(first.values()), o.get("recharge_account", ""))
-    upd = {"delivery_info": merged, "recharge_account": acct, "info_submitted": True, "info_submitted_at": now_iso(),
+    upd = {"delivery_info": merged, "recharge_account": acct, "info_submitted": True, "info_submitted_at": now_iso(), "info_rejected": False,
            "recharge_note": body.recharge_note or o.get("recharge_note", ""), "contact": body.contact or o.get("contact", "")}
+    await db.orders.update_one({"id": order_id}, {"$set": upd})
+    return {**o, **upd}
+
+
+class RejectInfoIn(BaseModel):
+    reason: str = ""
+
+
+@api_router.post("/admin/orders/{order_id}/reject-info")
+async def admin_reject_info(order_id: str, body: RejectInfoIn, admin: dict = Depends(require_role("admin"))):
+    o = await db.orders.find_one({"id": order_id}, {"_id": 0})
+    if not o:
+        raise HTTPException(status_code=404, detail="訂單不存在")
+    if o["status"] not in ("paid", "processing"):
+        raise HTTPException(status_code=400, detail="僅已付款 / 處理中的訂單可駁回充值資料")
+    tl = o.get("timeline", []) + [{"status": "info_rejected", "at": now_iso(), "by": admin.get("email", "admin"), "note": body.reason}]
+    upd = {"status": "paid", "info_submitted": False, "info_rejected": True, "info_reject_reason": body.reason.strip() or "充值帳號有誤，請重新填寫", "info_rejected_at": now_iso(), "timeline": tl}
     await db.orders.update_one({"id": order_id}, {"$set": upd})
     return {**o, **upd}
 

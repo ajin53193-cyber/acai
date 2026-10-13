@@ -269,6 +269,12 @@ function Orders({ callApi }) {
     toast.success(`已更新為「${STATUS_LABELS[status]}」`);
     load();
   };
+  const rejectInfo = async (o) => {
+    const reason = window.prompt("駁回原因（將顯示給用戶）", "充值帳號有誤，請重新填寫");
+    if (reason === null) return;
+    try { await callApi({ method: "POST", url: `/admin/orders/${o.id}/reject-info`, data: { reason } }); toast.success("已駁回，用戶可重新填寫充值資料"); load(); }
+    catch (e) { toast.error(e.response?.data?.detail || "操作失敗"); }
+  };
   const addNote = async (o) => {
     const note = window.prompt("客服備註", o.admin_note || "");
     if (note === null) return;
@@ -304,7 +310,8 @@ function Orders({ callApi }) {
             </div>
             <div className="flex flex-wrap items-center gap-2 mt-3">
               {["paid", "processing", "shipped"].includes(o.status) && <button data-testid={`admin-order-confirm-${o.id}`} onClick={() => confirmTopup(o)} className="text-xs h-8 px-3 rounded-lg bg-emerald-500 text-white font-semibold">確認充值完成</button>}
-              {o.status === "paid" && o.info_submitted === false && <span className="text-xs text-amber-400">用戶尚未填寫充值資料</span>}
+              {o.status === "paid" && o.info_submitted === false && <span className="text-xs text-amber-400">{o.info_rejected ? "已駁回，等待用戶重新填寫" : "用戶尚未填寫充值資料"}</span>}
+              {["paid", "processing"].includes(o.status) && o.info_submitted !== false && <button data-testid={`admin-order-reject-info-${o.id}`} onClick={() => rejectInfo(o)} className="text-xs h-8 px-3 rounded-lg bg-amber-600 text-white">駁回充值資料</button>}
               {o.status === "paid" && <button data-testid={`admin-order-start-${o.id}`} onClick={() => changeStatus(o, "processing")} className="text-xs h-8 px-3 rounded-lg bg-violet-600 text-white">開始充值</button>}
               {o.status === "processing" && <button data-testid={`admin-order-ship-${o.id}`} onClick={() => changeStatus(o, "shipped")} className="text-xs h-8 px-3 rounded-lg bg-cyan-600 text-white">確認人工發貨</button>}
               {o.status === "shipped" && <button onClick={() => changeStatus(o, "completed")} className="text-xs h-8 px-3 rounded-lg bg-emerald-600 text-white">標記已完成</button>}
