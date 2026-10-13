@@ -53,30 +53,30 @@ export default function Footer() {
     <footer className="mt-10 md:mt-14 bg-[#F0872E] md:bg-gradient-to-b md:from-[#F0872E] md:to-[#E8792A] text-white">
       {/* Top: payments + follow */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5 md:py-7">
-        <div className="flex md:flex-wrap items-center gap-2.5 overflow-x-auto no-scrollbar">
+        <div className="flex md:flex-wrap items-center gap-3.5 md:gap-5 overflow-x-auto no-scrollbar">
           {logos && logos.length > 0 ? logos.map((l) => (
-            <span key={l.id} data-testid={`pay-logo-${l.id}`} title={l.name} className="bg-white rounded-md h-9 min-w-[48px] px-2 flex items-center justify-center shadow-sm shrink-0">
-              <img src={l.image} alt={l.name} className="h-6 max-w-[96px] object-contain" />
+            <span key={l.id} data-testid={`pay-logo-${l.id}`} title={l.name} className="h-8 md:h-9 flex items-center shrink-0">
+              <img src={l.image} alt={l.name} className="h-7 md:h-8 w-auto object-contain" />
             </span>
           )) : PAY_BADGES.map((b, i) => (
             <span key={i} data-testid={`pay-badge-${i}`} className="bg-white rounded-md h-9 min-w-[48px] px-3 flex items-center justify-center shadow-sm shrink-0">
               {b}
             </span>
           ))}
-          <span className="text-white/70 tracking-widest text-lg">•••</span>
+          <span className="text-white/60 tracking-widest text-lg shrink-0">•••</span>
         </div>
       </div>
 
-      <div className="border-t border-white/15" />
+      <div className="border-t border-white/20 mx-4 md:mx-0" />
 
       {/* Middle: links + service */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-10">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 md:gap-10">
-          <div className="grid grid-cols-3 gap-4 md:gap-6 px-2 md:px-0">
+          <div className="grid grid-cols-3 gap-3 md:gap-6 px-2 md:px-0">
             {COLS.map(([title, links]) => (
               <div key={title}>
-                <h4 className="font-bold text-base md:text-sm mb-4">{title}</h4>
-                <ul className="space-y-3 md:space-y-2.5 text-[15px] md:text-[13px] text-white/90 md:text-white/85">
+                <h4 className="font-bold text-[17px] md:text-sm mb-4 md:mb-4 whitespace-nowrap">{title}</h4>
+                <ul className="space-y-3.5 md:space-y-2.5 text-[15px] md:text-[13px] text-white/90 md:text-white/85 whitespace-nowrap">
                   {links.map(([label, to, hot]) => (
                     <li key={label}>
                       <Link to={to} className="hover:text-white inline-flex items-center gap-1.5 transition-colors">
@@ -98,19 +98,19 @@ export default function Footer() {
                 <span className="h-9 w-9 rounded-full bg-[#ff2442] text-white text-[9px] font-black flex items-center justify-center">小紅書</span>
               </div>
             </div>
-            <div className="flex items-center md:items-start gap-4 bg-white/10 rounded-2xl p-4">
-              <div className="text-center shrink-0 md:border-r-0 border-r border-white/25 pr-4 md:pr-0">
+            <div className="flex items-center md:items-start gap-3 md:gap-4 bg-white/10 rounded-2xl p-3 md:p-4">
+              <div className="text-center shrink-0 md:border-r-0 border-r border-white/25 pr-3 md:pr-0">
                 <a href={settings.whatsapp_link} target="_blank" rel="noreferrer" data-testid="footer-whatsapp-qr" className="block bg-white rounded-xl p-1.5">
-                  <QRCodeSVG value={settings.whatsapp_link} size={96} fgColor="#E8792A" level="M" />
+                  <QRCodeSVG value={settings.whatsapp_link} size={72} fgColor="#E8792A" level="M" />
                 </a>
-                <div className="text-[12px] md:text-[11px] text-white/85 md:text-white/80 mt-2 max-w-[120px] mx-auto leading-snug">{settings.cs_label}</div>
+                <div className="text-[11px] text-white/90 md:text-white/80 mt-1.5 whitespace-nowrap">{settings.cs_label}</div>
               </div>
-              <div className="flex flex-col gap-3 pt-1">
+              <div className="flex flex-col gap-2.5 md:gap-3 pt-1 min-w-0">
                 <div className="flex items-center gap-2">
-                  <span className="text-sm text-white/90">7*24 小時線上客服</span>
+                  <span className="text-[13px] md:text-sm text-white/90 whitespace-nowrap">7*24 小時線上客服</span>
                   <button type="button" onClick={openService} data-testid="footer-cs-btn" className="text-xs font-bold bg-white/25 md:bg-white text-white md:text-[#E8792A] rounded-full px-3 py-1 whitespace-nowrap hover:bg-orange-50 hover:text-[#E8792A]">在線客服</button>
                 </div>
-                <div className="text-sm text-white/90">WhatsApp 24 小時客服</div>
+                <div className="text-[13px] md:text-sm text-white/90 whitespace-nowrap">WhatsApp 24 小時客服</div>
                 <div className="hidden md:flex items-center gap-1.5">
                   <div className="flex">
                     {[0, 1, 2, 3, 4].map((i) => (
