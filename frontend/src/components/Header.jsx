@@ -123,8 +123,8 @@ export default function Header() {
               </button>
             ) : (
               <>
-              <button data-testid="header-wallet-btn" onClick={() => navigate("/account/wallet")} title="錢包充值" className="flex items-center gap-1.5 h-11 px-3 rounded-full bg-orange-500 text-white text-sm font-bold hover:bg-orange-600 transition-colors">
-                <Wallet className="h-4 w-4" /><span className="hidden md:inline">錢包</span><span className="hidden lg:inline">· 充值</span>
+              <button data-testid="header-wallet-btn" onClick={() => navigate("/account/wallet")} title="我的錢包" className="flex items-center gap-1.5 h-11 px-4 rounded-full bg-orange-100/70 hover:bg-orange-100 text-orange-500 text-sm font-medium transition-colors">
+                <Wallet className="h-4 w-4" /><span className="hidden md:inline">我的錢包</span>
               </button>
               <button data-testid="header-account-btn" onClick={() => navigate("/account")} className="flex items-center gap-2 h-11 pl-1.5 pr-4 rounded-full bg-orange-100/70 hover:bg-orange-100 transition-colors max-w-[260px]">
                 <span className="h-8 w-8 rounded-full bg-white flex items-center justify-center shrink-0"><UserRound className="h-4 w-4 text-orange-500" /></span>
