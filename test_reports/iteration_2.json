@@ -1,0 +1,33 @@
+{
+  "summary": "Full E2E of the new Wallet + wallet-payment + order-info submission + admin manual confirm flow driven via Playwright UI (which also exercises every targeted backend endpoint: /me/wallet, /me/wallet/topup, /orders/{id}/pay-wallet, /orders/{id}/info, /admin/orders/{id}/confirm). All 12 checks PASSED.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_results": {
+    "login_member_clerk_device_trust": "PASS (code 424242)",
+    "login_admin_clerk_device_trust": "PASS",
+    "wallet_topup_preset_50": "PASS - balance $0 -> $348.51 (pre-existing +$50) and transaction row added",
+    "wallet_topup_custom_200": "PASS - +$200 => $548.51, extra transaction row",
+    "wallet_topup_lt1_blocked": "PASS - entering $0.5 shows error toast and balance unchanged (frontend amt<1 guard)",
+    "wallet_transactions_rows_visible": "PASS (6 rows in wallet-transactions)",
+    "checkout_wallet_pay_empty_delivery_9440": "PASS - $51.49 order created, redirected to /orders?order=<id>, drawer auto-opens with OrderInfoForm",
+    "label_pending_info_on_card": "PASS - order card shows '待填寫資料' and 'order-fill-<id>' button is rendered",
+    "order_info_submit_9440_抖音暱稱": "PASS - order-info-submit toast success; drawer swaps to 'order-info-edit' (修改充值資料); card label becomes '等待中' (no more '待填寫資料')",
+    "insufficient_balance_7814_80381": "PASS - $1792.98 vs remaining wallet triggers 餘額不足 toast and navigate('/account/wallet'); no order paid",
+    "admin_confirm_topup": "PASS - admin-order-confirm-<id> accepted window.confirm; order moves to '已完成'",
+    "member_sees_completed_filter": "PASS - after logout/login member, /orders -> order-filter-completed shows the order"
+  },
+  "test_report_links": ["/app/backend/tests/backend_test.py", "/app/test_reports/pytest/pytest_results.xml"],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Minor UX: on /orders?order=<id> the drawer auto-opens AND the order-fill button is also rendered; because the drawer overlay intercepts pointer events, the order-fill button cannot be clicked until the drawer is closed. Not a bug (the form is already visible inside the drawer) but testing agents / users clicking the yellow card button while drawer is open will see a dead click. Consider dismissing the deep-link search param after first open, or hiding the order-fill button when its drawer is already open.",
+    "Minor consistency: StatusBadge in the drawer header shows '等待中' for status=paid even when info_submitted=false, while orderLabel() on the card shows '待填寫資料'. If you want parity, make StatusBadge also honour the info_submitted=false case. Current behaviour matches the spec but can be slightly confusing.",
+    "server.py pay_order_wallet should probably return 402 (not 404/400) when insufficient balance — _wallet_tx already raises 402, which is correct and the UI handles it correctly, confirmed."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "test_credentials": "member tester+clerk_test@shop.com / Gogo589!Tester#4m9Z and admin admin+clerk_test@shop.com / Gogo589!Admin#7x2Q; Clerk device-trust code 424242 (as per /app/memory/test_credentials.md)",
+  "seed_data_creation": "Added +$250 to member wallet during the test, created 1 completed order (GT2610...) in /orders. Not cleaned up (used for admin confirm flow).",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "To drive Clerk login reliably: open auth-modal via header-signin-btn -> auth-tab-account -> fill auth-identifier/auth-password -> auth-submit, then POLL for either data-testid='auth-trust-code' (device trust 2FA) OR data-testid='header-wallet-btn' (success) up to ~30s. The trust code is 424242. Also note that after wallet payment, navigation lands on /orders?order=<id> which AUTO-OPENS the detail drawer with the OrderInfoForm — fill the form directly in the drawer OR press Escape first to click order-fill-<id> on the card (the drawer overlay otherwise intercepts clicks). Products 9440 uses delivery field '抖音暱稱' (testid order-info-9440-抖音暱稱 in drawer / delivery-9440-抖音暱稱 on checkout). Avoid 9440-117193 (每日一單 badge) and all 7814 badge specs to prevent 409 daily-limit errors; use 9440-79202 and 7814-80381 for safe repeat tests."
+}

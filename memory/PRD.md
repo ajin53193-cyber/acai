@@ -46,6 +46,8 @@
 - 2026-06-13：頁首帳號膠囊改為直接進入 /account（移除下拉）。頁尾客服改 WhatsApp 二維碼（qrcode.react，`GET /api/settings`，後台「網站設定」`PUT /api/admin/settings` 可改號碼/連結/文字）。頁尾支付 Logo 可由後台「支付Logo」上傳/更名/換圖/排序/隱藏/刪除（`/api/payment-logos`、`/api/admin/payment-logos`，圖存 Object Storage）；未上傳時顯示內建樣式。
 - 2026-06-13：**修復**首頁熱門分類網格點擊無反應（PagedGrid setPointerCapture 吞掉 click；改為滑鼠拖曳 8px 門檻、不用 pointer capture）。testing_agent iteration_1 全部通過（點擊跳轉、拖曳翻頁、快速下單/熱門商品/搜尋聯想回歸、4 個 API）。
 
+- 2026-06-13：**錢包與錢包付款流程**：`GET /api/me/wallet`、`POST /api/me/wallet/topup`（模擬支付即時入帳，users.wallet_balance_usd + wallet_transactions）；結賬改為**僅錢包餘額付款** `POST /api/orders/{id}/pay-wallet`（餘額不足 402 → 前端導向錢包頁）；充值資料可於付款後補填 `POST /api/orders/{id}/info`；狀態：paid + info_submitted=false →「待填寫資料」，paid →「等待中」，後台「確認充值完成」`POST /api/admin/orders/{id}/confirm` → completed「已完成」。頁首新增「錢包 · 充值」按鈕，會員中心新增「我的錢包」（餘額橫幅/累計充值消費、充值金額/付款方式、交易紀錄）。testing_agent iteration_2 全 12 項通過；錢包頁排版已重做。
+
 ## 待辦（優先序）
 - P0：testing_agent 跑後台訂單狀態流轉 + 回歸（前台 E2E 已由主代理手測通過）。
 - P1：結帳頁多幣別匯率計算驗證。
