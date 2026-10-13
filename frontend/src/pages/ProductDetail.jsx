@@ -30,11 +30,11 @@ function PerksSlider() {
     ref.current?.scrollTo({ left: k * ref.current.clientWidth, behavior: "smooth" });
   };
   return (
-    <div className="mt-4 md:mt-6 relative" data-testid="perks-slider">
-      <button data-testid="perks-prev" onClick={() => go(idx - 1)} className="absolute -left-1 md:-left-3 top-1/2 -translate-y-1/2 z-10 h-7 w-7 rounded-full bg-[#FFE4C8] text-orange-400 flex items-center justify-center shadow-sm"><ChevronLeft className="h-4 w-4" /></button>
-      <button data-testid="perks-next" onClick={() => go(idx + 1)} className="absolute -right-1 md:-right-3 top-1/2 -translate-y-1/2 z-10 h-7 w-7 rounded-full bg-[#FFE4C8] text-orange-400 flex items-center justify-center shadow-sm"><ChevronRight className="h-4 w-4" /></button>
+    <div className="mt-4 md:mt-6 relative -mx-4 md:mx-0" data-testid="perks-slider">
+      <button data-testid="perks-prev" onClick={() => go(idx - 1)} className="absolute left-1 md:-left-3 top-1/2 -translate-y-1/2 z-10 h-7 w-7 rounded-full bg-[#FFE4C8] text-orange-400 flex items-center justify-center shadow-sm"><ChevronLeft className="h-4 w-4" /></button>
+      <button data-testid="perks-next" onClick={() => go(idx + 1)} className="absolute right-1 md:-right-3 top-1/2 -translate-y-1/2 z-10 h-7 w-7 rounded-full bg-[#FFE4C8] text-orange-400 flex items-center justify-center shadow-sm"><ChevronRight className="h-4 w-4" /></button>
       <div ref={ref} onScroll={(e) => setIdx(Math.round(e.currentTarget.scrollLeft / e.currentTarget.clientWidth))}
-        className="mx-5 md:mx-6 flex overflow-x-auto no-scrollbar snap-x snap-mandatory rounded-2xl" data-testid="perks-strip">
+        className="md:mx-6 flex overflow-x-auto no-scrollbar snap-x snap-mandatory md:rounded-2xl" data-testid="perks-strip">
         {PERK_SLIDES.map((src, i) => (
           <img key={src} src={src} alt={`購物權益 ${i + 1}`} data-testid={`perks-slide-${i}`} className="w-full shrink-0 snap-start h-auto block" />
         ))}
@@ -115,8 +115,8 @@ export default function ProductDetail() {
   return (
     <div className="pb-28 md:pb-10" data-testid="product-detail">
       {/* Hero area */}
-      <div className="max-md:mx-4 max-md:mt-3 max-md:rounded-3xl max-md:bg-[#FFEFDF] md:bg-gradient-to-b md:from-[#FFE9D2] md:via-[#FFF3E6] md:to-[#FFF8F1] md:rounded-b-[40px]">
-        <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 pt-3 md:pt-6 pb-4 md:pb-8">
+      <div className="max-md:rounded-b-[28px] max-md:bg-[#FFEFDF] md:bg-gradient-to-b md:from-[#FFE9D2] md:via-[#FFF3E6] md:to-[#FFF8F1] md:rounded-b-[40px]">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-3 md:pt-6 pb-5 md:pb-8">
           <div className="hidden md:flex text-xs text-slate-400 items-center gap-1.5" data-testid="product-breadcrumb">
             <Link to="/" className="hover:text-orange-600">首頁</Link><span>/</span>
             {category && <><Link to={`/category/${category.id}`} className="hover:text-orange-600">{category.name}</Link><span>/</span></>}
@@ -148,8 +148,8 @@ export default function ProductDetail() {
       {/* Purchase card */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-4 md:-mt-2">
         <div className="bg-white rounded-3xl shadow-[0_10px_40px_-20px_rgba(232,121,42,0.35)] overflow-hidden">
-          <div className="p-4 pt-6 sm:p-8">
-            <div className="grid grid-cols-2 gap-x-4 gap-y-6 md:flex md:flex-wrap md:gap-3 sm:gap-4">
+          <div className="p-4 pt-7 sm:p-8">
+            <div className="grid grid-cols-2 gap-x-6 gap-y-7 md:flex md:flex-wrap md:gap-3 sm:gap-4">
               {product.specs.map((s, i) => {
                 const sel = s.id === specId;
                 const locked = specLocked(s);
@@ -160,7 +160,7 @@ export default function ProductDetail() {
                     disabled={!s.in_stock}
                     onClick={() => setSpecId(s.id)}
                     title={locked ? "已達限購" : undefined}
-                    className={`relative h-14 md:min-w-[140px] px-2 md:px-6 rounded-xl text-sm font-medium transition-all leading-tight ${
+                    className={`relative h-[72px] md:h-14 md:min-w-[140px] px-2 md:px-6 rounded-xl text-[15px] md:text-sm font-medium transition-all leading-tight ${
                       sel ? "border-2 border-orange-400 bg-orange-50/60 md:bg-orange-50 text-orange-600" : "border border-transparent bg-slate-100/80 md:bg-slate-100 text-slate-700 hover:bg-orange-50"
                     } ${!s.in_stock ? "opacity-40 cursor-not-allowed" : ""} ${locked ? "opacity-50" : ""}`}
                   >
