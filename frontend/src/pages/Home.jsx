@@ -135,7 +135,7 @@ export default function Home() {
           </div>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
             {categories.slice(0, 6).map((c) => {
-              const items = byCat(c.id).slice(0, 20);
+              const items = byCat(c.id).slice(0, isMobile ? 16 : 20);
               if (items.length === 0) return null;
               return (
                 <div key={c.id} data-testid={`cat-panel-${c.id}`} className="bg-white rounded-2xl md:border md:border-orange-100 shadow-sm p-4 sm:p-5">
