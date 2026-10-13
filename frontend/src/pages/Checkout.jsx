@@ -239,9 +239,9 @@ function CheckoutInner() {
                 </div>
               ))}
               <div className="flex items-center gap-4">
-                <div className="w-24 md:w-28 shrink-0 text-sm text-slate-700 pl-3">其他聯絡方式</div>
-                <div className="flex items-center w-full h-12 rounded-xl bg-slate-100 px-4">
-                  <div className="relative flex items-center shrink-0 pr-4 mr-3 border-r border-slate-200">
+                <div className="w-24 md:w-28 shrink-0 text-sm text-slate-700 pl-3 leading-tight">其他聯絡方式</div>
+                <div className="flex items-center flex-1 min-w-0 h-12 rounded-xl bg-slate-100 px-4">
+                  <div className="relative flex items-center shrink-0 pr-3 mr-2 border-r border-slate-200">
                     <select data-testid="checkout-other-type" value={otherType} onChange={(e) => setOtherType(e.target.value)} className="appearance-none bg-transparent pr-6 text-sm outline-none">
                       {CONTACT_TYPES.map((t) => <option key={t}>{t}</option>)}
                     </select>

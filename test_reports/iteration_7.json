@@ -1,0 +1,50 @@
+{
+  "summary": "Iteration 7 tested the mobile Kavip-style Checkout restyle at 400x850 and desktop regression at 1400x900. Authenticated the tester clerk user via Clerk sign-in-token ticket flow (headless password login blocked by Clerk, as expected). Seeded cart with product 7814 in localStorage (also verified the mobile-add-to-cart-btn path works but spec #0 of 7814 triggers a '每月一單特價' limit toast — mint a different spec or user if a true e2e add is needed). All structural/behavioural requirements PASS except one horizontal overflow issue on mobile.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "Checkout 聯絡資訊 其他聯絡方式 row", "issue": "On mobile 400px the row with select+input (data-testid=checkout-other-input) overflows the 聯絡資訊 card and makes document.scrollWidth=481 vs clientWidth=400 (horizontal overflow). The outer label (w-24) + gap-4 + inner 'flex items-center w-full h-12 ... px-4' creates an element 341px wide that extends to right=481px past the viewport. Visually the right edge of the pill container and placeholder text are clipped off-screen. Add min-w-0 to the flex-1 input container or reduce the label width/apply overflow-hidden/truncate on the row.", "selector": "[data-testid='checkout-other-input'] parent .flex.items-center.w-full.h-12.rounded-xl.bg-slate-100", "priority": "HIGH"}
+    ],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "verified_checks": {
+    "mobile_400x850": {
+      "checkout_page_renders": true,
+      "cart_item_card": "name=抖音抖幣充值(抖音鑽石), spec=2980+20鑽石, badge=每月一單全網最低 shown, price=$45.63 displayed, qty stepper 1->2->1 works, trash btn present",
+      "delivery_card_separate_white": true,
+      "contact_card_separate_white": true,
+      "checkout-contact-toggle_collapse_expand": true,
+      "checkout-mobile-bar_fixed_bottom": true,
+      "mobile_total_equals_checkout_total": "$45.63 == $45.63 (subtotal - discount)",
+      "desktop_pay_btn_hidden_on_mobile": true,
+      "horizontal_overflow": "FAIL: scrollWidth=481, clientWidth=400 (see ui_bugs above)",
+      "empty_contact_toast": "請完整填寫聯絡資訊 shown; no order created",
+      "input_font_size_checkout": "16px (anti iOS zoom OK)",
+      "input_font_size_category_games": "16px (anti iOS zoom OK)"
+    },
+    "desktop_1400x900": {
+      "two_column_info_card_grid": "md:grid-cols-2 present on checkout-info-card",
+      "coupon_card_present": true,
+      "summary_card_with_checkout-pay-btn_visible": true,
+      "checkout-mobile-bar_hidden_on_desktop": true
+    }
+  },
+  "test_report_links": ["/app/test_reports/iteration_7.json"],
+  "action_items": [
+    "Fix horizontal overflow on /checkout at 400px caused by the 其他聯絡方式 row (data-testid=checkout-other-input container). Add min-w-0 to the flex-1 wrapper and/or wrap the whole row with min-w-0 so the inner flex item can shrink below content width; verify document.scrollWidth === clientWidth."
+  ],
+  "critical_code_review_comments": [
+    "CartContext stores cart in gt_cart localStorage shared across users; signing out does not clear cart which may leak items between accounts on shared devices. Consider clearing cart on sign-out or key cart by user id.",
+    "ProductDetail: default-selected spec may be a limited (newcomer/daily/monthly) one already purchased, which blocks 加入購物車 silently from a UX perspective (only a toast). Consider auto-selecting the first non-locked spec.",
+    "Checkout.jsx exceeds reasonable size and mixes items, delivery, contact, coupon, summary in one component; could be split into subcomponents for maintainability."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A (skipped by request)", "frontend": "~92% — 1 HIGH ui bug (mobile horizontal overflow); every other requirement verified"},
+  "test_credentials": "Clerk tester+clerk_test@shop.com (user_3Kc4MFu2DHwZuy8itp5vS09nzaL). Headless login signed in using Clerk Backend API POST /v1/sign_in_tokens + client ticket strategy (see /app/tests/mint_token.py pattern).",
+  "seed_data_creation": "Seeded cart via localStorage.setItem('gt_cart', ...) with product 7814 spec[0]; no backend writes made.",
+  "retest_needed": true,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Mobile 400x850 checkout flow verified end-to-end except horizontal overflow caused by the 其他聯絡方式 input container. Use the Clerk sign-in-token + ticket flow in Playwright: POST https://api.clerk.com/v1/sign_in_tokens with user_id, then page.evaluate(window.Clerk.client.signIn.create({strategy:'ticket',ticket}) + Clerk.setActive). Tokens are single-use; mint a fresh one per run. For seeding cart quickly, write directly to localStorage key 'gt_cart' (shape in CartContext.jsx line 29-42). Natural mobile-add-to-cart-btn add may hit '每月一單特價' limit toast for the first spec of 7814 — pick another spec or user.",
+  "rca of the issue": "Horizontal overflow: the 其他聯絡方式 row uses a parent `flex items-center gap-4`, a w-24 label and an inner `flex items-center w-full h-12 rounded-xl bg-slate-100 px-4`. The inner input container's `w-full` + flex-1 input without `min-w-0` prevents shrinking below intrinsic content width, so at 400px the row's right edge extends to ~481px. Fix: add `min-w-0` to the row wrapper or set the inner container to `flex-1 min-w-0 w-full` so it can shrink; alternatively, apply `overflow-hidden` on the parent card."
+}
