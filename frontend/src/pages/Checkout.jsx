@@ -161,21 +161,21 @@ function CheckoutInner() {
           <div className="p-4 sm:p-8 space-y-5 md:space-y-6">
             {items.map((i) => (
               <div key={i.key} data-testid={`cart-item-${i.key}`}>
-                <div className="text-[15px] md:text-base text-slate-800 mb-3 md:mb-4">{i.product_name}</div>
+                <div className="text-[14px] md:text-base text-slate-800 mb-3 md:mb-4">{i.product_name}</div>
                 <div className="flex items-center gap-3 md:gap-5">
-                  <div className="h-20 w-20 sm:h-28 sm:w-28 rounded-2xl bg-slate-100 overflow-hidden shrink-0"><img src={i.image} alt={i.product_name} className="h-full w-full object-cover" /></div>
+                  <div className="h-16 w-16 sm:h-28 sm:w-28 rounded-xl sm:rounded-2xl bg-slate-100 overflow-hidden shrink-0"><img src={i.image} alt={i.product_name} className="h-full w-full object-cover" /></div>
                   <div className="min-w-0 flex-1">
-                    <div className="text-[15px] md:text-base text-slate-800 truncate">{i.spec_label}</div>
-                    {i.badge && <span className="mt-1 inline-block rounded-md bg-fuchsia-500 text-white text-[11px] px-2 py-0.5">{i.badge}</span>}
-                    <div className="mt-1 font-head text-lg text-orange-500"><span className="text-sm font-medium">{code}$</span> <span className="font-bold">{format(i.unit_price_usd).replace(/[^\d.,]/g, "")}</span></div>
+                    <div className="text-[14px] md:text-base text-slate-800 truncate">{i.spec_label}</div>
+                    {i.badge && <span className="mt-1 inline-block max-w-full truncate rounded-md bg-fuchsia-500 text-white text-[10px] md:text-[11px] px-1.5 md:px-2 py-0.5 leading-4 whitespace-nowrap">{i.badge}</span>}
+                    <div className="mt-1 font-head text-base md:text-lg text-orange-500 whitespace-nowrap"><span className="text-xs md:text-sm font-medium">{code}$</span> <span className="font-bold">{format(i.unit_price_usd).replace(/[^\d.,]/g, "")}</span></div>
                   </div>
                   <div className="flex items-center gap-2 md:gap-3 shrink-0">
-                    <div className="flex items-center h-10 md:h-11 rounded-xl border border-slate-200 bg-white">
-                      <button data-testid={`cart-dec-${i.key}`} onClick={() => updateQty(i.key, Math.max(1, i.quantity - 1))} className="h-10 w-9 md:h-11 md:w-11 flex items-center justify-center text-slate-500 hover:text-orange-500"><Minus className="h-4 w-4" /></button>
-                      <span className="w-7 md:w-8 text-center text-sm font-semibold" data-testid={`cart-qty-${i.key}`}>{i.quantity}</span>
-                      <button data-testid={`cart-inc-${i.key}`} onClick={() => updateQty(i.key, Math.min(99, i.quantity + 1))} className="h-10 w-9 md:h-11 md:w-11 flex items-center justify-center text-slate-500 hover:text-orange-500"><Plus className="h-4 w-4" /></button>
+                    <div className="flex items-center h-9 md:h-11 rounded-lg md:rounded-xl border border-slate-200 bg-white">
+                      <button data-testid={`cart-dec-${i.key}`} onClick={() => updateQty(i.key, Math.max(1, i.quantity - 1))} className="h-9 w-8 md:h-11 md:w-11 flex items-center justify-center text-slate-500 hover:text-orange-500"><Minus className="h-3.5 w-3.5 md:h-4 md:w-4" /></button>
+                      <span className="w-6 md:w-8 text-center text-sm font-semibold" data-testid={`cart-qty-${i.key}`}>{i.quantity}</span>
+                      <button data-testid={`cart-inc-${i.key}`} onClick={() => updateQty(i.key, Math.min(99, i.quantity + 1))} className="h-9 w-8 md:h-11 md:w-11 flex items-center justify-center text-slate-500 hover:text-orange-500"><Plus className="h-3.5 w-3.5 md:h-4 md:w-4" /></button>
                     </div>
-                    <button data-testid={`cart-remove-${i.key}`} onClick={() => removeItem(i.key)} className="text-slate-400 hover:text-red-500"><Trash2 className="h-5 w-5" /></button>
+                    <button data-testid={`cart-remove-${i.key}`} onClick={() => removeItem(i.key)} className="text-slate-400 hover:text-red-500"><Trash2 className="h-4 w-4 md:h-5 md:w-5" /></button>
                   </div>
                 </div>
               </div>
