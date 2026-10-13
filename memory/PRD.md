@@ -84,3 +84,5 @@
 - 新聞資訊：爬取 Kavip 51 篇文章(scripts/crawl_articles.py)，品牌字樣改為 GOGO589/gogo589.com，圖片轉存 Object Storage；GET /api/articles、/api/articles/{id}（含閱讀量、上/下一篇）；ArticleCenter/ArticleDetail/Home 改為 API 驅動。
 - 移動端分類頁：分類選擇按鈕(Drawer 選單)+行內搜尋欄，隱藏頁首二級搜尋、麵包屑與分類 Tab；商品頁移動端隱藏頁腳。
 - 註：部分文章內 135editor.com 裝飾圖片仍為遠端連結（本機無法下載）。
+- 商品頁頂部改為 3 張 Banner 上下輪播(DetailBannerCarousel.jsx)：低價氪金 / 添加GOGO589到桌面(重製去除KAVIP, 點擊開教學彈窗) / 註冊送新客優惠包。
+- 手機狀態欄顏色：iOS26 Safari 取 sticky header 背景色，header 設為米白 #FFF4EA；加入 manifest.json 與桌面圖示。

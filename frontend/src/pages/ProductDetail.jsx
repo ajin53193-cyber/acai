@@ -8,6 +8,7 @@ import { useCurrency } from "@/context/CurrencyContext";
 import { useIsMobile } from "@/lib/useIsMobile";
 import { useCart } from "@/context/CartContext";
 import ProductCard from "@/components/ProductCard";
+import { DetailBannerCarousel } from "@/components/DetailBannerCarousel";
 
 const PERKS = [
   [Sparkles, "新用戶專享", "新用戶首單特惠"],
@@ -123,9 +124,7 @@ export default function ProductDetail() {
             <span className="text-slate-600">{product.name}</span>
           </div>
 
-          <Link to="/sign-up" data-testid="detail-promo-banner" className="mt-0 md:mt-4 block overflow-hidden rounded-2xl">
-            <img src="/banners/detail-promo.png" alt="低價氪金 戰力超神 神券在手 下單省最高 7%" className="w-full h-auto block" />
-          </Link>
+          <DetailBannerCarousel />
 
           <div className="mt-4 md:mt-6 flex items-start md:items-center gap-3 md:gap-5">
             <div className="h-[72px] w-[72px] sm:h-24 sm:w-24 rounded-2xl bg-white p-1.5 md:p-3 shadow-sm shrink-0 overflow-hidden">
