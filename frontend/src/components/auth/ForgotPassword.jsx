@@ -116,7 +116,7 @@ export function ForgotPassword({ onBack, onClose }) {
       <label className="flex items-center justify-center gap-2 mt-8 text-sm text-slate-600 cursor-pointer select-none">
         <input type="checkbox" data-testid="forgot-agree" checked={agree} onChange={(e) => setAgree(e.target.checked)} className="h-4 w-4 accent-orange-500" />
         <span>
-          已閱讀並同意 <Link to="/info/terms" className="hover:text-orange-600" onClick={onClose}>條款與條件</Link> 和 <Link to="/info/privacy" className="hover:text-orange-600" onClick={onClose}>隱私權政策</Link>
+          已閱讀並同意 <Link to="/article/terms-conditions" className="hover:text-orange-600" onClick={onClose}>條款與條件</Link> 和 <Link to="/article/privacy-policy" className="hover:text-orange-600" onClick={onClose}>隱私權政策</Link>
         </span>
       </label>
 

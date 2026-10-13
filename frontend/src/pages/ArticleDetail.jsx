@@ -20,8 +20,8 @@ export default function ArticleDetail() {
     <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-4 md:py-6" data-testid="article-detail">
       <div className="text-sm text-slate-400 mb-4 md:mb-6 flex items-center gap-1.5" data-testid="article-breadcrumb">
         <Link to="/" className="hover:text-orange-600">首頁</Link><span>/</span>
-        <Link to="/article" data-testid="article-back" className="hover:text-orange-600">新聞資訊</Link><span>/</span>
-        <span className="text-slate-600">新聞詳情</span>
+        {!a?.page && <><Link to="/article" data-testid="article-back" className="hover:text-orange-600">新聞資訊</Link><span>/</span></>}
+        <span className="text-slate-600">{a?.page ? a.title : "新聞詳情"}</span>
       </div>
       {!a ? (
         <div className="bg-white rounded-3xl h-[60vh] animate-pulse" />

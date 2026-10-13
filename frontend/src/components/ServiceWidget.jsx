@@ -7,9 +7,9 @@ import { publicApi } from "@/lib/api";
 export const openService = () => window.dispatchEvent(new Event("open-service"));
 
 const FAQ = [
-  ["充值多久到帳？", "/info/faq"],
-  ["可以退款嗎？", "/info/refund"],
-  ["帳號填錯怎麼辦？", "/info/faq"],
+  ["充值多久到帳？", "/article/faq"],
+  ["可以退款嗎？", "/article/refund-policy"],
+  ["帳號填錯怎麼辦？", "/article/faq"],
   ["查看我的訂單", "/orders"],
 ];
 
