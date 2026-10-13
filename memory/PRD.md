@@ -63,6 +63,9 @@
   - 我的訂單頁籤改為 全部/未付款/等待填寫資料/等待中/已完成（後端 `?status=awaiting_info|waiting`）；卡片標題列改兩行（編號+狀態 / 日期），按鈕統一置於卡片底部一列。
   - 頁首「錢包 · 充值」改為淺橘膠囊「我的錢包」。
 
+- 2026-06-13：**我的帳戶**：移除「刪除帳號」；「綁定手機號」改為真正的 Clerk 綁定流程 `BindPhoneDialog.jsx`（國碼選擇 → `user.createPhoneNumber` → `prepareVerification` → 輸入簡訊驗證碼 `attemptVerification` → 設為主要號碼 `user.update({primaryPhoneNumberId})`，已綁定顯示號碼 + 更換）；標籤欄寬統一（w-20、不換行），提示文字縮小為灰色小字。
+  - ⚠️ **阻塞**：目前 Clerk 開發實例（brave-opossum-8609）`phone_number` 屬性為 **停用**（`/v1/environment` 回 enabled=false），`createPhoneNumber` 回 `phone_number is not a valid parameter`。需到 Clerk Dashboard → User & Authentication → Email, phone, username → 啟用 Phone number（驗證方式 SMS code、允許登入）。前端已將此錯誤轉為中文提示。登入視窗的「手機登入」分頁同受此設定影響。測試號碼：+1 201 555 01xx，驗證碼 424242。
+
 ## 待辦（優先序）
 - P1：訂單狀態郵件/站內通知（用戶暫緩）。
 - P0：testing_agent 跑後台訂單狀態流轉 + 回歸（前台 E2E 已由主代理手測通過）。
