@@ -1,0 +1,24 @@
+{
+  "summary": "Iteration 20 — Verified Beijing-time (UTC+8) conversion across backend display/day-cut boundaries, Excel reports, and frontend defaults. 12/12 pytest cases pass in /app/backend/tests/test_beijing_time.py. Backend: dashboard stat_date and 7-day trend last entry == BJ today (2026-10-13); /api/stats/merchants default date label == BJ today; profit-snapshots run for 2026-10-12 succeeds and lists; agent-commission + merchant-statement xlsx contain '(北京时间)' label; merchant-stats + balance-ledger xlsx produced (no 生成时间 row by design—time cells formatted BJ); order export endpoint returns 200 xlsx containing '北京时间'; notify/daily-report defaults to BJ today and 400s on future BJ date. Frontend: login works; Profit Snapshots default date = 2026-10-12 (BJ yesterday) via data-testid=date input; Merchant Stats default date = 2026-10-13 (BJ today); Orders list timestamps render MM-DD HH:MM without errors; Dashboard has 2 UTC labels (TronGrid usage panel '2026-10-13 · UTC' and '近 24 小时请求趋势（UTC）') which are INTENTIONAL per request note — no forecast ETA currently rendered so '北京时间' forecast label path not visible but not a bug. Zero page JS errors across Dashboard/Ledger/MerchantStats/ProfitSnapshots/Orders.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_beijing_time.py",
+    "/app/test_reports/pytest/iter20_bj.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "utils.bj_day_bounds correctly converts a BJ calendar day to UTC [start,end) window — day-cut math is sound.",
+    "routes/reports.py: 'generated_at/exported_at (北京时间)' only appears on agent-commission, merchant-statement, and the orders xlsx export. merchant-stats and balance-ledger xlsx intentionally use '统计区间' / per-row BJ time cells — consistent with user spec.",
+    "routes/notify.py daily-report future-date guard uses bj_today_str() correctly — returns 400 on future BJ date.",
+    "Dashboard TronGrid panel still shows 'UTC' labels on usage date & 24h chart — explicitly flagged by user as intentional (provider quota resets at UTC midnight). Only the forecast ETA was switched to BJ; could not visually assert because no forecast was rendered at test time (no exhaustion predicted)."
+  ],
+  "updated_files": ["/app/backend/tests/test_beijing_time.py (new)"],
+  "success_rate": {"backend": "100% (12/12)", "frontend": "100% (no JS errors, all defaults match BJ)"},
+  "test_credentials": "admin: ajin53193@gmail.com / admin888",
+  "seed_data_creation": "test_profit_snapshot_run_beijing created/overwrote the 2026-10-12 profit snapshot. No TEST_ prefixed documents added. No destructive changes.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Beijing-time feature set stable. The reusable pytest module /app/backend/tests/test_beijing_time.py relaxes the '北京时间' xlsx assertion for merchant-stats and balance-ledger (they intentionally do not emit a 生成时间 row); only agent-commission, merchant-statement, and the orders xlsx export must contain '北京时间'. Dashboard shows TronGrid UTC labels by design — do NOT flag. Admin login flow: POST to /sf-admin-k9x2m7 login page or /api/auth/login then nav sidebar via 'nav a:has-text(\"数据总览\"|\"商户统计\"|\"资金流水\"|\"分润快照\"|\"订单与收款\")'.",
+  "rca of the issue": "N/A — no issues found."
+}

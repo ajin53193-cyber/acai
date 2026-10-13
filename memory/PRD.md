@@ -438,3 +438,15 @@
 - `/login`、`/` 及任何未登录访问均显示 404 页面，不再跳转到登录页。付款页 `/pay/:orderNo` 不受影响。
 - 支付成功页按付款页同比例缩小（图标64px、标题19px、金额32px、明细13px、按钮h-10）。
 - 手动补单安全阀(2026-10-11)：/orders/{id}/manual-callback 当链上金额与订单应付差异 > max(1 USDT, 10%) 时返回 409，需 force=true；补单同步更新 pay_amount，记录 manual_original_amount，并立即投递回调。前端 OrdersPage/SupportPage 显示“强制补单”勾选框。
+
+## 生产故障恢复 + 图标 + 北京时间 (2026-10-13)
+- 宝塔站点误删恢复：重建 Nginx 配置(SSL + /api/ 反代 8011 + SPA try_files)，确认证书在 nginx/conf/ssl/，重跑 update.ps1 重建丢失的前端 build/，站点恢复。
+- Favicon 修复：手机浏览器加载了同服务器其它站点(合赢)缓存的图标。新增标准 favicon.ico(多尺寸)+favicon-16/32.png+apple-touch-icon.png(iOS)+icon-192/512.png(PWA)+site.webmanifest，均为 USDT 青色盾牌 ₮；index.html 正确引用并加 ?v=3 破缓存。需清浏览器缓存生效。
+- 全站北京时间(UTC+8)：数据库仍存 UTC，但所有展示/日报日切/报表统一北京时间。
+  - utils.py 新增 BJ_TZ、now_bj、bj_today_str、bj_yesterday_str、bj_day_bounds、bj_str。
+  - server.py: dashboard_stats/_date_window/build_profit_snapshot 改用北京日切；cron daily-settle 与 run_profit_snapshot 默认北京昨日；chain_usage_forecast 的 eta 转北京、告警文案改“北京时间”。
+  - routes/reports.py: 月/日筛选按北京时区解析；生成时间/导出时间显示“(北京时间)”；paid_at/created_at/approved_at 列用 bj_str；run_scheduled_exports 用 now_bj。
+  - routes/notify.py: daily-report 默认/校验用 bj_today_str。
+  - 前端 lib/format.js: fmtDate 加 timeZone Asia/Shanghai；新增 bjToday/bjMonth/bjYesterday；Dashboard/MerchantStats/BalanceLedger/ProfitSnapshots/Commission/MerchantStatement 默认筛选改北京日期；CheckoutPage/ChannelsPage 时间显示加 Asia/Shanghai。
+  - 例外（有意保留 UTC）：Dashboard 的 TronGrid 额度面板日期与 24h 图标注仍为 UTC（供应商额度按 UTC 零点重置）。
+  - 测试 iteration_20：后端 12/12 通过，前端 0 报错。
