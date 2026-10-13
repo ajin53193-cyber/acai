@@ -114,7 +114,7 @@ export default function ProductDetail() {
   };
 
   return (
-    <div className="pb-28 md:pb-10" data-testid="product-detail">
+    <div className="pb-[calc(7rem+env(safe-area-inset-bottom))] md:pb-10" data-testid="product-detail">
       {/* Hero area */}
       <div className="max-md:rounded-b-[28px] max-md:bg-[#FFEFDF] md:bg-gradient-to-b md:from-[#FFE9D2] md:via-[#FFF3E6] md:to-[#FFF8F1] md:rounded-b-[40px]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-3 md:pt-6 pb-5 md:pb-8">
@@ -319,7 +319,7 @@ export default function ProductDetail() {
       </div>
 
       {/* Mobile sticky bar */}
-      <div className="fixed bottom-0 left-0 right-0 bg-white rounded-t-3xl px-4 pt-3 pb-4 z-30 flex items-center gap-3 md:hidden shadow-[0_-8px_30px_-12px_rgba(0,0,0,0.15)]">
+      <div className="fixed bottom-0 left-0 right-0 bg-white rounded-t-3xl px-4 pt-3 pb-4 z-30 flex items-center gap-3 md:hidden safe-bottom-pad shadow-[0_-8px_30px_-12px_rgba(0,0,0,0.15)]">
         <button data-testid="mobile-cart-btn" onClick={() => setOpen(true)} className="relative h-12 w-12 shrink-0 rounded-full bg-slate-900 text-white flex items-center justify-center">
           <ShoppingCart className="h-5 w-5" />
           <span className="absolute -top-1 -right-1 h-4 min-w-4 px-1 rounded-full bg-orange-500 text-[10px] font-bold flex items-center justify-center">{count}</span>

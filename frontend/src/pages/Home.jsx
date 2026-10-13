@@ -40,7 +40,7 @@ export default function Home() {
   return (
     <div>
       {!isSignedIn && (
-        <div data-testid="mobile-register-bar" className="md:hidden fixed inset-x-0 bottom-0 z-40 bg-[#5a3a22]/90 backdrop-blur-sm text-white px-4 h-14 flex items-center gap-3">
+        <div data-testid="mobile-register-bar" className="md:hidden fixed inset-x-0 bottom-0 z-40 bg-[#5a3a22]/90 backdrop-blur-sm text-white px-4 h-14 flex items-center gap-3 safe-bottom-box">
           <Gift className="h-6 w-6 text-orange-300 shrink-0" />
           <span className="text-sm font-medium truncate">新用戶註冊最高領 <span className="text-lg font-bold">9%</span>優惠券</span>
           <button data-testid="mobile-register-btn" onClick={openAuth} className="ml-auto shrink-0 h-9 px-5 rounded-full bg-orange-500 text-white text-sm font-bold">立即註冊</button>

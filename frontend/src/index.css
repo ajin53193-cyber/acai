@@ -11,6 +11,11 @@
 html, body {
     background-color: #FFF4EA;
 }
+.safe-bottom-pad { padding-bottom: calc(1rem + env(safe-area-inset-bottom)); }
+.safe-bottom-box { height: calc(3.5rem + env(safe-area-inset-bottom)); padding-bottom: env(safe-area-inset-bottom); }
+@media (max-width: 767px) {
+    .safe-bottom-offset { margin-bottom: env(safe-area-inset-bottom); }
+}
 body {
     margin: 0;
     font-family: var(--font-body);

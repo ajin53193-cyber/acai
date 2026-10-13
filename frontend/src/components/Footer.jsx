@@ -127,7 +127,7 @@ export default function Footer() {
       </div>
 
       {/* Bottom bar */}
-      <div className="bg-black/10 md:bg-black/10 max-md:bg-transparent max-md:pb-14">
+      <div className="bg-black/10 md:bg-black/10 max-md:bg-transparent max-md:pb-[calc(3.5rem+env(safe-area-inset-bottom))]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 md:py-5 flex flex-col md:flex-row md:items-center justify-between gap-1.5 md:gap-3 text-center md:text-left">
           <div className="flex items-center justify-center md:justify-start gap-4">
             <img src="/gogo589-logo.png" alt="gogo589" className="hidden md:block h-6 w-auto opacity-80" style={{ filter: "brightness(0) invert(1)" }} />
