@@ -4,7 +4,7 @@ import { Show, useUser } from "@clerk/react";
 import {
   LayoutDashboard, Package, ShoppingBag, Star, DollarSign, Tag, Users,
   Plus, Pencil, Trash2, X, Loader2, ArrowLeft, TrendingUp, Clock, ShieldAlert,
-  Settings, CreditCard, ArrowUp, ArrowDown, ImagePlus,
+  Settings, CreditCard, ArrowUp, ArrowDown, ImagePlus, Wallet, BadgeCheck, MessageSquare,
 } from "lucide-react";
 import { toast } from "sonner";
 import { QRCodeSVG } from "qrcode.react";
@@ -12,11 +12,16 @@ import { useApi, publicApi } from "@/lib/api";
 import { STATUS_LABELS, STATUS_ORDER, StatusBadge } from "@/lib/status";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Switch } from "@/components/ui/switch";
+import WalletAdmin from "@/pages/admin/WalletAdmin";
+import { VerificationsAdmin, FeedbackAdmin } from "@/pages/admin/SupportAdmin";
 
 const NAV = [
   ["overview", "總覽", LayoutDashboard],
   ["products", "商品管理", Package],
   ["orders", "訂單管理", ShoppingBag],
+  ["wallets", "錢包管理", Wallet],
+  ["verifications", "認證審核", BadgeCheck],
+  ["feedback", "用戶反饋", MessageSquare],
   ["reviews", "評價管理", Star],
   ["currencies", "匯率管理", DollarSign],
   ["promos", "優惠碼", Tag],
@@ -64,6 +69,9 @@ function AdminInner() {
         {section === "overview" && <Overview callApi={callApi} />}
         {section === "products" && <Products callApi={callApi} />}
         {section === "orders" && <Orders callApi={callApi} />}
+        {section === "wallets" && <WalletAdmin callApi={callApi} />}
+        {section === "verifications" && <VerificationsAdmin callApi={callApi} />}
+        {section === "feedback" && <FeedbackAdmin callApi={callApi} />}
         {section === "reviews" && <Reviews callApi={callApi} />}
         {section === "currencies" && <Currencies callApi={callApi} />}
         {section === "promos" && <Promos callApi={callApi} />}

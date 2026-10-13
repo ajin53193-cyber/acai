@@ -774,6 +774,82 @@ async def admin_feedback(admin: dict = Depends(require_role("admin"))):
     return await db.feedback.find({}, {"_id": 0}).sort("created_at", -1).to_list(500)
 
 
+class FeedbackUpdate(BaseModel):
+    status: str
+    admin_note: str = ""
+
+
+@api_router.put("/admin/feedback/{fid}")
+async def admin_update_feedback(fid: str, body: FeedbackUpdate, admin: dict = Depends(require_role("admin"))):
+    if body.status not in ("open", "resolved"):
+        raise HTTPException(status_code=400, detail="狀態不正確")
+    r = await db.feedback.find_one_and_update({"id": fid}, {"$set": {"status": body.status, "admin_note": body.admin_note, "handled_by": admin.get("email", ""), "handled_at": now_iso()}},
+                                              projection={"_id": 0}, return_document=ReturnDocument.AFTER)
+    if not r:
+        raise HTTPException(status_code=404, detail="不存在")
+    return r
+
+
+@api_router.get("/admin/verifications/{vid}/image")
+async def admin_verification_image(vid: str, admin: dict = Depends(require_role("admin"))):
+    v = await db.verifications.find_one({"id": vid}, {"_id": 0, "image_path": 1})
+    if not v or not v.get("image_path"):
+        raise HTTPException(status_code=404, detail="圖片不存在")
+    try:
+        data, ct = await run_in_threadpool(objstore.get_object, v["image_path"])
+    except Exception:
+        raise HTTPException(status_code=404, detail="圖片不存在")
+    return {"data_url": f"data:{ct};base64,{base64.b64encode(data).decode()}"}
+
+
+# ----------------------------- Admin wallet management -----------------------------
+@api_router.get("/admin/wallets")
+async def admin_wallets(q: str = "", admin: dict = Depends(require_role("admin"))):
+    people = await db.users.find(IN_ENV, {"_id": 0, "user_id": 1, "email": 1, "name": 1, "wallet_balance_usd": 1, "role": 1}).to_list(2000)
+    agg = db.wallet_transactions.aggregate([{"$group": {"_id": "$user_id",
+                                                         "total_in": {"$sum": {"$cond": [{"$gt": ["$amount_usd", 0]}, "$amount_usd", 0]}},
+                                                         "total_out": {"$sum": {"$cond": [{"$lt": ["$amount_usd", 0]}, "$amount_usd", 0]}},
+                                                         "tx_count": {"$sum": 1}}}])
+    stats = {a["_id"]: a async for a in agg}
+    out = []
+    ql = q.strip().lower()
+    for p in people:
+        if ql and ql not in (p.get("email") or "").lower() and ql not in (p.get("name") or "").lower() and ql not in p["user_id"].lower():
+            continue
+        s = stats.get(p["user_id"], {})
+        out.append({"user_id": p["user_id"], "email": p.get("email", ""), "name": p.get("name", ""), "role": effective_role(p.get("role")),
+                    "balance_usd": round(float(p.get("wallet_balance_usd") or 0), 2), "total_in_usd": round(float(s.get("total_in", 0)), 2),
+                    "total_out_usd": round(abs(float(s.get("total_out", 0))), 2), "tx_count": int(s.get("tx_count", 0))})
+    out.sort(key=lambda x: -x["balance_usd"])
+    return out
+
+
+@api_router.get("/admin/wallets/{user_id}/transactions")
+async def admin_wallet_transactions(user_id: str, admin: dict = Depends(require_role("admin"))):
+    return await db.wallet_transactions.find({"user_id": user_id}, {"_id": 0}).sort("created_at", -1).to_list(200)
+
+
+class WalletAdjustIn(BaseModel):
+    kind: str  # credit | debit | refund
+    amount_usd: float
+    note: str = ""
+
+
+@api_router.post("/admin/wallets/{user_id}/adjust")
+async def admin_wallet_adjust(user_id: str, body: WalletAdjustIn, admin: dict = Depends(require_role("admin"))):
+    if body.kind not in ("credit", "debit", "refund"):
+        raise HTTPException(status_code=400, detail="類型不正確")
+    if body.amount_usd <= 0 or body.amount_usd > 100000:
+        raise HTTPException(status_code=400, detail="金額需大於 0 且不超過 USD$100,000")
+    if not await db.users.find_one({"user_id": user_id}, {"_id": 0, "user_id": 1}):
+        raise HTTPException(status_code=404, detail="用戶不存在")
+    label = {"credit": "後台加款", "debit": "後台扣款", "refund": "後台退款"}[body.kind]
+    signed = -float(body.amount_usd) if body.kind == "debit" else float(body.amount_usd)
+    note = f"{label}" + (f"：{body.note.strip()}" if body.note.strip() else "")
+    bal = await _wallet_tx(user_id, f"admin_{body.kind}", signed, note, ref=admin.get("email", ""))
+    return {"user_id": user_id, "balance_usd": bal}
+
+
 @api_router.delete("/orders/{order_id}")
 async def delete_order(order_id: str, member: dict = Depends(current_member)):
     r = await db.orders.delete_one({"id": order_id, "user_id": member["user_id"], "status": "pending_payment"})
