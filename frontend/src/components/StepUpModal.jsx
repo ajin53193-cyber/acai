@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { registerStepUp } from "@/lib/stepup";
-import { ShieldCheck, X } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { ShieldCheck } from "lucide-react";
 
 export default function StepUpModal() {
   const [open, setOpen] = useState(false);
@@ -24,19 +25,20 @@ export default function StepUpModal() {
     else r.reject(new Error("cancelled"));
   };
 
-  if (!open) return null;
   const canSubmit = (!opts.needOp || opCode.trim().length >= 6) && (!opts.needTotp || totp.trim().length >= 6);
+
   return (
-    <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/70 p-4" data-testid="stepup-modal">
-      <div className="w-full max-w-sm glass border border-slate-700 rounded-2xl p-5">
-        <div className="flex items-center justify-between mb-1">
-          <h3 className="font-semibold text-slate-100 flex items-center gap-2"><ShieldCheck className="w-5 h-5 text-cyan-400" /> 安全验证</h3>
-          <button onClick={() => close(false)} data-testid="stepup-cancel" className="text-slate-400 hover:text-slate-200"><X className="w-4 h-4" /></button>
-        </div>
-        <p className="text-xs text-slate-400 mb-4">该操作较敏感，请完成验证以继续。</p>
-        {opts.error && <div className="mb-3 text-xs text-red-400 bg-red-500/10 border border-red-500/30 rounded-lg px-3 py-2" data-testid="stepup-error">{opts.error}</div>}
+    <Dialog open={open} onOpenChange={(v) => { if (!v) close(false); }}>
+      <DialogContent className="glass border-slate-700 max-w-sm z-[90]" data-testid="stepup-modal">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2 text-slate-100">
+            <ShieldCheck className="w-5 h-5 text-cyan-400" /> 安全验证
+          </DialogTitle>
+          <DialogDescription className="text-slate-400">该操作较敏感，请完成验证以继续。</DialogDescription>
+        </DialogHeader>
+        {opts.error && <div className="text-xs text-red-400 bg-red-500/10 border border-red-500/30 rounded-lg px-3 py-2" data-testid="stepup-error">{opts.error}</div>}
         {opts.needOp && (
-          <div className="mb-3">
+          <div>
             <label className="text-xs text-slate-400">操作安全码</label>
             <input type="password" value={opCode} onChange={(e) => setOpCode(e.target.value)} data-testid="stepup-opcode" autoFocus
               onKeyDown={(e) => e.key === "Enter" && canSubmit && close(true)}
@@ -44,16 +46,17 @@ export default function StepUpModal() {
           </div>
         )}
         {opts.needTotp && (
-          <div className="mb-3">
+          <div>
             <label className="text-xs text-slate-400">谷歌验证码</label>
             <input inputMode="numeric" maxLength={6} value={totp} onChange={(e) => setTotp(e.target.value)} data-testid="stepup-totp"
+              autoFocus={!opts.needOp}
               onKeyDown={(e) => e.key === "Enter" && canSubmit && close(true)}
               className="w-full mt-1 h-10 px-3 rounded-lg bg-slate-900/60 border border-slate-700 text-slate-100 font-mono tracking-widest outline-none focus:border-cyan-500" placeholder="6 位动态码" />
           </div>
         )}
         <button onClick={() => close(true)} disabled={!canSubmit} data-testid="stepup-submit"
           className="w-full h-10 rounded-lg bg-cyan-500 text-slate-950 font-semibold disabled:opacity-40">确认</button>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }
