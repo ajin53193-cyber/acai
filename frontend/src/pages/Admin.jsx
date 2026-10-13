@@ -4,8 +4,10 @@ import { Show, useUser } from "@clerk/react";
 import {
   LayoutDashboard, Package, ShoppingBag, Star, DollarSign, Tag, Users,
   Plus, Pencil, Trash2, X, Loader2, ArrowLeft, TrendingUp, Clock, ShieldAlert,
+  Settings,
 } from "lucide-react";
 import { toast } from "sonner";
+import { QRCodeSVG } from "qrcode.react";
 import { useApi, publicApi } from "@/lib/api";
 import { STATUS_LABELS, STATUS_ORDER, StatusBadge } from "@/lib/status";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
@@ -19,6 +21,7 @@ const NAV = [
   ["currencies", "匯率管理", DollarSign],
   ["promos", "優惠碼", Tag],
   ["users", "用戶管理", Users],
+  ["settings", "網站設定", Settings],
 ];
 
 const ALL_STATUSES = Object.keys(STATUS_LABELS);
@@ -63,6 +66,7 @@ function AdminInner() {
         {section === "reviews" && <Reviews callApi={callApi} />}
         {section === "currencies" && <Currencies callApi={callApi} />}
         {section === "promos" && <Promos callApi={callApi} />}
+        {section === "settings" && <SiteSettings callApi={callApi} />}
         {section === "users" && <UsersSec callApi={callApi} />}
       </main>
     </div>
@@ -502,4 +506,40 @@ export default function Admin() {
     </div>
   );
   return <Show when="signed-in"><AdminInner /></Show>;
+}
+
+
+function SiteSettings({ callApi }) {
+  const [form, setForm] = useState({ whatsapp_number: "", whatsapp_link: "", cs_label: "" });
+  const [saving, setSaving] = useState(false);
+  useEffect(() => { callApi({ method: "GET", url: "/settings" }).then((r) => setForm(r.data)).catch(() => {}); }, [callApi]);
+  const save = async () => {
+    setSaving(true);
+    try {
+      const body = { ...form };
+      if (body.whatsapp_number && !body.whatsapp_link?.includes("wa.me/" + body.whatsapp_number.replace(/\D/g, ""))) body.whatsapp_link = "https://wa.me/" + body.whatsapp_number.replace(/\D/g, "");
+      const r = await callApi({ method: "PUT", url: "/admin/settings", data: body });
+      setForm(r.data); toast.success("已儲存，頁尾二維碼已更新");
+    } catch { toast.error("儲存失敗"); }
+    setSaving(false);
+  };
+  const inp = "w-full h-11 rounded-xl bg-slate-800 border border-slate-700 px-4 text-sm text-white outline-none focus:border-orange-400";
+  return (
+    <div>
+      <SectionHeader title="網站設定 · 客服 WhatsApp" />
+      <div className="grid md:grid-cols-2 gap-6 max-w-4xl">
+        <div className="space-y-4">
+          <label className="block text-sm text-slate-300">WhatsApp 號碼（含國碼，選填）<input data-testid="settings-whatsapp-number" value={form.whatsapp_number || ""} onChange={(e) => setForm({ ...form, whatsapp_number: e.target.value })} placeholder="+85261234567" className={`${inp} mt-1`} /></label>
+          <label className="block text-sm text-slate-300">WhatsApp 連結（二維碼內容）<input data-testid="settings-whatsapp-link" value={form.whatsapp_link || ""} onChange={(e) => setForm({ ...form, whatsapp_link: e.target.value })} placeholder="https://wa.me/85261234567 或群組邀請連結" className={`${inp} mt-1`} /></label>
+          <label className="block text-sm text-slate-300">二維碼下方文字<input data-testid="settings-cs-label" value={form.cs_label || ""} onChange={(e) => setForm({ ...form, cs_label: e.target.value })} className={`${inp} mt-1`} /></label>
+          <button data-testid="settings-save" onClick={save} disabled={saving} className="h-11 px-8 rounded-full bg-orange-500 hover:bg-orange-600 text-white font-semibold disabled:opacity-60">儲存</button>
+        </div>
+        <div className="flex flex-col items-center justify-center bg-slate-800 rounded-2xl p-6">
+          <div className="bg-white rounded-xl p-2"><QRCodeSVG value={form.whatsapp_link || "https://wa.me/"} size={160} fgColor="#E8792A" /></div>
+          <div className="text-xs text-slate-400 mt-3">{form.cs_label}</div>
+          <div className="text-[11px] text-slate-500 mt-1 break-all text-center">{form.whatsapp_link}</div>
+        </div>
+      </div>
+    </div>
+  );
 }

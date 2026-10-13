@@ -1,4 +1,7 @@
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import { QRCodeSVG } from "qrcode.react";
+import { publicApi } from "@/lib/api";
 import { Star, Apple, CreditCard } from "lucide-react";
 
 const PAY_BADGES = [
@@ -39,6 +42,8 @@ const COLS = [
 ];
 
 export default function Footer() {
+  const [settings, setSettings] = useState({ whatsapp_link: "https://wa.me/", cs_label: "WhatsApp 掃碼聯繫客服" });
+  useEffect(() => { publicApi.get("/settings").then((r) => setSettings(r.data)).catch(() => {}); }, []);
   return (
     <footer className="mt-14 bg-gradient-to-b from-[#F0872E] to-[#E8792A] text-white">
       {/* Top: payments + follow */}
@@ -79,17 +84,17 @@ export default function Footer() {
           <div className="flex flex-col sm:flex-row gap-5 lg:justify-end">
             <div className="flex items-start gap-4 bg-white/10 rounded-2xl p-4">
               <div className="text-center shrink-0">
-                <div className="bg-white rounded-xl p-1.5">
-                  <img src="/wechat-qr.png" alt="客服 QR" className="h-24 w-24" />
-                </div>
-                <div className="text-[11px] text-white/80 mt-2">微信掃一掃關注公眾號</div>
+                <a href={settings.whatsapp_link} target="_blank" rel="noreferrer" data-testid="footer-whatsapp-qr" className="block bg-white rounded-xl p-1.5">
+                  <QRCodeSVG value={settings.whatsapp_link} size={96} fgColor="#E8792A" level="M" />
+                </a>
+                <div className="text-[11px] text-white/80 mt-2">{settings.cs_label}</div>
               </div>
               <div className="flex flex-col gap-3 pt-1">
                 <div className="flex items-center gap-2">
                   <span className="text-sm text-white/90">7*24 小時線上客服</span>
                   <Link to="/" data-testid="footer-cs-btn" className="text-xs font-bold bg-white text-[#E8792A] rounded-full px-3 py-1 hover:bg-orange-50">網路客服</Link>
                 </div>
-                <div className="text-sm text-white/90">微信 24 小時客服：<span className="font-semibold">CS-KA-CS</span></div>
+                <div className="text-sm text-white/90">WhatsApp 24 小時客服</div>
                 <div className="flex items-center gap-1.5">
                   <div className="flex">
                     {[0, 1, 2, 3, 4].map((i) => (

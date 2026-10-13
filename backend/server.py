@@ -449,6 +449,26 @@ async def product_daily_limit(product_id: str, member: dict = Depends(current_me
     return {"used_spec_ids": locked, "is_new_customer": not has_orders}
 
 
+# ----------------------------- Site settings -----------------------------
+DEFAULT_SETTINGS = {"whatsapp_number": "", "whatsapp_link": "https://wa.me/", "cs_label": "WhatsApp 掃碼聯繫客服"}
+
+
+@api_router.get("/settings")
+async def get_settings():
+    doc = await db.site_settings.find_one({"_id": "site"}, {"_id": 0}) or {}
+    out = {**DEFAULT_SETTINGS, **doc}
+    if out.get("whatsapp_number") and not doc.get("whatsapp_link"):
+        out["whatsapp_link"] = "https://wa.me/" + "".join(ch for ch in out["whatsapp_number"] if ch.isdigit())
+    return out
+
+
+@api_router.put("/admin/settings")
+async def put_settings(body: Dict[str, str], admin: dict = Depends(require_role("admin"))):
+    allowed = {k: v for k, v in body.items() if k in DEFAULT_SETTINGS}
+    await db.site_settings.update_one({"_id": "site"}, {"$set": allowed}, upsert=True)
+    return await get_settings()
+
+
 # ----------------------------- Member center -----------------------------
 class ProfileIn(BaseModel):
     name: str = ""
