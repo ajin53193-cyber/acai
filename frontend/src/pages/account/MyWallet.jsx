@@ -78,14 +78,32 @@ function TxDetailSheet({ t, onClose }) {
   ].filter(Boolean);
   return (
     <Sheet open onOpenChange={onClose}>
-      <SheetContent side="bottom" className="rounded-t-3xl bg-[#FFF4EA] border-0 px-5 pb-8 [background-image:radial-gradient(rgba(255,255,255,0.9)_1.5px,transparent_1.5px)] [background-size:18px_18px] sm:max-w-md sm:mx-auto" data-testid="tx-detail-sheet">
+      <SheetContent side="bottom" className="rounded-t-3xl bg-[#FFF4EA] border-0 px-5 pb-8 max-h-[88vh] overflow-y-auto [background-image:radial-gradient(rgba(255,255,255,0.9)_1.5px,transparent_1.5px)] [background-size:18px_18px] sm:max-w-md sm:mx-auto" data-testid="tx-detail-sheet">
         <SheetHeader><SheetTitle className="font-head text-slate-900 text-center">交易詳情</SheetTitle></SheetHeader>
         <div className="mt-3 flex flex-col items-center">
           <TxIcon kind={t.kind} credit={credit} />
           <div className={`mt-3 font-head text-3xl font-extrabold ${credit ? "text-emerald-600" : "text-slate-900"}`} data-testid="tx-detail-amount">{credit ? "+" : "-"}{format(Math.abs(t.amount_usd))}</div>
           <div className="text-xs text-slate-500 mt-1">{KIND_LABEL[t.kind] || t.note}</div>
         </div>
-        <div className="mt-5 bg-white rounded-2xl p-4 text-sm space-y-3 shadow-[0_6px_20px_-12px_rgba(232,121,42,0.35)]">
+        {t.order?.items?.length > 0 && (
+          <div className="mt-5 bg-white rounded-2xl p-3 shadow-[0_6px_20px_-12px_rgba(232,121,42,0.35)]" data-testid="tx-detail-items">
+            <div className="text-xs text-slate-400 px-1 mb-2">購買商品</div>
+            <div className="space-y-2">
+              {t.order.items.map((i, idx) => (
+                <div key={idx} className="flex items-center gap-3">
+                  <img src={i.image} alt="" className="h-11 w-11 rounded-xl object-cover bg-slate-100 shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm text-slate-800 truncate">{i.product_name}</div>
+                    <div className="text-xs text-slate-500 truncate">{i.spec_label}</div>
+                  </div>
+                  <div className="text-xs text-slate-500 shrink-0">x{i.quantity}</div>
+                </div>
+              ))}
+            </div>
+            <Link to="/orders" onClick={onClose} data-testid="tx-detail-view-order" className="mt-3 flex items-center justify-center h-9 rounded-full bg-orange-50 text-orange-500 text-xs font-semibold">查看訂單 ›</Link>
+          </div>
+        )}
+        <div className="mt-4 bg-white rounded-2xl p-4 text-sm space-y-3 shadow-[0_6px_20px_-12px_rgba(232,121,42,0.35)]">
           {rows.map(([k, v]) => (
             <div key={k} className="flex items-start justify-between gap-4"><span className="text-slate-400 shrink-0">{k}</span><span className="text-slate-800 text-right break-all">{v}</span></div>
           ))}
@@ -100,7 +118,8 @@ export function TxRow({ t }) {
   const [open, setOpen] = useState(false);
   const credit = t.amount_usd >= 0;
   const m = /^(.*?)\s+([A-Z]{2}\d{8,})$/.exec(t.note || "");
-  const title = m ? m[1] : t.note;
+  const items = t.order?.items || [];
+  const title = items.length ? `${items[0].product_name}${items[0].spec_label ? ` · ${items[0].spec_label}` : ""}${items.length > 1 ? ` 等${items.length}件` : ""}` : (m ? m[1] : t.note);
   const ref = m ? m[2] : "";
   return (
     <>
@@ -109,7 +128,7 @@ export function TxRow({ t }) {
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 min-w-0">
             <span className="text-slate-800 font-medium truncate">{title}</span>
-            <span className={`shrink-0 rounded-full px-1.5 py-px text-[10px] ${credit ? "bg-emerald-50 text-emerald-600" : "bg-orange-50 text-orange-500"}`}>{credit ? "入帳" : "支出"}</span>
+            <span className={`shrink-0 rounded-full px-1.5 py-px text-[10px] ${credit ? "bg-emerald-50 text-emerald-600" : "bg-orange-50 text-orange-500"}`}>{items.length ? "購買" : credit ? "入帳" : "支出"}</span>
           </div>
           <div className="text-[11px] text-slate-400 truncate mt-0.5">{t.created_at?.slice(0, 16).replace("T", " ")}{ref && <span className="ml-2 font-mono">{ref}</span>}</div>
         </div>

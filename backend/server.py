@@ -723,6 +723,14 @@ async def _wallet_tx(user_id: str, kind: str, amount_usd: float, note: str, ref:
 @api_router.get("/me/wallet")
 async def get_wallet(member: dict = Depends(current_member)):
     txs = await db.wallet_transactions.find({"user_id": member["user_id"]}, {"_id": 0}).sort("created_at", -1).to_list(100)
+    order_ids = [t["ref"] for t in txs if t.get("kind") == "payment" and t.get("ref")]
+    if order_ids:
+        orders = {o["id"]: o async for o in db.orders.find({"id": {"$in": order_ids}}, {"_id": 0, "id": 1, "order_no": 1, "status": 1, "items": 1})}
+        for t in txs:
+            o = orders.get(t.get("ref"))
+            if o:
+                t["order"] = {"id": o["id"], "order_no": o.get("order_no"), "status": o.get("status"),
+                              "items": [{"product_name": i.get("product_name"), "spec_label": i.get("spec_label"), "quantity": i.get("quantity"), "image": i.get("image")} for i in o.get("items", [])]}
     u = await db.users.find_one({"user_id": member["user_id"]}, {"_id": 0, "last_payment_method_id": 1}) or {}
     return {"balance_usd": await _wallet(member["user_id"]), "transactions": txs, "last_method_id": u.get("last_payment_method_id", "")}
 
