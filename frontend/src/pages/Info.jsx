@@ -1,7 +1,7 @@
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { ChevronRight } from "lucide-react";
 
-const CONTENT = {
+export const INFO_CONTENT = {
   about: {
     title: "公司介紹",
     body: [
@@ -104,7 +104,7 @@ const NAV = [
 export default function Info() {
   const { slug } = useParams();
   const navigate = useNavigate();
-  const data = CONTENT[slug] || CONTENT.about;
+  const data = INFO_CONTENT[slug] || INFO_CONTENT.about;
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">

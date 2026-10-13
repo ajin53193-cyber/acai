@@ -2,6 +2,7 @@ import { createContext, useContext, useState, useCallback } from "react";
 import { useSignIn, useSignUp } from "@clerk/react/legacy";
 import { Link } from "react-router-dom";
 import { X, Apple, Home, Gift } from "lucide-react";
+import { INFO_CONTENT } from "@/pages/Info";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { PhoneInput, toE164, isValidPhone } from "./PhoneInput";
@@ -31,6 +32,7 @@ function AuthModal({ open, onOpenChange }) {
   const { signIn, setActive: setSignInActive, isLoaded: siLoaded } = useSignIn();
   const { signUp, setActive: setSignUpActive, isLoaded: suLoaded } = useSignUp();
   const [tab, setTab] = useState("email");
+  const [doc, setDoc] = useState(null);
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [code, setCode] = useState("");
@@ -308,9 +310,9 @@ function AuthModal({ open, onOpenChange }) {
 
             <span>
               已閱讀並同意{" "}
-              <Link to="/info/terms" className="text-orange-600 hover:underline" onClick={close}>條款與條件</Link>{" "}
+              <button type="button" data-testid="auth-terms-link" className="text-orange-500 hover:underline" onClick={(e) => { e.preventDefault(); setDoc("terms"); }}>條款與條件</button>{" "}
               和{" "}
-              <Link to="/info/privacy" className="text-orange-600 hover:underline" onClick={close}>隱私權政策</Link>
+              <button type="button" data-testid="auth-privacy-link" className="text-orange-500 hover:underline" onClick={(e) => { e.preventDefault(); setDoc("privacy"); }}>隱私權政策</button>
             </span>
           </label>
 
@@ -363,7 +365,21 @@ function AuthModal({ open, onOpenChange }) {
           </div>
         </div>
         )}
-      </DialogContent>
+      {doc && (
+          <div data-testid="auth-doc-overlay" className="absolute inset-0 z-20 bg-black/40 flex items-end md:items-center justify-center p-0 md:p-6" onClick={() => setDoc(null)}>
+            <div data-testid="auth-doc-dialog" className="bg-white w-full md:max-w-md max-h-[80%] rounded-t-3xl md:rounded-3xl p-5 overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-base font-bold text-slate-900">{INFO_CONTENT[doc].title}</h3>
+                <button data-testid="auth-doc-close" onClick={() => setDoc(null)} className="h-8 w-8 rounded-full bg-orange-50 text-orange-500 flex items-center justify-center"><X className="h-4 w-4" /></button>
+              </div>
+              <div className="space-y-3 text-sm text-slate-600 leading-relaxed">
+                {INFO_CONTENT[doc].body.map((t, i) => <p key={i}>{t}</p>)}
+              </div>
+              <button data-testid="auth-doc-ok" onClick={() => { setAgree(true); setDoc(null); }} className="mt-5 w-full h-11 rounded-full bg-orange-500 text-white font-bold text-sm">我已閱讀並同意</button>
+            </div>
+          </div>
+        )}
+        </DialogContent>
     </Dialog>
   );
 }
