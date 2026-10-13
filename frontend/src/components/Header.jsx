@@ -58,16 +58,9 @@ export default function Header() {
   return (
     <header className="sticky top-0 z-40 w-full">
       {/* Top promo bar */}
-      <div className="bg-gradient-to-r from-[#F7A23B] via-[#FBBE6C] to-[#F7A23B] md:from-[#FFF4E8] md:via-[#FCD9B5] md:to-[#F7B57F]">
-        <a href="https://www.dbto.ai/zh-CN?-affi-100506" target="_blank" rel="noreferrer" data-testid="promo-experience-btn"
-          className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-10 flex items-center justify-center gap-2.5 text-[13px] sm:text-sm group">
-          <span className="h-5 w-5 rounded-full bg-white text-orange-500 text-[9px] font-black flex items-center justify-center shrink-0 shadow-sm">Ai</span>
-          <span className="font-semibold text-[#4a2a10] md:text-[#6B3A12] whitespace-nowrap">最強 AI 免費試用，價格超實惠</span>
-          <span className="bg-white group-hover:bg-orange-50 transition-colors rounded-full pl-3 pr-2 py-0.5 text-xs font-bold text-orange-600 flex items-center gap-0.5 shadow-sm">
-            立即體驗<ChevronRight className="h-3.5 w-3.5" />
-          </span>
-        </a>
-      </div>
+      <a href="https://www.dbto.ai/zh-CN?-affi-100506" target="_blank" rel="noreferrer" data-testid="promo-experience-btn" className="block bg-[#F7A23B]">
+        <img src="/banners/top-ai-promo.png" alt="最強 AI 免費試用，價格超實惠 立即體驗" className="w-full h-auto max-h-10 md:max-h-12 object-cover md:object-contain mx-auto block" />
+      </a>
 
       {/* Main header */}
       <div className="bg-white md:border-b border-orange-100 shadow-sm relative">
