@@ -166,8 +166,11 @@ export default function Home() {
       </div>
 
       {/* Feature band */}
-      <section className="mt-10 md:mt-14 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="text-center mb-6 md:mb-10">
+      <section className="mt-8 md:hidden px-4" data-testid="features-mobile-banner">
+        <img src="/banners/features-mobile.png" alt="gogo589 全球應用內購服務：正版安全、極速出貨、7x24 客服、天天折扣、全球發行" className="w-full h-auto rounded-2xl shadow-sm" />
+      </section>
+      <section className="hidden md:block mt-14 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="text-center mb-10">
           <img src="/gogo589-logo.png" alt="gogo589" className="h-8 md:h-12 w-auto object-contain mx-auto" />
           <div className="text-xs md:text-base tracking-[0.35em] text-slate-500 font-medium mt-2 pl-[0.35em]">全球應用內購服務</div>
         </div>
