@@ -148,7 +148,7 @@ export default function ProductDetail() {
                 const on = String(g.id) === String(product.id);
                 return (
                   <Link key={g.id} to={`/product/${g.id}`} data-testid={`group-tab-${g.id}`} aria-current={on ? "page" : undefined}
-                    className={`h-9 md:h-12 md:px-8 rounded-xl md:rounded-2xl flex items-center justify-center text-[13px] md:text-base font-medium transition-colors ${on ? "bg-white border-2 border-orange-400 text-orange-500" : "bg-white/80 text-slate-700 hover:bg-white"}`}>
+                    className={`h-9 md:h-12 md:px-8 rounded-xl md:rounded-2xl flex items-center justify-center text-[13px] md:text-base font-normal transition-colors ${on ? "bg-white border border-orange-400 text-orange-500" : "bg-white/80 text-slate-600 hover:bg-white"}`}>
                     {g.label}
                   </Link>
                 );
@@ -173,8 +173,8 @@ export default function ProductDetail() {
                     disabled={!s.in_stock}
                     onClick={() => setSpecId(s.id)}
                     title={locked ? "已達限購" : undefined}
-                    className={`relative min-h-11 py-1.5 md:py-0 md:h-14 md:min-w-[140px] px-2 md:px-6 rounded-lg md:rounded-xl text-[14px] md:text-sm font-medium transition-all leading-tight ${
-                      sel ? "border-2 border-orange-400 bg-orange-50/60 md:bg-orange-50 text-orange-600" : "border border-transparent bg-slate-100/80 md:bg-slate-100 text-slate-700 hover:bg-orange-50"
+                    className={`relative min-h-11 py-1.5 md:py-0 md:h-14 md:min-w-[140px] px-2 md:px-6 rounded-lg md:rounded-xl text-[14px] md:text-sm font-normal transition-all leading-tight ${
+                      sel ? "border border-orange-400 bg-orange-50/60 md:bg-orange-50 text-orange-500" : "border border-transparent bg-slate-100/80 md:bg-slate-100 text-slate-600 hover:bg-orange-50"
                     } ${!s.in_stock ? "opacity-40 cursor-not-allowed" : ""} ${locked ? "opacity-50" : ""}`}
                   >
                     {s.badge && (
