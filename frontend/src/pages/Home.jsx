@@ -67,11 +67,11 @@ export default function Home() {
       </div>
 
       {/* Announcement */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-3">
-        <Link to="/article" data-testid="home-announcement" className="flex items-center gap-3 bg-white/70 md:bg-orange-50 md:border md:border-orange-100 rounded-xl md:rounded-full pr-4 md:px-4 py-0 md:py-2 text-sm text-slate-700 md:text-orange-700 overflow-hidden">
-          <span className="h-12 w-12 md:h-auto md:w-auto bg-orange-100/80 md:bg-transparent flex items-center justify-center shrink-0"><Volume2 className="h-5 w-5 md:h-4 md:w-4 text-orange-500 md:text-orange-700" /></span>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-2.5 md:mt-3">
+        <Link to="/article" data-testid="home-announcement" className="flex items-center gap-3 bg-white/70 md:bg-orange-50 md:border md:border-orange-100 rounded-lg md:rounded-full pr-4 md:px-4 py-0 md:py-2 text-[13px] md:text-sm text-slate-700 md:text-orange-700 overflow-hidden">
+          <span className="h-9 w-10 md:h-auto md:w-auto bg-orange-100/80 md:bg-transparent flex items-center justify-center shrink-0"><Volume2 className="h-4 w-4 text-orange-500 md:text-orange-700" /></span>
           <span className="font-medium truncate"><span className="md:hidden">gogo589 用戶界面升級公告</span><span className="hidden md:inline">gogo589 介面升級公告：全新繁中介面上線，人工極速發貨，祝您購物愉快！</span></span>
-          <span className="h-5 w-5 rounded-full bg-orange-100 md:bg-transparent flex items-center justify-center shrink-0 md:ml-auto"><ChevronRight className="h-3.5 w-3.5 md:h-4 md:w-4 text-orange-500 md:text-orange-700" /></span>
+          <span className="h-4 w-4 rounded-full bg-orange-100 md:bg-transparent flex items-center justify-center shrink-0 md:ml-auto"><ChevronRight className="h-3 w-3 md:h-4 md:w-4 text-orange-500 md:text-orange-700" /></span>
         </Link>
       </div>
 

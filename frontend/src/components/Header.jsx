@@ -158,7 +158,7 @@ export default function Header() {
         </div>
 
         {/* Mobile search bar (always visible) */}
-        <div className="md:hidden px-4 pb-3 pt-3 bg-[#FFF3E8]">
+        <div className="md:hidden px-4 pb-2.5 pt-2.5 bg-[#FFF3E8]">
           <SearchBox compact />
         </div>
 
