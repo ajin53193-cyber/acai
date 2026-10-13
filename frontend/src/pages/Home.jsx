@@ -48,16 +48,16 @@ export default function Home() {
       {/* Hero banner */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4">
         <div className="relative overflow-hidden rounded-2xl sm:rounded-3xl bg-gradient-to-r from-orange-100 via-amber-50 to-orange-50 border border-orange-100">
-          <div className="relative z-10 px-4 sm:px-10 py-7 sm:py-12 max-w-[60%]">
-            <div className="text-xs sm:text-sm font-medium sm:font-semibold text-slate-500 sm:text-orange-500 mb-1.5 sm:mb-2">(UTC+8) 限時活動</div>
-            <h1 className="font-head text-[22px] sm:text-4xl lg:text-5xl font-extrabold text-orange-500 sm:text-orange-600 leading-tight whitespace-nowrap">低價氪金 戰力超神</h1>
-            <div className="font-head text-[19px] sm:text-3xl lg:text-4xl font-extrabold text-[#5a3a22] sm:text-slate-800 mt-1 sm:mt-2 whitespace-nowrap">
+          <div className="relative z-10 px-4 sm:px-10 py-4 sm:py-12 max-w-[60%]">
+            <div className="text-[11px] sm:text-sm font-medium sm:font-semibold text-slate-500 sm:text-orange-500 mb-1 sm:mb-2">(UTC+8) 限時活動</div>
+            <h1 className="font-head text-[20px] sm:text-4xl lg:text-5xl font-extrabold text-orange-500 sm:text-orange-600 leading-tight whitespace-nowrap">低價氪金 戰力超神</h1>
+            <div className="font-head text-[17px] sm:text-3xl lg:text-4xl font-extrabold text-[#5a3a22] sm:text-slate-800 mt-0.5 sm:mt-2 whitespace-nowrap">
               神券在手 下單省最高 <span className="text-orange-500">7%</span>
             </div>
-            <div className="flex flex-wrap gap-1.5 sm:gap-2 mt-4 sm:mt-6">
+            <div className="flex flex-nowrap sm:flex-wrap gap-1.5 sm:gap-2 mt-3 sm:mt-6 overflow-hidden">
               {[["手遊", "games"], ["端遊", "games"], ["點卡官方速充", "pointcard"]].map(([label, cid]) => (
                 <Link key={label} to={`/category/${cid}`} data-testid={`hero-pill-${cid}-${label}`}
-                  className="bg-white/90 hover:bg-white text-[#5a3a22] sm:text-orange-600 font-medium sm:font-semibold text-xs sm:text-sm rounded-full px-3.5 sm:px-5 py-1 sm:py-2 sm:border sm:border-orange-200 transition-colors">{label}</Link>
+                  className="bg-white/90 hover:bg-white text-[#5a3a22] sm:text-orange-600 font-medium sm:font-semibold text-[11px] sm:text-sm rounded-full px-3 sm:px-5 py-0.5 sm:py-2 sm:border sm:border-orange-200 whitespace-nowrap transition-colors">{label}</Link>
               ))}
             </div>
           </div>
