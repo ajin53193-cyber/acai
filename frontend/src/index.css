@@ -8,6 +8,9 @@
     --font-mono: "JetBrains Mono", monospace;
 }
 
+html, body {
+    background-color: #FFF4EA;
+}
 body {
     margin: 0;
     font-family: var(--font-body);
