@@ -56,11 +56,11 @@ export default function Header() {
   return (
     <header className="sticky top-0 z-40 w-full">
       {/* Top promo bar */}
-      <div className="bg-gradient-to-r from-[#FFF4E8] via-[#FCD9B5] to-[#F7B57F]">
+      <div className="bg-[#F7A23B] md:bg-gradient-to-r md:from-[#FFF4E8] md:via-[#FCD9B5] md:to-[#F7B57F]">
         <a href="https://www.dbto.ai/zh-CN?-affi-100506" target="_blank" rel="noreferrer" data-testid="promo-experience-btn"
-          className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-10 flex items-center justify-center gap-2.5 text-xs sm:text-sm group">
+          className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-10 flex items-center justify-center gap-2.5 text-[13px] sm:text-sm group">
           <span className="h-5 w-5 rounded-full bg-slate-900 text-white text-[9px] font-black flex items-center justify-center shrink-0 ring-2 ring-white/70">AI</span>
-          <span className="font-semibold text-[#6B3A12]">最強 AI 免費試用，價格超實惠</span>
+          <span className="font-semibold text-white md:text-[#6B3A12] whitespace-nowrap">最強 AI 免費試用，價格超實惠</span>
           <span className="bg-white group-hover:bg-orange-50 transition-colors rounded-full pl-3 pr-2 py-0.5 text-xs font-bold text-orange-600 flex items-center gap-0.5 shadow-sm">
             立即體驗<ChevronRight className="h-3.5 w-3.5" />
           </span>
@@ -70,6 +70,10 @@ export default function Header() {
       {/* Main header */}
       <div className="bg-white border-b border-orange-100 shadow-sm relative">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 md:h-[72px] flex items-center gap-3 md:gap-5">
+          {/* Mobile hamburger */}
+          <button data-testid="mobile-nav-toggle" onClick={() => setMobileNav((v) => !v)} className="md:hidden -ml-1 p-1.5 rounded-lg text-orange-500">
+            {mobileNav ? <X className="h-7 w-7" /> : <Menu className="h-7 w-7" strokeWidth={2.5} />}
+          </button>
           {/* Logo */}
           <Link to="/" data-testid="logo-link" className="flex flex-col items-start shrink-0 leading-none">
             <img src="/gogo589-logo.png" alt="gogo589" className="h-8 md:h-9 w-auto object-contain" />
@@ -119,42 +123,43 @@ export default function Header() {
               <button
                 data-testid="header-signin-btn"
                 onClick={openAuth}
-                className="flex items-center gap-1.5 h-10 pl-3 pr-5 rounded-full text-sm font-semibold text-orange-500 bg-orange-100/70 hover:bg-orange-100 transition-colors"
+                className="flex items-center gap-1.5 h-10 w-10 md:w-auto justify-center md:pl-3 md:pr-5 rounded-full text-sm font-semibold text-orange-500 bg-orange-100/70 hover:bg-orange-100 transition-colors"
               >
-                <UserRound className="h-5 w-5" /> <span className="hidden sm:inline">登入</span>
+                <UserRound className="h-5 w-5" /> <span className="hidden md:inline">登入</span>
               </button>
             ) : (
               <>
-              <button data-testid="header-wallet-btn" onClick={() => navigate("/account/wallet")} title="我的錢包" className="flex items-center gap-1.5 h-11 px-4 rounded-full bg-orange-100/70 hover:bg-orange-100 text-orange-500 text-sm font-medium transition-colors">
+              <button data-testid="header-wallet-btn" onClick={() => navigate("/account/wallet")} title="我的錢包" className="hidden md:flex items-center gap-1.5 h-11 px-4 rounded-full bg-orange-100/70 hover:bg-orange-100 text-orange-500 text-sm font-medium transition-colors">
                 <Wallet className="h-4 w-4" /><span className="hidden md:inline">我的錢包</span>
               </button>
-              <button data-testid="header-account-btn" onClick={() => navigate("/account")} className="flex items-center gap-2 h-11 pl-1.5 pr-4 rounded-full bg-orange-100/70 hover:bg-orange-100 transition-colors max-w-[260px]">
-                <span className="h-8 w-8 rounded-full bg-white flex items-center justify-center shrink-0"><UserRound className="h-4 w-4 text-orange-500" /></span>
-                <span className="hidden sm:block text-sm text-orange-500 truncate" data-testid="header-account-label">{accountLabel}</span>
+              <button data-testid="header-account-btn" onClick={() => navigate("/account")} className="flex items-center gap-2 h-10 w-10 md:h-11 md:w-auto justify-center md:justify-start md:pl-1.5 md:pr-4 rounded-full bg-orange-100/70 hover:bg-orange-100 text-orange-500 transition-colors max-w-[260px]">
+                <span className="h-8 w-8 rounded-full md:bg-white flex items-center justify-center shrink-0"><UserRound className="h-5 w-5 md:h-4 md:w-4 text-orange-500" /></span>
+                <span className="hidden md:block text-sm text-orange-500 truncate" data-testid="header-account-label">{accountLabel}</span>
               </button>
               </>
             )}
 
-            <button data-testid="cart-trigger" onClick={() => setOpen(true)} className="relative h-10 w-10 rounded-full bg-orange-100/70 hover:bg-orange-100 text-orange-500 flex items-center justify-center transition-colors">
+            <button data-testid="cart-trigger" onClick={() => setOpen(true)} className="relative hidden md:flex h-10 w-10 rounded-full bg-orange-100/70 hover:bg-orange-100 text-orange-500 items-center justify-center transition-colors">
               <ShoppingCart className="h-5 w-5" />
               {count > 0 && (
                 <span data-testid="cart-count" className="absolute -top-0.5 -right-0.5 h-4 min-w-4 px-1 rounded-full bg-orange-500 text-white text-[10px] font-bold flex items-center justify-center">{count}</span>
               )}
             </button>
 
-            <button data-testid="service-trigger" onClick={openService} className="hidden sm:flex h-10 w-10 rounded-full bg-orange-100/70 hover:bg-orange-100 text-orange-500 items-center justify-center transition-colors" title="線上客服">
+            <button data-testid="service-trigger" onClick={openService} className="flex h-10 w-10 rounded-full bg-orange-100/70 hover:bg-orange-100 text-orange-500 items-center justify-center transition-colors" title="線上客服">
               <Headphones className="h-5 w-5" />
             </button>
 
-            <div className="hidden md:flex items-center gap-2 pl-2 ml-1 border-l border-slate-200">
+            <div className="flex items-center gap-2 md:pl-2 md:ml-1 md:border-l border-slate-200">
               <CurrencySelector variant="circle" />
-              <span className="text-sm text-slate-500 font-medium whitespace-nowrap">ZH-TW / {active.code}</span>
+              <span className="hidden md:inline text-sm text-slate-500 font-medium whitespace-nowrap">ZH-TW / {active.code}</span>
             </div>
-
-            <button data-testid="mobile-nav-toggle" onClick={() => setMobileNav((v) => !v)} className="md:hidden p-2 rounded-lg hover:bg-orange-50 text-slate-700">
-              {mobileNav ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-            </button>
           </div>
+        </div>
+
+        {/* Mobile search bar (always visible) */}
+        <div className="md:hidden px-4 pb-3 pt-1 bg-[#FFF8F1]">
+          <SearchBox compact />
         </div>
 
         {/* 所有服務 mega menu */}
@@ -190,7 +195,6 @@ export default function Header() {
         {/* Mobile search + nav */}
         {mobileNav && (
           <div className="md:hidden border-t border-orange-100 bg-white px-4 py-3 space-y-3">
-            <SearchBox compact />
             <div className="grid grid-cols-2 gap-2">
               {categories.map((c) => (
                 <button key={c.id} onClick={() => { navigate(`/category/${c.id}`); setMobileNav(false); }} className="flex items-center gap-2 text-sm text-slate-700 bg-orange-50 rounded-lg px-3 py-2">

@@ -66,7 +66,10 @@
 - 2026-06-13：**我的帳戶**：移除「刪除帳號」；「綁定手機號」改為真正的 Clerk 綁定流程 `BindPhoneDialog.jsx`（國碼選擇 → `user.createPhoneNumber` → `prepareVerification` → 輸入簡訊驗證碼 `attemptVerification` → 設為主要號碼 `user.update({primaryPhoneNumberId})`，已綁定顯示號碼 + 更換）；標籤欄寬統一（w-20、不換行），提示文字縮小為灰色小字。
   - ⚠️ **阻塞**：目前 Clerk 開發實例（brave-opossum-8609）`phone_number` 屬性為 **停用**（`/v1/environment` 回 enabled=false），`createPhoneNumber` 回 `phone_number is not a valid parameter`。需到 Clerk Dashboard → User & Authentication → Email, phone, username → 啟用 Phone number（驗證方式 SMS code、允許登入）。前端已將此錯誤轉為中文提示。登入視窗的「手機登入」分頁同受此設定影響。測試號碼：+1 201 555 01xx，驗證碼 424242。
 
+- 2026-06-13：**手機版首頁依 Kavip 截圖重做**（<768px）：頂欄橘底白字 AI 公告（連 dbto.ai）；頁首 ☰ / Logo / 右側三圓鈕（會員、客服、幣別），購物車與錢包鈕僅桌機顯示；搜尋列白色圓角常駐於頁首下方；Hero 字級縮小；公告列（喇叭圖示塊 + 文字 + ›）；標題「快捷下單/熱門產品/熱門分類」加橘色底線高亮（`MTitle`，`max-md:after`）；輪播 2.85 卡露出、隱藏箭頭；熱門產品「折扣」角標；活動橫幅兩欄；熱門分類每頁 4×2（`useIsMobile` → perPage 8）、圖示放大、橘色分頁點；底部固定「新用戶註冊最高領 9%優惠券｜立即註冊」深棕列（未登入）；浮動「回頂部」+ 客服白色圓鈕；頁尾手機版：純橘底、支付 Logo 橫向捲動、三欄連結、關注我們、客服方塊（QR + 在線客服）、Trustpilot 置中、版權置中。頁首頂欄桌機維持桃色漸層。
+
 ## 待辦（優先序）
+- P1：手機版其餘頁面（分類、商品詳情、結帳、會員中心）依用戶截圖逐頁調整。
 - P1：訂單狀態郵件/站內通知（用戶暫緩）。
 - P0：testing_agent 跑後台訂單狀態流轉 + 回歸（前台 E2E 已由主代理手測通過）。
 - P1：結帳頁多幣別匯率計算驗證。

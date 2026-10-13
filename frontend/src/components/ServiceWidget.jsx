@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { Headphones, X, MessageCircle, Clock, HelpCircle, ChevronRight } from "lucide-react";
+import { Headphones, X, MessageCircle, Clock, HelpCircle, ChevronRight, ArrowUpToLine } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import { publicApi } from "@/lib/api";
 
@@ -16,11 +16,14 @@ const FAQ = [
 export default function ServiceWidget() {
   const [open, setOpen] = useState(false);
   const [settings, setSettings] = useState({ whatsapp_link: "https://wa.me/", cs_label: "WhatsApp 掃碼聯繫客服" });
+  const [showTop, setShowTop] = useState(false);
   useEffect(() => {
     const on = () => setOpen(true);
+    const onScroll = () => setShowTop(window.scrollY > 400);
     window.addEventListener("open-service", on);
+    window.addEventListener("scroll", onScroll, { passive: true });
     publicApi.get("/settings").then((r) => setSettings(r.data)).catch(() => {});
-    return () => window.removeEventListener("open-service", on);
+    return () => { window.removeEventListener("open-service", on); window.removeEventListener("scroll", onScroll); };
   }, []);
   return (
     <>
@@ -57,10 +60,16 @@ export default function ServiceWidget() {
           </div>
         </>
       )}
+      {showTop && (
+        <button data-testid="back-to-top" onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+          className="fixed bottom-[9.5rem] right-4 md:bottom-24 md:right-6 z-50 h-14 w-14 rounded-full bg-white/90 shadow-xl flex items-center justify-center text-orange-500 hover:bg-white">
+          <ArrowUpToLine className="h-6 w-6" strokeWidth={2.5} />
+        </button>
+      )}
       <button
         data-testid="service-widget-trigger"
         onClick={() => setOpen((v) => !v)}
-        className="fixed bottom-20 right-4 md:bottom-6 md:right-6 z-50 h-14 w-14 rounded-full bg-gradient-to-br from-[#F0872E] to-[#E8792A] text-white shadow-xl flex items-center justify-center hover:scale-105 transition-transform"
+        className="fixed bottom-20 right-4 md:bottom-6 md:right-6 z-50 h-14 w-14 rounded-full bg-white/90 md:bg-gradient-to-br md:from-[#F0872E] md:to-[#E8792A] text-orange-500 md:text-white shadow-xl flex items-center justify-center hover:scale-105 transition-transform"
       >
         {open ? <X className="h-6 w-6" /> : <Headphones className="h-6 w-6" />}
       </button>

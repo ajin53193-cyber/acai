@@ -50,16 +50,16 @@ export default function Footer() {
     publicApi.get("/payment-logos").then((r) => setLogos(r.data)).catch(() => setLogos([]));
   }, []);
   return (
-    <footer className="mt-14 bg-gradient-to-b from-[#F0872E] to-[#E8792A] text-white">
+    <footer className="mt-10 md:mt-14 bg-[#F0872E] md:bg-gradient-to-b md:from-[#F0872E] md:to-[#E8792A] text-white">
       {/* Top: payments + follow */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-7">
-        <div className="flex flex-wrap items-center gap-2.5">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5 md:py-7">
+        <div className="flex md:flex-wrap items-center gap-2.5 overflow-x-auto no-scrollbar">
           {logos && logos.length > 0 ? logos.map((l) => (
-            <span key={l.id} data-testid={`pay-logo-${l.id}`} title={l.name} className="bg-white rounded-md h-9 min-w-[48px] px-2 flex items-center justify-center shadow-sm">
+            <span key={l.id} data-testid={`pay-logo-${l.id}`} title={l.name} className="bg-white rounded-md h-9 min-w-[48px] px-2 flex items-center justify-center shadow-sm shrink-0">
               <img src={l.image} alt={l.name} className="h-6 max-w-[96px] object-contain" />
             </span>
           )) : PAY_BADGES.map((b, i) => (
-            <span key={i} data-testid={`pay-badge-${i}`} className="bg-white rounded-md h-9 min-w-[48px] px-3 flex items-center justify-center shadow-sm">
+            <span key={i} data-testid={`pay-badge-${i}`} className="bg-white rounded-md h-9 min-w-[48px] px-3 flex items-center justify-center shadow-sm shrink-0">
               {b}
             </span>
           ))}
@@ -70,13 +70,13 @@ export default function Footer() {
       <div className="border-t border-white/15" />
 
       {/* Middle: links + service */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
-          <div className="grid grid-cols-3 gap-6">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-10">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 md:gap-10">
+          <div className="grid grid-cols-3 gap-4 md:gap-6 px-2 md:px-0">
             {COLS.map(([title, links]) => (
               <div key={title}>
-                <h4 className="font-bold text-sm mb-4">{title}</h4>
-                <ul className="space-y-2.5 text-[13px] text-white/85">
+                <h4 className="font-bold text-base md:text-sm mb-4">{title}</h4>
+                <ul className="space-y-3 md:space-y-2.5 text-[15px] md:text-[13px] text-white/90 md:text-white/85">
                   {links.map(([label, to, hot]) => (
                     <li key={label}>
                       <Link to={to} className="hover:text-white inline-flex items-center gap-1.5 transition-colors">
@@ -90,21 +90,28 @@ export default function Footer() {
             ))}
           </div>
 
-          <div className="flex flex-col sm:flex-row gap-5 lg:justify-end">
-            <div className="flex items-start gap-4 bg-white/10 rounded-2xl p-4">
-              <div className="text-center shrink-0">
+          <div className="flex flex-col gap-5 lg:justify-end lg:flex-row">
+            <div className="md:hidden flex items-center justify-between px-2">
+              <h4 className="font-bold text-base">關注我們</h4>
+              <div className="flex items-center gap-2">
+                <span className="h-9 w-9 rounded-full bg-black text-white text-[10px] font-black flex items-center justify-center">TT</span>
+                <span className="h-9 w-9 rounded-full bg-[#ff2442] text-white text-[9px] font-black flex items-center justify-center">小紅書</span>
+              </div>
+            </div>
+            <div className="flex items-center md:items-start gap-4 bg-white/10 rounded-2xl p-4">
+              <div className="text-center shrink-0 md:border-r-0 border-r border-white/25 pr-4 md:pr-0">
                 <a href={settings.whatsapp_link} target="_blank" rel="noreferrer" data-testid="footer-whatsapp-qr" className="block bg-white rounded-xl p-1.5">
                   <QRCodeSVG value={settings.whatsapp_link} size={96} fgColor="#E8792A" level="M" />
                 </a>
-                <div className="text-[11px] text-white/80 mt-2">{settings.cs_label}</div>
+                <div className="text-[12px] md:text-[11px] text-white/85 md:text-white/80 mt-2 max-w-[120px] mx-auto leading-snug">{settings.cs_label}</div>
               </div>
               <div className="flex flex-col gap-3 pt-1">
                 <div className="flex items-center gap-2">
                   <span className="text-sm text-white/90">7*24 小時線上客服</span>
-                  <button type="button" onClick={openService} data-testid="footer-cs-btn" className="text-xs font-bold bg-white text-[#E8792A] rounded-full px-3 py-1 hover:bg-orange-50">網路客服</button>
+                  <button type="button" onClick={openService} data-testid="footer-cs-btn" className="text-xs font-bold bg-white/25 md:bg-white text-white md:text-[#E8792A] rounded-full px-3 py-1 whitespace-nowrap hover:bg-orange-50 hover:text-[#E8792A]">在線客服</button>
                 </div>
                 <div className="text-sm text-white/90">WhatsApp 24 小時客服</div>
-                <div className="flex items-center gap-1.5">
+                <div className="hidden md:flex items-center gap-1.5">
                   <div className="flex">
                     {[0, 1, 2, 3, 4].map((i) => (
                       <span key={i} className="h-6 w-6 bg-white/20 flex items-center justify-center first:rounded-l last:rounded-r">
@@ -120,14 +127,20 @@ export default function Footer() {
         </div>
       </div>
 
+      {/* Mobile Trustpilot */}
+      <div className="md:hidden flex items-center justify-center gap-2 pb-6">
+        <div className="flex gap-0.5">{[0, 1, 2, 3, 4].map((i) => <span key={i} className={`h-7 w-7 flex items-center justify-center rounded-sm ${i < 4 ? "bg-white/30" : "bg-white/15"}`}><Star className="h-4 w-4 fill-white text-white" /></span>)}</div>
+        <span className="flex items-center gap-1 text-base font-semibold ml-1"><Star className="h-4 w-4 fill-white text-white" />Trustpilot</span>
+      </div>
+
       {/* Bottom bar */}
-      <div className="bg-black/10">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5 flex flex-col md:flex-row md:items-center justify-between gap-3">
-          <div className="flex items-center gap-4">
-            <img src="/gogo589-logo.png" alt="gogo589" className="h-6 w-auto opacity-80" style={{ filter: "brightness(0) invert(1)" }} />
-            <span className="text-[11px] text-white/70">© 2015-2026 gogo589.com 版權所有，並保留所有權利</span>
+      <div className="bg-black/10 md:bg-black/10 max-md:bg-transparent">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5 flex flex-col md:flex-row md:items-center justify-between gap-3 text-center md:text-left">
+          <div className="flex items-center justify-center md:justify-start gap-4">
+            <img src="/gogo589-logo.png" alt="gogo589" className="hidden md:block h-6 w-auto opacity-80" style={{ filter: "brightness(0) invert(1)" }} />
+            <span className="text-[13px] md:text-[11px] text-white/70">© 2015-2026 gogo589.com 版權所有，並保留所有權利</span>
           </div>
-          <div className="text-[11px] text-white/55 md:text-right leading-relaxed">
+          <div className="text-[12px] md:text-[11px] text-white/55 md:text-right leading-relaxed">
             <div>Element colors Electronic Entertainment Limited · 本站為示範項目，支付為測試模式</div>
             <div>Address: 19H MAXGRAND PLAZA NO. 3 TAI YAU STREET SAN PO KONG KL, Hong Kong</div>
           </div>

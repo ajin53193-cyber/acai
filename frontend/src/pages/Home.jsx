@@ -1,7 +1,9 @@
 import React, { useEffect, useState, useRef } from "react";
 import { Link } from "react-router-dom";
-import { ChevronRight, ChevronLeft, Zap, Megaphone, ShieldCheck, Rocket, Headphones, Tag, Globe, Star, Users, Gift, Percent } from "lucide-react";
+import { ChevronRight, ChevronLeft, Zap, Megaphone, ShieldCheck, Rocket, Headphones, Tag, Globe, Star, Users, Gift, Percent, Volume2 } from "lucide-react";
+import { useUser } from "@clerk/react";
 import { publicApi } from "@/lib/api";
+import { useAuthModal } from "@/components/auth/AuthModal";
 
 import { NEWS } from "@/lib/news";
 import { ArticleCard } from "@/pages/ArticleCenter";
@@ -21,6 +23,9 @@ function salesText(n) {
 export default function Home() {
   const [categories, setCategories] = useState([]);
   const [home, setHome] = useState({});
+  const isMobile = useIsMobile();
+  const { isSignedIn } = useUser();
+  const { openAuth } = useAuthModal();
 
   useEffect(() => {
     publicApi.get("/categories").then((r) => setCategories(r.data)).catch(() => {});
@@ -32,20 +37,27 @@ export default function Home() {
   const byCat = (cid) => home.by_category?.[cid] || [];
 
   return (
-    <div className="pb-0">
+    <div className={isSignedIn ? "pb-0" : "pb-16 md:pb-0"}>
+      {!isSignedIn && (
+        <div data-testid="mobile-register-bar" className="md:hidden fixed inset-x-0 bottom-0 z-40 bg-[#5a3a22]/90 backdrop-blur-sm text-white px-4 h-14 flex items-center gap-3">
+          <Gift className="h-6 w-6 text-orange-300 shrink-0" />
+          <span className="text-sm font-medium truncate">新用戶註冊最高領 <span className="text-lg font-bold">9%</span>優惠券</span>
+          <button data-testid="mobile-register-btn" onClick={openAuth} className="ml-auto shrink-0 h-9 px-5 rounded-full bg-orange-500 text-white text-sm font-bold">立即註冊</button>
+        </div>
+      )}
       {/* Hero banner */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4">
-        <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-orange-100 via-amber-50 to-orange-50 border border-orange-100">
-          <div className="relative z-10 px-6 sm:px-10 py-8 sm:py-12 max-w-[60%]">
-            <div className="text-sm font-semibold text-orange-500 mb-2">(UTC+8) 限時活動</div>
-            <h1 className="font-head text-3xl sm:text-4xl lg:text-5xl font-extrabold text-orange-600 leading-tight">低價氪金 戰力超神</h1>
-            <div className="font-head text-2xl sm:text-3xl lg:text-4xl font-extrabold text-slate-800 mt-2">
+        <div className="relative overflow-hidden rounded-2xl sm:rounded-3xl bg-gradient-to-r from-orange-100 via-amber-50 to-orange-50 border border-orange-100">
+          <div className="relative z-10 px-4 sm:px-10 py-6 sm:py-12 max-w-[60%]">
+            <div className="text-[11px] sm:text-sm font-semibold text-orange-500 mb-1.5 sm:mb-2">(UTC+8) 限時活動</div>
+            <h1 className="font-head text-xl sm:text-4xl lg:text-5xl font-extrabold text-orange-600 leading-tight">低價氪金 戰力超神</h1>
+            <div className="font-head text-base sm:text-3xl lg:text-4xl font-extrabold text-slate-800 mt-1 sm:mt-2">
               神券在手 下單省最高 <span className="text-orange-500">7%</span>
             </div>
-            <div className="flex flex-wrap gap-2 mt-6">
+            <div className="flex flex-wrap gap-1.5 sm:gap-2 mt-4 sm:mt-6">
               {[["手遊", "games"], ["端遊", "games"], ["點卡官方速充", "pointcard"]].map(([label, cid]) => (
                 <Link key={label} to={`/category/${cid}`} data-testid={`hero-pill-${cid}-${label}`}
-                  className="bg-white/80 hover:bg-white text-orange-600 font-semibold text-sm rounded-full px-5 py-2 border border-orange-200 transition-colors">{label}</Link>
+                  className="bg-white/80 hover:bg-white text-orange-600 font-semibold text-[11px] sm:text-sm rounded-full px-3 sm:px-5 py-1 sm:py-2 border border-orange-200 transition-colors">{label}</Link>
               ))}
             </div>
           </div>
@@ -56,19 +68,19 @@ export default function Home() {
 
       {/* Announcement */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-3">
-        <div className="flex items-center gap-2 bg-orange-50 border border-orange-100 rounded-full px-4 py-2 text-xs sm:text-sm text-orange-700">
-          <Megaphone className="h-4 w-4 shrink-0" />
-          <span className="font-medium">GlobalTopUp 介面升級公告：全新繁中介面上線，人工極速發貨，祝您購物愉快！</span>
-          <ChevronRight className="h-4 w-4 ml-auto" />
-        </div>
+        <Link to="/article" data-testid="home-announcement" className="flex items-center gap-3 bg-white/70 md:bg-orange-50 md:border md:border-orange-100 rounded-xl md:rounded-full pr-4 md:px-4 py-0 md:py-2 text-sm text-slate-700 md:text-orange-700 overflow-hidden">
+          <span className="h-12 w-12 md:h-auto md:w-auto bg-orange-100/80 md:bg-transparent flex items-center justify-center shrink-0"><Volume2 className="h-5 w-5 md:h-4 md:w-4 text-orange-500 md:text-orange-700" /></span>
+          <span className="font-medium truncate"><span className="md:hidden">gogo589 用戶界面升級公告</span><span className="hidden md:inline">gogo589 介面升級公告：全新繁中介面上線，人工極速發貨，祝您購物愉快！</span></span>
+          <span className="h-5 w-5 rounded-full bg-orange-100 md:bg-transparent flex items-center justify-center shrink-0 md:ml-auto"><ChevronRight className="h-3.5 w-3.5 md:h-4 md:w-4 text-orange-500 md:text-orange-700" /></span>
+        </Link>
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Quick order */}
         <section className="mt-5">
           <div className="flex items-center gap-2 mb-3">
-            <Zap className="h-5 w-5 text-secondary" />
-            <h2 className="font-head text-lg font-bold text-slate-900">快速下單</h2>
+            <Zap className="hidden md:block h-5 w-5 text-secondary" />
+            <MTitle>快捷下單</MTitle>
           </div>
           <Carousel testid="quick-carousel">
             {quick.map((p) => (
@@ -76,7 +88,6 @@ export default function Home() {
                 className="group shrink-0 bg-white rounded-2xl border border-slate-100 shadow-sm p-3 flex flex-col items-center text-center hover:shadow-md transition-all">
                 <div className="relative w-[64%] aspect-square rounded-2xl overflow-hidden bg-white">
                   <img src={p.image} alt={p.name} className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-300" />
-                  {p.tags?.includes("熱銷") && <span className="absolute top-1.5 left-1.5 text-[10px] font-bold rounded-md px-1.5 py-0.5 bg-red-500 text-white z-10">熱銷</span>}
                 </div>
                 <h3 className="font-semibold text-[13px] leading-normal text-slate-800 truncate mt-3 w-full group-hover:text-orange-600">{p.name}</h3>
                 <span className="mt-3 text-xs font-bold text-orange-600 bg-orange-100 group-hover:bg-orange-500 group-hover:text-white rounded-full px-5 py-1.5 transition-colors">立即購買</span>
@@ -87,14 +98,14 @@ export default function Home() {
 
         {/* Hot products */}
         <section className="mt-8">
-          <SectionTitle title="熱門商品" to="/category/livestream" />
+          <SectionTitle title="熱門產品" to="/category/livestream" />
           <Carousel testid="hot-carousel">
             {hot.slice(0, 16).map((p) => (
               <Link key={p.id} to={`/product/${p.id}`} data-testid={`product-card-${p.id}`}
-                className="group shrink-0 w-[150px] sm:w-[180px] bg-white rounded-2xl border border-slate-100 shadow-sm p-3 hover:shadow-md hover:-translate-y-0.5 transition-all">
+                className="group relative shrink-0 w-[150px] sm:w-[180px] bg-white rounded-2xl border border-slate-100 shadow-sm p-3 hover:shadow-md hover:-translate-y-0.5 transition-all">
+                {p.tags?.includes("熱銷") && <span className="absolute top-0 right-3 text-[10px] font-bold rounded-b-md px-2 py-0.5 bg-orange-400 text-white whitespace-nowrap">折扣</span>}
                 <div className="relative w-[64%] mx-auto aspect-square rounded-2xl overflow-hidden bg-white">
                   <img src={p.image} alt={p.name} className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-300" />
-                  {p.tags?.includes("熱銷") && <span className="absolute top-1.5 left-1.5 text-[10px] font-bold rounded-md px-1.5 py-0.5 bg-red-500 text-white">熱銷</span>}
                 </div>
                 <h3 className="font-semibold text-[13px] leading-normal text-slate-800 truncate mt-2.5 text-center w-full group-hover:text-orange-600">{p.name}</h3>
                 <div className="flex items-center justify-between mt-2 text-[11px]">
@@ -107,7 +118,7 @@ export default function Home() {
         </section>
 
         {/* Promo banners */}
-        <section className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-4">
+        <section className="mt-6 md:mt-8 grid grid-cols-2 gap-3 md:gap-4">
           <Link to="/sign-up" data-testid="promo-banner-1" className="block overflow-hidden rounded-2xl hover:shadow-lg transition-shadow">
             <img src="https://customer-assets-39nsmqrw.emergentagent.net/job_crossborder-topup/artifacts/b55a2354a230f99b_image.png" alt="新版上線有禮 5% OFF" className="w-full h-auto object-cover" />
           </Link>
@@ -117,9 +128,9 @@ export default function Home() {
         </section>
 
         {/* Hot categories: 6 categories, each a 2-page swipeable 5x2 grid */}
-        <section className="mt-10">
+        <section className="mt-8 md:mt-10">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="font-head text-xl font-bold text-slate-900">熱門分類</h2>
+            <MTitle>熱門分類</MTitle>
             <Link to="/category/livestream" data-testid="all-categories-link" className="text-xs font-semibold text-orange-600 bg-orange-50 border border-orange-100 rounded-full px-4 py-1.5 hover:bg-orange-100">全部分類</Link>
           </div>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
@@ -127,15 +138,15 @@ export default function Home() {
               const items = byCat(c.id).slice(0, 20);
               if (items.length === 0) return null;
               return (
-                <div key={c.id} data-testid={`cat-panel-${c.id}`} className="bg-white rounded-2xl border border-orange-100 shadow-sm p-4 sm:p-5">
-                  <div className="flex items-center justify-between mb-5">
+                <div key={c.id} data-testid={`cat-panel-${c.id}`} className="bg-white rounded-2xl md:border md:border-orange-100 shadow-sm p-4 sm:p-5">
+                  <div className="flex items-center justify-between mb-4 md:mb-5">
                     <div className="flex items-center gap-2">
                       <span className="h-5 w-1.5 rounded-full bg-gradient-to-b from-orange-400 to-amber-500" />
                       <h3 className="font-bold text-lg text-slate-900">{c.name}</h3>
                     </div>
-                    <Link to={`/category/${c.id}`} className="flex items-center gap-0.5 text-xs text-slate-400 hover:text-orange-500">查看更多 <ChevronRight className="h-3.5 w-3.5" /></Link>
+                    <Link to={`/category/${c.id}`} className="flex items-center gap-0.5 text-sm md:text-xs text-orange-500 md:text-slate-400 hover:text-orange-500">查看更多 <ChevronRight className="h-4 w-4 md:h-3.5 md:w-3.5" /></Link>
                   </div>
-                  <PagedGrid items={items} perPage={10} testid={`cat-paged-${c.id}`} />
+                  <PagedGrid items={items} perPage={isMobile ? 8 : 10} testid={`cat-paged-${c.id}`} />
                 </div>
               );
             })}
@@ -145,7 +156,7 @@ export default function Home() {
         {/* News & promo */}
         <section className="mt-10">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="font-head text-xl font-bold text-slate-900">新聞 & 促銷</h2>
+            <MTitle>新聞 & 促銷</MTitle>
             <Link to="/article" data-testid="news-more-link" className="text-xs font-semibold text-orange-600 bg-orange-50 border border-orange-100 rounded-full px-4 py-1.5 hover:bg-orange-100">查看更多</Link>
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
@@ -175,7 +186,7 @@ export default function Home() {
 
       {/* Register CTA band */}
       <section className="mt-6 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-orange-500 via-orange-500 to-amber-500 px-8 py-8 flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div className="relative overflow-hidden rounded-2xl sm:rounded-3xl bg-gradient-to-r from-orange-500 via-orange-500 to-amber-500 px-8 py-8 flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="text-white text-center sm:text-left">
             <div className="font-head text-2xl font-extrabold">新用戶註冊，最高領 9% 優惠券</div>
             <p className="text-sm text-white/85 mt-1">註冊即享首單優惠，海量正版 App 充值等你來！</p>
@@ -198,7 +209,7 @@ function Carousel({ children, testid }) {
     const el = ref.current;
     if (!el) return;
     const measure = () => {
-      const per = el.clientWidth < 500 ? 3 : el.clientWidth < 768 ? 4 : 6;
+      const per = el.clientWidth < 500 ? 2.85 : el.clientWidth < 768 ? 4 : 6;
       setCardW((el.clientWidth - GAP * (per - 1)) / per);
     };
     measure();
@@ -250,7 +261,7 @@ function Carousel({ children, testid }) {
     <div className="relative" data-testid={testid}
       onMouseEnter={() => setPaused(true)} onMouseLeave={() => { setPaused(false); endDrag(); }}>
       <button data-testid={`${testid}-prev`} onClick={() => scrollByDir(-1)}
-        className="absolute -left-4 top-1/2 -translate-y-1/2 z-10 h-9 w-9 rounded-full bg-white shadow-md border border-orange-100 flex items-center justify-center text-orange-500 hover:bg-orange-50">
+        className="hidden md:flex absolute -left-4 top-1/2 -translate-y-1/2 z-10 h-9 w-9 rounded-full bg-white shadow-md border border-orange-100 items-center justify-center text-orange-500 hover:bg-orange-50">
         <ChevronLeft className="h-5 w-5" />
       </button>
       <div
@@ -263,7 +274,7 @@ function Carousel({ children, testid }) {
         {sized}
       </div>
       <button data-testid={`${testid}-next`} onClick={() => scrollByDir(1)}
-        className="absolute -right-4 top-1/2 -translate-y-1/2 z-10 h-9 w-9 rounded-full bg-white shadow-md border border-orange-100 flex items-center justify-center text-orange-500 hover:bg-orange-50">
+        className="hidden md:flex absolute -right-4 top-1/2 -translate-y-1/2 z-10 h-9 w-9 rounded-full bg-white shadow-md border border-orange-100 items-center justify-center text-orange-500 hover:bg-orange-50">
         <ChevronRight className="h-5 w-5" />
       </button>
     </div>
@@ -323,14 +334,14 @@ function PagedGrid({ items, perPage = 10, testid }) {
         className="flex overflow-x-auto no-scrollbar cursor-grab active:cursor-grabbing select-none"
         style={{ scrollSnapType: dragging ? "none" : "x mandatory", touchAction: "pan-y" }}>
         {pages.map((pg, pi) => (
-          <div key={pi} className="shrink-0 w-full grid grid-cols-5 gap-x-2 gap-y-4"
+          <div key={pi} className="shrink-0 w-full grid grid-cols-4 md:grid-cols-5 gap-x-2 gap-y-4"
             style={{ scrollSnapAlign: "start" }}>
             {pg.map((p) => (
               <Link key={p.id} to={`/product/${p.id}`} draggable={false} data-testid={`cat-product-${p.id}`} className="group flex flex-col items-center text-center">
-                <div className="w-[64%] aspect-square rounded-[22px] overflow-hidden bg-white border border-slate-50 shadow-sm group-hover:shadow-md transition-shadow">
+                <div className="w-[78%] md:w-[64%] aspect-square rounded-[22px] overflow-hidden bg-white border border-slate-50 shadow-sm group-hover:shadow-md transition-shadow">
                   <img src={p.image} alt={p.name} draggable={false} className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-300 pointer-events-none" />
                 </div>
-                <div className="text-xs sm:text-[13px] leading-normal text-slate-600 mt-2 truncate w-full group-hover:text-orange-600">{p.name}</div>
+                <div className="text-[13px] leading-normal text-slate-600 mt-2 truncate w-full group-hover:text-orange-600">{p.name}</div>
               </Link>
             ))}
           </div>
@@ -340,7 +351,7 @@ function PagedGrid({ items, perPage = 10, testid }) {
         <div className="flex items-center justify-center gap-1.5 mt-5">
           {pages.map((_, i) => (
             <button key={i} data-testid={`${testid}-dot-${i}`} onClick={() => goTo(i)} aria-label={`第 ${i + 1} 頁`}
-              className={`h-1.5 rounded-full transition-all ${i === page ? "w-6 bg-orange-500" : "w-1.5 bg-slate-300 hover:bg-slate-400"}`} />
+              className={`h-2 md:h-1.5 rounded-full transition-all ${i === page ? "w-5 md:w-6 bg-orange-400" : "w-2 md:w-1.5 bg-orange-100 md:bg-slate-300 hover:bg-slate-400"}`} />
           ))}
         </div>
       )}
@@ -352,9 +363,24 @@ function SectionTitle({ title, to, icon }) {  return (
     <div className="flex items-center justify-between mb-3">
       <div className="flex items-center gap-2">
         {icon && <img src={icon} alt="" className="h-6 w-6 rounded-md object-cover" />}
-        <h2 className="font-head text-lg font-bold text-slate-900">{title}</h2>
+        <MTitle>{title}</MTitle>
       </div>
-      <Link to={to} className="flex items-center gap-0.5 text-xs text-slate-400 hover:text-orange-500">查看更多 <ChevronRight className="h-3.5 w-3.5" /></Link>
+      <Link to={to} className="flex items-center gap-0.5 text-xs text-orange-500 bg-orange-100/70 md:bg-transparent rounded-full px-3 py-1 md:px-0 md:py-0 md:text-slate-400 hover:text-orange-500">查看更多 <ChevronRight className="h-3.5 w-3.5 hidden md:block" /></Link>
     </div>
   );
+}
+
+function MTitle({ children }) {
+  return <h2 className="font-head text-xl md:text-lg font-bold text-slate-900 relative inline-block z-0 max-md:after:content-[''] max-md:after:absolute max-md:after:left-0 max-md:after:right-0 max-md:after:bottom-0.5 max-md:after:h-2.5 max-md:after:bg-orange-200/80 max-md:after:-z-10 max-md:after:rounded-sm">{children}</h2>;
+}
+
+function useIsMobile() {
+  const [m, setM] = useState(() => window.innerWidth < 768);
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 767px)");
+    const on = (e) => setM(e.matches);
+    mq.addEventListener("change", on);
+    return () => mq.removeEventListener("change", on);
+  }, []);
+  return m;
 }
