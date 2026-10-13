@@ -1,0 +1,43 @@
+{
+  "summary": "Iteration 3 (admin Wallet / Verifications / Feedback) end-to-end tested. 11/11 backend pytest tests PASS (/api/admin/wallets list+search+403, /api/admin/wallets/{uid}/adjust credit/debit/refund + balance sync to /api/me/wallet with 後台加款/後台扣款/後台退款 notes & admin ref, 402 debit-over-balance, 400 amount=0/kind=foo, 404 unknown user, /api/admin/verifications image data_url + approve/400/403 + /api/me/verifications sync, /api/admin/feedback resolve/reopen/400/403). Frontend Playwright E2E PASS: sidebar nav tabs present; wallet search filters tester; dialog opens with wallet-dialog-balance USD$565.02 → +5 credit → 570.02 → -2 debit → 568.02 and new rows in wallet-dialog-txs; verif-view shows base64 data:image; verif-reject prompt → 已拒絕 with 備註, verif-approve → 已通過; feedback-resolve prompt → 已處理 + 處理備註 shown, feedback-reopen → 待處理; after logout+login as tester /account/wallet shows 後台加款/後台扣款 rows and /account/verify shows updated status 審核通過 + 備註 QA auto note.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_results": {
+    "backend_pytest": "11/11 PASS",
+    "wallet_admin_list": "PASS (fields user_id,email,balance_usd,total_in_usd,total_out_usd,tx_count)",
+    "wallet_admin_search_q=tester": "PASS",
+    "wallet_admin_member_403": "PASS",
+    "wallet_adjust_credit_debit_refund_sync": "PASS (balance deltas & admin_credit/debit/refund kinds, note prefix 後台加款, ref=admin email, /api/me/wallet mirrors)",
+    "wallet_adjust_debit_over_balance_402": "PASS (used 99999 ≤ cap 100000)",
+    "wallet_adjust_bad_amount_kind_400": "PASS",
+    "wallet_adjust_unknown_user_404": "PASS",
+    "verifications_image_data_url": "PASS",
+    "verifications_approve_rejects_invalid_400_me_sync": "PASS",
+    "feedback_resolve_reopen_invalid_400_403": "PASS",
+    "frontend_wallet_dialog_credit_debit": "PASS (USD$565.02 → 570.02 → 568.02)",
+    "frontend_verif_approve_reject_image": "PASS",
+    "frontend_feedback_resolve_reopen": "PASS",
+    "frontend_member_wallet_sync": "PASS (shows 後台加款 and 後台扣款 rows)",
+    "frontend_member_verify_sync": "PASS (status + QA auto note visible)"
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_admin_wallet_verif_feedback.py",
+    "/app/test_reports/pytest/iter3_admin.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "server.py wallet adjust validates amount <=100000 and returns 400; the review spec expected 402 only for over-balance. Current behaviour: amount>100000 → 400 (reasonable sanity cap). Not a bug but worth documenting.",
+    "WalletAdmin.jsx: window.confirm/prompt dialogs are not themeable and can be dismissed accidentally by browser extensions; consider a styled confirmation dialog consistent with the dark admin theme (minor UX).",
+    "SupportAdmin.jsx verif-view dialog loads /admin/verifications/{id}/image on every open and fully base64-decodes server-side — fine for test, but you may want to switch to a streaming endpoint or cache for large documents.",
+    "Member wallet transaction list rows for 後台加款 / 後台扣款 do not visually distinguish admin-sourced entries from user top-ups (both share generic icons); consider a small admin badge for clarity."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_admin_wallet_verif_feedback.py (new)"
+  ],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "test_credentials": "Admin admin+clerk_test@shop.com / Gogo589!Admin#7x2Q and Member tester+clerk_test@shop.com / Gogo589!Tester#4m9Z, Clerk device-trust code 424242 (per /app/memory/test_credentials.md). Session JWT minting via /app/tests/mint_token.py <user_id>.",
+  "seed_data_creation": "Tester wallet balance changed via admin adjustments during tests (+10 -3 +1 then UI +5 -2 = net +11). The 1 pre-existing verification was flipped approved/rejected/approved and left approved with admin_note='QA auto note'. The 1 pre-existing feedback was resolved then reopened (left open).",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Admin UI window.confirm / window.prompt: register page.on('dialog', handler) ONCE early; use asyncio.create_task(d.accept(text)) inside handler because playwright's dialog callback is awaited internally. Note Playwright Python has no remove_all_listeners; just install the handler once per test session. Admin wallet adjust server caps amount at 100000 → 400, not 402 (402 only on over-balance up to the cap). Verification/feedback endpoints seeded exist with ids 0d364245-1925-4b6c-8a43-c24586131fdd and 4af60702-1840-4ed7-bf8f-d6a0798a8603 respectively."
+}

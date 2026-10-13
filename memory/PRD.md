@@ -48,7 +48,15 @@
 
 - 2026-06-13：**錢包與錢包付款流程**：`GET /api/me/wallet`、`POST /api/me/wallet/topup`（模擬支付即時入帳，users.wallet_balance_usd + wallet_transactions）；結賬改為**僅錢包餘額付款** `POST /api/orders/{id}/pay-wallet`（餘額不足 402 → 前端導向錢包頁）；充值資料可於付款後補填 `POST /api/orders/{id}/info`；狀態：paid + info_submitted=false →「待填寫資料」，paid →「等待中」，後台「確認充值完成」`POST /api/admin/orders/{id}/confirm` → completed「已完成」。頁首新增「錢包 · 充值」按鈕，會員中心新增「我的錢包」（餘額橫幅/累計充值消費、充值金額/付款方式、交易紀錄）。testing_agent iteration_2 全 12 項通過；錢包頁排版已重做。
 
+- 2026-06-13：**後台三個新頁籤**（拆至 `pages/admin/WalletAdmin.jsx`、`pages/admin/SupportAdmin.jsx`）：
+  - 錢包管理：`GET /api/admin/wallets?q=`（餘額/累計入帳/累計消費/交易數，搜尋信箱/姓名/ID）、`GET /api/admin/wallets/{uid}/transactions`、`POST /api/admin/wallets/{uid}/adjust`（credit/debit/refund + 備註；扣款超額 402；交易 kind=admin_*、note 前綴 後台加款/扣款/退款、ref=操作者信箱），會員「我的錢包」同步顯示。
+  - 認證審核：篩選、查看證件 `GET /api/admin/verifications/{vid}/image`（回 data_url）、一鍵通過/拒絕 + 備註（會員端同步）。
+  - 用戶反饋：待處理/已處理篩選、`PUT /api/admin/feedback/{fid}` 標記已處理（備註、handled_by）/重新開啟。
+  - testing_agent iteration_3 全數通過（11 後端 + 前端 E2E）。`tests/mint_token.py <clerk_user_id>` 可鑄造測試用 session JWT。
+  - 用戶選擇：**暫不做**訂單狀態郵件通知。
+
 ## 待辦（優先序）
+- P1：訂單狀態郵件/站內通知（用戶暫緩）。
 - P0：testing_agent 跑後台訂單狀態流轉 + 回歸（前台 E2E 已由主代理手測通過）。
 - P1：結帳頁多幣別匯率計算驗證。
 - P1：模擬付款 webhook/callback 佔位。
