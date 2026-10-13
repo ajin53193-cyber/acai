@@ -51,12 +51,12 @@ export default function AccountLayout() {
             <aside className="w-full lg:w-60 shrink-0 bg-white rounded-2xl lg:rounded-3xl shadow-sm py-2 px-0 lg:py-6 lg:px-4 lg:min-h-[70vh]" data-testid="account-sidebar">
               <nav className="flex lg:flex-col gap-1 max-lg:gap-0 overflow-x-auto no-scrollbar w-full">
                 {NAV.map(([to, label, Icon]) => (
-                  <NavLink key={to} to={to} end={to === "/account"} data-testid={`account-nav-${to.replace(/\//g, "-").slice(1)}`} className={({ isActive }) => `flex max-lg:flex-col max-lg:flex-none max-lg:w-1/5 items-center gap-3 max-lg:gap-1.5 px-5 max-lg:px-0.5 py-4 max-lg:py-1.5 rounded-2xl text-base max-lg:text-[11px] whitespace-nowrap transition-colors ${isActive ? "text-orange-500 font-medium" : "text-slate-600 hover:text-orange-500"}`}>
-                    {({ isActive }) => (<><Icon className={`h-5 w-5 max-lg:h-6 max-lg:w-6 ${isActive ? "" : "max-lg:text-slate-400"}`} fill="currentColor" fillOpacity={isActive ? 0.25 : 0.18} strokeWidth={1.9} /><span className={isActive ? "" : "max-lg:text-slate-600"}>{label}</span></>)}
+                  <NavLink key={to} to={to} end={to === "/account"} data-testid={`account-nav-${to.replace(/\//g, "-").slice(1)}`} className={({ isActive }) => `flex max-lg:flex-col max-lg:flex-none max-lg:w-1/6 items-center gap-3 max-lg:gap-1.5 px-5 max-lg:px-0.5 py-4 max-lg:py-1.5 rounded-2xl text-base max-lg:text-[10px] whitespace-nowrap transition-colors ${isActive ? "text-orange-500 font-medium" : "text-slate-600 hover:text-orange-500"}`}>
+                    {({ isActive }) => (<><Icon className={`h-5 w-5 max-lg:h-[22px] max-lg:w-[22px] ${isActive ? "" : "max-lg:text-slate-400"}`} fill="currentColor" fillOpacity={isActive ? 0.25 : 0.18} strokeWidth={1.9} /><span className={isActive ? "" : "max-lg:text-slate-600"}>{label}</span></>)}
                   </NavLink>
                 ))}
-                <button data-testid="account-nav-logout" onClick={() => signOut({ redirectUrl: "/" }).then(() => navigate("/"))} className="flex max-lg:flex-col max-lg:flex-none max-lg:w-1/5 items-center gap-3 max-lg:gap-1.5 px-5 max-lg:px-0.5 py-4 max-lg:py-1.5 rounded-2xl text-base max-lg:text-[11px] text-slate-600 hover:text-orange-500 whitespace-nowrap">
-                  <LogOut className="h-5 w-5 max-lg:h-6 max-lg:w-6 max-lg:text-slate-400" fill="currentColor" fillOpacity={0.18} strokeWidth={1.9} /><span>登出帳戶</span>
+                <button data-testid="account-nav-logout" onClick={() => signOut({ redirectUrl: "/" }).then(() => navigate("/"))} className="flex max-lg:flex-col max-lg:flex-none max-lg:w-1/6 items-center gap-3 max-lg:gap-1.5 px-5 max-lg:px-0.5 py-4 max-lg:py-1.5 rounded-2xl text-base max-lg:text-[10px] text-slate-600 hover:text-orange-500 whitespace-nowrap">
+                  <LogOut className="h-5 w-5 max-lg:h-[22px] max-lg:w-[22px] max-lg:text-slate-400" fill="currentColor" fillOpacity={0.18} strokeWidth={1.9} /><span>登出帳戶</span>
                 </button>
               </nav>
             </aside>
