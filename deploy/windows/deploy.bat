@@ -62,7 +62,10 @@ if not defined PY (
   exit /b 1
 )
 for /f "delims=" %%v in ('%PY% --version') do echo Using %%v
-if not exist "%BACKEND_DIR%\.venv\Scripts\python.exe" (
+rem recreate venv if missing OR broken (base python moved/removed -> venv redirector dead)
+"%BACKEND_DIR%\.venv\Scripts\python.exe" -c "import sys" >nul 2>&1 || (
+  echo venv missing or broken, recreating...
+  rmdir /s /q "%BACKEND_DIR%\.venv" >nul 2>&1
   %PY% -m venv "%BACKEND_DIR%\.venv" || (echo [ERROR] create venv failed & pause & exit /b 1)
 )
 "%BACKEND_DIR%\.venv\Scripts\python.exe" -m pip install -q -i %PIP_INDEX% --upgrade pip
