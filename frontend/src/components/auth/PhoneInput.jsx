@@ -34,15 +34,15 @@ export function PhoneInput({ dialCode, setDialCode, value, onChange, placeholder
 
   return (
     <div className="relative">
-      <div className="flex items-center w-full h-14 rounded-2xl bg-slate-100 px-3 focus-within:ring-2 focus-within:ring-orange-300">
+      <div className="flex items-center w-full h-11 md:h-14 rounded-full md:rounded-2xl bg-[#F5F5F5] md:bg-slate-100 px-4 md:px-3 focus-within:ring-2 focus-within:ring-orange-300">
         <button
           type="button"
           data-testid="auth-country-btn"
           onClick={() => setOpen((v) => !v)}
           className="flex items-center gap-1.5 pr-3 mr-2 border-r border-slate-300 shrink-0"
         >
-          <span className="text-xl leading-none">{country.flag}</span>
-          <span className="font-semibold text-slate-700">{dialCode}</span>
+          <span className="text-lg md:text-xl leading-none">{country.flag}</span>
+          <span className="font-semibold text-slate-700 text-sm md:text-base">{dialCode}</span>
           <ChevronDown className={`h-4 w-4 text-slate-500 transition-transform ${open ? "rotate-180" : ""}`} />
         </button>
         <input
@@ -52,7 +52,7 @@ export function PhoneInput({ dialCode, setDialCode, value, onChange, placeholder
           onChange={(e) => onChange(e.target.value)}
           placeholder={placeholder}
           inputMode="tel"
-          className="flex-1 min-w-0 bg-transparent text-base outline-none placeholder:text-slate-400"
+          className="flex-1 min-w-0 bg-transparent text-sm md:text-base outline-none placeholder:text-slate-400"
         />
       </div>
       {open && (
