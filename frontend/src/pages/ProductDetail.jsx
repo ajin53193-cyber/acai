@@ -222,43 +222,45 @@ export default function ProductDetail() {
         </div>
 
         {/* Tabs */}
-        <div className="mt-6 md:mt-8 flex items-center gap-3">
+        <div className="mt-6 md:mt-8 flex items-end" data-testid="detail-tabs">
           {[["desc", "產品說明"], ["reviews", `評價(${reviews.length})`]].map(([k, label]) => (
-            <button key={k} data-testid={`tab-${k}`} onClick={() => setTab(k)} className={`h-10 px-6 rounded-full text-sm font-semibold transition-colors ${tab === k ? "bg-white text-orange-600 border-2 border-orange-400" : "bg-white text-slate-600 border border-slate-200 hover:border-orange-300"}`}>
+            <button key={k} data-testid={`tab-${k}`} onClick={() => setTab(k)} className={`h-11 px-5 md:px-7 rounded-t-2xl text-[15px] md:text-base transition-colors ${tab === k ? "bg-white text-orange-500" : "text-slate-700 hover:text-orange-500"}`}>
               {label}
             </button>
           ))}
         </div>
 
         {tab === "desc" ? (
-          <div className="mt-4 bg-white rounded-3xl p-6 sm:p-8 text-sm text-slate-700 leading-7" data-testid="product-description">
-            <div className="font-bold text-slate-900">溫馨提示：</div>
-            <ol className="mt-2 space-y-1">
-              {TIPS.map(([a, b, c], i) => <li key={i}>{i + 1}.{a} <span className="text-orange-500 font-semibold">{b}</span>{c}</li>)}
-            </ol>
-            <p className="mt-3 text-red-500 font-semibold">本平臺不刷單、不返傭，刷信譽、兼職等理由均為詐騙行為，請勿相信！ 避免上當受騙！</p>
+          <div className={`bg-white rounded-b-3xl rounded-tr-3xl ${tab === "desc" ? "" : "rounded-tl-3xl"} p-4 sm:p-8 text-sm md:text-[15px] text-slate-600 leading-7`} data-testid="product-description">
+            <div className="border border-dashed border-orange-400 rounded px-4 py-3 md:px-5 md:py-4 text-[15px] md:text-base leading-[1.9]" data-testid="product-tips">
+              <div className="font-semibold text-slate-800">溫馨提示：</div>
+              <ol>
+                {TIPS.map(([a, b, c], i) => <li key={i}>{i + 1}.{a} <span className="text-orange-500">{b}</span>{c}</li>)}
+              </ol>
+              <p className="text-red-500">本平臺不刷單、不返傭，刷信譽、兼職等理由均為詐騙行為，請勿相信！ 避免上當受騙！</p>
+            </div>
             {product.delivery_fields?.length > 0 && (
               <>
-                <div className="mt-6 font-bold text-slate-900">下單需填寫：</div>
+                <div className="mt-5 font-semibold text-slate-800">下單需填寫：</div>
                 <ul className="mt-1 list-disc pl-5">
                   {product.delivery_fields.map((f) => <li key={f.name}>{f.name}{f.required ? "（必填）" : ""}{f.tips ? ` — ${f.tips}` : ""}</li>)}
                 </ul>
               </>
             )}
             {product.content_html ? (
-              <div className="mt-6 kavip-content" data-testid="product-content-html" dangerouslySetInnerHTML={{ __html: product.content_html }} />
+              <div className="mt-5 kavip-content" data-testid="product-content-html" dangerouslySetInnerHTML={{ __html: product.content_html }} />
             ) : (
               <>
-                <div className="mt-6 font-bold text-slate-900">商品簡介：</div>
+                <div className="mt-5 font-semibold text-slate-800">商品簡介：</div>
                 <p className="mt-1 whitespace-pre-line">{product.description}</p>
-                {product.tutorial && <><div className="mt-6 font-bold text-slate-900">購買流程：</div><p className="mt-1 whitespace-pre-line">{product.tutorial}</p></>}
+                {product.tutorial && <><div className="mt-5 font-semibold text-slate-800">購買流程：</div><p className="mt-1 whitespace-pre-line">{product.tutorial}</p></>}
               </>
             )}
-            <div className="mt-6 font-bold text-slate-900">網站聲明：</div>
+            <div className="mt-5 font-semibold text-slate-800">網站聲明：</div>
             <p className="mt-1">請多次確認您的充值帳號（{product.account_field_label}）及相關資訊是否正確，如因您充值帳號輸入錯誤但充值成功的，系統不予退款。</p>
           </div>
         ) : (
-          <div className="mt-4 bg-white rounded-3xl p-5 sm:p-6" data-testid="product-reviews">
+          <div className="bg-white rounded-b-3xl rounded-tl-3xl p-5 sm:p-6" data-testid="product-reviews">
             {reviews.length === 0 ? (
               <div className="py-8 text-center text-slate-400 text-sm">暫無評價</div>
             ) : (
