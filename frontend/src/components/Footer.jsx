@@ -91,13 +91,6 @@ export default function Footer() {
           </div>
 
           <div className="flex flex-col gap-5 lg:justify-end lg:flex-row">
-            <div className="md:hidden flex items-center justify-between px-2">
-              <h4 className="font-bold text-base">關注我們</h4>
-              <div className="flex items-center gap-2">
-                <span className="h-9 w-9 rounded-full bg-black text-white text-[10px] font-black flex items-center justify-center">TT</span>
-                <span className="h-9 w-9 rounded-full bg-[#ff2442] text-white text-[9px] font-black flex items-center justify-center">小紅書</span>
-              </div>
-            </div>
             <div className="flex items-center md:items-start gap-3 md:gap-4 bg-white/10 rounded-2xl p-3 md:p-4">
               <div className="text-center shrink-0 md:border-r-0 border-r border-white/25 pr-3 md:pr-0">
                 <a href={settings.whatsapp_link} target="_blank" rel="noreferrer" data-testid="footer-whatsapp-qr" className="block bg-white rounded-xl p-1.5">
