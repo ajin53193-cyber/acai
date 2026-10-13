@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useUser } from "@clerk/react";
-import { Search, ShoppingCart, Headphones, ChevronDown, Shield, Package, Menu, X, UserRound, Gift, Wallet,
+import { Search, ShoppingCart, Headphones, ChevronDown, ChevronRight, Shield, Package, Menu, X, UserRound, Gift, Wallet,
   Tv, Gamepad2, MessageCircle, Music, Smile, Mic, HeartHandshake, CreditCard, BookOpen, Rocket, Cpu } from "lucide-react";
 import { SearchBox } from "@/components/SearchBox";
 import { publicApi, useApi } from "@/lib/api";
@@ -56,13 +56,15 @@ export default function Header() {
   return (
     <header className="sticky top-0 z-40 w-full">
       {/* Top promo bar */}
-      <div className="bg-gradient-to-r from-orange-500 via-orange-500 to-amber-500 text-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-9 flex items-center justify-center gap-3 text-xs sm:text-sm">
-          <span className="font-semibold">⚡ 最強 AI 充值 免費試用，價格超實惠</span>
-          <Link to="/category/ai" data-testid="promo-experience-btn" className="bg-white/25 hover:bg-white/35 transition-colors rounded-full px-3 py-0.5 text-xs font-bold">
-            立即體驗
-          </Link>
-        </div>
+      <div className="bg-gradient-to-r from-[#FFF4E8] via-[#FCD9B5] to-[#F7B57F]">
+        <a href="https://www.dbto.ai/zh-CN?-affi-100506" target="_blank" rel="noreferrer" data-testid="promo-experience-btn"
+          className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-10 flex items-center justify-center gap-2.5 text-xs sm:text-sm group">
+          <span className="h-5 w-5 rounded-full bg-slate-900 text-white text-[9px] font-black flex items-center justify-center shrink-0 ring-2 ring-white/70">AI</span>
+          <span className="font-semibold text-[#6B3A12]">最強 AI 免費試用，價格超實惠</span>
+          <span className="bg-white group-hover:bg-orange-50 transition-colors rounded-full pl-3 pr-2 py-0.5 text-xs font-bold text-orange-600 flex items-center gap-0.5 shadow-sm">
+            立即體驗<ChevronRight className="h-3.5 w-3.5" />
+          </span>
+        </a>
       </div>
 
       {/* Main header */}
