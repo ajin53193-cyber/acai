@@ -196,7 +196,7 @@ export default function Header() {
         {mobileNav && (
           <div className="md:hidden fixed inset-0 z-50" data-testid="mobile-drawer">
             <div className="absolute inset-0 bg-black/30" onClick={() => setMobileNav(false)} />
-            <div className="absolute left-0 top-0 bottom-0 w-[73%] max-w-[320px] bg-white rounded-r-3xl shadow-2xl overflow-y-auto">
+            <div className="absolute left-0 top-0 bottom-0 w-[73%] max-w-[320px] bg-white rounded-r-3xl shadow-2xl overflow-y-auto" style={{ paddingTop: "env(safe-area-inset-top)" }}>
               <div className="flex items-center justify-between px-5 pt-5 pb-4">
                 <Link to="/" onClick={() => setMobileNav(false)} data-testid="drawer-home" className="flex items-center gap-1.5 h-9 px-4 rounded-full bg-orange-100/80 text-orange-500 text-[15px] font-medium"><Home className="h-4 w-4" />首頁</Link>
                 <button onClick={() => setMobileNav(false)} data-testid="drawer-close" className="h-9 w-9 rounded-full bg-orange-100/80 text-orange-500 flex items-center justify-center"><X className="h-5 w-5" /></button>

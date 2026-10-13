@@ -186,7 +186,7 @@ function AuthModal({ open, onOpenChange }) {
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
         hideClose
-        className="auth-sheet !gap-0 max-md:!flex max-md:!flex-col max-md:!inset-0 max-md:!translate-x-0 max-md:!translate-y-0 max-md:!left-0 max-md:!top-0 max-md:!w-full max-md:!max-w-none max-md:!h-full max-md:!max-h-none max-md:!rounded-none md:w-[calc(100%-1.5rem)] md:max-w-[420px] md:max-h-[92vh] overflow-x-hidden overflow-y-auto p-0 border-0 md:rounded-3xl grid-cols-[minmax(0,1fr)] [&>*]:min-w-0 bg-white"
+        className="auth-sheet !gap-0 max-md:!flex max-md:!flex-col safe-top-pad max-md:!inset-0 max-md:!translate-x-0 max-md:!translate-y-0 max-md:!left-0 max-md:!top-0 max-md:!w-full max-md:!max-w-none max-md:!h-full max-md:!max-h-none max-md:!rounded-none md:w-[calc(100%-1.5rem)] md:max-w-[420px] md:max-h-[92vh] overflow-x-hidden overflow-y-auto p-0 border-0 md:rounded-3xl grid-cols-[minmax(0,1fr)] [&>*]:min-w-0 bg-white"
         data-testid="auth-modal"
       >
         <DialogTitle className="sr-only">登入</DialogTitle>
