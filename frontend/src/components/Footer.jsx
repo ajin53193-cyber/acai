@@ -52,7 +52,7 @@ export default function Footer() {
   return (
     <footer className="mt-4 md:mt-14 bg-[#F0872E] md:bg-gradient-to-b md:from-[#F0872E] md:to-[#E8792A] text-white">
       {/* Top: payments + follow */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5 md:py-7">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2.5 md:py-7">
         <div className="flex md:flex-wrap items-center gap-3 md:gap-5 overflow-x-auto no-scrollbar">
           {logos && logos.length > 0 ? logos.map((l) => (
             <span key={l.id} data-testid={`pay-logo-${l.id}`} title={l.name} className="h-6 md:h-9 flex items-center shrink-0">
@@ -70,7 +70,7 @@ export default function Footer() {
       <div className="border-t border-white/20 mx-4 md:mx-0" />
 
       {/* Middle: links + service */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 md:py-10">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 md:py-10">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 md:gap-10">
           <div className="grid grid-cols-3 gap-3 md:gap-6 px-2 md:px-0">
             {COLS.map(([title, links]) => (
