@@ -31,13 +31,13 @@ function OrderInfoForm({ order, callApi, onDone }) {
     catch (e) { toast.error(e.response?.data?.detail || "提交失敗"); }
     setBusy(false);
   };
-  if (order.info_submitted !== false) return <div data-testid="order-info-locked" className="w-full rounded-xl bg-orange-50 text-orange-600 text-xs px-3 py-2.5 text-center">充值資料已提交，等待人工處理；如帳號有誤將由客服駁回後開放修改</div>;
+  if (order.info_submitted !== false) return <div data-testid="order-info-locked" className="w-full rounded-xl bg-orange-50 text-orange-600 text-xs px-3 py-2.5 text-center">充值資料已提交，等待人工處理；如帳號有誤將由平台駁回後開放修改</div>;
   if (!open) return <button data-testid="order-info-edit" onClick={() => setOpen(true)} className="w-full h-10 rounded-xl border border-orange-300 text-orange-600 text-sm font-semibold hover:bg-orange-50">填寫充值資料</button>;
   const inp = "w-full h-11 rounded-xl bg-slate-100 border-0 px-3 text-sm outline-none focus:ring-2 focus:ring-orange-300 placeholder:text-slate-400";
   return (
     <div className="rounded-2xl border border-orange-300 bg-white p-4 text-sm space-y-3 shadow-[0_6px_20px_-12px_rgba(232,121,42,0.35)]" data-testid="order-info-form">
       <div className="font-bold text-slate-900">請填寫充值資料<span className="text-orange-500">，提交後開始人工充值</span></div>
-      {order.info_rejected && <div data-testid="order-info-reject-reason" className="rounded-lg bg-red-50 border border-red-200 text-red-600 text-xs px-3 py-2">後台駁回：{order.info_reject_reason}，請重新填寫後提交</div>}
+      {order.info_rejected && <div data-testid="order-info-reject-reason" className="rounded-lg bg-red-50 border border-red-200 text-red-600 text-xs px-3 py-2">平台駁回：{order.info_reject_reason}，請重新填寫後提交</div>}
       <div className="text-[11px] text-slate-500">提交後將無法自行修改，請務必核對無誤</div>
       {Object.entries(defs).map(([pid, d]) => (
         <div key={pid} className="space-y-2">

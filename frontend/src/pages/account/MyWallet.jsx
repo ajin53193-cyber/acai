@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Wallet, ArrowDownToLine, ShoppingBag, ChevronRight, PlusCircle, MinusCircle, Gift, RotateCcw } from "lucide-react";
 import { useApi } from "@/lib/api";
 import { useCurrency } from "@/context/CurrencyContext";
@@ -59,27 +60,67 @@ function TxIcon({ kind, credit }) {
   );
 }
 
+const KIND_LABEL = { payment: "訂單付款", topup: "錢包充值", admin_credit: "平台加款", admin_debit: "平台扣款", admin_refund: "平台退款", refund: "退款" };
+
+function TxDetailSheet({ t, onClose }) {
+  const { format } = useCurrency();
+  if (!t) return null;
+  const credit = t.amount_usd >= 0;
+  const m = /^(.*?)\s+([A-Z]{2}\d{8,})$/.exec(t.note || "");
+  const rows = [
+    ["交易類型", KIND_LABEL[t.kind] || (credit ? "入帳" : "支出")],
+    ["交易金額", `${credit ? "+" : "-"}${format(Math.abs(t.amount_usd))}`],
+    ["交易後餘額", format(t.balance_after_usd)],
+    ["交易時間", t.created_at?.slice(0, 19).replace("T", " ")],
+    m ? ["訂單編號", m[2]] : null,
+    t.note ? ["說明", m ? m[1] : t.note] : null,
+    ["交易單號", t.id],
+  ].filter(Boolean);
+  return (
+    <Sheet open onOpenChange={onClose}>
+      <SheetContent side="bottom" className="rounded-t-3xl bg-[#FFF4EA] border-0 px-5 pb-8 [background-image:radial-gradient(rgba(255,255,255,0.9)_1.5px,transparent_1.5px)] [background-size:18px_18px] sm:max-w-md sm:mx-auto" data-testid="tx-detail-sheet">
+        <SheetHeader><SheetTitle className="font-head text-slate-900 text-center">交易詳情</SheetTitle></SheetHeader>
+        <div className="mt-3 flex flex-col items-center">
+          <TxIcon kind={t.kind} credit={credit} />
+          <div className={`mt-3 font-head text-3xl font-extrabold ${credit ? "text-emerald-600" : "text-slate-900"}`} data-testid="tx-detail-amount">{credit ? "+" : "-"}{format(Math.abs(t.amount_usd))}</div>
+          <div className="text-xs text-slate-500 mt-1">{KIND_LABEL[t.kind] || t.note}</div>
+        </div>
+        <div className="mt-5 bg-white rounded-2xl p-4 text-sm space-y-3 shadow-[0_6px_20px_-12px_rgba(232,121,42,0.35)]">
+          {rows.map(([k, v]) => (
+            <div key={k} className="flex items-start justify-between gap-4"><span className="text-slate-400 shrink-0">{k}</span><span className="text-slate-800 text-right break-all">{v}</span></div>
+          ))}
+        </div>
+      </SheetContent>
+    </Sheet>
+  );
+}
+
 export function TxRow({ t }) {
   const { format } = useCurrency();
+  const [open, setOpen] = useState(false);
   const credit = t.amount_usd >= 0;
   const m = /^(.*?)\s+([A-Z]{2}\d{8,})$/.exec(t.note || "");
   const title = m ? m[1] : t.note;
   const ref = m ? m[2] : "";
   return (
-    <div className="flex items-center gap-3 py-3 text-sm" data-testid={`tx-row-${t.id}`}>
-      <TxIcon kind={t.kind} credit={credit} />
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2 min-w-0">
-          <span className="text-slate-800 font-medium truncate">{title}</span>
-          <span className={`shrink-0 rounded-full px-1.5 py-px text-[10px] ${credit ? "bg-emerald-50 text-emerald-600" : "bg-orange-50 text-orange-500"}`}>{credit ? "入帳" : "支出"}</span>
+    <>
+      <button type="button" onClick={() => setOpen(true)} className="w-full text-left flex items-center gap-3 py-3 text-sm active:bg-orange-50/60 rounded-xl transition-colors" data-testid={`tx-row-${t.id}`}>
+        <TxIcon kind={t.kind} credit={credit} />
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 min-w-0">
+            <span className="text-slate-800 font-medium truncate">{title}</span>
+            <span className={`shrink-0 rounded-full px-1.5 py-px text-[10px] ${credit ? "bg-emerald-50 text-emerald-600" : "bg-orange-50 text-orange-500"}`}>{credit ? "入帳" : "支出"}</span>
+          </div>
+          <div className="text-[11px] text-slate-400 truncate mt-0.5">{t.created_at?.slice(0, 16).replace("T", " ")}{ref && <span className="ml-2 font-mono">{ref}</span>}</div>
         </div>
-        <div className="text-[11px] text-slate-400 truncate mt-0.5">{t.created_at?.slice(0, 16).replace("T", " ")}{ref && <span className="ml-2 font-mono">{ref}</span>}</div>
-      </div>
-      <div className="text-right shrink-0">
-        <div className={`font-head font-bold text-[15px] ${credit ? "text-emerald-600" : "text-slate-900"}`}>{credit ? "+" : "-"}{format(Math.abs(t.amount_usd))}</div>
-        <div className="text-[10px] text-slate-400 mt-0.5">餘額 {format(t.balance_after_usd)}</div>
-      </div>
-    </div>
+        <div className="text-right shrink-0">
+          <div className={`font-head font-bold text-[15px] ${credit ? "text-emerald-600" : "text-slate-900"}`}>{credit ? "+" : "-"}{format(Math.abs(t.amount_usd))}</div>
+          <div className="text-[10px] text-slate-400 mt-0.5">餘額 {format(t.balance_after_usd)}</div>
+        </div>
+        <ChevronRight className="h-4 w-4 text-slate-300 shrink-0 -ml-1" />
+      </button>
+      {open && <TxDetailSheet t={t} onClose={() => setOpen(false)} />}
+    </>
   );
 }
 

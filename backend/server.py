@@ -785,7 +785,7 @@ async def submit_order_info(order_id: str, body: OrderInfoIn, member: dict = Dep
     if o["status"] not in ("paid", "pending_payment"):
         raise HTTPException(status_code=400, detail="此訂單已在處理中，無法修改資料")
     if o.get("info_submitted") and not o.get("info_rejected"):
-        raise HTTPException(status_code=400, detail="充值資料已提交，如需修改請聯繫客服，待後台駁回後再重新填寫")
+        raise HTTPException(status_code=400, detail="充值資料已提交，如需修改請聯繫客服，待平台駁回後再重新填寫")
     merged = {**(o.get("delivery_info") or {}), **body.delivery_info}
     prods = {it["product_id"]: (await db.products.find_one({"id": it["product_id"]}, {"_id": 0, "delivery_fields": 1}) or {}) for it in o["items"]}
     tmp = {**o, "delivery_info": merged}
@@ -1032,7 +1032,7 @@ async def admin_wallet_adjust(user_id: str, body: WalletAdjustIn, admin: dict = 
         raise HTTPException(status_code=400, detail="金額需大於 0 且不超過 USD$100,000")
     if not await db.users.find_one({"user_id": user_id}, {"_id": 0, "user_id": 1}):
         raise HTTPException(status_code=404, detail="用戶不存在")
-    label = {"credit": "後台加款", "debit": "後台扣款", "refund": "後台退款"}[body.kind]
+    label = {"credit": "平台加款", "debit": "平台扣款", "refund": "平台退款"}[body.kind]
     signed = -float(body.amount_usd) if body.kind == "debit" else float(body.amount_usd)
     note = f"{label}" + (f"：{body.note.strip()}" if body.note.strip() else "")
     bal = await _wallet_tx(user_id, f"admin_{body.kind}", signed, note, ref=admin.get("email", ""))
