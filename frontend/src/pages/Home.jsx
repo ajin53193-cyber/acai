@@ -77,40 +77,40 @@ export default function Home() {
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Quick order */}
-        <section className="mt-5">
-          <div className="flex items-center gap-2 mb-3">
+        <section className="mt-4 md:mt-5">
+          <div className="flex items-center gap-2 mb-2.5 md:mb-3">
             <Zap className="hidden md:block h-5 w-5 text-secondary" />
             <MTitle>快捷下單</MTitle>
           </div>
           <Carousel testid="quick-carousel">
             {quick.map((p) => (
               <Link key={p.id} to={`/product/${p.id}`} data-testid={`quick-order-${p.id}`}
-                className="group shrink-0 bg-white rounded-2xl border border-slate-100 shadow-sm px-2 py-4 md:p-3 flex flex-col items-center text-center hover:shadow-md transition-all">
-                <div className="relative w-[58%] md:w-[64%] aspect-square rounded-2xl overflow-hidden bg-white">
+                className="group shrink-0 bg-white rounded-2xl border border-slate-100 shadow-sm px-2 py-3 md:p-3 flex flex-col items-center text-center hover:shadow-md transition-all">
+                <div className="relative w-[52%] md:w-[64%] aspect-square rounded-2xl overflow-hidden bg-white">
                   <img src={p.image} alt={p.name} className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-300" />
                 </div>
-                <h3 className="font-semibold text-[14px] md:text-[13px] leading-normal text-slate-800 truncate mt-3 w-full group-hover:text-orange-600">{p.name}</h3>
-                <span className="mt-3 text-[13px] md:text-xs font-bold text-orange-500 md:text-orange-600 bg-orange-100/80 md:bg-orange-100 group-hover:bg-orange-500 group-hover:text-white rounded-full px-5 py-1.5 whitespace-nowrap transition-colors">立即購買</span>
+                <h3 className="font-semibold text-[13px] leading-normal text-slate-800 truncate mt-2 md:mt-3 w-full group-hover:text-orange-600">{p.name}</h3>
+                <span className="mt-2 md:mt-3 text-xs font-bold text-orange-500 md:text-orange-600 bg-orange-100/80 md:bg-orange-100 group-hover:bg-orange-500 group-hover:text-white rounded-full px-4 md:px-5 py-1 md:py-1.5 whitespace-nowrap transition-colors">立即購買</span>
               </Link>
             ))}
           </Carousel>
         </section>
 
         {/* Hot products */}
-        <section className="mt-8">
+        <section className="mt-6 md:mt-8">
           <SectionTitle title="熱門產品" to="/category/livestream" />
           <Carousel testid="hot-carousel">
             {hot.slice(0, 16).map((p) => (
               <Link key={p.id} to={`/product/${p.id}`} data-testid={`product-card-${p.id}`}
                 className="group relative shrink-0 w-[150px] sm:w-[180px] bg-white rounded-2xl border border-slate-100 shadow-sm p-3 hover:shadow-md hover:-translate-y-0.5 transition-all">
-                {p.tags?.includes("熱銷") && <span className="absolute -top-1.5 -right-0.5 md:top-0 md:right-3 text-xs md:text-[10px] font-bold rounded-tr-xl rounded-bl-xl md:rounded-none md:rounded-b-md px-3 md:px-2 py-1 md:py-0.5 bg-orange-400 text-white whitespace-nowrap">折扣</span>}
-                <div className="relative w-[58%] md:w-[64%] mx-auto aspect-square rounded-2xl overflow-hidden bg-white mt-2 md:mt-0">
+                {p.tags?.includes("熱銷") && <span className="absolute -top-1 -right-0.5 md:top-0 md:right-3 text-[10px] font-bold rounded-tr-xl rounded-bl-xl md:rounded-none md:rounded-b-md px-2.5 md:px-2 py-0.5 bg-orange-400 text-white whitespace-nowrap">折扣</span>}
+                <div className="relative w-[52%] md:w-[64%] mx-auto aspect-square rounded-2xl overflow-hidden bg-white mt-1.5 md:mt-0">
                   <img src={p.image} alt={p.name} className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-300" />
                 </div>
-                <h3 className="font-semibold text-[14px] md:text-[13px] leading-normal text-slate-800 truncate mt-3 md:mt-2.5 text-center w-full group-hover:text-orange-600">{p.name}</h3>
-                <div className="flex items-center justify-between mt-3 md:mt-2 pt-2.5 md:pt-0 border-t md:border-0 border-slate-100 text-xs md:text-[11px]">
+                <h3 className="font-semibold text-[13px] leading-normal text-slate-800 truncate mt-2 md:mt-2.5 text-center w-full group-hover:text-orange-600">{p.name}</h3>
+                <div className="flex items-center justify-between mt-2 pt-2 md:pt-0 border-t md:border-0 border-slate-100 text-[11px]">
                   <span className="flex items-center gap-0.5 text-slate-600 md:text-slate-400"><span className="text-orange-400">🔥</span>{salesText(p.sales_count)}</span>
-                  <span className="flex items-center gap-0.5 text-orange-500 md:text-amber-500 font-semibold">{Math.round(p.rating)}<Star className="h-3.5 w-3.5 md:h-3 md:w-3 fill-orange-400 md:fill-amber-400 text-orange-400 md:text-amber-400" /></span>
+                  <span className="flex items-center gap-0.5 text-orange-500 md:text-amber-500 font-semibold">{Math.round(p.rating)}<Star className="h-3 w-3 fill-orange-400 md:fill-amber-400 text-orange-400 md:text-amber-400" /></span>
                 </div>
               </Link>
             ))}
@@ -131,7 +131,7 @@ export default function Home() {
         <section className="mt-8 md:mt-10">
           <div className="flex items-center justify-between mb-4">
             <MTitle>熱門分類</MTitle>
-            <Link to="/category/livestream" data-testid="all-categories-link" className="text-sm md:text-xs font-medium md:font-semibold text-orange-500 md:text-orange-600 bg-orange-100/70 md:bg-orange-50 md:border md:border-orange-100 rounded-full px-4 py-1.5 hover:bg-orange-100">全部分類</Link>
+            <Link to="/category/livestream" data-testid="all-categories-link" className="text-xs font-medium md:font-semibold text-orange-500 md:text-orange-600 bg-orange-100/70 md:bg-orange-50 md:border md:border-orange-100 rounded-full px-3 py-1 hover:bg-orange-100">全部分類</Link>
           </div>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
             {categories.slice(0, 6).map((c) => {
@@ -365,13 +365,13 @@ function SectionTitle({ title, to, icon }) {  return (
         {icon && <img src={icon} alt="" className="h-6 w-6 rounded-md object-cover" />}
         <MTitle>{title}</MTitle>
       </div>
-      <Link to={to} className="flex items-center gap-0.5 text-sm md:text-xs text-orange-500 bg-orange-100/70 md:bg-transparent rounded-full px-4 py-1.5 md:px-0 md:py-0 md:text-slate-400 hover:text-orange-500">查看更多 <ChevronRight className="h-3.5 w-3.5 hidden md:block" /></Link>
+      <Link to={to} className="flex items-center gap-0.5 text-xs text-orange-500 bg-orange-100/70 md:bg-transparent rounded-full px-3 py-1 md:px-0 md:py-0 md:text-slate-400 hover:text-orange-500">查看更多 <ChevronRight className="h-3.5 w-3.5 hidden md:block" /></Link>
     </div>
   );
 }
 
 function MTitle({ children }) {
-  return <h2 className="font-head text-xl md:text-lg font-bold text-slate-900 relative inline-block z-0 max-md:after:content-[''] max-md:after:absolute max-md:after:left-0 max-md:after:right-0 max-md:after:bottom-0.5 max-md:after:h-2.5 max-md:after:bg-orange-200/80 max-md:after:-z-10 max-md:after:rounded-sm">{children}</h2>;
+  return <h2 className="font-head text-[17px] md:text-lg font-bold text-slate-900 relative inline-block z-0 max-md:after:content-[''] max-md:after:absolute max-md:after:left-0 max-md:after:right-0 max-md:after:bottom-0.5 max-md:after:h-2 max-md:after:bg-orange-200/80 max-md:after:-z-10 max-md:after:rounded-sm">{children}</h2>;
 }
 
 function useIsMobile() {
