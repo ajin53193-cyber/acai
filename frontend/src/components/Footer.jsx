@@ -70,13 +70,13 @@ export default function Footer() {
       <div className="border-t border-white/20 mx-4 md:mx-0" />
 
       {/* Middle: links + service */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-10">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 md:gap-10">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 md:py-10">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 md:gap-10">
           <div className="grid grid-cols-3 gap-3 md:gap-6 px-2 md:px-0">
             {COLS.map(([title, links]) => (
               <div key={title}>
-                <h4 className="font-bold text-[17px] md:text-sm mb-4 md:mb-4 whitespace-nowrap">{title}</h4>
-                <ul className="space-y-3.5 md:space-y-2.5 text-[15px] md:text-[13px] text-white/90 md:text-white/85 whitespace-nowrap">
+                <h4 className="font-bold text-[17px] md:text-sm mb-3 md:mb-4 whitespace-nowrap">{title}</h4>
+                <ul className="space-y-2 md:space-y-2.5 text-[15px] md:text-[13px] text-white/90 md:text-white/85 whitespace-nowrap">
                   {links.map(([label, to, hot]) => (
                     <li key={label}>
                       <Link to={to} className="hover:text-white inline-flex items-center gap-1.5 transition-colors">
@@ -121,14 +121,14 @@ export default function Footer() {
       </div>
 
       {/* Mobile Trustpilot */}
-      <div className="md:hidden flex items-center justify-center gap-2 pb-6">
+      <div className="md:hidden flex items-center justify-center gap-2 pb-4">
         <div className="flex gap-0.5">{[0, 1, 2, 3, 4].map((i) => <span key={i} className={`h-7 w-7 flex items-center justify-center rounded-sm ${i < 4 ? "bg-white/30" : "bg-white/15"}`}><Star className="h-4 w-4 fill-white text-white" /></span>)}</div>
         <span className="flex items-center gap-1 text-base font-semibold ml-1"><Star className="h-4 w-4 fill-white text-white" />Trustpilot</span>
       </div>
 
       {/* Bottom bar */}
       <div className="bg-black/10 md:bg-black/10 max-md:bg-transparent max-md:pb-14">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5 flex flex-col md:flex-row md:items-center justify-between gap-3 text-center md:text-left">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 md:py-5 flex flex-col md:flex-row md:items-center justify-between gap-1.5 md:gap-3 text-center md:text-left">
           <div className="flex items-center justify-center md:justify-start gap-4">
             <img src="/gogo589-logo.png" alt="gogo589" className="hidden md:block h-6 w-auto opacity-80" style={{ filter: "brightness(0) invert(1)" }} />
             <span className="text-[13px] md:text-[11px] text-white/70">© 2015-2026 gogo589.com 版權所有，並保留所有權利</span>
