@@ -253,9 +253,9 @@ function OrdersInner() {
                   <button
                     data-testid="order-detail-home-btn"
                     onClick={() => { setDetail(null); navigate("/"); }}
-                    className="flex-1 h-11 rounded-full bg-orange-500 text-white font-semibold text-sm flex items-center justify-center gap-1.5"
+                    className="flex-1 h-11 rounded-full bg-white border border-orange-300 text-orange-500 font-semibold text-sm"
                   >
-                    <Home className="h-4 w-4" /> 返回首頁
+                    返回首頁
                   </button>
                 </div>
               </div>
