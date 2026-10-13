@@ -118,7 +118,7 @@ function OrdersInner() {
     catch (e) { toast.error(e.response?.data?.detail || "刪除失敗"); }
   };
   const reorder = (o) => { o.items.forEach((it) => addItem({ id: it.product_id, name: it.product_name, image: it.image }, { id: it.spec_id, label: it.spec_label, price_usd: it.unit_price_usd }, it.quantity)); navigate("/checkout"); };
-  const KAVIP_LABELS = { all: "全部", pending_payment: "未付款", paid: "等待中", processing: "充值中", exception: "出貨失敗", completed: "已完成" };
+  const KAVIP_LABELS = { all: "全部", pending_payment: "未付款", awaiting_info: "等待填寫資料", waiting: "等待中", completed: "已完成" };
 
   return (
     <Panel title="我的訂單" testId="orders-page">
@@ -134,10 +134,12 @@ function OrdersInner() {
             const fields = o.delivery_info ? Object.values(o.delivery_info).flatMap((f) => Object.entries(f)) : [];
             return (
               <div key={o.id} data-testid={`order-card-${o.id}`} className="rounded-2xl bg-slate-50 p-5">
-                <div className="flex items-center justify-between text-sm text-slate-500">
-                  <span className="flex items-center gap-2">訂單編號: <span className="text-slate-700">{o.order_no}</span><button onClick={() => copy(o.order_no)} className="text-slate-400 hover:text-orange-500"><Copy className="h-3.5 w-3.5" /></button></span>
-                  <span>{o.created_at?.slice(0, 19).replace("T", " ")}</span>
-                  <span className={o.status === "pending_payment" ? "text-slate-600" : o.status === "completed" ? "text-emerald-600" : "text-orange-500"}>{orderLabel(o)}</span>
+                <div className="text-sm text-slate-500">
+                  <div className="flex items-center gap-3 whitespace-nowrap">
+                    <span className="flex items-center gap-2 min-w-0">訂單編號: <span className="text-slate-700 truncate">{o.order_no}</span><button onClick={() => copy(o.order_no)} className="text-slate-400 hover:text-orange-500 shrink-0"><Copy className="h-3.5 w-3.5" /></button></span>
+                    <span className={`ml-auto shrink-0 font-medium ${o.status === "pending_payment" ? "text-slate-600" : o.status === "completed" ? "text-emerald-600" : "text-orange-500"}`} data-testid={`order-status-${o.id}`}>{orderLabel(o)}</span>
+                  </div>
+                  <div className="text-xs text-slate-400 mt-1">{o.created_at?.slice(0, 19).replace("T", " ")}</div>
                 </div>
                 <div className="mt-4 flex gap-5">
                   <button onClick={() => setDetail(o)} className="h-28 w-28 shrink-0 rounded-2xl bg-white p-2 shadow-sm"><img src={it?.image} alt="" className="h-full w-full object-contain rounded-xl" /></button>
@@ -146,9 +148,9 @@ function OrdersInner() {
                     <div>{it?.spec_label} * {it?.quantity}</div>
                     {fields.slice(0, 1).map(([k, v]) => <div key={k} className="truncate">{k}: {k.includes("密碼") ? "••••••" : v}</div>)}
                     {!fields.length && o.recharge_account && <div className="truncate">ID: {o.recharge_account}</div>}
-                    <div className="flex items-end justify-between gap-2 pt-1">
-                      <span className="text-orange-500 font-medium">{o.currency}$ {(o.total_usd * o.rate_to_usd).toFixed(2)}</span>
-                      <div className="flex items-center gap-2 flex-wrap justify-end">
+                    <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
+                      <span className="text-orange-500 font-medium whitespace-nowrap">{o.currency}$ {(o.total_usd * o.rate_to_usd).toFixed(2)}</span>
+                      <div className="flex items-center gap-2 flex-wrap justify-end ml-auto">
                         {o.status === "pending_payment" && <button data-testid={`order-delete-${o.id}`} onClick={() => removeOrder(o)} className="h-9 px-3 rounded-full bg-orange-50 text-orange-500 text-xs hover:bg-orange-100">刪除訂單</button>}
                         <button data-testid={`order-reorder-${o.id}`} onClick={() => reorder(o)} className="h-9 px-4 rounded-full bg-slate-900 text-white text-xs hover:bg-slate-800">再來一單</button>
                         {o.status === "paid" && o.info_submitted === false && (

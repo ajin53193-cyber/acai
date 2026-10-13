@@ -535,10 +535,133 @@ async def delete_payment_logo(lid: str, admin: dict = Depends(require_role("admi
     return {"ok": True}
 
 
+# ----------------------------- Payment methods (wallet top-up) -----------------------------
+PM_CATEGORIES = ("card", "ewallet", "bank")
+PM_PROVIDERS = ("manual", "stripe", "paypal", "alipay", "wechat", "crypto", "other")
+PM_SECRET_KEYS = ("api_key", "api_secret", "webhook_secret")
+
+
+class PaymentMethodIn(BaseModel):
+    name: Optional[str] = None
+    category: Optional[str] = None
+    description: Optional[str] = None
+    provider: Optional[str] = None
+    config: Optional[Dict[str, str]] = None
+    min_usd: Optional[float] = None
+    max_usd: Optional[float] = None
+    fee_percent: Optional[float] = None
+    image_b64: str = ""
+    image_name: str = "logo.png"
+    sort_order: Optional[int] = None
+    active: Optional[bool] = None
+
+
+DEFAULT_PAYMENT_METHODS = [
+    {"name": "信用卡 / VISA / MasterCard", "category": "card", "provider": "stripe", "description": "支援 VISA、MasterCard、JCB、American Express，付款後即時入帳。"},
+    {"name": "Apple Pay / Google Pay", "category": "ewallet", "provider": "stripe", "description": "使用 Apple Pay 或 Google Pay 快速付款，即時入帳。"},
+    {"name": "PayPal", "category": "ewallet", "provider": "paypal", "description": "跳轉 PayPal 完成付款，手續費依 PayPal 規定。"},
+    {"name": "USDT 加密貨幣", "category": "ewallet", "provider": "crypto", "description": "支援 TRC20 / ERC20 USDT，鏈上確認後入帳。"},
+    {"name": "銀行轉帳", "category": "bank", "provider": "manual", "description": "轉帳後請聯繫客服提供轉帳憑證，人工核對後入帳（約 10–30 分鐘）。"},
+]
+
+
+async def _ensure_payment_methods():
+    if await db.payment_methods.count_documents({}) == 0:
+        for i, m in enumerate(DEFAULT_PAYMENT_METHODS):
+            await db.payment_methods.insert_one({"id": new_id(), **m, "image": "", "config": {}, "min_usd": 1, "max_usd": 10000, "fee_percent": 0, "sort_order": i + 1, "active": True, "created_at": now_iso()})
+
+
+def _pm_public(m: dict) -> dict:
+    return {k: v for k, v in m.items() if k != "config"}
+
+
+def _pm_admin(m: dict) -> dict:
+    cfg = dict(m.get("config") or {})
+    for k in PM_SECRET_KEYS:
+        if cfg.get(k):
+            cfg[k] = cfg[k][:4] + "••••" + cfg[k][-2:] if len(cfg[k]) > 6 else "••••"
+    return {**m, "config": cfg}
+
+
+@api_router.get("/payment-methods")
+async def list_payment_methods():
+    await _ensure_payment_methods()
+    ms = await db.payment_methods.find({"active": True}, {"_id": 0}).sort("sort_order", 1).to_list(100)
+    return [_pm_public(m) for m in ms]
+
+
+@api_router.get("/admin/payment-methods")
+async def admin_payment_methods(admin: dict = Depends(require_role("admin"))):
+    await _ensure_payment_methods()
+    ms = await db.payment_methods.find({}, {"_id": 0}).sort("sort_order", 1).to_list(100)
+    return [_pm_admin(m) for m in ms]
+
+
+async def _pm_updates(body: PaymentMethodIn, existing: Optional[dict] = None) -> dict:
+    upd = {}
+    if body.name is not None:
+        upd["name"] = body.name.strip()
+    if body.category is not None:
+        if body.category not in PM_CATEGORIES:
+            raise HTTPException(status_code=400, detail="分類不正確")
+        upd["category"] = body.category
+    if body.provider is not None:
+        if body.provider not in PM_PROVIDERS:
+            raise HTTPException(status_code=400, detail="對接方式不正確")
+        upd["provider"] = body.provider
+    if body.description is not None:
+        upd["description"] = body.description
+    if body.config is not None:
+        old = (existing or {}).get("config") or {}
+        merged = {k: v for k, v in body.config.items() if v is not None}
+        for k in PM_SECRET_KEYS:
+            if "••" in merged.get(k, "") and old.get(k):
+                merged[k] = old[k]
+        upd["config"] = merged
+    for k in ("min_usd", "max_usd", "fee_percent", "sort_order"):
+        if getattr(body, k) is not None:
+            upd[k] = getattr(body, k)
+    if body.active is not None:
+        upd["active"] = body.active
+    if body.image_b64:
+        upd["image"] = await _upload_b64("gogo589/payment-methods", body.image_b64, body.image_name)
+    return upd
+
+
+@api_router.post("/admin/payment-methods")
+async def create_payment_method(body: PaymentMethodIn, admin: dict = Depends(require_role("admin"))):
+    if not (body.name or "").strip():
+        raise HTTPException(status_code=400, detail="請輸入支付方式名稱")
+    count = await db.payment_methods.count_documents({})
+    doc = {"id": new_id(), "category": "card", "provider": "manual", "description": "", "image": "", "config": {}, "min_usd": 1, "max_usd": 10000, "fee_percent": 0,
+           "sort_order": count + 1, "active": True, "created_at": now_iso()}
+    doc.update(await _pm_updates(body))
+    await db.payment_methods.insert_one(doc)
+    doc.pop("_id", None)
+    return _pm_admin(doc)
+
+
+@api_router.put("/admin/payment-methods/{mid}")
+async def update_payment_method(mid: str, body: PaymentMethodIn, admin: dict = Depends(require_role("admin"))):
+    existing = await db.payment_methods.find_one({"id": mid}, {"_id": 0})
+    if not existing:
+        raise HTTPException(status_code=404, detail="不存在")
+    upd = await _pm_updates(body, existing)
+    r = await db.payment_methods.find_one_and_update({"id": mid}, {"$set": upd}, projection={"_id": 0}, return_document=ReturnDocument.AFTER)
+    return _pm_admin(r)
+
+
+@api_router.delete("/admin/payment-methods/{mid}")
+async def delete_payment_method(mid: str, admin: dict = Depends(require_role("admin"))):
+    await db.payment_methods.delete_one({"id": mid})
+    return {"ok": True}
+
+
 # ----------------------------- Wallet -----------------------------
 class TopUpIn(BaseModel):
     amount_usd: float
     method: str = "card"
+    method_id: str = ""
 
 
 class OrderInfoIn(BaseModel):
@@ -565,14 +688,26 @@ async def _wallet_tx(user_id: str, kind: str, amount_usd: float, note: str, ref:
 @api_router.get("/me/wallet")
 async def get_wallet(member: dict = Depends(current_member)):
     txs = await db.wallet_transactions.find({"user_id": member["user_id"]}, {"_id": 0}).sort("created_at", -1).to_list(100)
-    return {"balance_usd": await _wallet(member["user_id"]), "transactions": txs}
+    u = await db.users.find_one({"user_id": member["user_id"]}, {"_id": 0, "last_payment_method_id": 1}) or {}
+    return {"balance_usd": await _wallet(member["user_id"]), "transactions": txs, "last_method_id": u.get("last_payment_method_id", "")}
 
 
 @api_router.post("/me/wallet/topup")
 async def wallet_topup(body: TopUpIn, member: dict = Depends(current_member)):
-    if body.amount_usd < 1 or body.amount_usd > 10000:
+    label, pm = body.method, None
+    if body.method_id:
+        pm = await db.payment_methods.find_one({"id": body.method_id, "active": True}, {"_id": 0})
+        if not pm:
+            raise HTTPException(status_code=400, detail="支付方式無效或已停用")
+        label = pm["name"]
+        lo, hi = float(pm.get("min_usd") or 1), float(pm.get("max_usd") or 10000)
+        if body.amount_usd < lo or body.amount_usd > hi:
+            raise HTTPException(status_code=400, detail=f"此支付方式單次充值金額需介於 USD${lo:g} ~ USD${hi:g}")
+    elif body.amount_usd < 1 or body.amount_usd > 10000:
         raise HTTPException(status_code=400, detail="單次充值金額需介於 USD$1 ~ USD$10,000")
-    bal = await _wallet_tx(member["user_id"], "topup", float(body.amount_usd), f"錢包充值（{body.method}，測試支付）")
+    bal = await _wallet_tx(member["user_id"], "topup", float(body.amount_usd), f"錢包充值（{label}，測試支付）", ref=body.method_id)
+    if pm:
+        await db.users.update_one({"user_id": member["user_id"]}, {"$set": {"last_payment_method_id": pm["id"]}})
     return {"balance_usd": bal}
 
 
@@ -922,7 +1057,11 @@ async def pay_order(order_id: str, member: dict = Depends(current_member)):
 @api_router.get("/orders")
 async def my_orders(status: Optional[str] = None, member: dict = Depends(current_member)):
     query = {"user_id": member["user_id"]}
-    if status and status != "all":
+    if status == "awaiting_info":
+        query.update({"status": "paid", "info_submitted": False})
+    elif status == "waiting":
+        query.update({"$or": [{"status": "paid", "info_submitted": {"$ne": False}}, {"status": {"$in": ["processing", "shipped"]}}]})
+    elif status and status != "all":
         query["status"] = status
     return await db.orders.find(query, {"_id": 0}).sort("created_at", -1).to_list(500)
 

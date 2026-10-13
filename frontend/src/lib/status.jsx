@@ -16,7 +16,7 @@ export const STATUS_COLORS = {
   exception: "bg-red-100 text-red-700 border-red-200",
 };
 
-export const orderLabel = (o) => (o.status === "paid" && o.info_submitted === false ? "待填寫資料" : STATUS_LABELS[o.status]);
+export const orderLabel = (o) => (o.status === "paid" && o.info_submitted === false ? "等待填寫資料" : STATUS_LABELS[o.status]);
 
 export const STATUS_ORDER = ["pending_payment", "paid", "processing", "shipped", "completed"];
 

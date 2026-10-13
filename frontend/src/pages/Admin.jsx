@@ -14,12 +14,14 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Switch } from "@/components/ui/switch";
 import WalletAdmin from "@/pages/admin/WalletAdmin";
 import { VerificationsAdmin, FeedbackAdmin } from "@/pages/admin/SupportAdmin";
+import PaymentMethodsAdmin from "@/pages/admin/PaymentMethodsAdmin";
 
 const NAV = [
   ["overview", "總覽", LayoutDashboard],
   ["products", "商品管理", Package],
   ["orders", "訂單管理", ShoppingBag],
   ["wallets", "錢包管理", Wallet],
+  ["payments", "支付管理", CreditCard],
   ["verifications", "認證審核", BadgeCheck],
   ["feedback", "用戶反饋", MessageSquare],
   ["reviews", "評價管理", Star],
@@ -27,7 +29,7 @@ const NAV = [
   ["promos", "優惠碼", Tag],
   ["users", "用戶管理", Users],
   ["settings", "網站設定", Settings],
-  ["paylogos", "支付Logo", CreditCard],
+  ["paylogos", "頁尾支付Logo", ImagePlus],
 ];
 
 const ALL_STATUSES = Object.keys(STATUS_LABELS);
@@ -70,6 +72,7 @@ function AdminInner() {
         {section === "products" && <Products callApi={callApi} />}
         {section === "orders" && <Orders callApi={callApi} />}
         {section === "wallets" && <WalletAdmin callApi={callApi} />}
+        {section === "payments" && <PaymentMethodsAdmin callApi={callApi} />}
         {section === "verifications" && <VerificationsAdmin callApi={callApi} />}
         {section === "feedback" && <FeedbackAdmin callApi={callApi} />}
         {section === "reviews" && <Reviews callApi={callApi} />}

@@ -51,7 +51,7 @@ export default function AccountLayout() {
             <aside className="w-full lg:w-60 shrink-0 bg-white rounded-3xl shadow-sm py-6 px-4 lg:min-h-[70vh]" data-testid="account-sidebar">
               <nav className="flex lg:flex-col gap-1 overflow-x-auto no-scrollbar">
                 {NAV.map(([to, label, Icon]) => (
-                  <NavLink key={to} to={to} end data-testid={`account-nav-${to.replace(/\//g, "-").slice(1)}`} className={({ isActive }) => `flex items-center gap-3 px-5 py-4 rounded-2xl text-base whitespace-nowrap transition-colors ${isActive ? "text-orange-500 font-medium" : "text-slate-600 hover:text-orange-500"}`}>
+                  <NavLink key={to} to={to} end={to === "/account"} data-testid={`account-nav-${to.replace(/\//g, "-").slice(1)}`} className={({ isActive }) => `flex items-center gap-3 px-5 py-4 rounded-2xl text-base whitespace-nowrap transition-colors ${isActive ? "text-orange-500 font-medium" : "text-slate-600 hover:text-orange-500"}`}>
                     <Icon className="h-5 w-5" />{label}
                   </NavLink>
                 ))}
