@@ -9,6 +9,7 @@ import { useIsMobile } from "@/lib/useIsMobile";
 import { useCart } from "@/context/CartContext";
 import ProductCard from "@/components/ProductCard";
 import { DetailBannerCarousel } from "@/components/DetailBannerCarousel";
+import { AddToHomeDialog } from "@/components/AddToHomeDialog";
 
 const PERKS = [
   [Sparkles, "新用戶專享", "新用戶首單特惠"],
@@ -69,6 +70,7 @@ export default function ProductDetail() {
   const [product, setProduct] = useState(null);
   const [category, setCategory] = useState(null);
   const [related, setRelated] = useState([]);
+  const [a2hs, setA2hs] = useState(false);
   const [reviews, setReviews] = useState([]);
   const [specId, setSpecId] = useState(null);
   const [qty, setQty] = useState(1);
@@ -220,6 +222,10 @@ export default function ProductDetail() {
           </div>
         </div>
 
+        <button type="button" data-testid="detail-a2hs-banner" onClick={() => setA2hs(true)} className="mt-4 md:mt-6 block w-full overflow-hidden rounded-xl md:rounded-2xl">
+          <img src="/banners/detail-a2hs-wide.jpg" alt="添加官網至桌面，開啟一鍵充值 立即添加" className="w-full h-auto block" />
+        </button>
+
         {/* Tabs */}
         <div className="mt-6 md:mt-8 flex items-end" data-testid="detail-tabs">
           {[["desc", "產品說明"], ["reviews", `評價(${reviews.length})`]].map(([k, label]) => (
@@ -317,6 +323,8 @@ export default function ProductDetail() {
           </section>
         )}
       </div>
+
+      {a2hs && <AddToHomeDialog onClose={() => setA2hs(false)} />}
 
       {/* Mobile sticky bar */}
       <div className="fixed bottom-0 left-0 right-0 bg-white rounded-t-3xl px-4 pt-3 pb-4 z-30 flex items-center gap-3 md:hidden safe-bottom-pad shadow-[0_-8px_30px_-12px_rgba(0,0,0,0.15)]">
