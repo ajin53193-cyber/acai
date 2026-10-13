@@ -366,8 +366,8 @@ function AuthModal({ open, onOpenChange }) {
         </div>
         )}
       {doc && (
-          <div data-testid="auth-doc-overlay" className="absolute inset-0 z-20 bg-black/40 flex items-end md:items-center justify-center p-0 md:p-6" onClick={() => setDoc(null)}>
-            <div data-testid="auth-doc-dialog" className="bg-white w-full md:max-w-md max-h-[80%] rounded-t-3xl md:rounded-3xl p-5 overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+          <div data-testid="auth-doc-overlay" className="absolute inset-0 z-20 bg-black/40 flex items-center justify-center p-6" onClick={() => setDoc(null)}>
+            <div data-testid="auth-doc-dialog" className="bg-white w-full max-w-md max-h-[80%] rounded-3xl p-5 overflow-y-auto shadow-2xl" onClick={(e) => e.stopPropagation()}>
               <div className="flex items-center justify-between mb-3">
                 <h3 className="text-base font-bold text-slate-900">{INFO_CONTENT[doc].title}</h3>
                 <button data-testid="auth-doc-close" onClick={() => setDoc(null)} className="h-8 w-8 rounded-full bg-orange-50 text-orange-500 flex items-center justify-center"><X className="h-4 w-4" /></button>
