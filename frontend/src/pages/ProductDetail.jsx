@@ -19,30 +19,24 @@ const PERKS = [
 
 const badgeColor = (b = "") => /新用戶|每月一單/.test(b) ? "bg-fuchsia-500" : /每日一單|特價/.test(b) ? "bg-violet-500" : /送/.test(b) ? "bg-emerald-500" : /最低|免費/.test(b) ? "bg-red-500" : "bg-orange-500";
 
+const PERK_SLIDES = ["/banners/perks-1.png", "/banners/perks-2.png"];
+
 function PerksSlider() {
   const ref = useRef(null);
   const [idx, setIdx] = useState(0);
-  const go = (dir) => {
-    const el = ref.current; if (!el) return;
-    const n = Math.max(0, Math.min(PERKS.length - 1, idx + dir));
-    setIdx(n);
-    const item = el.children[n];
-    if (item) el.scrollTo({ left: item.offsetLeft - 8, behavior: "smooth" });
+  const go = (n) => {
+    const k = (n + PERK_SLIDES.length) % PERK_SLIDES.length;
+    setIdx(k);
+    ref.current?.scrollTo({ left: k * ref.current.clientWidth, behavior: "smooth" });
   };
   return (
     <div className="mt-4 md:mt-6 relative" data-testid="perks-slider">
-      <button data-testid="perks-prev" onClick={() => go(-1)} className="absolute -left-1 md:-left-3 top-1/2 -translate-y-1/2 z-10 h-7 w-7 rounded-full bg-[#FFE4C8] text-orange-400 flex items-center justify-center shadow-sm"><ChevronLeft className="h-4 w-4" /></button>
-      <button data-testid="perks-next" onClick={() => go(1)} className="absolute -right-1 md:-right-3 top-1/2 -translate-y-1/2 z-10 h-7 w-7 rounded-full bg-[#FFE4C8] text-orange-400 flex items-center justify-center shadow-sm"><ChevronRight className="h-4 w-4" /></button>
-      <div ref={ref} onScroll={(e) => { const el = e.currentTarget; const w = el.children[0]?.offsetWidth || 1; setIdx(Math.round(el.scrollLeft / (w + 24))); }}
-        className="mx-5 md:mx-6 flex overflow-x-auto no-scrollbar snap-x snap-mandatory gap-6 md:gap-10 bg-white/50 rounded-2xl px-3 md:px-5 py-2.5 md:py-3" data-testid="perks-strip">
-        {PERKS.map(([Icon, t, d]) => (
-          <div key={t} className="flex items-center gap-2.5 md:gap-3 shrink-0 snap-start">
-            <span className="h-10 w-10 md:h-12 md:w-12 rounded-full bg-[#FFE9D2] text-orange-500 flex items-center justify-center shrink-0"><Icon className="h-5 w-5 md:h-6 md:w-6" strokeWidth={1.9} /></span>
-            <div className="min-w-0">
-              <div className="text-[15px] md:text-base font-bold text-slate-800 whitespace-nowrap leading-tight">{t}</div>
-              <div className="text-[12px] md:text-[13px] text-slate-500 whitespace-nowrap mt-0.5">{d}</div>
-            </div>
-          </div>
+      <button data-testid="perks-prev" onClick={() => go(idx - 1)} className="absolute -left-1 md:-left-3 top-1/2 -translate-y-1/2 z-10 h-7 w-7 rounded-full bg-[#FFE4C8] text-orange-400 flex items-center justify-center shadow-sm"><ChevronLeft className="h-4 w-4" /></button>
+      <button data-testid="perks-next" onClick={() => go(idx + 1)} className="absolute -right-1 md:-right-3 top-1/2 -translate-y-1/2 z-10 h-7 w-7 rounded-full bg-[#FFE4C8] text-orange-400 flex items-center justify-center shadow-sm"><ChevronRight className="h-4 w-4" /></button>
+      <div ref={ref} onScroll={(e) => setIdx(Math.round(e.currentTarget.scrollLeft / e.currentTarget.clientWidth))}
+        className="mx-5 md:mx-6 flex overflow-x-auto no-scrollbar snap-x snap-mandatory rounded-2xl" data-testid="perks-strip">
+        {PERK_SLIDES.map((src, i) => (
+          <img key={src} src={src} alt={`購物權益 ${i + 1}`} data-testid={`perks-slide-${i}`} className="w-full shrink-0 snap-start h-auto block" />
         ))}
       </div>
     </div>
