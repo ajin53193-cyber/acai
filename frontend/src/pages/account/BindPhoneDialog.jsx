@@ -49,18 +49,18 @@ export function BindPhoneDialog({ onClose }) {
 
   return (
     <Dialog open onOpenChange={onClose}>
-      <DialogContent className="max-w-md rounded-3xl p-6" data-testid="bind-phone-dialog">
-        <DialogHeader><DialogTitle className="text-lg font-bold text-slate-900">綁定手機號碼</DialogTitle></DialogHeader>
-        <p className="text-xs text-slate-500 -mt-2">綁定後可使用手機號碼登入，並接收訂單通知。</p>
+      <DialogContent className="w-[86vw] max-w-sm rounded-2xl md:rounded-3xl p-5 md:p-6" data-testid="bind-phone-dialog">
+        <DialogHeader><DialogTitle className="text-base md:text-lg font-bold text-slate-900">綁定手機號碼</DialogTitle></DialogHeader>
+        <p className="text-[11px] md:text-xs text-slate-500 -mt-2">綁定後可使用手機號碼登入，並接收訂單通知。</p>
         <div className="space-y-3 mt-2">
           <PhoneInput dialCode={dialCode} setDialCode={setDialCode} value={raw} onChange={setRaw} testId="bind-phone-input" />
           {pending && (
             <div className="flex items-center gap-2">
-              <input data-testid="bind-phone-code" inputMode="numeric" value={code} onChange={(e) => setCode(e.target.value)} placeholder="簡訊驗證碼" className="flex-1 min-w-0 h-14 rounded-2xl bg-slate-100 px-4 text-sm outline-none focus:ring-2 focus:ring-orange-300" />
-              <button data-testid="bind-phone-resend" onClick={sendCode} disabled={busy} className="shrink-0 h-14 px-4 rounded-2xl bg-orange-100 text-orange-600 font-bold text-sm hover:bg-orange-200 whitespace-nowrap disabled:opacity-60">重新發送</button>
+              <input data-testid="bind-phone-code" inputMode="numeric" value={code} onChange={(e) => setCode(e.target.value)} placeholder="簡訊驗證碼" className="flex-1 min-w-0 h-11 md:h-14 rounded-full md:rounded-2xl bg-slate-100 px-4 text-sm outline-none focus:ring-2 focus:ring-orange-300" />
+              <button data-testid="bind-phone-resend" onClick={sendCode} disabled={busy} className="shrink-0 h-11 md:h-14 px-4 rounded-full md:rounded-2xl bg-orange-100 text-orange-600 font-bold text-sm hover:bg-orange-200 whitespace-nowrap disabled:opacity-60">重新發送</button>
             </div>
           )}
-          <OrangeBtn data-testid="bind-phone-submit" onClick={pending ? verify : sendCode} disabled={busy} className="w-full">
+          <OrangeBtn data-testid="bind-phone-submit" onClick={pending ? verify : sendCode} disabled={busy} className="w-full max-md:h-11 max-md:text-sm max-md:px-6">
             {busy ? "處理中…" : pending ? "確認綁定" : "發送驗證碼"}
           </OrangeBtn>
         </div>
