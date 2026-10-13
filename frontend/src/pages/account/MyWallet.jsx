@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { Wallet, ArrowDownLeft, ArrowUpRight, ArrowDownToLine, ShoppingBag, ChevronRight } from "lucide-react";
+import { Wallet, ArrowDownToLine, ShoppingBag, ChevronRight, PlusCircle, MinusCircle, Gift, RotateCcw } from "lucide-react";
 import { useApi } from "@/lib/api";
 import { useCurrency } from "@/context/CurrencyContext";
 import { Panel } from "./AccountLayout";
@@ -41,6 +41,24 @@ export function BalanceBanner({ data }) {
   );
 }
 
+const TX_ICONS = {
+  payment: [ShoppingBag, "from-[#FF9A3C] to-[#F2672D]"],
+  topup: [PlusCircle, "from-[#34D399] to-[#059669]"],
+  admin_credit: [Gift, "from-[#FBBF24] to-[#F59E0B]"],
+  admin_debit: [MinusCircle, "from-[#94A3B8] to-[#64748B]"],
+  refund: [RotateCcw, "from-[#60A5FA] to-[#2563EB]"],
+};
+
+function TxIcon({ kind, credit }) {
+  const [Icon, grad] = TX_ICONS[kind] || (credit ? TX_ICONS.topup : TX_ICONS.payment);
+  return (
+    <span className={`relative h-10 w-10 shrink-0 rounded-xl bg-gradient-to-br ${grad} text-white flex items-center justify-center shadow-[0_6px_14px_-6px_rgba(0,0,0,0.35)]`}>
+      <Icon className="h-5 w-5" strokeWidth={2.2} />
+      <span className={`absolute -right-1 -bottom-1 h-4 w-4 rounded-full border-2 border-white text-[10px] font-bold leading-[12px] text-center ${credit ? "bg-emerald-500 text-white" : "bg-slate-800 text-white"}`}>{credit ? "+" : "−"}</span>
+    </span>
+  );
+}
+
 export function TxRow({ t }) {
   const { format } = useCurrency();
   const credit = t.amount_usd >= 0;
@@ -49,7 +67,7 @@ export function TxRow({ t }) {
   const ref = m ? m[2] : "";
   return (
     <div className="flex items-center gap-3 py-3 text-sm" data-testid={`tx-row-${t.id}`}>
-      <span className={`h-10 w-10 shrink-0 rounded-xl flex items-center justify-center ${credit ? "bg-emerald-50 text-emerald-500" : "bg-orange-50 text-orange-500"}`}>{credit ? <ArrowDownLeft className="h-5 w-5" /> : <ArrowUpRight className="h-5 w-5" />}</span>
+      <TxIcon kind={t.kind} credit={credit} />
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 min-w-0">
           <span className="text-slate-800 font-medium truncate">{title}</span>
