@@ -32,7 +32,7 @@ import Admin from "@/pages/Admin";
 function StoreLayout() {
   return (
     <AuthModalProvider>
-      <div className="min-h-screen flex flex-col">
+      <div className="min-h-screen flex flex-col site-bg" style={{ "--site-bg-pc": "url(/kavip-bg-pc.png)", "--site-bg-m": "url(/kavip-bg-m.png)" }}>
         <Header />
         <main className="flex-1">
           <Outlet />

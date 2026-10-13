@@ -13,8 +13,22 @@ body {
     font-family: var(--font-body);
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
-    background: #FDF4EA;
+    background: #FFF4EA;
     color: #0F172A;
+}
+
+.site-bg {
+    background-color: #FFF4EA;
+    background-image: var(--site-bg-pc);
+    background-position: center -90px;
+    background-size: 100% auto;
+    background-repeat: no-repeat;
+}
+@media screen and (max-width: 768px) {
+    .site-bg {
+        background-image: var(--site-bg-m);
+        background-position: center top;
+    }
 }
 
 code, .font-mono {
