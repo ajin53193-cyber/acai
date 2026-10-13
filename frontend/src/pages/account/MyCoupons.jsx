@@ -46,7 +46,7 @@ export default function MyCoupons() {
   return (
     <Panel title="我的優惠券" testId="coupons-page"
       right={<div className="flex items-center gap-2 md:gap-3 min-w-0"><input data-testid="coupon-code-input" value={code} onChange={(e) => setCode(e.target.value)} placeholder="請輸入優惠券碼" className="h-9 md:h-11 w-36 md:w-64 min-w-0 rounded-full bg-white md:bg-slate-100 px-4 md:px-5 text-xs md:text-sm outline-none focus:ring-2 focus:ring-orange-300 placeholder:text-slate-400" /><button data-testid="coupon-redeem-btn" onClick={redeem} className="h-9 md:h-11 px-3.5 md:px-5 rounded-full bg-orange-500 md:bg-orange-50 text-white md:text-orange-500 text-xs md:text-sm font-semibold hover:bg-orange-600 md:hover:bg-orange-100 whitespace-nowrap shrink-0">立即兌換</button></div>}>
-      <div className="-mt-2 mb-3 px-1 text-xs md:text-sm text-slate-500">優惠券使用完整攻略: <Link to="/info/coupons" className="text-orange-500 underline">點這裡查看</Link></div>
+      <div className="-mt-2 mb-3 px-1 text-xs md:text-sm text-slate-500">優惠券使用完整攻略: <Link to="/article/coupon-faq" data-testid="coupon-guide-link" className="text-orange-500 underline">點這裡查看</Link></div>
       {list.length === 0 ? (
         <div className="py-16 text-center text-slate-400 text-sm" data-testid="coupons-empty">尚無優惠券，輸入優惠券碼即可領取（試試 <button className="text-orange-500 font-semibold" onClick={() => setCode("GLOBAL2026")}>GLOBAL2026</button> / <button className="text-orange-500 font-semibold" onClick={() => setCode("WELCOME5")}>WELCOME5</button>）</div>
       ) : (
