@@ -19,6 +19,8 @@ const PERKS = [
 
 const badgeColor = (b = "") => /新用戶|每月一單/.test(b) ? "bg-fuchsia-500" : /每日一單|特價/.test(b) ? "bg-violet-500" : /送/.test(b) ? "bg-emerald-500" : /最低|免費/.test(b) ? "bg-red-500" : "bg-orange-500";
 
+const TICKER = ["如需使用其它幣種，請在網站右上角選擇", ">>極速發貨 >>正規安全 >>24小時營業"];
+
 const TIPS = [
   ["購買前請確認", "購物車商品資訊無誤", "。"],
   ["接收", "全球幣種", "支付，請在網站上方選擇您的支付貨幣類型即可。"],
@@ -29,6 +31,8 @@ const TIPS = [
 
 export default function ProductDetail() {
   const isMobile = useIsMobile();
+  const [tick, setTick] = useState(0);
+  useEffect(() => { const t = setInterval(() => setTick((v) => (v + 1) % TICKER.length), 3000); return () => clearInterval(t); }, []);
   const { id } = useParams();
   const navigate = useNavigate();
   const { format } = useCurrency();
@@ -106,9 +110,8 @@ export default function ProductDetail() {
             <div className="min-w-0">
               <h1 className="font-head text-base sm:text-2xl font-bold text-slate-900" data-testid="product-title">{product.name}</h1>
               <div className="mt-1 md:mt-1.5 text-xs md:text-sm text-slate-500 md:text-slate-600 max-md:line-clamp-2 md:truncate">{product.subtitle || product.account_field_hint || `${product.brand} 海外代充服務，支援全球帳號`}</div>
-              <div className="mt-1 md:mt-1.5 text-xs text-orange-500 flex items-center gap-3">
-                <span className="md:hidden">如需使用其它幣種，請在網站右上角選擇</span>
-                <span className="hidden md:inline">&gt;&gt;極速發貨</span><span className="hidden md:inline">&gt;&gt;正版安全</span><span className="hidden md:inline">&gt;&gt;24小時營業</span>
+              <div className="mt-1 md:mt-1.5 text-xs text-orange-500 h-4 overflow-hidden relative" data-testid="detail-ticker">
+                <div key={tick} className="animate-ticker whitespace-nowrap">{TICKER[tick]}</div>
                 <span className="hidden sm:flex items-center gap-1 text-amber-500"><Star className="h-3 w-3 fill-amber-400 text-amber-400" />{product.rating} · 已售 {product.sales_count}</span>
               </div>
             </div>
