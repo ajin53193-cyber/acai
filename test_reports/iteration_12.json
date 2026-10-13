@@ -1,0 +1,52 @@
+{
+  "summary": "Backend + frontend verification of wallet transaction enrichment with order items, TxRow/TxDetailSheet UX, and mobile account nav 5-items-per-screen layout. All acceptance criteria PASS.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "verified_checks": {
+    "backend_GET_/api/me/wallet": {
+      "status_code": 200,
+      "payment_tx_enrichment": "payment tx id b1e3b6ea-... includes order{id,order_no,status,items[{product_name:'抖音抖幣充值(抖音鑽石)', spec_label:'300鑽石', quantity:1, image}]} — all 4 fields present on each item",
+      "topup_tx": "topup tx (信用卡/VISA/MasterCard …) has NO `order` key (test_topup_tx_has_no_order PASS)",
+      "pytest": "3/3 pass in test_wallet_order_enrichment.py"
+    },
+    "mobile_400x850_transactions_page": {
+      "payment_row_title": "'抖音抖幣充值(抖音鑽石) · 300鑽石' shown (product name · spec)",
+      "payment_row_tag": "'購買' tag rendered (orange pill) — not '支出'",
+      "payment_row_testid": "tx-row-b1e3b6ea-72f1-48fb-86f5-080ad867d7c8 clickable",
+      "tx_detail_sheet_opens": "tx-detail-sheet opens with tx-detail-amount='-$5.38' and KIND label 訂單付款",
+      "tx_detail_items": "tx-detail-items block visible: '購買商品 / 抖音抖幣充值(抖音鑽石) / 300鑽石 / x1 / 查看訂單 ›'; 1 product image rendered",
+      "view_order_link": "tx-detail-view-order navigates to /orders (verified via wait_for_url)",
+      "topup_row": "'錢包充值（信用卡 / VISA / MasterCard，測試支付）' with '入帳' tag — no 購買 tag",
+      "topup_sheet_no_items_block": "tx-detail-items count=0 on topup sheet (correct — hidden when no order.items)",
+      "close_by_overlay": "Radix overlay click dismisses sheet (count 1→0)",
+      "sheet_fits_viewport": "sheet bbox 400x644 at y=206; scrollHeight==clientHeight==644 (fits, scroll kicks in when taller via max-h-[88vh] overflow-y-auto)"
+    },
+    "mobile_400x850_account_nav": {
+      "sidebar_testid": "account-sidebar bbox x=12 w=376 (inside 400 viewport, 12px padding each side)",
+      "first_5_items_fit": "我的帳戶 x=12 w=75; 我的錢包 x=87 w=75; 我的訂單 x=162 w=75; 我的認證 x=238 w=75; 我的優惠券 x=313 w=75 — all 5 fully inside viewport (right edge 388 <= 400), no clipping",
+      "overflow_scroll_reveals_rest": "nav.scrollWidth=526 > clientWidth=376; after scrollTo(scrollWidth), 幫助中心 & 登出帳戶 slide into view at x=238/313",
+      "text_labels_intact": "all labels render in full (text-[11px], whitespace-nowrap, flex-col column layout)"
+    },
+    "desktop_1400x900_regression": {
+      "wallet_page_renders": "wallet-page visible; BalanceBanner USD $286.04; action cards side-by-side; wallet-last-tx row with corner tag",
+      "console_errors": "none"
+    }
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_wallet_order_enrichment.py",
+    "/app/test_reports/pytest/wallet_order_enrichment.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "MyWallet.jsx L122: title uses optional-chained items[0]; good. Minor: if order.items ever contains null product_name (defensive), string becomes 'undefined · ...' — low priority to add fallback.",
+    "MyWallet.jsx L80 Sheet onOpenChange: passing `onClose` (no-arg) to Radix which calls it with boolean `open`. Works today because TxRow unmounts via `open && <TxDetailSheet/>` guard, so onOpenChange(true) first-mount is prevented. Still a minor smell — recommend `onOpenChange={(v)=>!v&&onClose()}` for clarity.",
+    "server.py get_wallet (L728): per-request `async for` iteration over the orders cursor is fine; `.to_list()` would be slightly more idiomatic but both work."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "100% (3/3 wallet enrichment tests)", "frontend": "100% (all acceptance checks pass)"},
+  "test_credentials": "Clerk tester+clerk_test@shop.com (user_3Kc4MFu2DHwZuy8itp5vS09nzaL) via /app/tests/mint_ticket.py + Clerk.signIn.create({strategy:'ticket'})",
+  "seed_data_creation": "None — used existing member payment + topup transactions",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "get_wallet enriches payment txs by joining db.orders on tx.ref (order_id) and projecting items[{product_name, spec_label, quantity, image}]; topup/admin_* txs have no `order`. TxRow title formula: `${items[0].product_name}${spec_label?' · '+spec_label:''}${items.length>1?' 等N件':''}` with '購買' tag when items exist; falls back to parsed note. TxDetailSheet (Radix bottom sheet with #FFF4EA bg + dot pattern) renders tx-detail-items card only when t.order?.items?.length>0; '查看訂單' Link routes to /orders. AccountLayout mobile nav uses flex row + overflow-x-auto no-scrollbar with w-1/5 flex-none items — 5 per screen, scroll reveals 幫助中心 + 登出帳戶 (7 total)."
+}
