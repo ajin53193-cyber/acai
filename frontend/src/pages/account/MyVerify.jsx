@@ -63,43 +63,45 @@ export default function MyVerify() {
 
   if (adding) {
     return (
-      <Panel title="我的認證" testId="verify-form-page" right={<button data-testid="verify-back" onClick={() => setAdding(false)} className="h-10 px-5 rounded-full border border-orange-400 text-orange-500 text-sm hover:bg-orange-50">返回我的認證</button>}>
-        <div className="rounded-2xl bg-[#FFF6EC] [background-image:radial-gradient(rgba(255,255,255,0.9)_1.5px,transparent_1.5px)] [background-size:14px_14px] p-6 sm:p-10">
-          <div className="flex items-center gap-6">
-            <Award className="h-20 w-20 text-amber-400" strokeWidth={1.3} />
-            <div>
-              <div className="font-bold text-slate-900 text-base">為了帳戶安全，您需要完成實名身份認證</div>
-              <div className="text-sm text-slate-500 mt-2">完成認證，可提升系統出貨額度，享有極速出貨</div>
-              <div className="text-sm text-slate-500 mt-1">完成認證，提升帳戶信譽度，避免消費二次審核</div>
+      <Panel title="我的認證" testId="verify-form-page" right={<button data-testid="verify-back" onClick={() => setAdding(false)} className="h-8 md:h-10 px-4 md:px-5 rounded-full border border-orange-400 text-orange-500 text-xs md:text-sm hover:bg-orange-50 whitespace-nowrap">返回我的認證</button>}>
+        <div className="rounded-2xl md:bg-[#FFF6EC] md:[background-image:radial-gradient(rgba(255,255,255,0.9)_1.5px,transparent_1.5px)] md:[background-size:14px_14px] md:p-10">
+          <div className="flex items-center gap-3 md:gap-6 max-md:bg-white max-md:rounded-2xl max-md:p-4 max-md:shadow-[0_6px_20px_-12px_rgba(232,121,42,0.35)]">
+            <span className="shrink-0 h-14 w-14 md:h-20 md:w-20 rounded-2xl md:rounded-none bg-gradient-to-br from-amber-300 to-orange-400 md:bg-none text-white md:text-amber-400 flex items-center justify-center"><Award className="h-8 w-8 md:h-20 md:w-20" strokeWidth={1.5} /></span>
+            <div className="min-w-0">
+              <div className="font-bold text-slate-900 text-[15px] md:text-base leading-snug">為了帳戶安全，您需要完成實名身份認證</div>
+              <div className="text-xs md:text-sm text-slate-500 mt-1.5 md:mt-2 leading-relaxed">完成認證，可提升系統出貨額度，享有極速出貨</div>
+              <div className="text-xs md:text-sm text-slate-500 mt-0.5 md:mt-1 leading-relaxed">完成認證，提升帳戶信譽度，避免消費二次審核</div>
             </div>
           </div>
-          <div className="mt-8 bg-slate-50/80 rounded-2xl p-6 sm:p-8">
-            <div className="flex items-center gap-8 mb-6">
+          <div className="mt-4 md:mt-8 bg-white md:bg-slate-50/80 rounded-2xl p-4 md:p-8 max-md:shadow-[0_6px_20px_-12px_rgba(232,121,42,0.35)]">
+            <div className="flex items-center gap-6 md:gap-8 mb-5 md:mb-6 max-md:border-b max-md:border-slate-100 max-md:-mx-4 max-md:px-4 max-md:pb-3">
               {[["identity", "身份認證"], ["card", "金融卡"]].map(([k, l]) => (
-                <button key={k} data-testid={`verify-kind-${k}`} onClick={() => { setKind(k); setDocType(k === "identity" ? DOC_TYPES[0] : CARD_TYPES[0]); }} className={`relative text-base font-medium pb-1 ${kind === k ? "text-orange-500" : "text-slate-700"}`}>
-                  {l}{kind === k && <span className="absolute left-0 right-0 -top-7 mx-auto h-1 w-10 rounded-b-full bg-orange-500" />}
+                <button key={k} data-testid={`verify-kind-${k}`} onClick={() => { setKind(k); setDocType(k === "identity" ? DOC_TYPES[0] : CARD_TYPES[0]); }} className={`relative text-[15px] md:text-base font-medium pb-1 ${kind === k ? "text-orange-500" : "text-slate-700"}`}>
+                  {l}{kind === k && <span className="absolute left-0 right-0 max-md:-bottom-3 md:-top-7 mx-auto h-[3px] md:h-1 w-8 md:w-10 rounded-full md:rounded-b-full bg-orange-500" />}
                 </button>
               ))}
             </div>
-            <div className="flex items-center gap-4 flex-wrap text-sm">
-              <span className="w-20 text-slate-600">證件類型：</span>
+            <div className="flex items-start gap-3 md:gap-4 text-sm">
+              <span className="w-[72px] md:w-20 shrink-0 text-slate-600 text-[13px] md:text-sm pt-1.5">證件類型：</span>
+              <div className="flex flex-wrap gap-2 md:gap-4">
               {types.map((t) => (
-                <button key={t} data-testid={`verify-doctype-${t}`} onClick={() => setDocType(t)} className="flex items-center gap-2">
-                  <span className={`h-5 w-5 rounded-full flex items-center justify-center ${docType === t ? "text-orange-500" : "bg-slate-200 text-white"}`}><Check className="h-4 w-4" strokeWidth={3} /></span>
-                  <span className={docType === t ? "text-orange-500" : "text-slate-700"}>{t}</span>
+                <button key={t} data-testid={`verify-doctype-${t}`} onClick={() => setDocType(t)} className={`flex items-center gap-1.5 md:gap-2 max-md:h-8 max-md:px-3 max-md:rounded-full max-md:text-[13px] ${docType === t ? "max-md:bg-orange-500 max-md:text-white" : "max-md:bg-slate-100 max-md:text-slate-700"}`}>
+                  <span className={`h-5 w-5 rounded-full items-center justify-center hidden md:flex ${docType === t ? "text-orange-500" : "bg-slate-200 text-white"}`}><Check className="h-4 w-4" strokeWidth={3} /></span>
+                  <span className={docType === t ? "md:text-orange-500" : "md:text-slate-700"}>{t}</span>
                 </button>
               ))}
+              </div>
             </div>
-            <div className="flex items-center gap-4 mt-6 text-sm"><span className="w-20 text-slate-600">姓名：</span>
-              <input data-testid="verify-name" value={name} onChange={(e) => setName(e.target.value)} placeholder="請輸入姓名" className="w-full max-w-lg h-12 rounded-full bg-white px-5 outline-none focus:ring-2 focus:ring-orange-300" />
+            <div className="flex items-center gap-3 md:gap-4 mt-4 md:mt-6 text-sm"><span className="w-[72px] md:w-20 shrink-0 text-slate-600 text-[13px] md:text-sm">姓名：</span>
+              <input data-testid="verify-name" value={name} onChange={(e) => setName(e.target.value)} placeholder="請輸入姓名" className="w-full max-w-lg h-9 md:h-12 rounded-full bg-slate-100 md:bg-white px-4 md:px-5 text-[13px] md:text-sm outline-none focus:ring-2 focus:ring-orange-300" />
             </div>
-            <div className="flex items-start gap-4 mt-6 text-sm"><span className="w-20 text-slate-600 pt-2">上傳圖片：</span>
-              <div className="flex flex-col lg:flex-row gap-6 flex-1">
-                <button data-testid="verify-upload" onClick={() => fileRef.current?.click()} className="w-full max-w-lg h-44 rounded-2xl bg-white flex items-center justify-center overflow-hidden hover:bg-orange-50/40">
-                  {img ? <img src={img.data} alt="doc" className="h-full w-full object-contain" /> : <Plus className="h-12 w-12 text-slate-300" strokeWidth={1.5} />}
+            <div className="flex items-start gap-3 md:gap-4 mt-4 md:mt-6 text-sm"><span className="w-[72px] md:w-20 shrink-0 text-slate-600 text-[13px] md:text-sm pt-2">上傳圖片：</span>
+              <div className="flex flex-col lg:flex-row gap-3 md:gap-6 flex-1 min-w-0">
+                <button data-testid="verify-upload" onClick={() => fileRef.current?.click()} className="w-full max-w-lg h-32 md:h-44 rounded-2xl bg-slate-100 md:bg-white border-2 border-dashed border-slate-200 md:border-0 flex flex-col items-center justify-center gap-1 overflow-hidden hover:bg-orange-50/40">
+                  {img ? <img src={img.data} alt="doc" className="h-full w-full object-contain" /> : <><Plus className="h-8 w-8 md:h-12 md:w-12 text-slate-300" strokeWidth={1.5} /><span className="text-[11px] text-slate-400 md:hidden">點擊上傳證件照片</span></>}
                 </button>
                 <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={onFile} data-testid="verify-file-input" />
-                <ol className="text-xs text-slate-500 space-y-2 leading-relaxed">
+                <ol className="text-[11px] md:text-xs text-slate-500 space-y-1 md:space-y-2 leading-relaxed">
                   <li>1. 不支持中國大陸身份證件進行認證；</li>
                   <li className="text-orange-500">2. 請手持身份證件拍照，須露臉；</li>
                   <li>3. 證件必須是清晰彩色原件電子版，可以是數位拍攝的照片；</li>
@@ -109,7 +111,7 @@ export default function MyVerify() {
                 </ol>
               </div>
             </div>
-            <div className="text-center mt-8"><OrangeBtn data-testid="verify-submit" onClick={submit} disabled={submitting}>{submitting ? "提交中…" : "提交"}</OrangeBtn></div>
+            <div className="text-center mt-6 md:mt-8"><OrangeBtn data-testid="verify-submit" onClick={submit} disabled={submitting} className="max-md:h-10 max-md:px-10 max-md:text-sm">{submitting ? "提交中…" : "提交"}</OrangeBtn></div>
           </div>
         </div>
       </Panel>
