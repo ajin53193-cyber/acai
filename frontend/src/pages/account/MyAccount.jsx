@@ -6,7 +6,7 @@ import { useApi } from "@/lib/api";
 import { Panel, Tag, Box, OrangeBtn } from "./AccountLayout";
 import { BindPhoneDialog } from "./BindPhoneDialog";
 
-const field = "w-full h-12 rounded-full bg-white px-5 text-sm outline-none focus:ring-2 focus:ring-orange-300 placeholder:text-slate-400";
+const field = "w-full h-12 rounded-full bg-slate-100 md:bg-white px-5 text-sm outline-none focus:ring-2 focus:ring-orange-300 placeholder:text-slate-400";
 const TYPES = ["微信", "Telegram", "WhatsApp", "LINE", "QQ"];
 
 export default function MyAccount() {
@@ -42,22 +42,28 @@ export default function MyAccount() {
     } catch (e) { toast.error(e?.errors?.[0]?.longMessage || e?.errors?.[0]?.message || "密碼更新失敗"); }
   };
 
+  const deleteAccount = async () => {
+    if (!window.confirm("確定要刪除帳號嗎？刪除後所有資料將無法恢復。")) return;
+    try { await user.delete(); window.location.href = "/"; } catch (e) { toast.error(e?.errors?.[0]?.longMessage || "刪除失敗，請聯繫客服"); }
+  };
+
   const email = user?.primaryEmailAddress?.emailAddress;
   const phone = user?.primaryPhoneNumber?.phoneNumber;
   const google = user?.externalAccounts?.some((a) => a.provider === "google");
-  const Row = ({ label, children }) => <div className="flex items-center gap-3 text-sm text-slate-600 h-11 whitespace-nowrap"><span className="w-20 shrink-0">{label}</span>{children}</div>;
-  const Hint = ({ children }) => <span className="text-slate-400 text-xs hidden sm:inline">{children}</span>;
-  const Label = ({ children }) => <span className="w-20 shrink-0 text-sm text-slate-600 whitespace-nowrap">{children}</span>;
+  const Row = ({ label, children }) => <div className="flex items-center flex-wrap gap-x-3 gap-y-1 text-sm text-slate-600 min-h-11 py-1"><span className="w-16 md:w-20 shrink-0">{label}</span>{children}</div>;
+  const Hint = ({ children }) => <span className="text-slate-400 text-xs">{children}</span>;
+  const Label = ({ children }) => <span className="w-16 md:w-20 shrink-0 text-sm text-slate-600 whitespace-nowrap">{children}</span>;
 
   return (
     <Panel title="我的帳戶" testId="my-account-page">
       {binding && <BindPhoneDialog onClose={() => setBinding(false)} />}
-      <div className="grid lg:grid-cols-2 gap-5">
+      <div className="grid lg:grid-cols-2 gap-4 md:gap-5">
         <Box>
           <Tag>帳戶基礎資訊</Tag>
-          <div className="mt-4 pl-2">
+          <div className="mt-4 pl-2 max-md:pl-0 max-md:mt-0">
             <Row label="帳戶ID：">
               <span className="text-slate-800 font-medium" data-testid="account-no">{info?.account_no || "—"}</span>
+              <button data-testid="delete-account-btn" onClick={deleteAccount} className="rounded-full bg-orange-50 text-orange-500 text-sm px-4 py-1 hover:bg-orange-100">刪除帳號</button>
             </Row>
             <Row label="信箱：">
               <span className="text-slate-800 truncate">{email || "未綁定"}</span><Hint>（可用於登入）</Hint>
@@ -66,7 +72,7 @@ export default function MyAccount() {
         </Box>
         <Box>
           <Tag>帳戶綁定訊息</Tag>
-          <div className="mt-4 pl-2">
+          <div className="mt-4 pl-2 max-md:pl-0 max-md:mt-0">
             <Row label="手機號：">
               {phone ? (
                 <>
@@ -85,7 +91,7 @@ export default function MyAccount() {
         </Box>
         <Box>
           <Tag>個人聯絡資訊</Tag>
-          <div className="mt-5 space-y-4 pl-2">
+          <div className="mt-5 space-y-4 pl-2 max-md:pl-0 max-md:mt-0">
             <div className="flex items-center gap-3"><Label>姓名：</Label><input data-testid="profile-name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className={field} /></div>
             <div className="flex items-center gap-3"><Label>性別：</Label>
               <div className="flex items-center gap-8">
@@ -111,7 +117,7 @@ export default function MyAccount() {
         </Box>
         <Box>
           <Tag>帳戶密碼修改</Tag>
-          <div className="mt-5 space-y-3 pl-2">
+          <div className="mt-5 space-y-3 pl-2 max-md:pl-0 max-md:mt-0">
             {user?.passwordEnabled && <input data-testid="pw-current" type="password" value={pw.cur} onChange={(e) => setPw({ ...pw, cur: e.target.value })} placeholder="請輸入舊密碼" className={field} />}
             <div className="text-xs text-slate-400 pl-5">如忘記密碼，請於登入視窗點擊「忘記密碼」找回</div>
             <input data-testid="pw-new" type="password" value={pw.n1} onChange={(e) => setPw({ ...pw, n1: e.target.value })} placeholder="請輸入新密碼" className={field} />
