@@ -40,10 +40,10 @@ export default function CurrencySelector({ dark = false, variant = "pill" }) {
         {variant === "circle" ? (
           <button
             data-testid="currency-selector-trigger"
-            className="relative h-12 w-12 md:h-10 md:w-10 rounded-full bg-orange-100/60 md:bg-orange-100/70 text-orange-500 flex items-center justify-center hover:bg-orange-100 transition-colors"
+            className="relative h-9 w-9 md:h-10 md:w-10 rounded-full bg-orange-100/60 md:bg-orange-100/70 text-orange-500 flex items-center justify-center hover:bg-orange-100 transition-colors"
           >
-            <span className="h-7 w-7 md:h-6 md:w-6 rounded-full border-[1.5px] border-orange-500 flex items-center justify-center text-[11px] md:text-[10px] font-bold leading-none">{active.symbol}</span>
-            <ArrowRightLeft className="absolute bottom-2 right-1.5 h-3 w-3 md:h-2.5 md:w-2.5 bg-orange-50 rounded-full" />
+            <span className="h-[22px] w-[22px] md:h-6 md:w-6 rounded-full border-[1.5px] border-orange-500 flex items-center justify-center text-[10px] font-bold leading-none">{active.symbol}</span>
+            <ArrowRightLeft className="absolute bottom-1.5 right-1 h-2.5 w-2.5 bg-orange-50 rounded-full" />
           </button>
         ) : (
           <button
