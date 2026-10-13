@@ -605,7 +605,7 @@ DEFAULT_PAYMENT_METHODS = [
 async def _ensure_payment_methods():
     if await db.payment_methods.count_documents({}) == 0:
         for i, m in enumerate(DEFAULT_PAYMENT_METHODS):
-            await db.payment_methods.insert_one({"id": new_id(), **m, "config": {}, "min_usd": 1, "max_usd": 10000, "fee_percent": 0, "sort_order": i + 1, "active": True, "created_at": now_iso()})
+            await db.payment_methods.insert_one({"id": new_id(), **m, "config": {}, "min_usd": 50, "max_usd": 10000, "fee_percent": 0, "sort_order": i + 1, "active": True, "created_at": now_iso()})
         return
     for i, m in enumerate(DEFAULT_PAYMENT_METHODS):
         upd = {"sort_order": i + 1}
@@ -677,7 +677,7 @@ async def create_payment_method(body: PaymentMethodIn, admin: dict = Depends(req
     if not (body.name or "").strip():
         raise HTTPException(status_code=400, detail="請輸入支付方式名稱")
     count = await db.payment_methods.count_documents({})
-    doc = {"id": new_id(), "category": "card", "provider": "manual", "description": "", "image": "", "config": {}, "min_usd": 1, "max_usd": 10000, "fee_percent": 0,
+    doc = {"id": new_id(), "category": "card", "provider": "manual", "description": "", "image": "", "config": {}, "min_usd": 50, "max_usd": 10000, "fee_percent": 0,
            "sort_order": count + 1, "active": True, "created_at": now_iso()}
     doc.update(await _pm_updates(body))
     await db.payment_methods.insert_one(doc)
@@ -755,8 +755,8 @@ async def wallet_topup(body: TopUpIn, member: dict = Depends(current_member)):
         lo, hi = float(pm.get("min_usd") or 1), float(pm.get("max_usd") or 10000)
         if body.amount_usd < lo or body.amount_usd > hi:
             raise HTTPException(status_code=400, detail=f"此支付方式單次充值金額需介於 USD${lo:g} ~ USD${hi:g}")
-    elif body.amount_usd < 1 or body.amount_usd > 10000:
-        raise HTTPException(status_code=400, detail="單次充值金額需介於 USD$1 ~ USD$10,000")
+    elif body.amount_usd < 50 or body.amount_usd > 10000:
+        raise HTTPException(status_code=400, detail="單次充值金額需介於 USD$50 ~ USD$10,000")
     bal = await _wallet_tx(member["user_id"], "topup", float(body.amount_usd), f"錢包充值（{label}，測試支付）", ref=body.method_id)
     if pm:
         await db.users.update_one({"user_id": member["user_id"]}, {"$set": {"last_payment_method_id": pm["id"]}})

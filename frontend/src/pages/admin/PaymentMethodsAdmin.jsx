@@ -17,7 +17,7 @@ const CONFIG_FIELDS = {
   other: [["merchant_id", "商戶 ID"], ["api_key", "API Key"], ["api_secret", "API Secret"], ["notify_url", "回調地址"]],
 };
 const readFile = (f) => new Promise((res) => { const r = new FileReader(); r.onload = () => res({ image_b64: r.result, image_name: f.name }); r.readAsDataURL(f); });
-const empty = { name: "", category: "card", provider: "manual", description: "", config: {}, min_usd: 1, max_usd: 10000, fee_percent: 0, active: true };
+const empty = { name: "", category: "card", provider: "manual", description: "", config: {}, min_usd: 50, max_usd: 10000, fee_percent: 0, active: true };
 
 export default function PaymentMethodsAdmin({ callApi }) {
   const [list, setList] = useState(null);

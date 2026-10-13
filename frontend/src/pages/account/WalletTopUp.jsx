@@ -7,7 +7,7 @@ import { useCurrency } from "@/context/CurrencyContext";
 import { Panel } from "./AccountLayout";
 import { useWallet, BalanceBanner } from "./MyWallet";
 
-const PRESETS = [10, 20, 50, 100, 200, 500];
+const PRESETS = [50, 100, 200, 500, 1000, 2000];
 const CATS = [["all", "全部"], ["usdt", "USDT"], ["card", "卡支付"], ["ewallet", "電子錢包"], ["bank", "銀行轉賬"]];
 
 const BackLink = () => <Link to="/account/wallet" data-testid="wallet-back" className="flex items-center gap-1 text-sm text-slate-500 hover:text-orange-500"><ChevronLeft className="h-4 w-4" />返回錢包</Link>;
@@ -58,7 +58,7 @@ export default function WalletTopUp() {
   };
 
   const topup = async () => {
-    if (!value || value < 1) return toast.error("請輸入充值金額");
+    if (!value || value < 50) return toast.error("最低充值金額為 USD$ 50");
     if (!selected) return toast.error("請選擇支付方式");
     setBusy(true);
     try {
@@ -83,7 +83,7 @@ export default function WalletTopUp() {
         </div>
         <div className="relative mt-3 max-w-xs">
           <span className="absolute left-4 top-1/2 -translate-y-1/2 text-sm text-slate-400">USD$</span>
-          <input data-testid="topup-custom" type="number" min="1" value={custom} onChange={(e) => setCustom(e.target.value)} placeholder="自訂金額" className="w-full h-12 rounded-xl bg-white pl-14 pr-4 text-sm outline-none focus:ring-2 focus:ring-orange-300" />
+          <input data-testid="topup-custom" type="number" min="50" value={custom} onChange={(e) => setCustom(e.target.value)} placeholder="自訂金額（最低 50）" className="w-full h-12 rounded-xl bg-white pl-14 pr-4 text-sm outline-none focus:ring-2 focus:ring-orange-300" />
         </div>
 
         <div className="mt-6 font-semibold text-slate-900">支付方式</div>
@@ -112,16 +112,16 @@ export default function WalletTopUp() {
         )}
         {selected && (
           <div className="mt-4 rounded-2xl bg-white border-2 border-orange-200 overflow-hidden" data-testid="pm-description">
-            <div className="flex items-center gap-2.5 px-4 py-3 bg-orange-50/70">
-              {selected.image && <img src={selected.image} alt="" className="h-6 object-contain" />}
-              <span className="text-[14px] font-bold text-slate-900">{selected.name}</span>
-              <span className="rounded-full bg-orange-100 text-orange-500 text-[11px] font-semibold px-2 py-0.5">付款說明</span>
-              {isUsdt && <span className="rounded-full bg-emerald-100 text-emerald-600 text-[11px] font-semibold px-2 py-0.5">鏈上自動入帳</span>}
+            <div className="flex items-center gap-2 px-3 sm:px-4 py-2.5 bg-orange-50/70 whitespace-nowrap overflow-hidden">
+              {selected.image && <img src={selected.image} alt="" className="hidden sm:block h-6 object-contain shrink-0" />}
+              <span className="text-[13px] sm:text-[14px] font-bold text-slate-900 truncate">{selected.name}</span>
+              <span className="shrink-0 rounded-full bg-orange-100 text-orange-500 text-[10px] sm:text-[11px] font-semibold px-1.5 sm:px-2 py-0.5 leading-4">付款說明</span>
+              {isUsdt && <span className="shrink-0 rounded-full bg-emerald-100 text-emerald-600 text-[10px] sm:text-[11px] font-semibold px-1.5 sm:px-2 py-0.5 leading-4">鏈上自動入帳</span>}
             </div>
             <div className="px-4 py-3 text-sm">
               <p className="text-slate-700 whitespace-pre-wrap leading-relaxed">{selected.description || "選擇此方式後點擊「立即充值」完成付款。"}</p>
               <div className="mt-3 flex flex-wrap gap-2 text-[11px]">
-                <span className="rounded-md bg-slate-100 text-slate-600 px-2 py-1">單次限額 <span className="font-head font-bold text-slate-800">USD$ {selected.min_usd ?? 1} ~ USD$ {selected.max_usd ?? 10000}</span></span>
+                <span className="rounded-md bg-slate-100 text-slate-600 px-2 py-1">單次限額 <span className="font-head font-bold text-slate-800">USD$ {selected.min_usd ?? 50} ~ USD$ {selected.max_usd ?? 10000}</span></span>
                 <span className="rounded-md bg-slate-100 text-slate-600 px-2 py-1">手續費 <span className="font-head font-bold text-orange-500">{selected.fee_percent > 0 ? `${selected.fee_percent}%` : "免手續費"}</span></span>
                 {isUsdt && <span className="rounded-md bg-slate-100 text-slate-600 px-2 py-1">匯率 <span className="font-head font-bold text-slate-800">1 USD = 1 USDT</span></span>}
               </div>
@@ -158,7 +158,7 @@ export default function WalletTopUp() {
             <Plus className="h-4 w-4" />{busy ? "處理中…" : isUsdt ? "前往 USDT 收銀台" : "立即充值"}
           </button>
         </div>
-        <div className="mt-2 text-right text-[11px] text-slate-400">{isUsdt ? "USDT TRC20 鏈上支付，1 USD = 1 USDT，確認後自動入帳" : "目前為測試支付，充值後即時入帳"}</div>
+        {!isUsdt && <div className="mt-2 text-right text-[11px] text-slate-400">目前為測試支付，充值後即時入帳</div>}
       </div>
     </Panel>
   );
