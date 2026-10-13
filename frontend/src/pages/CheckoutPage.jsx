@@ -129,7 +129,7 @@ export default function CheckoutPage() {
     x.fillStyle = "#0f172a"; x.font = "bold 54px sans-serif"; x.textAlign = "center"; x.fillText(`${amount} USDT`, W / 2, 210); x.textAlign = "left";
     const rows = [[t.coin, "USDT"], [t.protocol, order.network], [t.orderNo, order.order_no]];
     if (order.tx_id) rows.push([t.txHash, order.tx_id.slice(0, 18) + "…"]);
-    if (order.paid_at) rows.push([t.paidTime, new Date(order.paid_at).toLocaleString(lang === "en" ? "en-US" : "zh-CN")]);
+    if (order.paid_at) rows.push([t.paidTime, new Date(order.paid_at).toLocaleString(lang === "en" ? "en-US" : "zh-CN", { timeZone: "Asia/Shanghai" })]);
     let y = 285; x.font = "18px sans-serif";
     rows.forEach(([k, v]) => {
       x.fillStyle = "#64748b"; x.fillText(String(k), 40, y);
@@ -192,7 +192,7 @@ export default function CheckoutPage() {
           <Row k={t.protocol} v={<><NetBadge n={order.network} /> {order.network}</>} onCopy={copy} />
           <Row k={t.orderNo} v={<span className="font-normal text-slate-500 text-[12px]">{order.order_no}</span>} copyVal={order.order_no} onCopy={copy} testid="success-order-no" />
           {order.tx_id && <Row k={t.txHash} v={<span className="font-mono text-[11px] text-slate-600 max-w-[170px] truncate inline-block align-bottom">{order.tx_id}</span>} copyVal={order.tx_id} onCopy={copy} testid="success-tx-hash" />}
-          {order.paid_at && <Row k={t.paidTime} v={<span className="text-[12px] text-slate-600 tabular-nums">{new Date(order.paid_at).toLocaleString(lang === "en" ? "en-US" : "zh-CN")}</span>} onCopy={copy} testid="success-paid-time" />}
+          {order.paid_at && <Row k={t.paidTime} v={<span className="text-[12px] text-slate-600 tabular-nums">{new Date(order.paid_at).toLocaleString(lang === "en" ? "en-US" : "zh-CN", { timeZone: "Asia/Shanghai" })}</span>} onCopy={copy} testid="success-paid-time" />}
         </div>
         {order.tx_url && <a href={order.tx_url} target="_blank" rel="noreferrer" data-testid="success-view-tx" className="mt-3 inline-flex items-center gap-1 text-[var(--accent)] text-[13px] font-medium">{t.viewOnChain} <ExternalLink className="w-3.5 h-3.5" /></a>}
         <button onClick={downloadReceipt} data-testid="download-receipt-btn" className="mt-1.5 inline-flex items-center gap-1 text-slate-500 text-[12px] hover:text-slate-700">{t.receipt}</button>

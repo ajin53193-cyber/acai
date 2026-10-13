@@ -240,7 +240,7 @@ export default function ChannelsPage() {
                 <div className="col-span-2"><div className="text-[11px] text-slate-500 mb-0.5">收款地址</div><WalletField channel={c} onSaved={load} /></div>
                 {c.wallet_address && (
                   <div className="col-span-2 text-[10px] font-mono text-slate-500">
-                    {c.sync_error ? <span className="text-red-400">同步异常: {c.sync_error}</span> : c.last_sync_at ? `最近同步 ${new Date(c.last_sync_at).toLocaleTimeString("zh-CN")}` : "等待待支付订单后开始轮询"}
+                    {c.sync_error ? <span className="text-red-400">同步异常: {c.sync_error}</span> : c.last_sync_at ? `最近同步 ${new Date(c.last_sync_at).toLocaleTimeString("zh-CN", { timeZone: "Asia/Shanghai" })}` : "等待待支付订单后开始轮询"}
                   </div>
                 )}
               </div>

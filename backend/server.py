@@ -105,7 +105,7 @@ def chain_usage_forecast() -> dict:
     hours_to_exhaust = ((limit - used) / rate) if (rate > 0 and limit > used) else None
     eta = None
     if will_exhaust and hours_to_exhaust is not None and hours_to_exhaust <= hours_remaining:
-        eta = (now + timedelta(hours=hours_to_exhaust)).strftime("%H:%M")
+        eta = (now + timedelta(hours=hours_to_exhaust)).astimezone(timezone(timedelta(hours=8))).strftime("%H:%M")
     return {"projected_eod": int(projected), "rate_per_hour": int(rate),
             "will_exhaust": bool(will_exhaust),
             "hours_to_exhaust": round(hours_to_exhaust, 1) if hours_to_exhaust is not None else None,
@@ -136,7 +136,7 @@ async def _maybe_alert_forecast():
     await send_telegram(
         f"⏳ <b>TronGrid 额度预测告警</b>\n"
         f"按当前速率（约 {fc['rate_per_hour']}/时），预计今日请求将达 {fc['projected_eod']}，超过额度 {snap['limit']}。\n"
-        + (f"预计约 {fc['eta']} (UTC) 用尽。\n" if fc["eta"] else "")
+        + (f"预计约 {fc['eta']} (北京时间) 用尽。\n" if fc["eta"] else "")
         + f"当前已用 {snap['used']}（{pct}%）。\n"
         f"建议升级 TronGrid 套餐，或调大 CHAIN_POLL_SECONDS 放慢轮询。", "alert")
 
@@ -192,6 +192,7 @@ from utils import (
     now_utc, iso, hash_password, verify_password, get_jwt_secret, create_access_token,
     gen_order_no, gen_wallet_address, gen_txid, gen_api_key, gen_api_secret, is_private_host,
     clean_user, serialize, canon, sign_payload, client_ip,
+    now_bj, bj_today_str, bj_yesterday_str, bj_day_bounds, bj_str,
 )
 
 # Cross-cutting infra (audit/ledger/callbacks/notifications) and order domain
@@ -603,13 +604,7 @@ async def dashboard_stats(user: dict = Depends(get_current_user), date: Optional
     if scope is not None:
         q["merchant_id"] = {"$in": [str(i) for i in scope]}
 
-    today_start = now_utc().replace(hour=0, minute=0, second=0, microsecond=0)
-    if date:
-        try:
-            today_start = datetime.strptime(date, "%Y-%m-%d").replace(tzinfo=timezone.utc)
-        except ValueError:
-            raise HTTPException(status_code=400, detail="date 格式应为 YYYY-MM-DD")
-    day_end = today_start + timedelta(days=1)
+    today_start, day_end, stat_label = bj_day_bounds(date)
     all_orders = await db.orders.find(q).to_list(5000)
 
     total_volume = sum(o["amount_usdt"] for o in all_orders if o["status"] == "paid")
@@ -639,11 +634,11 @@ async def dashboard_stats(user: dict = Depends(get_current_user), date: Optional
     trend = []
     for i in range(6, -1, -1):
         day = (today_start - timedelta(days=i))
-        day_end = day + timedelta(days=1)
+        day_end2 = day + timedelta(days=1)
         vol = sum(o["amount_usdt"] for o in all_orders
-                  if o["status"] == "paid" and day <= datetime.fromisoformat(o["created_at"]) < day_end)
-        cnt = len([o for o in all_orders if day <= datetime.fromisoformat(o["created_at"]) < day_end])
-        trend.append({"date": day.strftime("%m-%d"), "volume": round(vol, 2), "orders": cnt})
+                  if o["status"] == "paid" and day <= datetime.fromisoformat(o["created_at"]) < day_end2)
+        cnt = len([o for o in all_orders if day <= datetime.fromisoformat(o["created_at"]) < day_end2])
+        trend.append({"date": bj_str(day, "%m-%d"), "volume": round(vol, 2), "orders": cnt})
 
     active_channels = await db.channels.count_documents({"status": "active"})
     balance = round(user.get("balance", 0), 2)
@@ -662,27 +657,25 @@ async def dashboard_stats(user: dict = Depends(get_current_user), date: Optional
         "today_orders": today_orders,
         "today_paid": today_paid,
         "today_success_rate": today_success_rate,
-        "stat_date": today_start.strftime("%Y-%m-%d"),
+        "stat_date": stat_label,
     }
 
 
 def _date_window(date: Optional[str], start: Optional[str], end: Optional[str]):
     if start and end:
         try:
-            ds = datetime.strptime(start, "%Y-%m-%d").replace(tzinfo=timezone.utc)
-            de = datetime.strptime(end, "%Y-%m-%d").replace(tzinfo=timezone.utc) + timedelta(days=1)
+            ds, _, _ = bj_day_bounds(start)
+            _, de, _ = bj_day_bounds(end)
         except ValueError:
             raise HTTPException(status_code=400, detail="日期格式应为 YYYY-MM-DD")
         if de <= ds:
             raise HTTPException(status_code=400, detail="结束日期需不早于开始日期")
         return ds, de, f"{start} ~ {end}"
-    ds = now_utc().replace(hour=0, minute=0, second=0, microsecond=0)
-    if date:
-        try:
-            ds = datetime.strptime(date, "%Y-%m-%d").replace(tzinfo=timezone.utc)
-        except ValueError:
-            raise HTTPException(status_code=400, detail="date 格式应为 YYYY-MM-DD")
-    return ds, ds + timedelta(days=1), ds.strftime("%Y-%m-%d")
+    try:
+        ds, de, lbl = bj_day_bounds(date)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="date 格式应为 YYYY-MM-DD")
+    return ds, de, lbl
 
 
 @api_router.get("/stats/merchants")
@@ -810,8 +803,8 @@ async def put_checkout_settings(data: CheckoutSettings, request: Request, user: 
 # Profit-sharing stays real-time (settle_order). This only snapshots & safety-nets.
 # ---------------------------------------------------------------------------
 async def build_profit_snapshot(day: str) -> dict:
-    start, end = f"{day}T00:00:00", f"{day}T23:59:59.999999"
-    orders = await db.orders.find({"status": "paid", "paid_at": {"$gte": start, "$lte": end}}).to_list(100000)
+    start_utc, end_utc, _ = bj_day_bounds(day)
+    orders = await db.orders.find({"status": "paid", "paid_at": {"$gte": iso(start_utc), "$lt": iso(end_utc)}}).to_list(100000)
     merchants: dict = {}
     tot = {"amount": 0.0, "fee": 0.0, "receive": 0.0, "commission": 0.0, "platform": 0.0}
     for o in orders:
@@ -894,7 +887,7 @@ async def cron_daily_settle(request: Request):
     except Exception:
         body = {}
     run_id = request.headers.get("X-Webhook-Id") or (body or {}).get("run_id") or secrets.token_hex(8)
-    day = (now_utc() - timedelta(days=1)).strftime("%Y-%m-%d")
+    day = bj_yesterday_str()
     asyncio.create_task(run_daily_settlement(run_id, day))
     return {"ok": True, "accepted": True, "run_id": run_id, "date": day}
 
@@ -907,8 +900,8 @@ async def list_profit_snapshots(user: dict = Depends(require_roles("admin")), li
 
 @api_router.post("/profit-snapshots/run")
 async def run_profit_snapshot(request: Request, date: Optional[str] = None, user: dict = Depends(require_roles("admin"))):
-    day = date or (now_utc() - timedelta(days=1)).strftime("%Y-%m-%d")
-    if day > now_utc().strftime("%Y-%m-%d"):
+    day = date or bj_yesterday_str()
+    if day > bj_today_str():
         raise HTTPException(status_code=400, detail="不能为未来日期生成快照")
     snap = await run_daily_settlement("manual-" + secrets.token_hex(6), day)
     await audit(user, "settle.snapshot", "snapshot", day, {"order_count": snap.get("order_count")}, request)

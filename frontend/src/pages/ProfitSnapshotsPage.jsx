@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback, Fragment } from "react";
 import api, { formatApiErrorDetail } from "@/lib/api";
-import { fmtUSDT, fmtDate } from "@/lib/format";
+import { fmtUSDT, fmtDate, bjYesterday } from "@/lib/format";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
@@ -43,7 +43,7 @@ export default function ProfitSnapshotsPage() {
 
   const toggleCompare = (id) => setCompareIds((s) => (s.includes(id) ? s.filter((x) => x !== id) : (s.length >= 5 ? s : [...s, id])));
   const [date, setDate] = useState(() => {
-    const d = new Date(); d.setUTCDate(d.getUTCDate() - 1); return d.toISOString().slice(0, 10);
+    return bjYesterday();
   });
 
   const load = useCallback(() => {

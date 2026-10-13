@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from "react";
 import api, { formatApiErrorDetail } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
-import { fmtUSDT, fmtDate } from "@/lib/format";
+import { fmtUSDT, fmtDate, bjMonth, bjToday } from "@/lib/format";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -27,11 +27,11 @@ export default function BalanceLedgerPage() {
   const [accountId, setAccountId] = useState("");
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(!pick);
-  const [month, setMonth] = useState(() => new Date().toISOString().slice(0, 7));
+  const [month, setMonth] = useState(bjMonth);
   const [busy, setBusy] = useState(false);
   const [rangeMode, setRangeMode] = useState("all");
-  const [start, setStart] = useState(() => new Date().toISOString().slice(0, 10));
-  const [end, setEnd] = useState(() => new Date().toISOString().slice(0, 10));
+  const [start, setStart] = useState(bjToday);
+  const [end, setEnd] = useState(bjToday);
 
   useEffect(() => {
     if (!pick) return;

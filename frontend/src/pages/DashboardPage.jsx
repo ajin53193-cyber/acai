@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import api from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
-import { fmtUSDT, STATUS_MAP, NETWORK_COLORS, fmtDate } from "@/lib/format";
+import { fmtUSDT, STATUS_MAP, NETWORK_COLORS, fmtDate, bjToday } from "@/lib/format";
 import {
   AreaChart, Area, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
 } from "recharts";
@@ -53,7 +53,7 @@ export default function DashboardPage() {
   const [usage, setUsage] = useState(null);
   const [usageTrend, setUsageTrend] = useState(null);
   const [alertCfg, setAlertCfg] = useState(null);
-  const today = new Date().toISOString().slice(0, 10);
+  const today = bjToday();
   const [statDate, setStatDate] = useState(today);
 
   const saveAlertCfg = () => {
@@ -129,7 +129,7 @@ export default function DashboardPage() {
           {usage.forecast && (
             <div className={`mt-2 text-xs ${usage.forecast.will_exhaust ? "text-red-400" : "text-emerald-400"}`} data-testid="chain-usage-forecast">
               {usage.forecast.will_exhaust
-                ? `⚠️ 按当前速率（约 ${usage.forecast.rate_per_hour.toLocaleString()}/时）预计今日将用 ${usage.forecast.projected_eod.toLocaleString()} 次，超出额度${usage.forecast.eta ? `，约 ${usage.forecast.eta} (UTC) 用尽` : ""}`
+                ? `⚠️ 按当前速率（约 ${usage.forecast.rate_per_hour.toLocaleString()}/时）预计今日将用 ${usage.forecast.projected_eod.toLocaleString()} 次，超出额度${usage.forecast.eta ? `，约 ${usage.forecast.eta} (北京时间) 用尽` : ""}`
                 : `预计今日约 ${usage.forecast.projected_eod.toLocaleString()} 次（速率约 ${usage.forecast.rate_per_hour.toLocaleString()}/时），额度充足`}
             </div>
           )}

@@ -23,7 +23,7 @@ from pydantic import BaseModel
 from urllib.parse import quote
 
 from core import db, fs
-from utils import serialize, iso, now_utc
+from utils import serialize, iso, now_utc, now_bj, bj_str, bj_today_str, bj_yesterday_str, BJ_TZ
 from deps import get_current_user, require_roles, merchant_ids_for_scope
 from shared import audit, send_telegram, notify_settings
 from server import (
@@ -75,7 +75,7 @@ async def agent_commission_report(month: str, agent_id: Optional[str] = None,
         if not agent:
             raise HTTPException(status_code=404, detail="代理不存在")
     try:
-        start = datetime.strptime(month, "%Y-%m").replace(tzinfo=timezone.utc)
+        start = datetime.strptime(month, "%Y-%m").replace(tzinfo=BJ_TZ)
     except ValueError:
         raise HTTPException(status_code=400, detail="month 格式应为 YYYY-MM")
     end = (start.replace(year=start.year + 1, month=1) if start.month == 12 else start.replace(month=start.month + 1))
@@ -83,7 +83,7 @@ async def agent_commission_report(month: str, agent_id: Optional[str] = None,
     merchants = await db.users.find({"role": "merchant", "parent_agent_id": str(agent["_id"])}).to_list(500)
     m_ids = [str(m["_id"]) for m in merchants]
     orders = await db.orders.find({"merchant_id": {"$in": m_ids}, "status": "paid",
-                                   "paid_at": {"$gte": iso(start), "$lt": iso(end)}}).sort("paid_at", 1).to_list(100000)
+                                   "paid_at": {"$gte": iso(start), "$lt": iso(end)}}).sort("paid_at", 1).to_list(100000)  # noqa
 
     wb = Workbook()
     head_font = Font(bold=True, color="FFFFFF")
@@ -109,7 +109,7 @@ async def agent_commission_report(month: str, agent_id: Optional[str] = None,
         ["成功订单数", total["n"]], ["交易流水 (USDT)", round(total["amt"], 2)],
         ["手续费合计 (USDT)", round(total["fee"], 2)], ["商户实收合计 (USDT)", round(total["recv"], 2)],
         ["代理分润合计 (USDT)", round(total["comm"], 2)],
-        ["生成时间", now_utc().strftime("%Y-%m-%d %H:%M UTC")]], [24, 36])
+        ["生成时间", bj_str(now_utc()) + " (北京时间)"]], [24, 36])
 
     by_m: dict = {}
     for o in orders:
@@ -122,7 +122,7 @@ async def agent_commission_report(month: str, agent_id: Optional[str] = None,
 
     write_sheet(wb.create_sheet("逐单明细"), ["订单号", "商户", "网络", "金额", "手续费", "商户实收", "代理分润", "TxID", "支付时间"],
                 [[o["order_no"], o["merchant_name"], o["network"], o["amount_usdt"], o.get("fee", 0), o.get("merchant_receive", 0),
-                  o.get("agent_commission", 0), o.get("tx_id") or "", (o.get("paid_at") or "")[:19].replace("T", " ")] for o in orders],
+                  o.get("agent_commission", 0), o.get("tx_id") or "", bj_str(o.get("paid_at"), "%Y-%m-%d %H:%M:%S")] for o in orders],
                 [26, 18, 10, 12, 12, 12, 12, 40, 20])
 
     buf = io.BytesIO()
@@ -151,12 +151,12 @@ async def merchant_statement(month: str, merchant_id: Optional[str] = None, user
         if user["role"] == "agent" and merchant.get("parent_agent_id") != str(user["_id"]):
             raise HTTPException(status_code=403, detail="无权限")
     try:
-        start = datetime.strptime(month, "%Y-%m").replace(tzinfo=timezone.utc)
+        start = datetime.strptime(month, "%Y-%m").replace(tzinfo=BJ_TZ)
     except ValueError:
         raise HTTPException(status_code=400, detail="month 格式应为 YYYY-MM")
     end = (start.replace(year=start.year + 1, month=1) if start.month == 12 else start.replace(month=start.month + 1))
     mid = str(merchant["_id"])
-    orders = await db.orders.find({"merchant_id": mid, "status": "paid", "paid_at": {"$gte": iso(start), "$lt": iso(end)}}).sort("paid_at", 1).to_list(100000)
+    orders = await db.orders.find({"merchant_id": mid, "status": "paid", "paid_at": {"$gte": iso(start), "$lt": iso(end)}}).sort("paid_at", 1).to_list(100000)  # noqa
     payouts = await db.payouts.find({"merchant_id": mid, "created_at": {"$gte": iso(start), "$lt": iso(end)}}).sort("created_at", 1).to_list(10000)
     adjustments = await db.audit_logs.find({"action": {"$regex": "^balance\\."}, "target_id": mid,
                                             "created_at": {"$gte": iso(start), "$lt": iso(end)}}).sort("created_at", 1).to_list(10000)
@@ -187,14 +187,14 @@ async def merchant_statement(month: str, merchant_id: Optional[str] = None, user
         ["成功订单数", len(orders)], ["收款流水 (USDT)", round(amt, 2)], ["手续费合计 (USDT)", round(fee, 2)], ["实收合计 (USDT)", round(recv, 2)],
         ["提现申请笔数", len(payouts)], ["已通过提现 (USDT)", round(approved, 2)],
         ["当前可用余额 (USDT)", round(merchant.get("balance", 0), 2)], ["当前冻结余额 (USDT)", round(merchant.get("frozen_balance", 0), 2)],
-        ["生成时间", now_utc().strftime("%Y-%m-%d %H:%M UTC")]] + [[f"{n} 订单数/流水/手续费", f"{d['n']} / {round(d['amt'], 2)} / {round(d['fee'], 2)}"] for n, d in by_net.items()], [26, 40])
+        ["生成时间", bj_str(now_utc()) + " (北京时间)"]] + [[f"{n} 订单数/流水/手续费", f"{d['n']} / {round(d['amt'], 2)} / {round(d['fee'], 2)}"] for n, d in by_net.items()], [26, 40])
     write_sheet(wb.create_sheet("收款明细"), ["订单号", "商户单号", "网络", "订单金额", "实付金额", "手续费", "实收", "TxID", "收款地址", "支付时间"],
                 [[o["order_no"], o.get("out_trade_no") or "", o["network"], o["amount_usdt"], o.get("pay_amount", o["amount_usdt"]), o.get("fee", 0), o.get("merchant_receive", 0),
-                  o.get("tx_id") or "", o["wallet_address"], (o.get("paid_at") or "")[:19].replace("T", " ")] for o in orders], [26, 18, 8, 12, 12, 10, 12, 40, 36, 20])
+                  o.get("tx_id") or "", o["wallet_address"], bj_str(o.get("paid_at"), "%Y-%m-%d %H:%M:%S")] for o in orders], [26, 18, 8, 12, 12, 10, 12, 40, 36, 20])
     write_sheet(wb.create_sheet("提现记录"), ["申请时间", "金额", "网络", "提现地址", "状态", "审核时间"],
-                [[(p.get("created_at") or "")[:19].replace("T", " "), p["amount"], p.get("network", ""), p.get("address", ""), p["status"], (p.get("approved_at") or "")[:19].replace("T", " ")] for p in payouts], [20, 12, 8, 40, 10, 20])
+                [[bj_str(p.get("created_at"), "%Y-%m-%d %H:%M:%S"), p["amount"], p.get("network", ""), p.get("address", ""), p["status"], bj_str(p.get("approved_at"), "%Y-%m-%d %H:%M:%S")] for p in payouts], [20, 12, 8, 40, 10, 20])
     write_sheet(wb.create_sheet("余额调整"), ["时间", "操作", "金额", "余额前", "余额后", "操作人", "备注"],
-                [[(a["created_at"] or "")[:19].replace("T", " "), a["action"], a["detail"].get("amount"), a["detail"].get("balance_before"), a["detail"].get("balance_after"), a["actor_email"], a["detail"].get("remark", "")] for a in adjustments], [20, 16, 12, 12, 12, 24, 24])
+                [[bj_str(a["created_at"], "%Y-%m-%d %H:%M:%S"), a["action"], a["detail"].get("amount"), a["detail"].get("balance_before"), a["detail"].get("balance_after"), a["actor_email"], a["detail"].get("remark", "")] for a in adjustments], [20, 16, 12, 12, 12, 24, 24])
 
     buf = io.BytesIO(); wb.save(buf); buf.seek(0)
     fname = f"statement_{merchant['name']}_{month}.xlsx"
@@ -216,15 +216,15 @@ async def balance_ledger_report(account_id: Optional[str] = None, month: Optiona
     title_suffix = "全部"
     if start and end:
         try:
-            ds = datetime.strptime(start, "%Y-%m-%d").replace(tzinfo=timezone.utc)
-            de = datetime.strptime(end, "%Y-%m-%d").replace(tzinfo=timezone.utc) + timedelta(days=1)
+            ds = datetime.strptime(start, "%Y-%m-%d").replace(tzinfo=BJ_TZ)
+            de = datetime.strptime(end, "%Y-%m-%d").replace(tzinfo=BJ_TZ) + timedelta(days=1)
         except ValueError:
             raise HTTPException(status_code=400, detail="日期格式应为 YYYY-MM-DD")
         q["created_at"] = {"$gte": iso(ds), "$lt": iso(de)}
         title_suffix = f"{start}_{end}"
     elif month:
         try:
-            ms = datetime.strptime(month, "%Y-%m").replace(tzinfo=timezone.utc)
+            ms = datetime.strptime(month, "%Y-%m").replace(tzinfo=BJ_TZ)
         except ValueError:
             raise HTTPException(status_code=400, detail="month 格式应为 YYYY-MM")
         me = (ms.replace(year=ms.year + 1, month=1) if ms.month == 12 else ms.replace(month=ms.month + 1))
@@ -239,7 +239,7 @@ async def balance_ledger_report(account_id: Optional[str] = None, month: Optiona
     for c in ws[1]:
         c.font, c.fill, c.alignment = head_font, head_fill, Alignment(horizontal="center")
     for r in rows:
-        ws.append([(r.get("created_at") or "")[:19].replace("T", " "), LEDGER_CAT_LABELS.get(r["category"], r["category"]),
+        ws.append([bj_str(r.get("created_at"), "%Y-%m-%d %H:%M:%S"), LEDGER_CAT_LABELS.get(r["category"], r["category"]),
                    r.get("amount"), r.get("balance_after"), r.get("frozen_after"),
                    f"{r.get('ref_type') or ''} {(r.get('ref_id') or '')}".strip(), r.get("remark", ""), r.get("operator") or ""])
     for i, w in enumerate([20, 14, 16, 14, 14, 30, 34, 24], 1):
@@ -303,11 +303,11 @@ async def generate_orders_xlsx(user, status=None, network=None, keyword=None, me
         if merchant_id and (scope is None or ObjectId(merchant_id) in scope):
             q["merchant_id"] = str(merchant_id)
         if start and end:
-            ds = datetime.strptime(start, "%Y-%m-%d").replace(tzinfo=timezone.utc)
-            de = datetime.strptime(end, "%Y-%m-%d").replace(tzinfo=timezone.utc) + timedelta(days=1)
+            ds = datetime.strptime(start, "%Y-%m-%d").replace(tzinfo=BJ_TZ)
+            de = datetime.strptime(end, "%Y-%m-%d").replace(tzinfo=BJ_TZ) + timedelta(days=1)
             q["created_at"] = {"$gte": iso(ds), "$lt": iso(de)}
         elif date:
-            ds = datetime.strptime(date, "%Y-%m-%d").replace(tzinfo=timezone.utc)
+            ds = datetime.strptime(date, "%Y-%m-%d").replace(tzinfo=BJ_TZ)
             q["created_at"] = {"$gte": iso(ds), "$lt": iso(ds + timedelta(days=1))}
         if status:
             q["status"] = status
@@ -345,7 +345,7 @@ async def generate_orders_xlsx(user, status=None, network=None, keyword=None, me
     head_font = Font(bold=True, color="FFFFFF"); head_fill = PatternFill("solid", fgColor="0E7490")
     title = WriteOnlyCell(ws, value=f"订单导出 · 筛选条件：{summary}"); title.font = Font(bold=True, size=12)
     ws.append([title])
-    ws.append([f"导出时间：{iso(now_utc())[:19].replace('T', ' ')} (UTC)    操作人：{user.get('email', '')}"])
+    ws.append([f"导出时间：{bj_str(now_utc(), '%Y-%m-%d %H:%M:%S')} (北京时间)    操作人：{user.get('email', '')}"])
     ws.append([])
     header = ["订单号", "商户", "商户单号", "网络", "金额(USDT)", "到账金额", "状态", "收款地址", "TxID",
               "手续费", "实收", "回调状态", "创建时间", "支付时间"]
@@ -362,8 +362,8 @@ async def generate_orders_xlsx(user, status=None, network=None, keyword=None, me
         ws.append([o.get("order_no"), o.get("merchant_name"), o.get("out_trade_no") or "", o.get("network"),
                    o.get("amount_usdt"), o.get("pay_amount"), ORDER_STATUS_LABELS.get(o.get("status"), o.get("status")),
                    o.get("wallet_address") or "", o.get("tx_id") or "", o.get("fee"), o.get("merchant_receive"),
-                   o.get("callback_status") or "", (o.get("created_at") or "")[:19].replace("T", " "),
-                   (o.get("paid_at") or "")[:19].replace("T", " ")])
+                   o.get("callback_status") or "", bj_str(o.get("created_at"), "%Y-%m-%d %H:%M:%S"),
+                   bj_str(o.get("paid_at"), "%Y-%m-%d %H:%M:%S")])
         count += 1
         if progress and count % 1000 == 0:
             await progress(count, total)
@@ -417,11 +417,11 @@ async def generate_ledger_xlsx(user, account_id=None, month=None, start=None, en
         raise HTTPException(status_code=404, detail="账户不存在")
     q = {"account_id": account_id}
     if start and end:
-        ds = datetime.strptime(start, "%Y-%m-%d").replace(tzinfo=timezone.utc)
-        de = datetime.strptime(end, "%Y-%m-%d").replace(tzinfo=timezone.utc) + timedelta(days=1)
+        ds = datetime.strptime(start, "%Y-%m-%d").replace(tzinfo=BJ_TZ)
+        de = datetime.strptime(end, "%Y-%m-%d").replace(tzinfo=BJ_TZ) + timedelta(days=1)
         q["created_at"] = {"$gte": iso(ds), "$lt": iso(de)}
     elif month:
-        ds = datetime.strptime(month + "-01", "%Y-%m-%d").replace(tzinfo=timezone.utc)
+        ds = datetime.strptime(month + "-01", "%Y-%m-%d").replace(tzinfo=BJ_TZ)
         de = (ds + timedelta(days=32)).replace(day=1)
         q["created_at"] = {"$gte": iso(ds), "$lt": iso(de)}
     rows = await db.balance_logs.find(q).sort("created_at", -1).to_list(100000)
@@ -432,7 +432,7 @@ async def generate_ledger_xlsx(user, account_id=None, month=None, start=None, en
     for c in ws[2]:
         c.font, c.fill, c.alignment = hf, hfill, Alignment(horizontal="center")
     for r in rows:
-        ws.append([(r.get("created_at") or "")[:19].replace("T", " "), LEDGER_CAT.get(r.get("category"), r.get("category")),
+        ws.append([bj_str(r.get("created_at"), "%Y-%m-%d %H:%M:%S"), LEDGER_CAT.get(r.get("category"), r.get("category")),
                    r.get("amount"), r.get("balance_after"), r.get("ref_id") or "", r.get("remark") or ""])
     for i, w in enumerate([20, 12, 14, 14, 24, 24], 1):
         ws.column_dimensions[get_column_letter(i)].width = w
@@ -615,7 +615,7 @@ async def delete_export_schedule(sid: str, request: Request, user: dict = Depend
 
 
 async def run_scheduled_exports(run_id: str) -> dict:
-    is_monday = now_utc().weekday() == 0
+    is_monday = now_bj().weekday() == 0
     sys_user = {"_id": "system", "email": "定时任务", "role": "admin", "permissions": ["reports.export"]}
     schedules = await db.export_schedules.find({"enabled": True}).to_list(200)
     started, skipped = 0, 0
@@ -626,11 +626,12 @@ async def run_scheduled_exports(run_id: str) -> dict:
         allowed = {}
         rng = sch.get("range", "all")
         if rng == "yesterday":
-            y = (now_utc() - timedelta(days=1)).strftime("%Y-%m-%d")
+            y = bj_yesterday_str()
             allowed["start"], allowed["end"] = y, y
         elif rng == "week":
-            monday = now_utc() - timedelta(days=now_utc().weekday())
-            allowed["start"], allowed["end"] = monday.strftime("%Y-%m-%d"), now_utc().strftime("%Y-%m-%d")
+            nb = now_bj()
+            monday = nb - timedelta(days=nb.weekday())
+            allowed["start"], allowed["end"] = monday.strftime("%Y-%m-%d"), nb.strftime("%Y-%m-%d")
         if sch["kind"] == "ledger" and sch.get("account_id"):
             allowed["account_id"] = sch["account_id"]
         label = {"daily": "每日", "weekly": "每周"}.get(sch.get("freq"), sch.get("freq"))

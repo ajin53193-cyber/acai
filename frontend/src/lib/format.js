@@ -34,7 +34,22 @@ export function fmtUSDT(n) {
 export function fmtDate(iso) {
   if (!iso) return "-";
   const d = new Date(iso);
-  return d.toLocaleString("zh-CN", { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" });
+  return d.toLocaleString("zh-CN", { timeZone: "Asia/Shanghai", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" });
+}
+
+// --- Beijing time (UTC+8) date helpers for default filters ---
+export function bjToday() {
+  return new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Shanghai" });
+}
+
+export function bjMonth() {
+  return bjToday().slice(0, 7);
+}
+
+export function bjYesterday() {
+  const d = new Date(bjToday() + "T00:00:00Z");
+  d.setUTCDate(d.getUTCDate() - 1);
+  return d.toISOString().slice(0, 10);
 }
 
 export function shortHash(h, n = 8) {

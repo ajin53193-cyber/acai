@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, Request, Query, HTTPException
 from pydantic import BaseModel
 
 from core import db
-from utils import serialize, iso, now_utc
+from utils import serialize, iso, now_utc, bj_today_str, bj_str
 from deps import require_roles
 from shared import notify_settings, send_telegram, audit
 from server import build_profit_snapshot, snapshot_report_text
@@ -54,7 +54,7 @@ async def test_notify(user: dict = Depends(require_roles("admin"))):
     try:
         async with httpx.AsyncClient(timeout=10) as hc:
             r = await hc.post(f"https://api.telegram.org/bot{cfg['telegram_bot_token']}/sendMessage",
-                              json={"chat_id": cfg["telegram_chat_id"], "text": f"✅ 四方收款平台 Telegram 推送测试成功\n{iso(now_utc())[:19]}", "parse_mode": "HTML"})
+                              json={"chat_id": cfg["telegram_chat_id"], "text": f"✅ 四方收款平台 Telegram 推送测试成功\n{bj_str(now_utc(), '%Y-%m-%d %H:%M:%S')} (北京时间)", "parse_mode": "HTML"})
             body = r.json()
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"请求 Telegram 失败: {e}")
@@ -65,8 +65,8 @@ async def test_notify(user: dict = Depends(require_roles("admin"))):
 
 @router.post("/notify/daily-report")
 async def send_daily_report(date: str = None, user: dict = Depends(require_roles("admin"))):
-    day = date or now_utc().strftime("%Y-%m-%d")
-    if day > now_utc().strftime("%Y-%m-%d"):
+    day = date or bj_today_str()
+    if day > bj_today_str():
         raise HTTPException(status_code=400, detail="不能预览未来日期")
     snap = await db.profit_snapshots.find_one({"date": day}) or await build_profit_snapshot(day)
     text = snapshot_report_text(snap)

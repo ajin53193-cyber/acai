@@ -1,14 +1,14 @@
 import { useEffect, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import api, { formatApiErrorDetail } from "@/lib/api";
-import { fmtUSDT } from "@/lib/format";
+import { fmtUSDT, bjToday } from "@/lib/format";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { Loader2, BarChart3, Trophy, FileText, ChevronRight } from "lucide-react";
 
 export default function MerchantStatsPage() {
   const navigate = useNavigate();
-  const today = new Date().toISOString().slice(0, 10);
+  const today = bjToday();
   const [mode, setMode] = useState("single");
   const [date, setDate] = useState(today);
   const [start, setStart] = useState(today);

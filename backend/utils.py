@@ -23,6 +23,44 @@ def iso(dt: datetime) -> str:
     return dt.astimezone(timezone.utc).isoformat()
 
 
+# ---- Beijing time (UTC+8) helpers: storage stays UTC, display/day-cuts use CST ----
+BJ_TZ = timezone(timedelta(hours=8))
+
+
+def now_bj() -> datetime:
+    return now_utc().astimezone(BJ_TZ)
+
+
+def bj_today_str() -> str:
+    return now_bj().strftime("%Y-%m-%d")
+
+
+def bj_yesterday_str() -> str:
+    return (now_bj() - timedelta(days=1)).strftime("%Y-%m-%d")
+
+
+def bj_day_bounds(date_str: Optional[str] = None):
+    """Return (start_utc, end_utc, label) for a Beijing-time calendar day."""
+    if date_str:
+        d = datetime.strptime(date_str, "%Y-%m-%d")
+        start_bj = datetime(d.year, d.month, d.day, tzinfo=BJ_TZ)
+    else:
+        n = now_bj()
+        start_bj = datetime(n.year, n.month, n.day, tzinfo=BJ_TZ)
+    start_utc = start_bj.astimezone(timezone.utc)
+    return start_utc, start_utc + timedelta(days=1), start_bj.strftime("%Y-%m-%d")
+
+
+def bj_str(value, fmt: str = "%Y-%m-%d %H:%M") -> str:
+    """Format a UTC datetime or ISO string as Beijing local time."""
+    if not value:
+        return ""
+    dt = datetime.fromisoformat(value) if isinstance(value, str) else value
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return dt.astimezone(BJ_TZ).strftime(fmt)
+
+
 def hash_password(password: str) -> str:
     return bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
 

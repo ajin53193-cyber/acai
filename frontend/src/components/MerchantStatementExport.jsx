@@ -7,10 +7,11 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { FileText, Loader2 } from "lucide-react";
+import { bjMonth } from "@/lib/format";
 
 export function MerchantStatementExport({ user }) {
   const [open, setOpen] = useState(false);
-  const [month, setMonth] = useState(() => new Date().toISOString().slice(0, 7));
+  const [month, setMonth] = useState(bjMonth);
   const [merchants, setMerchants] = useState([]);
   const [merchantId, setMerchantId] = useState("");
   const [busy, setBusy] = useState(false);
