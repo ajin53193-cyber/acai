@@ -10,16 +10,20 @@ function Coupon({ c, format }) {
   const dead = c.used || (c.expires_at && c.expires_at < new Date().toISOString());
   const purple = isFixed;
   return (
-    <div data-testid={`coupon-card-${c.code}`} className={`relative rounded-2xl border-[3px] p-5 pt-6 ${dead ? "opacity-50" : ""} ${purple ? "border-violet-300 bg-gradient-to-br from-violet-50 to-violet-100" : "border-amber-300 bg-gradient-to-br from-amber-50 to-orange-100"}`}>
-      <span className={`absolute -top-3 left-6 rounded-full px-3 py-0.5 text-xs text-white ${purple ? "bg-violet-500" : "bg-orange-500"}`}>{c.title}</span>
-      <div className="flex items-center justify-between">
-        <span className={`font-bold text-lg ${purple ? "text-violet-700" : "text-slate-800"}`}>{c.title}</span>
-        <span className={`font-head text-3xl font-extrabold ${purple ? "text-violet-600" : "text-red-500"}`}>{isFixed ? <>{c.value} <span className="text-sm">USD$</span></> : <>{c.value} <span className="text-sm">%</span></>}</span>
-      </div>
-      <div className="mt-3 text-sm text-slate-600">{c.min_order_usd ? `USD$${c.min_order_usd}可用` : "無門檻"}</div>
-      <div className="mt-3 flex items-center gap-2 text-xs">
-        <span className={`rounded px-2 py-0.5 font-semibold ${purple ? "bg-violet-200 text-violet-700" : "bg-amber-200 text-amber-800"}`}>{isFixed ? "滿減券" : "折價券"}</span>
-        <span className="flex-1 border border-dashed border-amber-300 rounded px-3 py-0.5 text-center text-slate-600">{c.used ? "已使用" : `有效期至：${(c.expires_at || "").slice(0, 10) || "長期有效"}`}</span>
+    <div data-testid={`coupon-card-${c.code}`} className={`relative mt-5 rounded-2xl border-[4px] p-[6px] ${dead ? "opacity-50 grayscale-[0.4]" : ""} ${purple ? "border-[#B9A6F2] bg-[#D9CDFF]" : "border-[#F3B74A] bg-[#FFD98A]"}`}>
+      <span className={`absolute -top-[26px] left-3 rounded-t-lg px-3 py-1 text-xs font-semibold text-white ${purple ? "bg-violet-500" : "bg-orange-500"}`}>{c.title}</span>
+      <div className={`rounded-xl px-4 py-4 md:px-5 md:py-5 ${purple ? "bg-gradient-to-br from-[#F1ECFF] to-[#E6DDFF]" : "bg-gradient-to-br from-[#FFF6E6] to-[#FFE9C2]"}`}>
+        <div className="flex items-center justify-between gap-3">
+          <span className={`font-bold text-lg md:text-xl ${purple ? "text-violet-700" : "text-slate-800"}`}>{c.title}</span>
+          <span className={`font-head font-extrabold ${purple ? "text-violet-600" : "text-[#E8552B]"}`}>
+            <span className="text-3xl md:text-4xl">{c.value}</span> <span className="text-sm text-slate-500 font-semibold">{isFixed ? "USD$" : "%"}</span>
+          </span>
+        </div>
+        <div className="mt-2.5 md:mt-3 text-sm text-slate-600">{c.min_order_usd ? `USD$${c.min_order_usd}可用` : "無門檻"}</div>
+        <div className="mt-3 flex items-center gap-2 text-xs">
+          <span className={`rounded px-2.5 py-1 font-semibold ${purple ? "bg-violet-200 text-violet-700" : "bg-[#F6C96B] text-[#7A4A12]"}`}>{isFixed ? "滿減券" : "折價券"}</span>
+          <span className={`flex-1 border border-dashed rounded px-3 py-1 text-center text-slate-600 ${purple ? "border-violet-300" : "border-[#E8B45A]"}`}>{c.used ? "已使用" : `有效期至：${(c.expires_at || "").slice(0, 10) || "長期有效"}`}</span>
+        </div>
       </div>
     </div>
   );
@@ -40,12 +44,13 @@ export default function MyCoupons() {
   };
 
   return (
-    <Panel title={<span className="flex items-center gap-4">我的優惠券 <span className="text-sm font-normal text-slate-500">優惠券使用完整攻略: <Link to="/info/coupons" className="text-orange-500 underline">點這裡查看</Link></span></span>} testId="coupons-page"
-      right={<div className="flex items-center gap-3"><input data-testid="coupon-code-input" value={code} onChange={(e) => setCode(e.target.value)} placeholder="請輸入優惠券碼" className="h-11 w-64 rounded-full bg-slate-100 px-5 text-sm outline-none focus:ring-2 focus:ring-orange-300" /><button data-testid="coupon-redeem-btn" onClick={redeem} className="h-11 px-5 rounded-full bg-orange-50 text-orange-500 text-sm font-semibold hover:bg-orange-100">立即兌換</button></div>}>
+    <Panel title="我的優惠券" testId="coupons-page"
+      right={<div className="flex items-center gap-2 md:gap-3 min-w-0"><input data-testid="coupon-code-input" value={code} onChange={(e) => setCode(e.target.value)} placeholder="請輸入優惠券碼" className="h-9 md:h-11 w-36 md:w-64 min-w-0 rounded-full bg-white md:bg-slate-100 px-4 md:px-5 text-xs md:text-sm outline-none focus:ring-2 focus:ring-orange-300 placeholder:text-slate-400" /><button data-testid="coupon-redeem-btn" onClick={redeem} className="h-9 md:h-11 px-3.5 md:px-5 rounded-full bg-orange-500 md:bg-orange-50 text-white md:text-orange-500 text-xs md:text-sm font-semibold hover:bg-orange-600 md:hover:bg-orange-100 whitespace-nowrap shrink-0">立即兌換</button></div>}>
+      <div className="-mt-2 mb-3 px-1 text-xs md:text-sm text-slate-500">優惠券使用完整攻略: <Link to="/info/coupons" className="text-orange-500 underline">點這裡查看</Link></div>
       {list.length === 0 ? (
         <div className="py-16 text-center text-slate-400 text-sm" data-testid="coupons-empty">尚無優惠券，輸入優惠券碼即可領取（試試 <button className="text-orange-500 font-semibold" onClick={() => setCode("GLOBAL2026")}>GLOBAL2026</button> / <button className="text-orange-500 font-semibold" onClick={() => setCode("WELCOME5")}>WELCOME5</button>）</div>
       ) : (
-        <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-6 pt-3">{list.map((c) => <Coupon key={c.code} c={c} format={format} />)}</div>
+        <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-4 md:gap-6 pt-1 md:pt-3 max-md:px-0.5">{list.map((c) => <Coupon key={c.code} c={c} format={format} />)}</div>
       )}
       <div className="mt-12 text-center">
         <Link to="/" data-testid="coupons-use-btn" className="inline-flex h-10 items-center rounded-full bg-orange-100 px-6 text-sm font-semibold text-orange-600 hover:bg-orange-200">立即使用 &gt;&gt;</Link>
