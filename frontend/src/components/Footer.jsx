@@ -92,9 +92,9 @@ export default function Footer() {
 
           <div className="flex flex-col gap-5 lg:justify-end lg:flex-row">
             <div className="flex items-center md:items-start gap-3 md:gap-4 bg-white/10 rounded-2xl p-3 md:p-4">
-              <div className="text-center shrink-0 md:border-r-0 border-r border-white/25 pr-3 md:pr-0">
-                <a href={settings.whatsapp_link} target="_blank" rel="noreferrer" data-testid="footer-whatsapp-qr" className="block bg-white rounded-xl p-1.5">
-                  <QRCodeSVG value={settings.whatsapp_link} size={72} fgColor="#E8792A" level="M" />
+              <div className="flex flex-col items-center shrink-0 md:border-r-0 border-r border-white/25 pr-3 md:pr-0">
+                <a href={settings.whatsapp_link} target="_blank" rel="noreferrer" data-testid="footer-whatsapp-qr" className="inline-block bg-white rounded-xl p-1.5 leading-none">
+                  <QRCodeSVG value={settings.whatsapp_link} size={84} fgColor="#E8792A" level="M" className="block" />
                 </a>
                 <div className="text-[11px] text-white/90 md:text-white/80 mt-1.5 whitespace-nowrap">{settings.cs_label}</div>
               </div>
