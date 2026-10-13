@@ -43,6 +43,9 @@
   - 幫助中心：用戶建議/投訴/缺貨登記 → 主題膠囊、內容(≤2000)、聯繫資訊，`POST /api/me/feedback`；後台 `GET /api/admin/feedback`。
   - 全部頁面已用測試帳號實測（儲存資料、訂單列表、兌換券、提交建議、上傳證件）。後台 UI 尚未加入「認證審核 / 反饋」頁籤（P1）。
 
+- 2026-06-13：頁首帳號膠囊改為直接進入 /account（移除下拉）。頁尾客服改 WhatsApp 二維碼（qrcode.react，`GET /api/settings`，後台「網站設定」`PUT /api/admin/settings` 可改號碼/連結/文字）。頁尾支付 Logo 可由後台「支付Logo」上傳/更名/換圖/排序/隱藏/刪除（`/api/payment-logos`、`/api/admin/payment-logos`，圖存 Object Storage）；未上傳時顯示內建樣式。
+- 2026-06-13：**修復**首頁熱門分類網格點擊無反應（PagedGrid setPointerCapture 吞掉 click；改為滑鼠拖曳 8px 門檻、不用 pointer capture）。testing_agent iteration_1 全部通過（點擊跳轉、拖曳翻頁、快速下單/熱門商品/搜尋聯想回歸、4 個 API）。
+
 ## 待辦（優先序）
 - P0：testing_agent 跑後台訂單狀態流轉 + 回歸（前台 E2E 已由主代理手測通過）。
 - P1：結帳頁多幣別匯率計算驗證。
