@@ -50,7 +50,7 @@ export default function Footer() {
     publicApi.get("/payment-logos").then((r) => setLogos(r.data)).catch(() => setLogos([]));
   }, []);
   return (
-    <footer className="mt-10 md:mt-14 bg-[#F0872E] md:bg-gradient-to-b md:from-[#F0872E] md:to-[#E8792A] text-white">
+    <footer className="mt-4 md:mt-14 bg-[#F0872E] md:bg-gradient-to-b md:from-[#F0872E] md:to-[#E8792A] text-white">
       {/* Top: payments + follow */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5 md:py-7">
         <div className="flex md:flex-wrap items-center gap-3.5 md:gap-5 overflow-x-auto no-scrollbar">
@@ -127,7 +127,7 @@ export default function Footer() {
       </div>
 
       {/* Bottom bar */}
-      <div className="bg-black/10 md:bg-black/10 max-md:bg-transparent">
+      <div className="bg-black/10 md:bg-black/10 max-md:bg-transparent max-md:pb-14">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5 flex flex-col md:flex-row md:items-center justify-between gap-3 text-center md:text-left">
           <div className="flex items-center justify-center md:justify-start gap-4">
             <img src="/gogo589-logo.png" alt="gogo589" className="hidden md:block h-6 w-auto opacity-80" style={{ filter: "brightness(0) invert(1)" }} />

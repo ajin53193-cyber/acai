@@ -37,7 +37,7 @@ export default function Home() {
   const byCat = (cid) => home.by_category?.[cid] || [];
 
   return (
-    <div className={isSignedIn ? "pb-0" : "pb-16 md:pb-0"}>
+    <div>
       {!isSignedIn && (
         <div data-testid="mobile-register-bar" className="md:hidden fixed inset-x-0 bottom-0 z-40 bg-[#5a3a22]/90 backdrop-blur-sm text-white px-4 h-14 flex items-center gap-3">
           <Gift className="h-6 w-6 text-orange-300 shrink-0" />
