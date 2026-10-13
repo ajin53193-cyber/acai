@@ -1,5 +1,7 @@
 import os
 import uuid
+import base64
+import hashlib
 import logging
 from pathlib import Path
 from datetime import datetime, timezone, timedelta
@@ -445,6 +447,148 @@ async def product_daily_limit(product_id: str, member: dict = Depends(current_me
     locked = [s["id"] for s in p["specs"] if _limit_kind(s.get("badge")) in ("daily", "monthly") and _is_locked(_limit_kind(s.get("badge")), used.get(s["id"]))]
     has_orders = await db.orders.count_documents({"user_id": member["user_id"], "status": {"$ne": "cancelled"}}) > 0
     return {"used_spec_ids": locked, "is_new_customer": not has_orders}
+
+
+# ----------------------------- Member center -----------------------------
+class ProfileIn(BaseModel):
+    name: str = ""
+    gender: str = ""
+    contact_type: str = "微信"
+    contact: str = ""
+
+
+class VerificationIn(BaseModel):
+    kind: str = "identity"  # identity | card
+    doc_type: str = "護照"
+    name: str
+    image_b64: str = ""
+    image_name: str = "doc.jpg"
+
+
+class FeedbackIn(BaseModel):
+    kind: str = "suggestion"  # suggestion | complaint | restock
+    topic: str = ""
+    content: str
+    contact: str
+
+
+@api_router.get("/me/profile")
+async def get_profile(member: dict = Depends(current_member)):
+    u = await db.users.find_one({"user_id": member["user_id"]}, {"_id": 0}) or {}
+    return {"user_id": member["user_id"], "email": member.get("email", ""), "role": member["role"], "profile": u.get("profile") or {},
+            "account_no": str(100000000 + (int(hashlib.md5(member["user_id"].encode()).hexdigest()[:6], 16) % 900000000))}
+
+
+@api_router.put("/me/profile")
+async def put_profile(body: ProfileIn, member: dict = Depends(current_member)):
+    await db.users.update_one({"user_id": member["user_id"]}, {"$set": {"profile": body.model_dump()}}, upsert=True)
+    return body
+
+
+@api_router.get("/me/verifications")
+async def my_verifications(member: dict = Depends(current_member)):
+    return await db.verifications.find({"user_id": member["user_id"]}, {"_id": 0, "image_path": 0}).sort("created_at", -1).to_list(50)
+
+
+@api_router.post("/me/verifications")
+async def create_verification(body: VerificationIn, member: dict = Depends(current_member)):
+    if not body.name.strip():
+        raise HTTPException(status_code=400, detail="請輸入姓名")
+    if not body.image_b64:
+        raise HTTPException(status_code=400, detail="請上傳證件圖片")
+    raw = base64.b64decode(body.image_b64.split(",")[-1])
+    if len(raw) > 2 * 1024 * 1024:
+        raise HTTPException(status_code=400, detail="圖片大小需在 2M 以內")
+    ext = (body.image_name.rsplit(".", 1)[-1] or "jpg").lower()
+    if ext not in ("jpg", "jpeg", "png", "gif", "bmp"):
+        raise HTTPException(status_code=400, detail="僅支援 JPG / PNG / GIF / BMP")
+    path = f"gogo589/kyc/{member['user_id']}/{uuid.uuid4().hex}.{ext}"
+    res = await run_in_threadpool(objstore.put_object, path, raw, {"jpg": "image/jpeg", "jpeg": "image/jpeg", "png": "image/png", "gif": "image/gif", "bmp": "image/bmp"}[ext])
+    doc = {"id": new_id(), "user_id": member["user_id"], "user_email": member.get("email", ""), "kind": body.kind, "doc_type": body.doc_type, "name": body.name.strip(),
+           "image_path": res["path"], "status": "reviewing", "admin_note": "", "created_at": now_iso()}
+    await db.verifications.insert_one(doc)
+    doc.pop("_id", None); doc.pop("image_path", None)
+    return doc
+
+
+@api_router.get("/admin/verifications")
+async def admin_verifications(admin: dict = Depends(require_role("admin"))):
+    return await db.verifications.find({}, {"_id": 0}).sort("created_at", -1).to_list(500)
+
+
+class VerificationUpdate(BaseModel):
+    status: str
+    admin_note: str = ""
+
+
+@api_router.put("/admin/verifications/{vid}")
+async def admin_update_verification(vid: str, body: VerificationUpdate, admin: dict = Depends(require_role("admin"))):
+    if body.status not in ("pending", "reviewing", "approved", "rejected"):
+        raise HTTPException(status_code=400, detail="狀態不正確")
+    r = await db.verifications.find_one_and_update({"id": vid}, {"$set": {"status": body.status, "admin_note": body.admin_note}}, projection={"_id": 0}, return_document=ReturnDocument.AFTER)
+    if not r:
+        raise HTTPException(status_code=404, detail="不存在")
+    return r
+
+
+@api_router.get("/me/coupons")
+async def my_coupons(member: dict = Depends(current_member)):
+    claimed = await db.user_coupons.find({"user_id": member["user_id"]}, {"_id": 0}).to_list(100)
+    codes = [c["code"] for c in claimed]
+    promos = await db.promos.find({"code": {"$in": codes}}, {"_id": 0}).to_list(100)
+    pm = {p["code"]: p for p in promos}
+    used = {o.get("promo_code") async for o in db.orders.find({"user_id": member["user_id"], "promo_code": {"$in": codes}}, {"_id": 0, "promo_code": 1})}
+    out = []
+    for c in claimed:
+        p = pm.get(c["code"])
+        if not p:
+            continue
+        out.append({**{k: p.get(k) for k in ("code", "discount_type", "value", "min_order_usd", "expires_at", "active")}, "claimed_at": c["claimed_at"], "used": c["code"] in used,
+                    "title": p.get("title") or ("新客專享" if "WELCOME" in p["code"] else "全站儲值優惠")})
+    return out
+
+
+class RedeemIn(BaseModel):
+    code: str
+
+
+@api_router.post("/me/coupons/redeem")
+async def redeem_coupon(body: RedeemIn, member: dict = Depends(current_member)):
+    code = body.code.strip().upper()
+    p = await db.promos.find_one({"code": code, "active": True}, {"_id": 0})
+    if not p:
+        raise HTTPException(status_code=404, detail="優惠券碼無效")
+    if p.get("expires_at") and p["expires_at"] < now_iso():
+        raise HTTPException(status_code=400, detail="優惠券已過期")
+    if await db.user_coupons.find_one({"user_id": member["user_id"], "code": code}):
+        raise HTTPException(status_code=409, detail="您已領取過此優惠券")
+    await db.user_coupons.insert_one({"id": new_id(), "user_id": member["user_id"], "code": code, "claimed_at": now_iso()})
+    return {"ok": True, "code": code}
+
+
+@api_router.post("/me/feedback")
+async def create_feedback(body: FeedbackIn, member: dict = Depends(current_member)):
+    if not body.content.strip():
+        raise HTTPException(status_code=400, detail="請輸入內容")
+    if not body.contact.strip():
+        raise HTTPException(status_code=400, detail="請填寫聯繫資訊")
+    doc = {"id": new_id(), "user_id": member["user_id"], "user_email": member.get("email", ""), **body.model_dump(), "status": "open", "created_at": now_iso()}
+    await db.feedback.insert_one(doc)
+    doc.pop("_id", None)
+    return doc
+
+
+@api_router.get("/admin/feedback")
+async def admin_feedback(admin: dict = Depends(require_role("admin"))):
+    return await db.feedback.find({}, {"_id": 0}).sort("created_at", -1).to_list(500)
+
+
+@api_router.delete("/orders/{order_id}")
+async def delete_order(order_id: str, member: dict = Depends(current_member)):
+    r = await db.orders.delete_one({"id": order_id, "user_id": member["user_id"], "status": "pending_payment"})
+    if r.deleted_count == 0:
+        raise HTTPException(status_code=400, detail="僅能刪除未付款訂單")
+    return {"ok": True}
 
 
 # ----------------------------- User (auth) endpoints -----------------------------

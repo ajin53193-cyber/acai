@@ -35,6 +35,14 @@
 - 2026-06-12：**分類頁**改 Kavip 版面（橘色漸層＋裝飾、7 欄白卡、21/頁、‹ 1 2 3 … 12 › 分頁器 `Pager`）。
 - 2026-06-12：**評價同步**：`scripts/crawl_comments.py` 經 `pro-api/openapi/product-comment/list` 抓全站 464 則評價（日期、國家/地區、回購次數、客服回覆）；用戶名改為遮罩信箱 `首字****末字@domain`；語言依地區：CN→簡體(OpenCC)、TW/HK/MO/MY/SG/未知→繁體、其他→英文（gpt-5.4-mini 翻譯，快取於 kavip_translations.json）；英文評價地區顯示英文國名。商品 rating/review_count 依評價重算。商品頁評價區改版（平均分、地區數、載入更多）。
 
+- 2026-06-13：**會員中心**（Kavip 版面，左側欄：我的帳戶/我的訂單/我的認證/我的優惠券/幫助中心/登出帳戶）`pages/account/*`，路由 /account, /orders, /account/verify, /account/coupons, /account/help。頁首登入後顯示帳號膠囊（信箱）下拉選單。
+  - 我的帳戶：帳戶ID/信箱/手機&Google 綁定狀態、個人聯絡資訊（姓名/性別/聯絡方式，`GET/PUT /api/me/profile`）、密碼修改（Clerk user.updatePassword）。
+  - 我的訂單：兩欄卡片（訂單編號複製/時間/狀態、圖、規格*數量、填寫資料、金額、刪除訂單(僅未付款 `DELETE /api/orders/{id}`)/再來一單/去付款/查看詳情）；分頁籤 全部/未付款/待審核/認證中/出貨失敗/出貨完成。
+  - 我的認證：列表+狀態篩選+空狀態；新增表單（身份認證/金融卡、證件類型、姓名、圖片上傳 ≤2M → Object Storage `gogo589/kyc/...`），`GET/POST /api/me/verifications`；後台 `GET/PUT /api/admin/verifications`。
+  - 我的優惠券：優惠券碼兌換 `POST /api/me/coupons/redeem`、已領列表 `GET /api/me/coupons`（折價券/滿減券卡片、已使用/有效期）。
+  - 幫助中心：用戶建議/投訴/缺貨登記 → 主題膠囊、內容(≤2000)、聯繫資訊，`POST /api/me/feedback`；後台 `GET /api/admin/feedback`。
+  - 全部頁面已用測試帳號實測（儲存資料、訂單列表、兌換券、提交建議、上傳證件）。後台 UI 尚未加入「認證審核 / 反饋」頁籤（P1）。
+
 ## 待辦（優先序）
 - P0：testing_agent 跑後台訂單狀態流轉 + 回歸（前台 E2E 已由主代理手測通過）。
 - P1：結帳頁多幣別匯率計算驗證。

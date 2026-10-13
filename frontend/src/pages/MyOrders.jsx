@@ -1,10 +1,10 @@
 import { useEffect, useState, useCallback } from "react";
-import { useSearchParams } from "react-router-dom";
-import { Show } from "@clerk/react";
-import { useAuthModal } from "@/components/auth/AuthModal";
+import { useSearchParams, useNavigate } from "react-router-dom";
 import { Copy, Package, Loader2, Check } from "lucide-react";
 import { toast } from "sonner";
 import { useApi } from "@/lib/api";
+import { useCart } from "@/context/CartContext";
+import { Panel, SubTabs } from "@/pages/account/AccountLayout";
 import { useCurrency } from "@/context/CurrencyContext";
 import { StatusBadge, STATUS_LABELS, STATUS_ORDER } from "@/lib/status";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
@@ -21,11 +21,13 @@ function OrdersInner() {
   const callApi = useApi();
   const { format } = useCurrency();
   const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
   const [orders, setOrders] = useState([]);
   const [filter, setFilter] = useState("all");
   const [loading, setLoading] = useState(true);
   const [detail, setDetail] = useState(null);
   const [paying, setPaying] = useState(false);
+  const { addItem } = useCart();
 
   const load = useCallback(() => {
     setLoading(true);
@@ -63,59 +65,56 @@ function OrdersInner() {
     }
   };
 
+  const removeOrder = async (o) => {
+    try { await callApi({ method: "DELETE", url: `/orders/${o.id}` }); toast.success("訂單已刪除"); load(); }
+    catch (e) { toast.error(e.response?.data?.detail || "刪除失敗"); }
+  };
+  const reorder = (o) => { o.items.forEach((it) => addItem({ id: it.product_id, name: it.product_name, image: it.image }, { id: it.spec_id, label: it.spec_label, price_usd: it.unit_price_usd }, it.quantity)); navigate("/checkout"); };
+  const KAVIP_LABELS = { all: "全部", pending_payment: "未付款", paid: "待審核", processing: "認證中", exception: "出貨失敗", completed: "出貨完成" };
+
   return (
-    <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-6 min-h-[60vh]">
-      <h1 className="font-head text-2xl font-bold text-slate-900 mb-4">我的訂單</h1>
-
-      <div className="flex overflow-x-auto no-scrollbar gap-2 pb-3 mb-4">
-        {FILTERS.map(([k, label]) => (
-          <button
-            key={k}
-            data-testid={`order-filter-${k}`}
-            onClick={() => setFilter(k)}
-            className={`whitespace-nowrap text-sm font-semibold rounded-full px-4 py-1.5 transition-colors ${
-              filter === k ? "bg-primary text-white" : "bg-white border border-slate-200 text-slate-600"
-            }`}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
-
+    <Panel title="我的訂單" testId="orders-page">
+      <SubTabs tabs={Object.entries(KAVIP_LABELS)} value={filter} onChange={setFilter} testPrefix="order-filter" />
       {loading ? (
-        <div className="text-center py-20 text-slate-400"><Loader2 className="h-6 w-6 animate-spin mx-auto" /></div>
+        <div className="grid md:grid-cols-2 gap-5">{[0, 1, 2, 3].map((i) => <div key={i} className="h-56 rounded-2xl bg-slate-100 animate-pulse" />)}</div>
       ) : orders.length === 0 ? (
-        <div className="text-center py-20 text-slate-400">
-          <Package className="h-12 w-12 mx-auto mb-3" />
-          <p>暫無訂單</p>
-        </div>
+        <div className="py-20 text-center text-slate-400" data-testid="orders-empty">無數據</div>
       ) : (
-        <div className="space-y-3">
-          {orders.map((o) => (
-            <div
-              key={o.id}
-              data-testid={`order-row-${o.id}`}
-              className="bg-white rounded-2xl border border-slate-200 p-4 hover:shadow-md transition-shadow cursor-pointer"
-              onClick={() => setDetail(o)}
-            >
-              <div className="flex items-center justify-between mb-3">
-                <span className="text-xs font-mono text-slate-400">{o.order_no}</span>
-                <StatusBadge status={o.status} />
-              </div>
-              <div className="flex gap-3">
-                <img src={o.items[0]?.image} alt="" className="h-14 w-14 rounded-lg object-cover" />
-                <div className="flex-1 min-w-0">
-                  <div className="text-sm font-semibold text-slate-800 truncate">{o.items[0]?.product_name}</div>
-                  <div className="text-xs text-slate-400">{o.items[0]?.spec_label} × {o.items[0]?.quantity}{o.items.length > 1 ? ` 等 ${o.items.length} 項` : ""}</div>
-                  <div className="text-xs text-slate-400 mt-1">充值帳號：{o.recharge_account}</div>
+        <div className="grid md:grid-cols-2 gap-5">
+          {orders.map((o) => {
+            const it = o.items[0];
+            const fields = o.delivery_info ? Object.values(o.delivery_info).flatMap((f) => Object.entries(f)) : [];
+            return (
+              <div key={o.id} data-testid={`order-card-${o.id}`} className="rounded-2xl bg-slate-50 p-5">
+                <div className="flex items-center justify-between text-sm text-slate-500">
+                  <span className="flex items-center gap-2">訂單編號: <span className="text-slate-700">{o.order_no}</span><button onClick={() => copy(o.order_no)} className="text-slate-400 hover:text-orange-500"><Copy className="h-3.5 w-3.5" /></button></span>
+                  <span>{o.created_at?.slice(0, 19).replace("T", " ")}</span>
+                  <span className={o.status === "pending_payment" ? "text-slate-600" : o.status === "completed" ? "text-emerald-600" : "text-orange-500"}>{KAVIP_LABELS[o.status] || STATUS_LABELS[o.status]}</span>
                 </div>
-                <div className="text-right">
-                  <div className="font-head font-bold text-primary">{money(o.currency_symbol, o.total_usd, o.rate_to_usd, o.currency)}</div>
-                  <div className="text-[10px] text-slate-400">{o.currency}</div>
+                <div className="mt-4 flex gap-5">
+                  <button onClick={() => setDetail(o)} className="h-28 w-28 shrink-0 rounded-2xl bg-white p-2 shadow-sm"><img src={it?.image} alt="" className="h-full w-full object-contain rounded-xl" /></button>
+                  <div className="flex-1 min-w-0 text-sm text-slate-800 space-y-1.5">
+                    <div className="truncate">{it?.product_name}{o.items.length > 1 ? ` 等 ${o.items.length} 件` : ""}</div>
+                    <div>{it?.spec_label} * {it?.quantity}</div>
+                    {fields.slice(0, 1).map(([k, v]) => <div key={k} className="truncate">{k}: {k.includes("密碼") ? "••••••" : v}</div>)}
+                    {!fields.length && o.recharge_account && <div className="truncate">ID: {o.recharge_account}</div>}
+                    <div className="flex items-end justify-between gap-2 pt-1">
+                      <span className="text-orange-500 font-medium">{o.currency}$ {(o.total_usd * o.rate_to_usd).toFixed(2)}</span>
+                      <div className="flex items-center gap-2 flex-wrap justify-end">
+                        {o.status === "pending_payment" && <button data-testid={`order-delete-${o.id}`} onClick={() => removeOrder(o)} className="h-9 px-3 rounded-full bg-orange-50 text-orange-500 text-xs hover:bg-orange-100">刪除訂單</button>}
+                        <button data-testid={`order-reorder-${o.id}`} onClick={() => reorder(o)} className="h-9 px-4 rounded-full bg-slate-900 text-white text-xs hover:bg-slate-800">再來一單</button>
+                        {o.status === "pending_payment" ? (
+                          <button data-testid={`order-pay-${o.id}`} onClick={() => payNow(o)} disabled={paying} className="h-9 px-4 rounded-full bg-orange-500 text-white text-xs font-semibold hover:bg-orange-600">去付款</button>
+                        ) : (
+                          <button data-testid={`order-detail-${o.id}`} onClick={() => setDetail(o)} className="h-9 px-4 rounded-full bg-orange-500 text-white text-xs font-semibold hover:bg-orange-600">查看詳情</button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 
@@ -209,23 +208,10 @@ function OrdersInner() {
           )}
         </SheetContent>
       </Sheet>
-    </div>
+    </Panel>
   );
 }
 
 export default function MyOrders() {
-  const { openAuth } = useAuthModal();
-  return (
-    <>
-      <Show when="signed-in"><OrdersInner /></Show>
-      <Show when="signed-out">
-        <div className="max-w-md mx-auto px-4 py-20 text-center">
-          <Package className="h-12 w-12 text-primary mx-auto mb-4" />
-          <h2 className="font-head text-xl font-bold text-slate-900 mb-2">請先登入</h2>
-          <p className="text-sm text-slate-500 mb-5">登入後查看您的訂單與充值進度</p>
-          <button onClick={openAuth} data-testid="orders-login-btn" className="h-11 px-6 rounded-full bg-primary text-white font-semibold">登入 / 註冊</button>
-        </div>
-      </Show>
-    </>
-  );
+  return <OrdersInner />;
 }

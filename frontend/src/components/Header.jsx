@@ -131,6 +131,9 @@ export default function Header() {
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-56 rounded-2xl p-2">
                   <div className="px-2 py-1.5 text-xs text-slate-400 truncate">{accountLabel}</div>
+                  <DropdownMenuItem onClick={() => navigate("/account")} data-testid="my-account-link" className="rounded-xl gap-2 cursor-pointer">
+                    <UserRound className="h-4 w-4 text-slate-500" /> 我的帳戶
+                  </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => navigate("/orders")} data-testid="my-orders-link" className="rounded-xl gap-2 cursor-pointer">
                     <Package className="h-4 w-4 text-slate-500" /> 我的訂單
                   </DropdownMenuItem>
