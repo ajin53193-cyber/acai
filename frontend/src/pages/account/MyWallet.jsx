@@ -69,9 +69,9 @@ export default function MyWallet() {
   return (
     <Panel title="我的錢包" testId="wallet-page">
       <BalanceBanner data={data} />
-      <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="mt-4 md:mt-6 grid grid-cols-2 gap-3 md:gap-4">
         {ACTIONS.map(([to, alt, src, tid]) => (
-          <Link key={to} to={to} data-testid={tid} className="group block overflow-hidden rounded-2xl shadow-sm hover:shadow-lg transition-shadow">
+          <Link key={to} to={to} data-testid={tid} className="group block overflow-hidden rounded-xl md:rounded-2xl shadow-sm hover:shadow-lg transition-shadow">
             <img src={src} alt={alt} className="w-full h-auto object-cover group-hover:scale-[1.02] transition-transform duration-300" />
           </Link>
         ))}
