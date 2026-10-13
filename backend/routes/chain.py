@@ -14,7 +14,7 @@ from fastapi import APIRouter, Depends, Request, Query, HTTPException
 from pydantic import BaseModel
 
 from core import db
-from utils import serialize, iso, now_utc
+from utils import serialize, iso, now_utc, now_bj
 from deps import require_roles
 from shared import audit
 from services import channel_addresses
@@ -57,7 +57,7 @@ async def put_chain_alert(data: ChainAlertIn, request: Request, user: dict = Dep
 
 @router.get("/chain/usage/trend")
 async def chain_usage_trend(user: dict = Depends(require_roles("admin", "operator"))):
-    now = now_utc()
+    now = now_bj()
     keys = [now.strftime("%Y-%m-%d"), (now - timedelta(days=1)).strftime("%Y-%m-%d")]
     docs = {}
     for k in keys:

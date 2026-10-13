@@ -110,7 +110,7 @@ export default function DashboardPage() {
             <div className="flex items-center gap-2">
               <Gauge className="w-4 h-4 text-cyan-400" />
               <h2 className="text-base font-semibold text-slate-200">TronGrid 轮询额度</h2>
-              <span className="text-xs text-slate-500 font-mono">{usage.date} · UTC</span>
+              <span className="text-xs text-slate-500 font-mono">{usage.date} · 北京时间</span>
               {usage.throttle_x > 1 && <span className="text-xs text-amber-400 font-mono" data-testid="chain-usage-throttle">· 已自动降速 {usage.throttle_x}×（轮询 {usage.poll_seconds}s）</span>}
             </div>
             <span className="text-sm font-mono text-slate-300" data-testid="chain-usage-count">
@@ -140,7 +140,7 @@ export default function DashboardPage() {
           )}
           {usageTrend && usageTrend.length > 0 && (
             <div className="mt-4" data-testid="chain-usage-trend">
-              <div className="text-xs text-slate-400 mb-2">近 24 小时请求趋势（UTC）</div>
+              <div className="text-xs text-slate-400 mb-2">近 24 小时请求趋势（北京时间）</div>
               <ResponsiveContainer width="100%" height={120}>
                 <BarChart data={usageTrend} margin={{ top: 4, right: 4, left: -24, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#1E293B" vertical={false} />

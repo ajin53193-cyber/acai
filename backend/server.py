@@ -64,7 +64,7 @@ _chain_usage = {"date": "", "count": 0, "hours": {}, "alerted_hour": "", "foreca
 
 
 def _usage_today_key():
-    return now_utc().strftime("%Y-%m-%d")
+    return now_bj().strftime("%Y-%m-%d")
 
 
 def _bump_usage(n: int = 1):
@@ -75,7 +75,7 @@ def _bump_usage(n: int = 1):
         _chain_usage["hours"] = {}
         _chain_usage["forecast_alerted"] = ""
     _chain_usage["count"] += n
-    hh = now_utc().strftime("%H")
+    hh = now_bj().strftime("%H")
     _chain_usage["hours"][hh] = _chain_usage["hours"].get(hh, 0) + n
 
 
@@ -85,9 +85,9 @@ def chain_usage_memory() -> dict:
 
 def chain_usage_forecast() -> dict:
     """Project today's end-of-day request total from the recent hourly rate and
-    flag whether the daily quota will be exhausted before UTC midnight."""
+    flag whether the daily quota will be exhausted before Beijing midnight."""
     k = _usage_today_key()
-    now = now_utc()
+    now = now_bj()
     used = _chain_usage["count"] if _chain_usage["date"] == k else 0
     limit = TRONGRID_DAILY_LIMIT
     secs_elapsed = max(1, now.hour * 3600 + now.minute * 60 + now.second)
@@ -105,7 +105,7 @@ def chain_usage_forecast() -> dict:
     hours_to_exhaust = ((limit - used) / rate) if (rate > 0 and limit > used) else None
     eta = None
     if will_exhaust and hours_to_exhaust is not None and hours_to_exhaust <= hours_remaining:
-        eta = (now + timedelta(hours=hours_to_exhaust)).astimezone(timezone(timedelta(hours=8))).strftime("%H:%M")
+        eta = (now + timedelta(hours=hours_to_exhaust)).strftime("%H:%M")
     return {"projected_eod": int(projected), "rate_per_hour": int(rate),
             "will_exhaust": bool(will_exhaust),
             "hours_to_exhaust": round(hours_to_exhaust, 1) if hours_to_exhaust is not None else None,
@@ -142,14 +142,14 @@ async def _maybe_alert_forecast():
 
 
 async def _maybe_alert_spike():
-    """Telegram-alert (once per hour) when the current UTC hour's TronGrid request
+    """Telegram-alert (once per hour) when the current Beijing hour's TronGrid request
     count is abnormally higher than the recent hourly average — catches runaway
     polling / abuse before it drains the daily quota."""
     k = _usage_today_key()
     if _chain_usage["date"] != k:
         return
     hours = _chain_usage["hours"]
-    cur = now_utc().strftime("%H")
+    cur = now_bj().strftime("%H")
     cnt = hours.get(cur, 0)
     doc = await db.settings.find_one({"_id": "chain_alert"}) or {}
     smin = int(doc.get("spike_min", CHAIN_SPIKE_MIN))
@@ -170,7 +170,7 @@ async def _maybe_alert_spike():
     pct = round(snap["used"] / snap["limit"] * 100, 2) if snap["limit"] else 0
     await send_telegram(
         f"🚨 <b>TronGrid 请求异常激增</b>\n"
-        f"时段：{cur}:00 (UTC)\n"
+        f"时段：{cur}:00 (北京时间)\n"
         f"本时段请求：{cnt} 次（约为近期均值 {avg:.0f} 的 {cnt / avg:.1f} 倍）\n"
         f"今日累计：{snap['used']}/{snap['limit']}（{pct}%）\n"
         f"请检查是否存在异常轮询或攻击，避免额度被提前耗尽。", "alert")
