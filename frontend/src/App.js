@@ -31,7 +31,7 @@ import Admin from "@/pages/Admin";
 
 function StoreLayout() {
   const { pathname } = useLocation();
-  const hideFooterOnMobile = pathname.startsWith("/product/");
+  const hideFooterOnMobile = pathname.startsWith("/product/") || pathname.startsWith("/checkout");
   return (
     <AuthModalProvider>
       <div className="min-h-screen flex flex-col site-bg" style={{ "--site-bg-pc": "url(/kavip-bg-pc.png)", "--site-bg-m": "url(/kavip-bg-m.png)" }}>

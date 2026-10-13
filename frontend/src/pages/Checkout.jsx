@@ -178,21 +178,22 @@ function CheckoutInner() {
         <div className="bg-white rounded-3xl shadow-sm overflow-hidden" data-testid="checkout-summary-card">
           <div className="p-4 sm:p-8">
             <SectionTitle>支付方式</SectionTitle>
-            <div className="mt-5 rounded-2xl border-2 border-orange-400 bg-orange-50 p-5 flex flex-col sm:flex-row sm:items-center gap-4" data-testid="pay-method-wallet">
-              <span className="h-12 w-12 rounded-full bg-gradient-to-br from-orange-500 to-amber-500 text-white flex items-center justify-center shrink-0"><Wallet className="h-6 w-6" /></span>
-              <div className="flex-1">
-                <div className="font-bold text-slate-900">錢包餘額付款</div>
-                <div className="text-sm text-slate-600 mt-0.5">目前餘額：<span className="font-head font-extrabold text-orange-500" data-testid="checkout-wallet-balance">{wallet === null ? "…" : format(wallet)}</span>{wallet !== null && wallet < totalUsd && <span className="ml-2 text-red-500">餘額不足，還差 {format(totalUsd - wallet)}</span>}</div>
+            <div className="mt-4 md:mt-5 rounded-2xl border border-orange-400 bg-orange-50 p-3.5 md:p-5 flex items-center gap-3 md:gap-4" data-testid="pay-method-wallet">
+              <span className="h-10 w-10 md:h-12 md:w-12 rounded-full bg-gradient-to-br from-orange-500 to-amber-500 text-white flex items-center justify-center shrink-0"><Wallet className="h-5 w-5 md:h-6 md:w-6" /></span>
+              <div className="flex-1 min-w-0">
+                <div className="text-[15px] md:text-base font-semibold text-slate-900">錢包餘額付款</div>
+                <div className="text-xs md:text-sm text-slate-600 mt-0.5">目前餘額：<span className="font-head font-bold text-orange-500" data-testid="checkout-wallet-balance">{wallet === null ? "…" : format(wallet)}</span></div>
+                {wallet !== null && wallet < totalUsd && <div className="text-xs text-red-500 mt-0.5">餘額不足，還差 {format(totalUsd - wallet)}</div>}
               </div>
-              <Link to="/account/wallet" data-testid="checkout-topup-link" className="h-10 px-5 rounded-full bg-orange-500 text-white text-sm font-bold flex items-center hover:bg-orange-600">前往充值</Link>
+              <Link to="/account/wallet" data-testid="checkout-topup-link" className="h-9 md:h-10 px-4 md:px-5 rounded-full bg-orange-500 text-white text-sm font-semibold flex items-center hover:bg-orange-600 shrink-0 whitespace-nowrap">前往充值</Link>
             </div>
-            <div className="mt-3 text-xs text-slate-500">付款完成後，請至「我的訂單」填寫充值資料（帳號 / ID 等），提交後開始人工充值。</div>
-            <label className="mt-5 flex items-start gap-2 text-sm text-slate-600 cursor-pointer">
+            <div className="mt-3 text-xs text-slate-500 leading-5">付款完成後，請至「我的訂單」填寫充值資料（帳號 / ID 等），提交後開始人工充值。</div>
+            <label className="mt-4 md:mt-5 flex items-start gap-2 text-[13px] md:text-sm text-slate-600 cursor-pointer leading-6">
               <input type="checkbox" data-testid="checkout-agree-checkbox" checked={agree} onChange={(e) => setAgree(e.target.checked)} className="mt-0.5 h-4 w-4 accent-orange-500" />
               <span>我已閱讀並同意：虛擬商品人工充值，完成後 <span className="text-orange-500 font-semibold">恕不退款</span>，並確認充值帳號正確。</span>
             </label>
 
-            <div className="mt-6 space-y-3 text-sm">
+            <div className="mt-5 md:mt-6 space-y-2.5 md:space-y-3 text-[13px] md:text-sm">
               <div className="flex items-center justify-between"><span className="text-slate-600">商品總額:</span><span className="text-orange-500">{format(subtotalUsd)}</span></div>
               <div className="flex items-center justify-between"><span className="text-slate-600">優惠金額:</span><span className="text-orange-500" data-testid="checkout-discount">-{format(discountUsd)}</span></div>
               <div className="flex items-center justify-between"><span className="text-slate-600">支付手續費:</span><span className="text-slate-500"><span className="line-through mr-2">{format(subtotalUsd * 0.03)}</span><span className="text-orange-500">{format(0)}</span></span></div>
