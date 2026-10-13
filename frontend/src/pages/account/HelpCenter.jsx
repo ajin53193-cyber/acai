@@ -32,30 +32,30 @@ export default function HelpCenter() {
 
   return (
     <Panel title="幫助中心" testId="help-page">
-      <div className="max-md:bg-white max-md:rounded-2xl max-md:shadow-[0_6px_20px_-12px_rgba(232,121,42,0.35)] max-md:px-4 max-md:pb-6 max-md:overflow-hidden">
+      <div className="max-md:bg-white max-md:rounded-2xl max-md:shadow-[0_6px_20px_-12px_rgba(232,121,42,0.35)] max-md:px-4 max-md:pb-5 max-md:overflow-hidden max-md:mb-24">
       <div className="md:hidden flex items-center justify-between -mx-4 px-4 pt-1 mb-4" data-testid="help-kind-tabs-mobile">
         {KINDS.map(([k, l]) => (
-          <button key={k} data-testid={`help-kind-m-${k}`} onClick={() => { setKind(k); setTopic(""); }} className={`relative py-3 text-[15px] font-medium ${kind === k ? "text-orange-500" : "text-slate-700"}`}>
+          <button key={k} data-testid={`help-kind-m-${k}`} onClick={() => { setKind(k); setTopic(""); }} className={`relative py-3 text-[15px] ${kind === k ? "text-orange-500 font-medium" : "text-slate-600"}`}>
             {l}{kind === k && <span className="absolute left-0 right-0 top-0 h-[3px] rounded-b-full bg-orange-500" />}
           </button>
         ))}
       </div>
       <div className="max-md:hidden"><SubTabs tabs={KINDS} value={kind} onChange={(k) => { setKind(k); setTopic(""); }} testPrefix="help-kind" /></div>
-      <div className="md:text-center font-semibold text-slate-800 mb-3 md:mb-5 text-[15px] md:text-base">{kind === "restock" ? "請選擇缺貨商品類型" : kind === "complaint" ? "請選擇投訴內容" : "請選擇建議內容"}</div>
-      <div className="flex flex-wrap gap-2 md:gap-4 mb-5 md:mb-6">
+      <div className="md:text-center font-medium md:font-semibold text-slate-800 mb-3 md:mb-5 text-[14px] md:text-base">{kind === "restock" ? "請選擇缺貨商品類型" : kind === "complaint" ? "請選擇投訴內容" : "請選擇建議內容"}</div>
+      <div className="flex flex-wrap gap-2.5 md:gap-4 mb-4 md:mb-6">
         {TOPICS[kind].map((t) => (
-          <button key={t} data-testid={`help-topic-${t}`} onClick={() => setTopic(t)} className={`h-9 md:h-12 px-3.5 md:px-8 rounded-full text-[13px] md:text-sm font-medium transition-colors ${topic === t ? "bg-orange-500 text-white" : "bg-slate-100 text-slate-700 hover:bg-orange-50"}`}>{t}</button>
+          <button key={t} data-testid={`help-topic-${t}`} onClick={() => setTopic(t)} className={`h-10 md:h-12 px-3.5 md:px-8 rounded-xl md:rounded-full text-[13px] md:text-sm font-normal md:font-medium transition-colors ${topic === t ? "bg-orange-500 text-white" : "bg-slate-100 text-slate-700 hover:bg-orange-50"}`}>{t}</button>
         ))}
       </div>
       <div className="relative">
-        <textarea data-testid="help-content" value={content} onChange={(e) => setContent(e.target.value.slice(0, 2000))} placeholder={kind === "restock" ? "請描述您需要的商品名稱、面額與區服" : "說點什麼吧"} rows={7} className="w-full rounded-2xl bg-slate-100 p-4 md:p-5 text-sm outline-none focus:ring-2 focus:ring-orange-300 placeholder:text-slate-400 resize-y" />
+        <textarea data-testid="help-content" value={content} onChange={(e) => setContent(e.target.value.slice(0, 2000))} placeholder={kind === "restock" ? "請描述您需要的商品名稱、面額與區服" : "說點什麼吧"} rows={6} className="w-full rounded-xl md:rounded-2xl bg-slate-100 p-4 md:p-5 text-sm outline-none focus:ring-2 focus:ring-orange-300 placeholder:text-slate-400 resize-y" />
         <span className="absolute right-4 md:right-5 bottom-3 md:bottom-4 text-xs text-slate-400">{content.length}/2000</span>
       </div>
       <div className="mt-4 md:mt-6 flex items-center gap-2 md:gap-3 text-sm">
-        <span className="text-slate-700 shrink-0 whitespace-nowrap"><span className="text-red-500 mr-1">*</span>聯繫資訊：</span>
-        <input data-testid="help-contact" value={contact} onChange={(e) => setContact(e.target.value)} placeholder="請輸入郵箱/QQ/微信號" className="h-10 md:h-12 w-full max-w-xl min-w-0 rounded-full bg-slate-100 px-4 md:px-5 text-sm outline-none focus:ring-2 focus:ring-orange-300 placeholder:text-slate-400" />
+        <span className="text-slate-700 shrink-0 whitespace-nowrap text-[15px] md:text-sm"><span className="text-red-500 mr-1">*</span>聯繫資訊：</span>
+        <input data-testid="help-contact" value={contact} onChange={(e) => setContact(e.target.value)} placeholder="請輸入郵箱/QQ/微信號" className="h-11 md:h-12 w-full max-w-xl min-w-0 rounded-full bg-slate-100 px-4 md:px-5 text-sm outline-none focus:ring-2 focus:ring-orange-300 placeholder:text-slate-400" />
       </div>
-      <div className="text-center mt-6 md:mt-12"><OrangeBtn data-testid="help-submit" onClick={submit} disabled={sending} className="max-md:h-11 max-md:px-14 max-md:text-sm">{sending ? "提交中…" : "提交"}</OrangeBtn></div>
+      <div className="text-center mt-6 md:mt-12 max-md:pb-2"><OrangeBtn data-testid="help-submit" onClick={submit} disabled={sending} className="max-md:h-12 max-md:w-60 max-md:px-0 max-md:text-base max-md:font-semibold">{sending ? "提交中…" : "提交"}</OrangeBtn></div>
       </div>
     </Panel>
   );
