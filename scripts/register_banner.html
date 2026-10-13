@@ -11,8 +11,9 @@
   .dots{position:absolute;left:700px;bottom:22px;width:120px;height:70px;
      background-image:radial-gradient(rgba(255,255,255,.35) 2.5px,transparent 3px);background-size:18px 18px}
   .shine{position:absolute;left:0;right:0;top:0;height:50%;background:linear-gradient(180deg,rgba(255,255,255,.16),rgba(255,255,255,0))}
-  .logo{position:absolute;left:52px;top:34px;font-weight:900;font-size:38px;letter-spacing:-1px;text-shadow:0 3px 10px rgba(120,50,0,.18)}
-  .logo small{font-size:18px;font-weight:700;opacity:.92;margin-left:10px;letter-spacing:4px}
+  .logo{position:absolute;left:52px;top:30px;display:flex;align-items:flex-end;gap:14px}
+  .logo img{height:52px;width:auto;filter:brightness(0) invert(1) drop-shadow(0 3px 8px rgba(120,50,0,.2))}
+  .logo small{font-size:18px;font-weight:700;opacity:.92;letter-spacing:4px;padding-bottom:6px}
   .h{position:absolute;left:52px;top:112px;font-size:42px;font-weight:900;white-space:nowrap;text-shadow:0 4px 12px rgba(120,50,0,.2);line-height:1}
   .h em{font-style:normal;font-size:60px;color:#FFF1C9;text-shadow:0 4px 0 rgba(170,70,0,.25)}
   .s{position:absolute;left:54px;top:196px;font-size:22px;font-weight:500;opacity:.95;letter-spacing:1px}
@@ -28,7 +29,7 @@
 </style></head><body>
 <div class="b">
   <div class="circle c1"></div><div class="circle c2"></div><div class="dots"></div><div class="shine"></div>
-  <div class="logo">gogo589<small>全球應用內購服務</small></div>
+  <div class="logo"><img src="file:///app/frontend/public/gogo589-logo.png" alt=""><small>全球應用內購服務</small></div>
   <div class="h">新用戶註冊 最高領 <em>9%</em> 優惠券</div>
   <div class="s">註冊即享首單優惠，海量正版 App 充值等你來</div>
   <div class="coupon"><b>9%</b><span>新人<br>優惠券</span></div>
