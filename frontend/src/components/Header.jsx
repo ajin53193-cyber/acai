@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useUser } from "@clerk/react";
 import { Search, ShoppingCart, Headphones, ChevronDown, ChevronRight, Shield, Package, Menu, X, UserRound, Gift, Wallet, Home,
   Tv, Gamepad2, MessageCircle, Music, Smile, Mic, HeartHandshake, CreditCard, BookOpen, Rocket, Cpu } from "lucide-react";
@@ -33,6 +33,8 @@ const CAT_ICONS = {
 
 export default function Header() {
   const navigate = useNavigate();
+  const { pathname } = useLocation();
+  const showMobileSearch = pathname === "/" || pathname.startsWith("/category") || pathname.startsWith("/search");
   const { count, setOpen } = useCart();
   const { active } = useCurrency();
   const { isSignedIn, user } = useUser();
@@ -158,9 +160,11 @@ export default function Header() {
         </div>
 
         {/* Mobile search bar (always visible) */}
-        <div className="md:hidden px-4 pb-2.5 pt-2.5 bg-[#FFF4EA]">
-          <SearchBox compact />
-        </div>
+        {showMobileSearch && (
+          <div className="md:hidden px-4 pb-2.5 pt-2.5 bg-[#FFF4EA]">
+            <SearchBox compact />
+          </div>
+        )}
 
         {/* 所有服務 mega menu */}
         {servicesOpen && (

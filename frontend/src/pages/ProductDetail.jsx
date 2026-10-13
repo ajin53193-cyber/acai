@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { publicApi, useApi } from "@/lib/api";
 import { useUser } from "@clerk/react";
 import { useCurrency } from "@/context/CurrencyContext";
+import { useIsMobile } from "@/lib/useIsMobile";
 import { useCart } from "@/context/CartContext";
 import ProductCard from "@/components/ProductCard";
 
@@ -16,6 +17,8 @@ const PERKS = [
   [BadgePercent, "特價不限量", "限時優惠不限購"],
 ];
 
+const badgeColor = (b = "") => /新用戶|每月一單/.test(b) ? "bg-fuchsia-500" : /每日一單|特價/.test(b) ? "bg-violet-500" : /送/.test(b) ? "bg-emerald-500" : /最低|免費/.test(b) ? "bg-red-500" : "bg-orange-500";
+
 const TIPS = [
   ["購買前請確認", "購物車商品資訊無誤", "。"],
   ["接收", "全球幣種", "支付，請在網站上方選擇您的支付貨幣類型即可。"],
@@ -25,6 +28,7 @@ const TIPS = [
 ];
 
 export default function ProductDetail() {
+  const isMobile = useIsMobile();
   const { id } = useParams();
   const navigate = useNavigate();
   const { format } = useCurrency();
@@ -83,42 +87,43 @@ export default function ProductDetail() {
   return (
     <div className="pb-28 md:pb-10" data-testid="product-detail">
       {/* Hero area */}
-      <div className="bg-gradient-to-b from-[#FFE9D2] via-[#FFF3E6] to-[#FFF8F1] rounded-b-[40px]">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 pb-8">
-          <div className="text-xs text-slate-400 flex items-center gap-1.5" data-testid="product-breadcrumb">
+      <div className="max-md:mx-4 max-md:mt-3 max-md:rounded-3xl max-md:bg-[#FFEFDF] md:bg-gradient-to-b md:from-[#FFE9D2] md:via-[#FFF3E6] md:to-[#FFF8F1] md:rounded-b-[40px]">
+        <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 pt-3 md:pt-6 pb-4 md:pb-8">
+          <div className="hidden md:flex text-xs text-slate-400 items-center gap-1.5" data-testid="product-breadcrumb">
             <Link to="/" className="hover:text-orange-600">首頁</Link><span>/</span>
             {category && <><Link to={`/category/${category.id}`} className="hover:text-orange-600">{category.name}</Link><span>/</span></>}
             <span className="text-slate-600">{product.name}</span>
           </div>
 
-          <Link to="/sign-up" data-testid="detail-promo-banner" className="mt-4 flex justify-center overflow-hidden rounded-2xl bg-gradient-to-r from-[#FFD9B0] via-[#FFE9D2] to-[#FFD9B0] h-[110px] sm:h-[150px]">
+          <Link to="/sign-up" data-testid="detail-promo-banner" className="mt-0 md:mt-4 flex justify-center overflow-hidden rounded-2xl bg-gradient-to-r from-[#FFD9B0] via-[#FFE9D2] to-[#FFD9B0] h-[60px] sm:h-[150px]">
             <img src="https://customer-assets-39nsmqrw.emergentagent.net/job_crossborder-topup/artifacts/b55a2354a230f99b_image.png" alt="新版上線有禮" className="h-full w-auto object-contain" />
           </Link>
 
-          <div className="mt-6 flex items-center gap-5">
-            <div className="h-20 w-20 sm:h-24 sm:w-24 rounded-2xl bg-white p-3 shadow-sm shrink-0">
-              <img src={product.image} alt={product.name} className="h-full w-full object-contain" data-testid="product-image" />
+          <div className="mt-4 md:mt-6 flex items-start md:items-center gap-3 md:gap-5">
+            <div className="h-[72px] w-[72px] sm:h-24 sm:w-24 rounded-2xl bg-white p-1.5 md:p-3 shadow-sm shrink-0 overflow-hidden">
+              <img src={product.image} alt={product.name} className="h-full w-full object-cover md:object-contain rounded-xl" data-testid="product-image" />
             </div>
             <div className="min-w-0">
-              <h1 className="font-head text-xl sm:text-2xl font-bold text-slate-900" data-testid="product-title">{product.name}</h1>
-              <div className="mt-1.5 text-sm text-slate-600 truncate">{product.subtitle || product.account_field_hint || `${product.brand} 海外代充服務，支援全球帳號`}</div>
-              <div className="mt-1.5 text-xs text-orange-500 flex items-center gap-3">
-                <span>&gt;&gt;極速發貨</span><span>&gt;&gt;正版安全</span><span>&gt;&gt;24小時營業</span>
+              <h1 className="font-head text-base sm:text-2xl font-bold text-slate-900" data-testid="product-title">{product.name}</h1>
+              <div className="mt-1 md:mt-1.5 text-xs md:text-sm text-slate-500 md:text-slate-600 max-md:line-clamp-2 md:truncate">{product.subtitle || product.account_field_hint || `${product.brand} 海外代充服務，支援全球帳號`}</div>
+              <div className="mt-1 md:mt-1.5 text-xs text-orange-500 flex items-center gap-3">
+                <span className="md:hidden">如需使用其它幣種，請在網站右上角選擇</span>
+                <span className="hidden md:inline">&gt;&gt;極速發貨</span><span className="hidden md:inline">&gt;&gt;正版安全</span><span className="hidden md:inline">&gt;&gt;24小時營業</span>
                 <span className="hidden sm:flex items-center gap-1 text-amber-500"><Star className="h-3 w-3 fill-amber-400 text-amber-400" />{product.rating} · 已售 {product.sales_count}</span>
               </div>
             </div>
           </div>
 
-          <div className="mt-6 relative">
+          <div className="mt-4 md:mt-6 relative">
             <ChevronLeft className="absolute -left-1 top-1/2 -translate-y-1/2 h-5 w-5 text-orange-300" />
             <ChevronRight className="absolute -right-1 top-1/2 -translate-y-1/2 h-5 w-5 text-orange-300" />
-            <div className="mx-5 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 bg-white/40 rounded-2xl px-4 py-3" data-testid="perks-strip">
+            <div className="mx-4 md:mx-5 flex md:grid overflow-x-auto no-scrollbar sm:grid-cols-3 lg:grid-cols-5 gap-5 md:gap-4 bg-white/40 rounded-2xl px-3 md:px-4 py-2.5 md:py-3" data-testid="perks-strip">
               {PERKS.map(([Icon, t, d]) => (
-                <div key={t} className="flex items-center gap-3">
-                  <span className="h-11 w-11 rounded-full bg-gradient-to-br from-orange-400 to-orange-500 text-white flex items-center justify-center shrink-0 shadow"><Icon className="h-5 w-5" /></span>
+                <div key={t} className="flex items-center gap-2 md:gap-3 shrink-0">
+                  <span className="h-9 w-9 md:h-11 md:w-11 rounded-full bg-white md:bg-gradient-to-br md:from-orange-400 md:to-orange-500 text-orange-500 md:text-white flex items-center justify-center shrink-0 shadow-sm md:shadow"><Icon className="h-4 w-4 md:h-5 md:w-5" /></span>
                   <div className="min-w-0">
-                    <div className="text-sm font-bold text-slate-800 truncate">{t}</div>
-                    <div className="text-xs text-slate-500 truncate">{d}</div>
+                    <div className="text-[13px] md:text-sm font-bold text-slate-800 whitespace-nowrap">{t}</div>
+                    <div className="text-[11px] md:text-xs text-slate-500 whitespace-nowrap">{d}</div>
                   </div>
                 </div>
               ))}
@@ -128,10 +133,10 @@ export default function ProductDetail() {
       </div>
 
       {/* Purchase card */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-2">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-4 md:-mt-2">
         <div className="bg-white rounded-3xl shadow-[0_10px_40px_-20px_rgba(232,121,42,0.35)] overflow-hidden">
-          <div className="p-5 sm:p-8">
-            <div className="flex flex-wrap gap-3 sm:gap-4">
+          <div className="p-4 pt-6 sm:p-8">
+            <div className="grid grid-cols-2 gap-x-4 gap-y-6 md:flex md:flex-wrap md:gap-3 sm:gap-4">
               {product.specs.map((s, i) => {
                 const sel = s.id === specId;
                 const locked = specLocked(s);
@@ -142,12 +147,12 @@ export default function ProductDetail() {
                     disabled={!s.in_stock}
                     onClick={() => setSpecId(s.id)}
                     title={locked ? "已達限購" : undefined}
-                    className={`relative h-14 min-w-[140px] px-6 rounded-xl text-sm font-medium transition-all ${
-                      sel ? "border-2 border-orange-400 bg-orange-50 text-orange-600" : "border border-transparent bg-slate-100 text-slate-700 hover:bg-orange-50"
+                    className={`relative h-14 md:min-w-[140px] px-2 md:px-6 rounded-xl text-sm font-medium transition-all leading-tight ${
+                      sel ? "border-2 border-orange-400 bg-orange-50/60 md:bg-orange-50 text-orange-600" : "border border-transparent bg-slate-100/80 md:bg-slate-100 text-slate-700 hover:bg-orange-50"
                     } ${!s.in_stock ? "opacity-40 cursor-not-allowed" : ""} ${locked ? "opacity-50" : ""}`}
                   >
                     {s.badge && (
-                      <span className={`absolute -top-2.5 right-0 rounded-full text-white text-[10px] px-2 py-0.5 ${locked ? "bg-slate-400" : "bg-orange-500"}`}>{locked ? "已達限購" : s.badge}</span>
+                      <span className={`absolute -top-3 right-0 rounded-md md:rounded-full text-white text-[11px] md:text-[10px] px-2 py-0.5 whitespace-nowrap ${locked ? "bg-slate-400" : badgeColor(s.badge)}`}>{locked ? "已達限購" : s.badge}</span>
                     )}
                     {s.label}
                     {!s.in_stock && <span className="ml-1 text-[10px] text-red-400">缺貨</span>}
@@ -165,12 +170,12 @@ export default function ProductDetail() {
             </div>
           )}
           <div className="relative bg-[#FFF6EC] [background-image:radial-gradient(rgba(255,255,255,0.9)_1.5px,transparent_1.5px)] [background-size:14px_14px] px-5 sm:px-8 py-5">
-            <div className="bg-white rounded-2xl px-5 py-4 flex flex-col md:flex-row md:items-center gap-4">
+            <div className="bg-white rounded-2xl px-4 md:px-5 py-4 flex flex-row md:flex-row items-center justify-between md:justify-start gap-4">
               <div className="flex items-center gap-4">
-                <span className="text-sm text-slate-600">購買數量</span>
-                <div className="flex items-center rounded-full bg-slate-100 h-9">
+                <span className="hidden md:inline text-sm text-slate-600">購買數量</span>
+                <div className="flex items-center rounded-xl md:rounded-full border border-slate-200 md:border-0 bg-white md:bg-slate-100 h-10 md:h-9">
                   <button data-testid="qty-dec" onClick={() => setQty((q) => Math.max(1, q - 1))} className="h-9 w-9 flex items-center justify-center text-slate-500 hover:text-orange-500"><Minus className="h-4 w-4" /></button>
-                  <span className="w-8 text-center text-sm font-semibold" data-testid="qty-value">{qty}</span>
+                  <span className="w-10 md:w-8 text-center text-sm font-semibold" data-testid="qty-value">{qty}</span>
                   <button data-testid="qty-inc" onClick={() => setQty((q) => Math.min(99, q + 1))} className="h-9 w-9 flex items-center justify-center text-slate-500 hover:text-orange-500"><Plus className="h-4 w-4" /></button>
                 </div>
               </div>
@@ -179,7 +184,7 @@ export default function ProductDetail() {
                   <div className="text-sm text-slate-700">總計：<span className="font-head text-xl font-extrabold text-orange-500" data-testid="total-price">{format(totalUsd)}</span></div>
                   {originalUsd > totalUsd && <div className="text-xs text-slate-400 line-through" data-testid="original-price">{format(originalUsd)}</div>}
                 </div>
-                <button data-testid="cart-icon-btn" onClick={() => setOpen(true)} className="relative h-11 w-11 rounded-full bg-slate-900 text-white flex items-center justify-center hover:bg-slate-800">
+                <button data-testid="cart-icon-btn" onClick={() => setOpen(true)} className="relative hidden md:flex h-11 w-11 rounded-full bg-slate-900 text-white flex items-center justify-center hover:bg-slate-800">
                   <ShoppingCart className="h-5 w-5" />
                   <span className="absolute -top-1 -right-1 h-4 min-w-4 px-1 rounded-full bg-orange-500 text-[10px] font-bold flex items-center justify-center">{count}</span>
                 </button>
@@ -191,7 +196,7 @@ export default function ProductDetail() {
         </div>
 
         {/* Tabs */}
-        <div className="mt-8 flex items-center gap-3">
+        <div className="mt-6 md:mt-8 flex items-center gap-3">
           {[["desc", "產品說明"], ["reviews", `評價(${reviews.length})`]].map(([k, label]) => (
             <button key={k} data-testid={`tab-${k}`} onClick={() => setTab(k)} className={`h-10 px-6 rounded-full text-sm font-semibold transition-colors ${tab === k ? "bg-white text-orange-600 border-2 border-orange-400" : "bg-white text-slate-600 border border-slate-200 hover:border-orange-300"}`}>
               {label}
@@ -274,22 +279,25 @@ export default function ProductDetail() {
 
         {related.length > 0 && (
           <section className="mt-10" data-testid="related-products">
-            <h2 className="font-head text-xl font-bold text-slate-900 mb-4">相關推薦</h2>
-            <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3">
-              {related.map((p) => <ProductCard key={p.id} product={p} />)}
+            <h2 className="font-head text-lg md:text-xl font-bold text-slate-900 mb-4 relative inline-block z-0 max-md:after:content-[''] max-md:after:absolute max-md:after:left-0 max-md:after:right-0 max-md:after:bottom-0.5 max-md:after:h-2 max-md:after:bg-orange-200/80 max-md:after:-z-10">相關推薦</h2>
+            <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-8 gap-3">
+              {related.map((p) => <ProductCard key={p.id} product={p} simple={isMobile} />)}
             </div>
           </section>
         )}
       </div>
 
       {/* Mobile sticky bar */}
-      <div className="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md border-t border-slate-200 p-3 z-30 flex items-center gap-3 md:hidden shadow-lg">
-        <div className="shrink-0">
-          <div className="text-[10px] text-slate-400">總計</div>
-          <div className="font-head font-extrabold text-orange-500 text-lg leading-none">{format(totalUsd)}</div>
-        </div>
-        <button data-testid="mobile-add-to-cart-btn" onClick={() => handleAdd(false)} className="flex-1 h-11 rounded-full bg-slate-900 text-white font-bold text-sm">加入購物車</button>
-        <button data-testid="mobile-buy-now-btn" onClick={() => handleAdd(true)} className="flex-1 h-11 rounded-full bg-orange-500 text-white font-bold text-sm">立即購買</button>
+      <div className="fixed bottom-0 left-0 right-0 bg-white rounded-t-3xl px-4 pt-3 pb-4 z-30 flex items-center gap-3 md:hidden shadow-[0_-8px_30px_-12px_rgba(0,0,0,0.15)]">
+        <button data-testid="mobile-cart-btn" onClick={() => setOpen(true)} className="relative h-12 w-12 shrink-0 rounded-full bg-slate-900 text-white flex items-center justify-center">
+          <ShoppingCart className="h-5 w-5" />
+          <span className="absolute -top-1 -right-1 h-4 min-w-4 px-1 rounded-full bg-orange-500 text-[10px] font-bold flex items-center justify-center">{count}</span>
+        </button>
+        <button data-testid="mobile-add-to-cart-btn" onClick={() => handleAdd(false)} className="flex-1 h-12 rounded-full bg-slate-900 text-white font-bold text-base">加入購物車</button>
+        <button data-testid="mobile-buy-now-btn" onClick={() => handleAdd(true)} className="flex-1 h-12 rounded-full bg-orange-500 text-white font-bold flex flex-col items-center justify-center leading-tight">
+          <span className="text-sm">立即購買</span>
+          <span className="text-[12px] font-bold" data-testid="mobile-total-price">{format(totalUsd)}</span>
+        </button>
       </div>
     </div>
   );
