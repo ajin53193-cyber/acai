@@ -6,6 +6,9 @@ rem  Later updates: just run again
 rem ============================================================
 chcp 65001 >nul
 setlocal EnableDelayedExpansion
+rem clear poisoning env vars that break venv creation (No module named 'encodings')
+set "PYTHONHOME="
+set "PYTHONPATH="
 
 pushd "%~dp0..\.."
 set "APP_DIR=%CD%"

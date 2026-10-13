@@ -6,6 +6,9 @@ rem  install deps -> build frontend -> start backend
 rem ============================================================
 chcp 65001 >nul
 setlocal EnableDelayedExpansion
+rem clear poisoning env vars that break venv creation (No module named 'encodings')
+set "PYTHONHOME="
+set "PYTHONPATH="
 
 set "ROOT=D:\wwwroot"
 set "APP_DIR=%ROOT%\heying"

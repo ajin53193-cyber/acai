@@ -2,6 +2,9 @@
 rem Heying backend keep-alive runner (registered as scheduled task HeyingBackend by deploy.bat; no manual run needed)
 rem Auto-restarts 5s after any crash
 chcp 65001 >nul
+rem clear poisoning env vars (PYTHONHOME=D:\wwwroot\heying broke the interpreter)
+set "PYTHONHOME="
+set "PYTHONPATH="
 cd /d "%~dp0..\..\backend"
 if not exist "..\logs" mkdir "..\logs"
 :loop
