@@ -9,6 +9,7 @@ import { useCart } from "@/context/CartContext";
 import { useCurrency } from "@/context/CurrencyContext";
 import { useAuthModal } from "@/components/auth/AuthModal";
 import CurrencySelector from "@/components/CurrencySelector";
+import { openService } from "@/components/ServiceWidget";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -139,7 +140,7 @@ export default function Header() {
               )}
             </button>
 
-            <button data-testid="service-trigger" className="hidden sm:flex h-10 w-10 rounded-full bg-orange-100/70 hover:bg-orange-100 text-orange-500 items-center justify-center transition-colors" title="線上客服">
+            <button data-testid="service-trigger" onClick={openService} className="hidden sm:flex h-10 w-10 rounded-full bg-orange-100/70 hover:bg-orange-100 text-orange-500 items-center justify-center transition-colors" title="線上客服">
               <Headphones className="h-5 w-5" />
             </button>
 

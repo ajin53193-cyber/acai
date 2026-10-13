@@ -55,6 +55,8 @@
   - testing_agent iteration_3 全數通過（11 後端 + 前端 E2E）。`tests/mint_token.py <clerk_user_id>` 可鑄造測試用 session JWT。
   - 用戶選擇：**暫不做**訂單狀態郵件通知。
 
+- 2026-06-13：**修復**頁首耳機「客服」按鈕無反應（原本沒有 onClick）。`ServiceWidget` 改橘色主題、加入 WhatsApp 二維碼/按鈕（讀 `/api/settings`）與常見問題連結；匯出 `openService()`（自訂事件），頁首耳機與頁尾「網路客服」皆可開啟右下角客服面板。
+
 ## 待辦（優先序）
 - P1：訂單狀態郵件/站內通知（用戶暫緩）。
 - P0：testing_agent 跑後台訂單狀態流轉 + 回歸（前台 E2E 已由主代理手測通過）。

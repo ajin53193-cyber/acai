@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { QRCodeSVG } from "qrcode.react";
 import { publicApi } from "@/lib/api";
+import { openService } from "@/components/ServiceWidget";
 import { Star, Apple, CreditCard } from "lucide-react";
 
 const PAY_BADGES = [
@@ -100,7 +101,7 @@ export default function Footer() {
               <div className="flex flex-col gap-3 pt-1">
                 <div className="flex items-center gap-2">
                   <span className="text-sm text-white/90">7*24 小時線上客服</span>
-                  <Link to="/" data-testid="footer-cs-btn" className="text-xs font-bold bg-white text-[#E8792A] rounded-full px-3 py-1 hover:bg-orange-50">網路客服</Link>
+                  <button type="button" onClick={openService} data-testid="footer-cs-btn" className="text-xs font-bold bg-white text-[#E8792A] rounded-full px-3 py-1 hover:bg-orange-50">網路客服</button>
                 </div>
                 <div className="text-sm text-white/90">WhatsApp 24 小時客服</div>
                 <div className="flex items-center gap-1.5">
