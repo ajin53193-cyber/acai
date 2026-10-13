@@ -1,0 +1,40 @@
+{
+  "summary": "Visual QA (frontend only) of /account/wallet redesign — two side-by-side peach action cards (wallet-go-topup #FED5B5 + wallet-go-transactions #F3CCAB) with left text + white pill CTA + right 3D illustration, and wallet-last-tx white card with dark corner tag on mobile. Clerk ticket login as tester+clerk_test@shop.com. All acceptance criteria PASS on mobile 400x850 and desktop 1400x900.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "verified_checks": {
+    "mobile_400x850": {
+      "action_cards_side_by_side": "topup x=12 w=182 h=114; transactions x=206 w=182 h=114 — equal size, 12px gap, both at y=468 (same row)",
+      "backgrounds": "topup rgb(254,213,181)=#FED5B5, transactions rgb(243,204,171)=#F3CCAB — correct peach shades",
+      "titles": "錢包充值 at x=26 w=92 / 交易紀錄 at x=220 w=92 — left side, do NOT overlap illustration bounding boxes (topup img starts x=119, tx img starts x=295; text container has pr-[42%] which clamps text to left ~58%)",
+      "pill_buttons": "立即充值 x=26..100 y=536..559, 查看明細 x=220..294 y=536..559 — fully inside cards (cards end y=582), white bg + orange text, chevron visible, not clipped",
+      "illustrations": "/banners/wallet-topup-3d.webp (348x480 natural) scaled to 71x98 at x=119; /banners/wallet-transactions-3d.webp (439x480 natural) scaled to 89x98 at x=295. Both complete=true, loaded, bottom-anchored, visible on right side with no awkward cropping",
+      "wallet_last_tx_mobile_style": "white bg rgb(255,255,255), rounded-2xl, soft shadow — matches mobile spec (md:bg-slate-50 kicks in only ≥md)",
+      "corner_tag_top_left_mobile": "span position=absolute at x=12 y=597 w=80 h=32, bg slate-800, white text 最近一筆, rounded-tl-2xl rounded-br-xl — correct dark corner tag at top-left as spec'd",
+      "amount_readable_not_hidden": "-$5.38 at x=309..372 y=653..673. elementFromPoint on amount center returns the amount div itself (no overlay). Floating service-widget-trigger button sits at x=328 y=714 w=56 h=56 — 41px below the amount, does NOT cover it. pb-20 (80px bottom padding on inner wrapper) is doing its job",
+      "no_horizontal_overflow": "body scrollWidth=clientWidth=400",
+      "page_fits_viewport": "scrollH=850 == viewport 850 — no scroll needed to see last-tx on this screen height"
+    },
+    "desktop_1400x900": {
+      "action_cards_side_by_side": "topup x=388 w=436 h=190; transactions x=840 w=436 h=190 — equal, 16px gap, same y=487",
+      "illustrations": "topup img x=690 w=118 h=163; tx img x=1111 w=149 h=163 — bottom-right, well separated from left text column",
+      "pill_buttons": "x=416/868 w=106 h=32 — larger md variant visible and uncropped",
+      "wallet_last_tx_desktop_style": "md:bg-slate-50 applied, tag position=static (becomes inline chip md:static md:rounded-md md:inline-block as spec'd), no corner-overlap tag on desktop",
+      "no_overflow": "scrollWidth=clientWidth=1400"
+    }
+  },
+  "test_report_links": [".screenshots/wallet_mobile_full.png", ".screenshots/wallet_mobile_top.png", ".screenshots/wallet_mobile_lasttx.png", ".screenshots/wallet_desktop.png"],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "MyWallet.jsx L80: subtitle has `whitespace-nowrap`. On mobile the subtitles (多種支付 · 即時入帳 / 充值 · 付款 · 明細) fit exactly inside the 58% left-column (pr-[42%]) at 10px font — if the strings are ever lengthened or system font metrics differ, nowrap could push the text under the illustration. Consider removing whitespace-nowrap or allowing 2-line clamp on mobile.",
+    "MyWallet.jsx L87-88: wallet-last-tx uses pt-11 on mobile to make room for the absolute tag. The tag is 32px tall and uses rounded-br-xl, so its lower-right curve sits just above the TxRow icon — visually clean here, but if a longer tag label were used it could visually crowd the row. Acceptable as-is."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A (frontend only)", "frontend": "100% — all visual acceptance checks pass on both viewports"},
+  "test_credentials": "Clerk tester+clerk_test@shop.com (user_3Kc4MFu2DHwZuy8itp5vS09nzaL) via /app/tests/mint_ticket.py + Clerk.signIn.create({strategy:'ticket'}) + setActive",
+  "seed_data_creation": "None",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Wallet action cards: aspect-[16/10] mobile / [2.3/1] desktop, bg #FED5B5 and #F3CCAB, inner wrapper has pr-[42%] reserving right 42% for illustration — titles & pill CTAs stay in left column. Last-tx: on mobile uses pt-11 + absolute corner tag (rounded-tl-2xl rounded-br-xl bg-slate-800); on desktop tag goes static inline. pb-20 on inner wrapper creates clearance so floating service-widget-trigger (fixed bottom-20 right-4 h-14 w-14 = y=714..770 on 400x850) does not cover the last-tx amount.",
+  "rca of the issue": "N/A — no issues found. All elements render as specified."
+}
