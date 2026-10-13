@@ -1,0 +1,41 @@
+{
+  "summary": "Iteration 14 — Comprehensive test of USDT TRC20 real-gateway top-up + 5-tab payment-methods UI + admin editor. Backend: 10/10 pytest pass (payment-methods seeding/ordering/SVG assets, USDT create via real print8 gateway, invalid method/amount, status GET, notify unknown/bad-sign/valid-idempotent, legacy mock card instant credit). Frontend: desktop + mobile 375 both pass (5 tabs in a single row, correct filter counts, submit text swap, new tab opens pay_url on print8.8bc8uyz.com, pending panel with pay_amount+wallet_address, 關閉 hides panel). Admin: pm category select has usdt option, USDT edit shows base_url/api_key/api_secret/merchant_id crypto fields, PUT /api/admin/payment-methods/{id} with category=usdt returns 200.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "verified_checks": {
+    "backend_pytest": "10 passed in 12.70s (test_usdt_topup.py)",
+    "payment_methods_order": "USDT→card→ewallet(Apple/Google)→ewallet(PayPal)→bank, all with correct image paths and SVGs returning 200 image/svg+xml",
+    "usdt_create_order": "POST /api/me/wallet/topup/usdt amount=10 → status=pending, out_trade_no=TU…, order_no, pay_amount=10.95 USDT, wallet_address=TYym52fJgZ…, pay_url=https://print8.8bc8uyz.com/pay/SF…, expires_at",
+    "usdt_invalid_method": "card method_id → HTTP 400",
+    "usdt_amount_min": "amount_usd=0.5 → HTTP 400",
+    "topup_status_get": "GET /api/me/wallet/topup/{id} returns topup with balance_usd; unknown id → 404",
+    "notify_unknown": "unknown out_trade_no → 404 'order not found'",
+    "notify_bad_sign": "sign=deadbeef → 400 'invalid sign'",
+    "notify_valid_idempotent": "correctly HMAC-SHA256 signed status=paid → 'success' + wallet credited by exactly amount_usd; replay returns 'success' and does NOT re-credit; topup.status → 'paid'",
+    "legacy_card_topup": "POST /api/me/wallet/topup with card method_id still credits instantly",
+    "frontend_desktop_1920": "5 tabs (all/usdt/card/ewallet/bank) visible; filter counts 5/1/1/2/1; selecting USDT changes submit text to '前往 USDT 收銀台'; clicking submit opens new tab with pay_url (https://print8.8bc8uyz.com/pay/SF…), pending panel shows pay_amount=10.95 USDT + wallet_address; 關閉 hides panel",
+    "frontend_mobile_375": "pm-category-tabs single row (all y=734), rights 74→132→195→271→347 all ≤ 375 — no wrap, all visible without overflow",
+    "admin_pm_category_select": "options=['usdt','card','ewallet','bank']; USDT row current value='usdt'",
+    "admin_crypto_fields": "base_url, api_key, api_secret, merchant_id inputs present when editing USDT (provider=crypto)",
+    "admin_save_usdt": "PUT /api/admin/payment-methods/{usdt_id} with category=usdt → 200, response.category=='usdt'"
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_usdt_topup.py",
+    "/app/test_reports/pytest/usdt_topup.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "server.py L853: on gateway terminal statuses the DB is updated but _usdt_settle is not called for 'paid' here because that branch is handled separately — OK. The sentinel update sets t['status'] in memory but doesn't refresh other fields like paid_at; minor cosmetic.",
+    "server.py L873 hmac.compare_digest between hex str — safe. Note the server trusts gw-posted body['amount_usdt'] implicitly for _usdt_settle but the credited amount uses topup['amount_usd'] (local, pre-stored), so a malicious short-pay cannot credit extra. Good.",
+    "server.py L826 APP_PUBLIC_URL fallback to request Origin header: a crafted Origin from the client could manipulate the notify_url the gateway stores. Low risk in a trusted env but worth noting — recommend requiring APP_PUBLIC_URL in production.",
+    "WalletTopUp.jsx L55 win.location.href assignment after awaited call: if backend takes >1-2s, the blank popup may be blocked by some browsers' popup heuristics. Works in current test with Chromium."
+  ],
+  "updated_files": ["/app/backend/tests/test_usdt_topup.py"],
+  "success_rate": {"backend": "100% (10/10)", "frontend": "100% (desktop+mobile+admin all green)"},
+  "test_credentials": "Clerk tester+clerk_test@shop.com (user_3Kc4MFu2DHwZuy8itp5vS09nzaL) and admin+clerk_test@shop.com (user_3Kc4MDW67YZmA1ym1sGkaMiLVwK) via /app/tests/mint_token.py (API JWT) and /app/tests/mint_ticket.py (Clerk sign-in-token for browser).",
+  "seed_data_creation": "Each run creates a real USDT gateway order (amount 10 USDT) on print8.8bc8uyz.com for the test member — orders are not paid; they will expire. Legacy card test adds $1 to the member wallet balance per run; valid-notify test adds $10 then marks topup paid. Net wallet delta per full suite run: +$11.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Backend regression file: /app/backend/tests/test_usdt_topup.py. Uses /app/tests/mint_token.py to get a Bearer token for the member (user_3Kc4MFu2DHwZuy8itp5vS09nzaL). USDT_PAY_API_SECRET read from /app/backend/.env. HMAC sign algorithm (mirrored in test): sort params by key, exclude 'sign' and empty/None values, format floats-that-are-integers as int, join 'k=v' with '&', HMAC-SHA256 hex with secret. Each run spends 1 gateway order slot (amount=10 to avoid '没有可用的收款通道' error on tiny amounts). Admin edits: use data-testid pm-edit-{id} (pencil button) and pm-form-category select which contains usdt option.",
+  "rca of the issue": "N/A — no issues found."
+}

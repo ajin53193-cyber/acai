@@ -594,7 +594,7 @@ class PaymentMethodIn(BaseModel):
 
 
 DEFAULT_PAYMENT_METHODS = [
-    {"name": "USDT 加密貨幣", "category": "usdt", "provider": "crypto", "image": "/payments/usdt.svg", "description": "支援 TRC20 / ERC20 USDT，鏈上確認後入帳。"},
+    {"name": "USDT 加密貨幣", "category": "usdt", "provider": "crypto", "image": "/payments/usdt.svg", "description": "支援 TRC20 網路 USDT，請依收銀台顯示的精確金額轉帳，鏈上確認後自動入帳。"},
     {"name": "信用卡 / VISA / MasterCard", "category": "card", "provider": "stripe", "image": "/payments/visa-mastercard.svg", "description": "支援 VISA、MasterCard、JCB、American Express，付款後即時入帳。"},
     {"name": "Apple Pay / Google Pay", "category": "ewallet", "provider": "stripe", "image": "/payments/apple-google-pay.svg", "description": "使用 Apple Pay 或 Google Pay 快速付款，即時入帳。"},
     {"name": "PayPal", "category": "ewallet", "provider": "paypal", "image": "/payments/paypal.svg", "description": "跳轉 PayPal 完成付款，手續費依 PayPal 規定。"},

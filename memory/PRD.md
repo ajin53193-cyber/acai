@@ -73,7 +73,7 @@
 - P1：訂單狀態郵件/站內通知（用戶暫緩）。
 - P0：testing_agent 跑後台訂單狀態流轉 + 回歸（前台 E2E 已由主代理手測通過）。
 - P1：結帳頁多幣別匯率計算驗證。
-- P1：模擬付款 webhook/callback 佔位。
+- P1：卡支付/PayPal/銀行轉帳目前仍為測試支付即時入帳（用戶選擇保留）；日後可接 Stripe/PayPal。
 - 備註：商標 logo 不內建，需由後台上傳。
 - 重構：Home.jsx 過於龐大。
 
@@ -89,3 +89,7 @@
 - 手機端購物車/結帳頁(Checkout.jsx)重構為 Kavip 樣式：獨立遞送/聯絡卡片、聯絡資訊可折疊、底部固定「支付總額+立即支付」欄；修復其他聯絡方式列橫向溢出。手機端輸入框統一 16px 防 iOS 自動縮放。
 - 充值資料提交後鎖定，僅後台「駁回充值資料」(POST /api/admin/orders/{id}/reject-info) 後用戶可重填；結帳頁移除遞送/聯絡區塊；訂單詳情抽屜改為平台米白圓點背景 + 白色圓角卡片風格。(iteration_8 通過)
 - 手機端會員中心(/account)改為 Kavip 風格：圖示在上的白卡導航、標題高亮底線、各區塊白卡+左上深色標籤、刪除帳號按鈕；訂單詳情移除帳號/聯絡/金額小計，底部「查看訂單 / 返回首頁」+ 頂部首頁按鈕。(iteration_9 通過)
+- 錢包充值頁支付方式：5 個分類 Tab（全部/USDT/卡支付/電子錢包/銀行轉賬，手機一排不換行），卡片顯示品牌 Logo（/frontend/public/payments/*.svg）+ 名稱；付款說明卡改為橘框 + 標籤膠囊風格。後台分類新增 usdt。
+- **USDT TRC20 真實網關接入**（print8.2bc8uyz.com，HMAC-SHA256 簽名）：金鑰在 backend/.env（USDT_PAY_API_KEY/SECRET/BASE_URL、APP_PUBLIC_URL 作 notify_url），後台 USDT 方法 config(base_url/api_key/api_secret) 可覆蓋。
+  - POST /api/me/wallet/topup/usdt → 建單(topup_orders, 1 USD=1 USDT) 回 pay_url/pay_amount/wallet_address；前端新分頁開收銀台 + 等待面板每 5 秒輪詢 GET /api/me/wallet/topup/{id}（主動查詢網關）。
+  - POST /api/payments/usdt/notify 驗簽後冪等入帳，回純文字 success。(iteration_14 全數通過，含 notify 重放不重複入帳)

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { Plus, Check, Info, ChevronLeft } from "lucide-react";
+import { Plus, Check, ChevronLeft } from "lucide-react";
 import { toast } from "sonner";
 import { useApi, publicApi } from "@/lib/api";
 import { useCurrency } from "@/context/CurrencyContext";
@@ -111,23 +111,40 @@ export default function WalletTopUp() {
           </div>
         )}
         {selected && (
-          <div className="mt-4 rounded-xl bg-white border border-orange-100 p-4 text-sm" data-testid="pm-description">
-            <div className="flex items-center gap-2 font-semibold text-slate-900"><Info className="h-4 w-4 text-orange-500" />{selected.name} · 付款說明</div>
-            <p className="mt-1.5 text-slate-600 whitespace-pre-wrap leading-relaxed">{selected.description || "選擇此方式後點擊「立即充值」完成付款。"}</p>
-            <div className="mt-2 text-xs text-slate-400">單次限額 USD$ {selected.min_usd ?? 1} ~ USD$ {selected.max_usd ?? 10000}{selected.fee_percent > 0 && ` · 手續費 ${selected.fee_percent}%`}</div>
+          <div className="mt-4 rounded-2xl bg-white border-2 border-orange-200 overflow-hidden" data-testid="pm-description">
+            <div className="flex items-center gap-2.5 px-4 py-3 bg-orange-50/70">
+              {selected.image && <img src={selected.image} alt="" className="h-6 object-contain" />}
+              <span className="text-[14px] font-bold text-slate-900">{selected.name}</span>
+              <span className="rounded-full bg-orange-100 text-orange-500 text-[11px] font-semibold px-2 py-0.5">付款說明</span>
+              {isUsdt && <span className="rounded-full bg-emerald-100 text-emerald-600 text-[11px] font-semibold px-2 py-0.5">鏈上自動入帳</span>}
+            </div>
+            <div className="px-4 py-3 text-sm">
+              <p className="text-slate-700 whitespace-pre-wrap leading-relaxed">{selected.description || "選擇此方式後點擊「立即充值」完成付款。"}</p>
+              <div className="mt-3 flex flex-wrap gap-2 text-[11px]">
+                <span className="rounded-md bg-slate-100 text-slate-600 px-2 py-1">單次限額 <span className="font-head font-bold text-slate-800">USD$ {selected.min_usd ?? 1} ~ USD$ {selected.max_usd ?? 10000}</span></span>
+                <span className="rounded-md bg-slate-100 text-slate-600 px-2 py-1">手續費 <span className="font-head font-bold text-orange-500">{selected.fee_percent > 0 ? `${selected.fee_percent}%` : "免手續費"}</span></span>
+                {isUsdt && <span className="rounded-md bg-slate-100 text-slate-600 px-2 py-1">匯率 <span className="font-head font-bold text-slate-800">1 USD = 1 USDT</span></span>}
+              </div>
+            </div>
           </div>
         )}
 
         {pending && pending.status === "pending" && (
-          <div className="mt-4 rounded-xl bg-emerald-50 border border-emerald-200 p-4 text-sm" data-testid="usdt-pending-panel">
-            <div className="flex items-center gap-2 font-semibold text-emerald-800"><span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />USDT 充值單等待付款中（{pending.network}）</div>
-            <div className="mt-2 text-slate-700">應付金額：<span className="font-head font-extrabold text-emerald-700" data-testid="usdt-pay-amount">{pending.pay_amount} USDT</span><span className="text-xs text-slate-500 ml-2">請精確轉帳此金額</span></div>
-            {pending.wallet_address && <div className="mt-1 text-xs text-slate-600 break-all">收款地址：<span className="font-mono" data-testid="usdt-wallet-address">{pending.wallet_address}</span></div>}
-            <div className="mt-3 flex flex-wrap gap-2">
-              <a href={pending.pay_url} target="_blank" rel="noreferrer" data-testid="usdt-open-cashier" className="h-9 px-4 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold flex items-center">重新開啟收銀台</a>
-              <button data-testid="usdt-cancel-pending" onClick={() => setPending(null)} className="h-9 px-4 rounded-full bg-white border border-slate-200 text-xs text-slate-600 hover:bg-slate-50">關閉</button>
+          <div className="mt-4 rounded-2xl bg-white border-2 border-orange-400 overflow-hidden" data-testid="usdt-pending-panel">
+            <div className="flex items-center gap-2 px-4 py-3 bg-orange-50/70">
+              <span className="h-2 w-2 rounded-full bg-orange-500 animate-pulse" />
+              <span className="text-[14px] font-bold text-slate-900">USDT 充值單等待付款中</span>
+              <span className="rounded-full bg-orange-500 text-white text-[11px] font-semibold px-2 py-0.5">{pending.network}</span>
             </div>
-            <div className="mt-2 text-[11px] text-slate-400">付款完成後系統將自動入帳（每 5 秒自動查詢）</div>
+            <div className="px-4 py-3 text-sm">
+              <div className="flex items-baseline gap-2"><span className="text-slate-600">應付金額</span><span className="font-head text-2xl font-extrabold text-orange-500" data-testid="usdt-pay-amount">{pending.pay_amount} <span className="text-sm">USDT</span></span><span className="text-[11px] text-slate-400">請精確轉帳此金額</span></div>
+              {pending.wallet_address && <div className="mt-2 rounded-lg bg-slate-100 px-3 py-2 text-[11px] text-slate-600 break-all">收款地址：<span className="font-mono text-slate-800" data-testid="usdt-wallet-address">{pending.wallet_address}</span></div>}
+              <div className="mt-3 flex flex-wrap items-center gap-2">
+                <a href={pending.pay_url} target="_blank" rel="noreferrer" data-testid="usdt-open-cashier" className="h-9 px-5 rounded-full bg-orange-500 hover:bg-orange-600 text-white text-xs font-semibold flex items-center transition-colors">重新開啟收銀台</a>
+                <button data-testid="usdt-cancel-pending" onClick={() => setPending(null)} className="h-9 px-5 rounded-full bg-orange-50 text-orange-500 text-xs font-semibold hover:bg-orange-100 transition-colors">關閉</button>
+                <span className="text-[11px] text-slate-400 ml-auto">付款完成後自動入帳（每 5 秒查詢）</span>
+              </div>
+            </div>
           </div>
         )}
 
