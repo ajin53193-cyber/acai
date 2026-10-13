@@ -53,10 +53,10 @@ export default function Footer() {
     <footer className="mt-4 md:mt-14 bg-[#F0872E] md:bg-gradient-to-b md:from-[#F0872E] md:to-[#E8792A] text-white">
       {/* Top: payments + follow */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5 md:py-7">
-        <div className="flex md:flex-wrap items-center gap-3.5 md:gap-5 overflow-x-auto no-scrollbar">
+        <div className="flex md:flex-wrap items-center gap-3 md:gap-5 overflow-x-auto no-scrollbar">
           {logos && logos.length > 0 ? logos.map((l) => (
-            <span key={l.id} data-testid={`pay-logo-${l.id}`} title={l.name} className="h-8 md:h-9 flex items-center shrink-0">
-              <img src={l.image} alt={l.name} className="h-7 md:h-8 w-auto object-contain" />
+            <span key={l.id} data-testid={`pay-logo-${l.id}`} title={l.name} className="h-6 md:h-9 flex items-center shrink-0">
+              <img src={l.image} alt={l.name} className="h-5 md:h-8 w-auto object-contain" />
             </span>
           )) : PAY_BADGES.map((b, i) => (
             <span key={i} data-testid={`pay-badge-${i}`} className="bg-white rounded-md h-9 min-w-[48px] px-3 flex items-center justify-center shadow-sm shrink-0">
@@ -75,13 +75,13 @@ export default function Footer() {
           <div className="grid grid-cols-3 gap-3 md:gap-6 px-2 md:px-0">
             {COLS.map(([title, links]) => (
               <div key={title}>
-                <h4 className="font-bold text-[17px] md:text-sm mb-3 md:mb-4 whitespace-nowrap">{title}</h4>
-                <ul className="space-y-2 md:space-y-2.5 text-[15px] md:text-[13px] text-white/90 md:text-white/85 whitespace-nowrap">
+                <h4 className="font-bold text-[15px] md:text-sm mb-2.5 md:mb-4 whitespace-nowrap">{title}</h4>
+                <ul className="space-y-1.5 md:space-y-2.5 text-[13px] md:text-[13px] text-white/90 md:text-white/85 whitespace-nowrap">
                   {links.map(([label, to, hot]) => (
                     <li key={label}>
-                      <Link to={to} className="hover:text-white inline-flex items-center gap-1.5 transition-colors">
+                      <Link to={to} className="hover:text-white inline-flex items-center gap-1 transition-colors">
                         {label}
-                        {hot && <span className="text-[9px] font-bold bg-white text-[#E8792A] rounded px-1 py-px">HOT</span>}
+                        {hot && <span className="text-[8px] md:text-[9px] font-bold bg-white text-[#E8792A] rounded px-0.5 md:px-1 py-px leading-none">HOT</span>}
                       </Link>
                     </li>
                   ))}
@@ -94,16 +94,16 @@ export default function Footer() {
             <div className="flex items-center md:items-start gap-3 md:gap-4 bg-white/10 rounded-2xl p-3 md:p-4">
               <div className="flex flex-col items-center shrink-0 md:border-r-0 border-r border-white/25 pr-3 md:pr-0">
                 <a href={settings.whatsapp_link} target="_blank" rel="noreferrer" data-testid="footer-whatsapp-qr" className="inline-block bg-white rounded-xl p-1.5 leading-none">
-                  <QRCodeSVG value={settings.whatsapp_link} size={84} fgColor="#E8792A" level="M" className="block" />
+                  <QRCodeSVG value={settings.whatsapp_link} size={72} fgColor="#E8792A" level="M" className="block" />
                 </a>
-                <div className="text-[11px] text-white/90 md:text-white/80 mt-1.5 whitespace-nowrap">{settings.cs_label}</div>
+                <div className="text-[10px] md:text-[11px] text-white/90 md:text-white/80 mt-1.5 whitespace-nowrap">{settings.cs_label}</div>
               </div>
               <div className="flex flex-col gap-2.5 md:gap-3 pt-1 min-w-0">
                 <div className="flex items-center gap-2">
-                  <span className="text-[13px] md:text-sm text-white/90 whitespace-nowrap">7*24 小時線上客服</span>
+                  <span className="text-xs md:text-sm text-white/90 whitespace-nowrap">7*24 小時線上客服</span>
                   <button type="button" onClick={openService} data-testid="footer-cs-btn" className="text-xs font-bold bg-white/25 md:bg-white text-white md:text-[#E8792A] rounded-full px-3 py-1 whitespace-nowrap hover:bg-orange-50 hover:text-[#E8792A]">在線客服</button>
                 </div>
-                <div className="text-[13px] md:text-sm text-white/90 whitespace-nowrap">WhatsApp 24 小時客服</div>
+                <div className="text-xs md:text-sm text-white/90 whitespace-nowrap">WhatsApp 24 小時客服</div>
                 <div className="hidden md:flex items-center gap-1.5">
                   <div className="flex">
                     {[0, 1, 2, 3, 4].map((i) => (
