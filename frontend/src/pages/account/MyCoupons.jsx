@@ -10,19 +10,19 @@ function Coupon({ c, format }) {
   const dead = c.used || (c.expires_at && c.expires_at < new Date().toISOString());
   const purple = isFixed;
   return (
-    <div data-testid={`coupon-card-${c.code}`} className={`relative mt-5 rounded-2xl border-[4px] p-[6px] ${dead ? "opacity-50 grayscale-[0.4]" : ""} ${purple ? "border-[#B9A6F2] bg-[#D9CDFF]" : "border-[#F3B74A] bg-[#FFD98A]"}`}>
-      <span className={`absolute -top-[26px] left-3 rounded-t-lg px-3 py-1 text-xs font-semibold text-white ${purple ? "bg-violet-500" : "bg-orange-500"}`}>{c.title}</span>
-      <div className={`rounded-xl px-4 py-4 md:px-5 md:py-5 ${purple ? "bg-gradient-to-br from-[#F1ECFF] to-[#E6DDFF]" : "bg-gradient-to-br from-[#FFF6E6] to-[#FFE9C2]"}`}>
+    <div data-testid={`coupon-card-${c.code}`} className={`relative mt-4 md:mt-5 rounded-xl md:rounded-2xl border-[3px] md:border-[4px] p-1 md:p-[6px] ${dead ? "opacity-50 grayscale-[0.4]" : ""} ${purple ? "border-[#B9A6F2] bg-[#D9CDFF]" : "border-[#F3B74A] bg-[#FFD98A]"}`}>
+      <span className={`absolute -top-[22px] md:-top-[26px] left-3 rounded-t-lg px-2.5 md:px-3 py-0.5 md:py-1 text-[11px] md:text-xs font-semibold text-white ${purple ? "bg-violet-500" : "bg-orange-500"}`}>{c.title}</span>
+      <div className={`rounded-lg md:rounded-xl px-3.5 py-3 md:px-5 md:py-5 ${purple ? "bg-gradient-to-br from-[#F1ECFF] to-[#E6DDFF]" : "bg-gradient-to-br from-[#FFF6E6] to-[#FFE9C2]"}`}>
         <div className="flex items-center justify-between gap-3">
-          <span className={`font-bold text-lg md:text-xl ${purple ? "text-violet-700" : "text-slate-800"}`}>{c.title}</span>
+          <span className={`font-bold text-[15px] md:text-xl ${purple ? "text-violet-700" : "text-slate-800"}`}>{c.title}</span>
           <span className={`font-head font-extrabold ${purple ? "text-violet-600" : "text-[#E8552B]"}`}>
-            <span className="text-3xl md:text-4xl">{c.value}</span> <span className="text-sm text-slate-500 font-semibold">{isFixed ? "USD$" : "%"}</span>
+            <span className="text-2xl md:text-4xl">{c.value}</span> <span className="text-xs md:text-sm text-slate-500 font-semibold">{isFixed ? "USD$" : "%"}</span>
           </span>
         </div>
-        <div className="mt-2.5 md:mt-3 text-sm text-slate-600">{c.min_order_usd ? `USD$${c.min_order_usd}可用` : "無門檻"}</div>
-        <div className="mt-3 flex items-center gap-2 text-xs">
-          <span className={`rounded px-2.5 py-1 font-semibold ${purple ? "bg-violet-200 text-violet-700" : "bg-[#F6C96B] text-[#7A4A12]"}`}>{isFixed ? "滿減券" : "折價券"}</span>
-          <span className={`flex-1 border border-dashed rounded px-3 py-1 text-center text-slate-600 ${purple ? "border-violet-300" : "border-[#E8B45A]"}`}>{c.used ? "已使用" : `有效期至：${(c.expires_at || "").slice(0, 10) || "長期有效"}`}</span>
+        <div className="mt-1.5 md:mt-3 text-xs md:text-sm text-slate-600">{c.min_order_usd ? `USD$${c.min_order_usd}可用` : "無門檻"}</div>
+        <div className="mt-2 md:mt-3 flex items-center gap-2 text-[11px] md:text-xs">
+          <span className={`rounded px-2 md:px-2.5 py-0.5 md:py-1 font-semibold ${purple ? "bg-violet-200 text-violet-700" : "bg-[#F6C96B] text-[#7A4A12]"}`}>{isFixed ? "滿減券" : "折價券"}</span>
+          <span className={`flex-1 border border-dashed rounded px-3 py-0.5 md:py-1 text-center text-slate-600 ${purple ? "border-violet-300" : "border-[#E8B45A]"}`}>{c.used ? "已使用" : `有效期至：${(c.expires_at || "").slice(0, 10) || "長期有效"}`}</span>
         </div>
       </div>
     </div>
@@ -50,7 +50,7 @@ export default function MyCoupons() {
       {list.length === 0 ? (
         <div className="py-16 text-center text-slate-400 text-sm" data-testid="coupons-empty">尚無優惠券，輸入優惠券碼即可領取（試試 <button className="text-orange-500 font-semibold" onClick={() => setCode("GLOBAL2026")}>GLOBAL2026</button> / <button className="text-orange-500 font-semibold" onClick={() => setCode("WELCOME5")}>WELCOME5</button>）</div>
       ) : (
-        <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-4 md:gap-6 pt-1 md:pt-3 max-md:px-0.5">{list.map((c) => <Coupon key={c.code} c={c} format={format} />)}</div>
+        <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-2.5 md:gap-6 pt-1 md:pt-3 max-md:px-0.5">{list.map((c) => <Coupon key={c.code} c={c} format={format} />)}</div>
       )}
       <div className="mt-12 text-center">
         <Link to="/" data-testid="coupons-use-btn" className="inline-flex h-10 items-center rounded-full bg-orange-100 px-6 text-sm font-semibold text-orange-600 hover:bg-orange-200">立即使用 &gt;&gt;</Link>
