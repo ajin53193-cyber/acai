@@ -555,61 +555,68 @@ async def startup():
     )
 
     # 一次性清理：加入海鸥官方群教程的「下载 / 注册」等非二维码步骤不需要图片，清空其 image（用 migrations 标记，仅执行一次，之后用户可自由再配图）
-    if not await db.migrations.find_one({"key": "join_group_clear_step_images"}):
-        tut = await db.tutorials.find_one({"slug": "join-group"})
-        if tut:
-            steps = tut.get("steps") or []
-            changed = False
-            for s in steps:
-                if not isinstance(s, dict):
-                    continue
-                is_qr_step = "二维码" in (s.get("text") or "") or "群 ID" in (s.get("copy_label") or "") or "群ID" in (s.get("copy_label") or "")
-                if not is_qr_step and s.get("image"):
-                    s["image"] = ""
-                    changed = True
-            if changed:
-                await db.tutorials.update_one({"slug": "join-group"}, {"$set": {"steps": steps}})
-        await db.migrations.insert_one({"key": "join_group_clear_step_images", "at": datetime.now(timezone.utc).isoformat()})
+    try:
+        if not await db.migrations.find_one({"key": "join_group_clear_step_images"}):
+            tut = await db.tutorials.find_one({"slug": "join-group"})
+            if tut:
+                steps = tut.get("steps") or []
+                changed = False
+                for s in steps:
+                    if not isinstance(s, dict):
+                        continue
+                    is_qr_step = "二维码" in (s.get("text") or "") or "群 ID" in (s.get("copy_label") or "") or "群ID" in (s.get("copy_label") or "")
+                    if not is_qr_step and s.get("image"):
+                        s["image"] = ""
+                        changed = True
+                if changed:
+                    await db.tutorials.update_one({"slug": "join-group"}, {"$set": {"steps": steps}})
+            await db.migrations.insert_one({"key": "join_group_clear_step_images", "at": datetime.now(timezone.utc).isoformat()})
+    except Exception as e:
+        print(f"[migration] join_group_clear_step_images failed (skipped): {e}")
 
     # 合规整改（一次性）：去除公开数据中的「月入X万 / 高收益 / 稳定收益」等表述，改为团队协作激励口径，避免微信外链内容风控拦截
-    if not await db.migrations.find_one({"key": "income_compliance_v1"}):
-        site = await db.settings.find_one({"key": "site"}, {"_id": 0, "tiers": 1, "chat": 1})
-        if site:
-            tiers = site.get("tiers") or []
-            if any(isinstance(t, dict) and "万" in str(t.get("income", "")) for t in tiers):
-                await db.settings.update_one({"key": "site"}, {"$set": {"tiers": [
-                    {"count": "10人团队", "income": "基础激励", "featured": False},
-                    {"count": "20人团队", "income": "进阶激励", "featured": True},
-                    {"count": "50人团队", "income": "合伙激励", "featured": False},
-                ]}})
-            questions = (site.get("chat") or {}).get("questions") or []
-            changed_q = False
-            for q in questions:
-                if isinstance(q, dict) and any(k in (q.get("answer") or "") for k in ("月收入", "月入", "10万", "20万", "50万")):
-                    q["text"] = "合作模式是怎样的？"
-                    q["answer"] = "平台采用团队协作激励机制，多劳多得——团队规模越大、运营越用心，可获得的协作激励层级越高（基础 / 进阶 / 合伙）。平台不设任何收益承诺，具体权益以正式合作协议为准，欢迎进群详细了解。"
-                    changed_q = True
-            if changed_q:
-                await db.settings.update_one({"key": "site"}, {"$set": {"chat.questions": questions}})
-        repl = {
-            "收益稳定": "合规运营", "稳定收益": "合规运营", "共享收益": "协作共进",
-            "20年长期回报": "长期运营项目", "并网收益保障": "并网合作模式",
-            "现金流稳定": "经营稳健", "持续收益": "协作成长", "高收益": "多劳多得",
-        }
-        async for p in db.projects.find({}):
-            desc = p.get("description") or ""
-            hls = p.get("highlights") or []
-            new_desc = desc
-            for a, b in repl.items():
-                new_desc = new_desc.replace(a, b)
-            new_hls = [h for h in hls]
-            for idx, h in enumerate(new_hls):
-                if isinstance(h, str):
-                    for a, b in repl.items():
-                        new_hls[idx] = new_hls[idx].replace(a, b)
-            if new_desc != desc or new_hls != hls:
-                await db.projects.update_one({"id": p.get("id")}, {"$set": {"description": new_desc, "highlights": new_hls}})
-        await db.migrations.insert_one({"key": "income_compliance_v1", "at": datetime.now(timezone.utc).isoformat()})
+    try:
+        if not await db.migrations.find_one({"key": "income_compliance_v1"}):
+            site = await db.settings.find_one({"key": "site"}, {"_id": 0, "tiers": 1, "chat": 1})
+            if site:
+                tiers = site.get("tiers") or []
+                if any(isinstance(t, dict) and "万" in str(t.get("income", "")) for t in tiers):
+                    await db.settings.update_one({"key": "site"}, {"$set": {"tiers": [
+                        {"count": "10人团队", "income": "基础激励", "featured": False},
+                        {"count": "20人团队", "income": "进阶激励", "featured": True},
+                        {"count": "50人团队", "income": "合伙激励", "featured": False},
+                    ]}})
+                questions = (site.get("chat") or {}).get("questions") or []
+                changed_q = False
+                for q in questions:
+                    if isinstance(q, dict) and any(k in (q.get("answer") or "") for k in ("月收入", "月入", "10万", "20万", "50万")):
+                        q["text"] = "合作模式是怎样的？"
+                        q["answer"] = "平台采用团队协作激励机制，多劳多得——团队规模越大、运营越用心，可获得的协作激励层级越高（基础 / 进阶 / 合伙）。平台不设任何收益承诺，具体权益以正式合作协议为准，欢迎进群详细了解。"
+                        changed_q = True
+                if changed_q:
+                    await db.settings.update_one({"key": "site"}, {"$set": {"chat.questions": questions}})
+            repl = {
+                "收益稳定": "合规运营", "稳定收益": "合规运营", "共享收益": "协作共进",
+                "20年长期回报": "长期运营项目", "并网收益保障": "并网合作模式",
+                "现金流稳定": "经营稳健", "持续收益": "协作成长", "高收益": "多劳多得",
+            }
+            projects_all = await db.projects.find({}).to_list(length=None)
+            for p in projects_all:
+                desc = p.get("description") or ""
+                hls = p.get("highlights") or []
+                new_desc = desc
+                for a, b in repl.items():
+                    new_desc = new_desc.replace(a, b)
+                new_hls = [h for h in hls]
+                for idx, h in enumerate(new_hls):
+                    if isinstance(h, str):
+                        for a, b in repl.items():
+                            new_hls[idx] = new_hls[idx].replace(a, b)
+                if new_desc != desc or new_hls != hls:
+                    await db.projects.update_one({"id": p.get("id")}, {"$set": {"description": new_desc, "highlights": new_hls}})
+            await db.migrations.insert_one({"key": "income_compliance_v1", "at": datetime.now(timezone.utc).isoformat()})
+    except Exception as e:
+        print(f"[migration] income_compliance_v1 failed (skipped): {e}")
 
 
 @api_router.get("/")
