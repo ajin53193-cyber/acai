@@ -36,6 +36,7 @@ export function CartProvider({ children }) {
           account_field_label: product.account_field_label,
           spec_id: spec.id,
           spec_label: spec.label,
+          badge: spec.badge || "",
           unit_price_usd: spec.price_usd,
           quantity,
         },

@@ -69,6 +69,7 @@ function CheckoutInner() {
   const [agree, setAgree] = useState(false);
   const [wallet, setWallet] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [contactOpen, setContactOpen] = useState(true);
 
   useEffect(() => { publicApi.get("/promos/public").then((r) => setPromos(r.data)).catch(() => {}); }, []);
   useEffect(() => { callApi({ method: "GET", url: "/me/wallet" }).then((r) => setWallet(r.data.balance_usd)).catch(() => setWallet(0)); }, [callApi]);
@@ -152,26 +153,27 @@ function CheckoutInner() {
 
   return (
     <div className="bg-gradient-to-b from-[#FFE9D2] to-[#FFF8F1] min-h-screen">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6" data-testid="checkout-page">
-        <h1 className="font-head text-2xl font-bold text-slate-900 relative inline-block"><span className="relative z-10">購物車</span><span className="absolute left-0 right-0 bottom-0.5 h-2.5 bg-orange-200/70 rounded-sm" /></h1>
+      <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-4 md:py-8 space-y-4 md:space-y-6 pb-32 md:pb-8" data-testid="checkout-page">
+        <h1 className="font-head text-xl md:text-2xl font-bold text-slate-900 relative inline-block ml-1 md:ml-0"><span className="relative z-10">購物車</span><span className="absolute left-0 right-0 bottom-0.5 h-2.5 bg-orange-200/70 rounded-sm" /></h1>
 
         {/* Items */}
         <div className="bg-white rounded-3xl shadow-sm overflow-hidden" data-testid="cart-items-card">
-          <div className="p-6 sm:p-8 space-y-6">
+          <div className="p-4 sm:p-8 space-y-5 md:space-y-6">
             {items.map((i) => (
               <div key={i.key} data-testid={`cart-item-${i.key}`}>
-                <div className="text-base text-slate-800 mb-4">{i.product_name}</div>
-                <div className="flex items-center gap-5">
-                  <div className="h-24 w-24 sm:h-28 sm:w-28 rounded-2xl bg-slate-100 overflow-hidden shrink-0"><img src={i.image} alt={i.product_name} className="h-full w-full object-cover" /></div>
+                <div className="text-[15px] md:text-base text-slate-800 mb-3 md:mb-4">{i.product_name}</div>
+                <div className="flex items-center gap-3 md:gap-5">
+                  <div className="h-20 w-20 sm:h-28 sm:w-28 rounded-2xl bg-slate-100 overflow-hidden shrink-0"><img src={i.image} alt={i.product_name} className="h-full w-full object-cover" /></div>
                   <div className="min-w-0 flex-1">
-                    <div className="text-base text-slate-800">{i.spec_label}</div>
+                    <div className="text-[15px] md:text-base text-slate-800 truncate">{i.spec_label}</div>
+                    {i.badge && <span className="mt-1 inline-block rounded-md bg-fuchsia-500 text-white text-[11px] px-2 py-0.5">{i.badge}</span>}
                     <div className="mt-1 font-head text-lg text-orange-500"><span className="text-sm font-medium">{code}$</span> <span className="font-bold">{format(i.unit_price_usd).replace(/[^\d.,]/g, "")}</span></div>
                   </div>
-                  <div className="flex items-center gap-3">
-                    <div className="flex items-center h-11 rounded-xl border border-slate-200 bg-white">
-                      <button data-testid={`cart-dec-${i.key}`} onClick={() => updateQty(i.key, Math.max(1, i.quantity - 1))} className="h-11 w-11 flex items-center justify-center text-slate-500 hover:text-orange-500"><Minus className="h-4 w-4" /></button>
-                      <span className="w-8 text-center text-sm font-semibold" data-testid={`cart-qty-${i.key}`}>{i.quantity}</span>
-                      <button data-testid={`cart-inc-${i.key}`} onClick={() => updateQty(i.key, Math.min(99, i.quantity + 1))} className="h-11 w-11 flex items-center justify-center text-slate-500 hover:text-orange-500"><Plus className="h-4 w-4" /></button>
+                  <div className="flex items-center gap-2 md:gap-3 shrink-0">
+                    <div className="flex items-center h-10 md:h-11 rounded-xl border border-slate-200 bg-white">
+                      <button data-testid={`cart-dec-${i.key}`} onClick={() => updateQty(i.key, Math.max(1, i.quantity - 1))} className="h-10 w-9 md:h-11 md:w-11 flex items-center justify-center text-slate-500 hover:text-orange-500"><Minus className="h-4 w-4" /></button>
+                      <span className="w-7 md:w-8 text-center text-sm font-semibold" data-testid={`cart-qty-${i.key}`}>{i.quantity}</span>
+                      <button data-testid={`cart-inc-${i.key}`} onClick={() => updateQty(i.key, Math.min(99, i.quantity + 1))} className="h-10 w-9 md:h-11 md:w-11 flex items-center justify-center text-slate-500 hover:text-orange-500"><Plus className="h-4 w-4" /></button>
                     </div>
                     <button data-testid={`cart-remove-${i.key}`} onClick={() => removeItem(i.key)} className="text-slate-400 hover:text-red-500"><Trash2 className="h-5 w-5" /></button>
                   </div>
@@ -179,7 +181,7 @@ function CheckoutInner() {
               </div>
             ))}
           </div>
-          <div className={`${dots} px-6 sm:px-8 py-5`}>
+          <div className={`${dots} px-6 sm:px-8 py-5 hidden md:block`}>
             <div className="bg-slate-100 rounded-full h-16 flex items-center justify-end px-8 text-lg">
               <span className="font-bold text-slate-900">商品總額：</span>
               <span className="font-head font-extrabold text-orange-500 ml-1" data-testid="cart-subtotal">{format(subtotalUsd)}</span>
@@ -188,11 +190,11 @@ function CheckoutInner() {
         </div>
 
         {/* Delivery + contact */}
-        <div className="bg-white rounded-3xl shadow-sm p-6 sm:p-8 grid md:grid-cols-2 gap-8 md:gap-0" data-testid="checkout-info-card">
-          <div className="md:pr-10 md:border-r md:border-dashed md:border-slate-200">
-            <div className="flex items-center justify-between mb-6">
+        <div className="max-md:space-y-4 md:bg-white md:rounded-3xl md:shadow-sm md:p-8 md:grid md:grid-cols-2" data-testid="checkout-info-card">
+          <div className="max-md:bg-white max-md:rounded-3xl max-md:shadow-sm max-md:p-4 md:pr-10 md:border-r md:border-dashed md:border-slate-200">
+            <div className="flex items-center justify-between mb-5 md:mb-6">
               <SectionTitle>遞送訊息</SectionTitle>
-              <span className="rounded-full bg-orange-50 text-orange-500 text-sm px-4 py-1.5">我的帳號</span>
+              <Link to="/account" data-testid="checkout-my-account-link" className="rounded-full bg-orange-50 text-orange-500 text-sm px-4 py-1.5">我的帳號</Link>
             </div>
             <div className="space-y-5">
               {Object.entries(fieldDefs).map(([pid, def]) => (
@@ -227,17 +229,17 @@ function CheckoutInner() {
               </div>
             </div>
           </div>
-          <div className="md:pl-10">
-            <div className="mb-6"><SectionTitle>聯絡資訊</SectionTitle></div>
-            <div className="space-y-4">
+          <div className="max-md:bg-white max-md:rounded-3xl max-md:shadow-sm max-md:p-4 md:pl-10">
+            <div className="mb-5 md:mb-6 flex items-center justify-between"><SectionTitle>聯絡資訊</SectionTitle><button type="button" data-testid="checkout-contact-toggle" onClick={() => setContactOpen((v) => !v)} className="md:hidden h-7 w-7 rounded-full bg-slate-100 flex items-center justify-center text-slate-500"><ChevronDown className={`h-4 w-4 transition-transform ${contactOpen ? "rotate-180" : ""}`} /></button></div>
+            <div className={`space-y-4 ${contactOpen ? "" : "max-md:hidden"}`}>
               {[["聯絡人姓名", name, setName, "請輸入姓名", "checkout-name-input"], ["聯絡信箱", email, setEmail, "用於接收充值結果", "checkout-email-input"], ["手機號碼", phone, setPhone, "請輸入手機號碼", "checkout-phone-input"]].map(([l, v, set, ph, tid]) => (
                 <div key={l} className="flex items-center gap-4">
-                  <div className="w-28 shrink-0 text-sm text-slate-700"><span className="text-red-500 mr-1">*</span>{l}</div>
+                  <div className="w-24 md:w-28 shrink-0 text-sm text-slate-700"><span className="text-red-500 mr-1">*</span>{l}</div>
                   <input data-testid={tid} value={v} onChange={(e) => set(e.target.value)} placeholder={ph} className={field} />
                 </div>
               ))}
               <div className="flex items-center gap-4">
-                <div className="w-28 shrink-0 text-sm text-slate-700 pl-3">其他聯絡方式</div>
+                <div className="w-24 md:w-28 shrink-0 text-sm text-slate-700 pl-3">其他聯絡方式</div>
                 <div className="flex items-center w-full h-12 rounded-xl bg-slate-100 px-4">
                   <div className="relative flex items-center shrink-0 pr-4 mr-3 border-r border-slate-200">
                     <select data-testid="checkout-other-type" value={otherType} onChange={(e) => setOtherType(e.target.value)} className="appearance-none bg-transparent pr-6 text-sm outline-none">
@@ -253,12 +255,12 @@ function CheckoutInner() {
         </div>
 
         {/* Coupons */}
-        <div className="bg-white rounded-3xl shadow-sm p-6 sm:p-8" data-testid="checkout-coupon-card">
+        <div className="bg-white rounded-3xl shadow-sm p-4 sm:p-8" data-testid="checkout-coupon-card">
           <div className="flex items-center justify-between gap-4 flex-wrap">
             <SectionTitle>優惠券</SectionTitle>
-            <div className="flex items-center gap-3">
-              <input data-testid="checkout-promo-input" value={promoInput} onChange={(e) => setPromoInput(e.target.value)} placeholder="請輸入優惠券碼" className="h-11 w-64 rounded-full bg-slate-100 px-5 text-sm outline-none focus:ring-2 focus:ring-orange-300" />
-              <button data-testid="checkout-apply-promo-btn" onClick={() => applyPromo()} className="h-11 px-5 rounded-full bg-orange-50 text-orange-500 text-sm font-semibold hover:bg-orange-100">立即兌換</button>
+            <div className="flex items-center gap-3 max-md:w-full">
+              <input data-testid="checkout-promo-input" value={promoInput} onChange={(e) => setPromoInput(e.target.value)} placeholder="請輸入優惠券碼" className="h-11 w-full sm:w-64 rounded-full bg-slate-100 px-5 text-sm outline-none focus:ring-2 focus:ring-orange-300" />
+              <button data-testid="checkout-apply-promo-btn" onClick={() => applyPromo()} className="h-11 px-5 rounded-full bg-orange-50 text-orange-500 text-sm font-semibold hover:bg-orange-100 whitespace-nowrap">立即兌換</button>
             </div>
           </div>
           <div className="mt-5 h-1 rounded-full bg-slate-100"><div className="h-1 w-1/4 rounded-full bg-orange-400" /></div>
@@ -270,7 +272,7 @@ function CheckoutInner() {
 
         {/* Payment + summary */}
         <div className="bg-white rounded-3xl shadow-sm overflow-hidden" data-testid="checkout-summary-card">
-          <div className="p-6 sm:p-8">
+          <div className="p-4 sm:p-8">
             <SectionTitle>支付方式</SectionTitle>
             <div className="mt-5 rounded-2xl border-2 border-orange-400 bg-orange-50 p-5 flex flex-col sm:flex-row sm:items-center gap-4" data-testid="pay-method-wallet">
               <span className="h-12 w-12 rounded-full bg-gradient-to-br from-orange-500 to-amber-500 text-white flex items-center justify-center shrink-0"><Wallet className="h-6 w-6" /></span>
@@ -292,7 +294,7 @@ function CheckoutInner() {
               <div className="flex items-center justify-between"><span className="text-slate-600">支付手續費:</span><span className="text-slate-500"><span className="line-through mr-2">{format(subtotalUsd * 0.03)}</span><span className="text-orange-500">{format(0)}</span></span></div>
             </div>
           </div>
-          <div className={`${dots} px-6 sm:px-8 py-5`}>
+          <div className={`${dots} px-6 sm:px-8 py-5 hidden md:block`}>
             <div className="bg-slate-100 rounded-full min-h-[72px] flex flex-col sm:flex-row items-center justify-between gap-3 px-6 sm:px-8 py-3">
               <div className="text-lg"><span className="font-bold text-slate-900">支付總額: </span><span className="font-head font-extrabold text-orange-500" data-testid="checkout-total">{format(totalUsd)}</span></div>
               <button data-testid="checkout-pay-btn" onClick={submit} disabled={loading} className="h-14 px-16 rounded-full bg-orange-500 hover:bg-orange-600 text-white text-lg font-bold transition-colors disabled:opacity-60 w-full sm:w-auto">
@@ -301,6 +303,14 @@ function CheckoutInner() {
             </div>
           </div>
         </div>
+      </div>
+
+      <div className="md:hidden fixed inset-x-0 bottom-0 z-30 bg-white rounded-t-3xl px-5 pt-3 pb-4 safe-bottom-pad flex items-center justify-between gap-4 shadow-[0_-8px_30px_-12px_rgba(0,0,0,0.15)]" data-testid="checkout-mobile-bar">
+        <div>
+          <div className="text-sm text-slate-700">支付總額:</div>
+          <div className="font-head text-xl font-extrabold text-orange-500" data-testid="checkout-mobile-total">{format(totalUsd)}</div>
+        </div>
+        <button data-testid="checkout-mobile-pay-btn" onClick={submit} disabled={loading} className="h-12 px-10 rounded-full bg-orange-500 hover:bg-orange-600 text-white text-base font-bold disabled:opacity-60">{loading ? "處理中…" : "立即支付"}</button>
       </div>
     </div>
   );
