@@ -166,19 +166,19 @@ export default function Home() {
       </div>
 
       {/* Feature band */}
-      <section className="mt-14 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="text-center mb-10">
-          <img src="/gogo589-logo.png" alt="gogo589" className="h-10 md:h-12 w-auto object-contain mx-auto" />
-          <div className="text-sm md:text-base tracking-[0.35em] text-slate-500 font-medium mt-2 pl-[0.35em]">全球應用內購服務</div>
+      <section className="mt-10 md:mt-14 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="text-center mb-6 md:mb-10">
+          <img src="/gogo589-logo.png" alt="gogo589" className="h-8 md:h-12 w-auto object-contain mx-auto" />
+          <div className="text-xs md:text-base tracking-[0.35em] text-slate-500 font-medium mt-2 pl-[0.35em]">全球應用內購服務</div>
         </div>
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-x-6 gap-y-10">
+        <div className="grid grid-cols-5 gap-x-1.5 md:gap-x-6 gap-y-10">
           {FEATURES.map(([Icon, title, desc], i) => (
             <div key={i} className="text-center flex flex-col items-center">
-              <div className="h-16 w-16 md:h-[72px] md:w-[72px] rounded-[20px] bg-gradient-to-br from-orange-400 to-orange-500 flex items-center justify-center shadow-lg shadow-orange-200/70 mb-4">
-                <Icon className="h-8 w-8 md:h-9 md:w-9 text-white" strokeWidth={1.75} />
+              <div className="h-11 w-11 md:h-[72px] md:w-[72px] rounded-xl md:rounded-[20px] bg-gradient-to-br from-orange-400 to-orange-500 flex items-center justify-center shadow-md md:shadow-lg shadow-orange-200/70 mb-2 md:mb-4">
+                <Icon className="h-5 w-5 md:h-9 md:w-9 text-white" strokeWidth={1.75} />
               </div>
-              <div className="font-bold text-sm md:text-base text-slate-800">{title}</div>
-              <p className="text-xs text-slate-400 mt-1.5 leading-relaxed max-w-[180px]">{desc}</p>
+              <div className="font-bold text-[11px] md:text-base text-slate-800 leading-tight">{title}</div>
+              <p className="hidden md:block text-xs text-slate-400 mt-1.5 leading-relaxed max-w-[180px]">{desc}</p>
             </div>
           ))}
         </div>
