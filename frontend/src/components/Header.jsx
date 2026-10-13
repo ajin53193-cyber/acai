@@ -58,8 +58,8 @@ export default function Header() {
   }, [isSignedIn, callApi]);
 
   return (
-    <header className="sticky top-0 z-40 w-full">
-      <div className="bg-[#F7A23B]" style={{ height: "env(safe-area-inset-top)" }} />
+    <header className="sticky top-0 z-40 w-full bg-[#FFF4EA]">
+      <div style={{ height: "env(safe-area-inset-top)" }} />
       {/* Top promo bar */}
       <a href="https://www.dbto.ai/zh-CN?-affi-100506" target="_blank" rel="noreferrer" data-testid="promo-experience-btn" className="block bg-[#F7A23B]">
         <img src="/banners/top-ai-promo.png" alt="最強 AI 免費試用，價格超實惠 立即體驗" className="w-full h-auto max-h-10 md:max-h-12 object-cover md:object-contain mx-auto block" />
