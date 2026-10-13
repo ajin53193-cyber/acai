@@ -172,7 +172,10 @@ function OrdersInner() {
         <SheetContent className="w-full sm:max-w-md overflow-y-auto bg-[#FFF4EA] border-l-0 [background-image:radial-gradient(rgba(255,255,255,0.9)_1.5px,transparent_1.5px)] [background-size:18px_18px]" data-testid="order-detail-drawer">
           {detail && (
             <>
-              <SheetHeader>
+              <SheetHeader className="relative">
+                <button data-testid="order-detail-home-top-btn" onClick={() => { setDetail(null); navigate("/"); }} className="absolute left-0 top-0 h-8 px-3 rounded-full bg-orange-50 text-orange-500 text-xs font-semibold flex items-center gap-1">
+                  <Home className="h-3.5 w-3.5" /> 首頁
+                </button>
                 <SheetTitle className="font-head text-slate-900 relative inline-block mx-auto"><span className="relative z-10">訂單詳情</span><span className="absolute left-0 right-0 bottom-0.5 h-2 bg-orange-200/80 rounded-sm" /></SheetTitle>
               </SheetHeader>
               <div className="mt-4 space-y-4">
