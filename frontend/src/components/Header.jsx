@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { useUser, useClerk } from "@clerk/react";
+import { useUser } from "@clerk/react";
 import { Search, ShoppingCart, Headphones, ChevronDown, Shield, Package, Menu, X, UserRound, Gift,
   Tv, Gamepad2, MessageCircle, Music, Smile, Mic, HeartHandshake, CreditCard, BookOpen, Rocket, Cpu } from "lucide-react";
 import { SearchBox } from "@/components/SearchBox";
@@ -35,7 +35,6 @@ export default function Header() {
   const { count, setOpen } = useCart();
   const { active } = useCurrency();
   const { isSignedIn, user } = useUser();
-  const { signOut } = useClerk();
   const accountLabel = user?.primaryEmailAddress?.emailAddress || user?.primaryPhoneNumber?.phoneNumber || user?.username || user?.fullName || "會員";
   const { openAuth } = useAuthModal();
   const callApi = useApi();
@@ -122,31 +121,10 @@ export default function Header() {
                 <UserRound className="h-5 w-5" /> <span className="hidden sm:inline">登入</span>
               </button>
             ) : (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <button data-testid="header-account-btn" className="flex items-center gap-2 h-11 pl-1.5 pr-4 rounded-full bg-orange-100/70 hover:bg-orange-100 transition-colors max-w-[260px]">
-                    <span className="h-8 w-8 rounded-full bg-white flex items-center justify-center shrink-0"><UserRound className="h-4 w-4 text-orange-500" /></span>
-                    <span className="hidden sm:block text-sm text-orange-500 truncate" data-testid="header-account-label">{accountLabel}</span>
-                  </button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-56 rounded-2xl p-2">
-                  <div className="px-2 py-1.5 text-xs text-slate-400 truncate">{accountLabel}</div>
-                  <DropdownMenuItem onClick={() => navigate("/account")} data-testid="my-account-link" className="rounded-xl gap-2 cursor-pointer">
-                    <UserRound className="h-4 w-4 text-slate-500" /> 我的帳戶
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => navigate("/orders")} data-testid="my-orders-link" className="rounded-xl gap-2 cursor-pointer">
-                    <Package className="h-4 w-4 text-slate-500" /> 我的訂單
-                  </DropdownMenuItem>
-                  {isAdmin && (
-                    <DropdownMenuItem onClick={() => navigate("/admin")} data-testid="admin-entry-link" className="rounded-xl gap-2 cursor-pointer text-orange-600">
-                      <Shield className="h-4 w-4" /> 管理後台
-                    </DropdownMenuItem>
-                  )}
-                  <DropdownMenuItem onClick={() => signOut({ redirectUrl: "/" })} data-testid="header-signout-btn" className="rounded-xl gap-2 cursor-pointer">
-                    <X className="h-4 w-4 text-slate-500" /> 登出
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+              <button data-testid="header-account-btn" onClick={() => navigate("/account")} className="flex items-center gap-2 h-11 pl-1.5 pr-4 rounded-full bg-orange-100/70 hover:bg-orange-100 transition-colors max-w-[260px]">
+                <span className="h-8 w-8 rounded-full bg-white flex items-center justify-center shrink-0"><UserRound className="h-4 w-4 text-orange-500" /></span>
+                <span className="hidden sm:block text-sm text-orange-500 truncate" data-testid="header-account-label">{accountLabel}</span>
+              </button>
             )}
 
             <button data-testid="cart-trigger" onClick={() => setOpen(true)} className="relative h-10 w-10 rounded-full bg-orange-100/70 hover:bg-orange-100 text-orange-500 flex items-center justify-center transition-colors">
