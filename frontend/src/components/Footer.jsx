@@ -38,7 +38,7 @@ const PAY_BADGES = [
 
 const COLS = [
   ["關於我們", [["公司介紹", "/article/about-us"], ["隱私權政策", "/article/privacy-policy"], ["條款與條件", "/article/terms-conditions"], ["聯絡我們", "/article/contact-us"]]],
-  ["購物指南", [["購物流程", "/article/shopping"], ["出貨流程", "/article/delivery"], ["退款政策", "/article/refund-policy"], ["成為經銷商", "/info/reseller", true]]],
+  ["購物指南", [["購物流程", "/article/shopping"], ["出貨流程", "/article/delivery"], ["退款政策", "/article/refund-policy"], ["成為經銷商", "/article/reseller", true]]],
   ["幫助訊息", [["活動中心", "/article"], ["常見問題", "/article/faq"], ["我的訂單", "/orders"], ["我的認證", "/account/verify"], ["我的優惠券", "/account/coupons"]]],
 ];
 
