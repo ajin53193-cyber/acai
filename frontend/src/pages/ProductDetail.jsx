@@ -143,12 +143,12 @@ export default function ProductDetail() {
 
           <PerksSlider />
           {product.group?.length > 1 && (
-            <div className="mt-4 md:mt-6 grid grid-cols-2 md:flex md:flex-wrap gap-3" data-testid="product-group-tabs">
+            <div className="mt-4 md:mt-6 grid grid-cols-2 md:flex md:flex-wrap gap-2.5 md:gap-3" data-testid="product-group-tabs">
               {product.group.map((g) => {
                 const on = String(g.id) === String(product.id);
                 return (
                   <Link key={g.id} to={`/product/${g.id}`} data-testid={`group-tab-${g.id}`} aria-current={on ? "page" : undefined}
-                    className={`h-14 md:h-12 md:px-8 rounded-2xl flex items-center justify-center text-[17px] md:text-base font-medium transition-colors ${on ? "bg-white border-2 border-orange-400 text-orange-500" : "bg-white/80 text-slate-700 hover:bg-white"}`}>
+                    className={`h-9 md:h-12 md:px-8 rounded-xl md:rounded-2xl flex items-center justify-center text-[13px] md:text-base font-medium transition-colors ${on ? "bg-white border-2 border-orange-400 text-orange-500" : "bg-white/80 text-slate-700 hover:bg-white"}`}>
                     {g.label}
                   </Link>
                 );
@@ -162,7 +162,7 @@ export default function ProductDetail() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-4 md:-mt-2">
         <div className="bg-white rounded-3xl shadow-[0_10px_40px_-20px_rgba(232,121,42,0.35)] overflow-hidden">
           <div className="p-4 pt-7 sm:p-8">
-            <div className="grid grid-cols-2 gap-x-6 gap-y-7 md:flex md:flex-wrap md:gap-3 sm:gap-4">
+            <div className="grid grid-cols-2 gap-x-4 gap-y-6 md:flex md:flex-wrap md:gap-3 sm:gap-4">
               {product.specs.map((s, i) => {
                 const sel = s.id === specId;
                 const locked = specLocked(s);
@@ -173,12 +173,12 @@ export default function ProductDetail() {
                     disabled={!s.in_stock}
                     onClick={() => setSpecId(s.id)}
                     title={locked ? "已達限購" : undefined}
-                    className={`relative h-[72px] md:h-14 md:min-w-[140px] px-2 md:px-6 rounded-xl text-[15px] md:text-sm font-medium transition-all leading-tight ${
+                    className={`relative min-h-11 py-1.5 md:py-0 md:h-14 md:min-w-[140px] px-2 md:px-6 rounded-lg md:rounded-xl text-[14px] md:text-sm font-medium transition-all leading-tight ${
                       sel ? "border-2 border-orange-400 bg-orange-50/60 md:bg-orange-50 text-orange-600" : "border border-transparent bg-slate-100/80 md:bg-slate-100 text-slate-700 hover:bg-orange-50"
                     } ${!s.in_stock ? "opacity-40 cursor-not-allowed" : ""} ${locked ? "opacity-50" : ""}`}
                   >
                     {s.badge && (
-                      <span className={`absolute -top-3 right-0 rounded-md md:rounded-full text-white text-[11px] md:text-[10px] px-2 py-0.5 whitespace-nowrap ${locked ? "bg-slate-400" : badgeColor(s.badge)}`}>{locked ? "已達限購" : s.badge}</span>
+                      <span className={`absolute -top-2.5 right-0 rounded-md md:rounded-full text-white text-[10px] px-1.5 md:px-2 py-px md:py-0.5 whitespace-nowrap ${locked ? "bg-slate-400" : badgeColor(s.badge)}`}>{locked ? "已達限購" : s.badge}</span>
                     )}
                     {s.label}
                     {!s.in_stock && <span className="ml-1 text-[10px] text-red-400">缺貨</span>}
