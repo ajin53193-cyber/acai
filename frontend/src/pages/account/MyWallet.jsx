@@ -43,16 +43,23 @@ export function BalanceBanner({ data }) {
 
 export function TxRow({ t }) {
   const { format } = useCurrency();
+  const credit = t.amount_usd >= 0;
+  const m = /^(.*?)\s+([A-Z]{2}\d{8,})$/.exec(t.note || "");
+  const title = m ? m[1] : t.note;
+  const ref = m ? m[2] : "";
   return (
     <div className="flex items-center gap-3 py-3 text-sm" data-testid={`tx-row-${t.id}`}>
-      <span className={`h-9 w-9 shrink-0 rounded-full flex items-center justify-center ${t.amount_usd >= 0 ? "bg-emerald-100 text-emerald-600" : "bg-orange-100 text-orange-600"}`}>{t.amount_usd >= 0 ? <ArrowDownLeft className="h-4 w-4" /> : <ArrowUpRight className="h-4 w-4" />}</span>
+      <span className={`h-10 w-10 shrink-0 rounded-xl flex items-center justify-center ${credit ? "bg-emerald-50 text-emerald-500" : "bg-orange-50 text-orange-500"}`}>{credit ? <ArrowDownLeft className="h-5 w-5" /> : <ArrowUpRight className="h-5 w-5" />}</span>
       <div className="flex-1 min-w-0">
-        <div className="text-slate-800 truncate">{t.note}</div>
-        <div className="text-xs text-slate-400">{t.created_at?.slice(0, 16).replace("T", " ")}</div>
+        <div className="flex items-center gap-2 min-w-0">
+          <span className="text-slate-800 font-medium truncate">{title}</span>
+          <span className={`shrink-0 rounded-full px-1.5 py-px text-[10px] ${credit ? "bg-emerald-50 text-emerald-600" : "bg-orange-50 text-orange-500"}`}>{credit ? "入帳" : "支出"}</span>
+        </div>
+        <div className="text-[11px] text-slate-400 truncate mt-0.5">{t.created_at?.slice(0, 16).replace("T", " ")}{ref && <span className="ml-2 font-mono">{ref}</span>}</div>
       </div>
       <div className="text-right shrink-0">
-        <div className={`font-bold ${t.amount_usd >= 0 ? "text-emerald-600" : "text-slate-800"}`}>{t.amount_usd >= 0 ? "+" : "-"}{format(Math.abs(t.amount_usd))}</div>
-        <div className="text-[11px] text-slate-400">餘額 {format(t.balance_after_usd)}</div>
+        <div className={`font-head font-bold text-[15px] ${credit ? "text-emerald-600" : "text-slate-900"}`}>{credit ? "+" : "-"}{format(Math.abs(t.amount_usd))}</div>
+        <div className="text-[10px] text-slate-400 mt-0.5">餘額 {format(t.balance_after_usd)}</div>
       </div>
     </div>
   );
@@ -68,7 +75,7 @@ export default function MyWallet() {
   const last = data.transactions[0];
   return (
     <Panel title="我的錢包" testId="wallet-page">
-      <div className="pb-20 md:pb-0">
+      <div className="pb-36 md:pb-0 max-md:min-h-[calc(100dvh-170px)]">
         <BalanceBanner data={data} />
         <div className="mt-4 md:mt-6 grid grid-cols-2 gap-3 md:gap-4">
           {ACTIONS.map((a) => (
@@ -85,7 +92,10 @@ export default function MyWallet() {
         </div>
         {last && (
           <div className="mt-4 md:mt-6 relative rounded-2xl bg-white md:bg-slate-50 shadow-[0_6px_20px_-12px_rgba(232,121,42,0.35)] md:shadow-none px-4 md:px-6 pt-11 md:pt-4 pb-2 md:pb-3" data-testid="wallet-last-tx">
-            <span className="absolute left-0 top-0 rounded-tl-2xl rounded-br-xl bg-slate-800 text-white text-[13px] px-3.5 py-1.5 md:static md:rounded-md md:text-xs md:px-3 md:py-1 md:inline-block">最近一筆</span>
+            <div className="absolute left-0 top-0 right-0 flex items-center justify-between md:static">
+              <span className="rounded-tl-2xl rounded-br-xl bg-slate-800 text-white text-[13px] px-3.5 py-1.5 md:rounded-md md:text-xs md:px-3 md:py-1">最近一筆</span>
+              <Link to="/account/wallet/transactions" data-testid="wallet-last-tx-more" className="text-xs text-orange-500 pr-4 pt-2 md:pt-0 md:pr-0">全部明細 ›</Link>
+            </div>
             <TxRow t={last} />
           </div>
         )}
