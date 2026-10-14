@@ -20,6 +20,7 @@ import storage as objstore
 from translate import Translator, to_simplified, to_traditional
 import email_auth
 import admin_api
+import secrets
 import cms_api
 import payments_api
 from dotenv import load_dotenv
@@ -788,27 +789,24 @@ async def _user_flash_bought(user_id: str, flash_id: str) -> int:
     return n
 
 
+def _gen_gift_trade_no() -> str:
+    return datetime.now(timezone.utc).strftime("%Y%m%d") + "".join(secrets.choice("0123456789") for _ in range(24))
+
+
 async def dispatch_giftcards(order: dict):
-    """On payment of a gift-card product, generate a fresh card code per unit and attach to the order."""
+    """On payment of a gift-card product, generate one 32-digit 交易號 per unit and attach to the order."""
     if order.get("giftcards_dispatched"):
         return
-    codes = []
+    nos = []
     for it in order.get("items", []):
-        p = await db.products.find_one({"id": it["product_id"]}, {"_id": 0, "is_giftcard": 1, "specs": 1})
+        p = await db.products.find_one({"id": it["product_id"]}, {"_id": 0, "is_giftcard": 1})
         if not p or not p.get("is_giftcard"):
             continue
-        spec = next((s for s in p.get("specs", []) if s["id"] == it["spec_id"]), {})
-        fv = spec.get("giftcard_value_usd") or spec.get("price_usd") or it.get("unit_price_usd") or 0
-        fv = round(float(fv), 2)
         for _ in range(int(it.get("quantity") or 1)):
-            code = admin_api._gen_card_code()
-            await db.gift_cards.insert_one({"id": uuid.uuid4().hex[:12], "code": code, "face_value_usd": fv, "status": "active",
-                                            "batch_no": "ORDER", "note": f"訂單 {order.get('order_no', '')} 自動發卡", "source_order": order["id"],
-                                            "sold_to": order["user_id"], "created_at": now_iso(), "redeemed_by": None, "redeemed_at": None, "redeemed_via": None})
-            codes.append({"code": code, "face_value_usd": fv, "product_name": it.get("product_name", "")})
-    if codes:
-        await db.orders.update_one({"id": order["id"]}, {"$set": {"giftcards_dispatched": True, "giftcard_codes": codes}})
-    return codes
+            nos.append({"trade_no": _gen_gift_trade_no(), "product_name": it.get("product_name", ""), "spec_label": it.get("spec_label", "")})
+    if nos:
+        await db.orders.update_one({"id": order["id"]}, {"$set": {"giftcards_dispatched": True, "gift_trade_nos": nos, "gift_trade_no": nos[0]["trade_no"], "is_giftcard_order": True}})
+    return nos
 
 
 async def _compute_order(order: OrderIn, member_ctx: dict = None):

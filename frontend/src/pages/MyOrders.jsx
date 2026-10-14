@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
-import { Copy, Package, Loader2, Check } from "lucide-react";
+import { Copy, Package, Loader2, Check, Gift } from "lucide-react";
 import { toast } from "sonner";
 import { useApi } from "@/lib/api";
 import { useCart } from "@/context/CartContext";
@@ -154,6 +154,17 @@ function OrdersInner() {
                     <div className="text-orange-500 font-semibold pt-0.5 text-sm md:text-base">{o.currency}$ {(o.total_usd * o.rate_to_usd).toFixed(2)}</div>
                   </div>
                 </div>
+                {(o.gift_trade_nos || []).length > 0 && (
+                  <div className="mt-3 rounded-2xl bg-violet-50 border border-violet-100 px-3.5 py-3" data-testid={`order-gift-trade-${o.id}`}>
+                    <div className="text-sm font-bold text-violet-700 flex items-center gap-1.5"><Gift className="h-4 w-4" />{o.status === "completed" ? tr("轉贈成功 · 交易號") : tr("轉贈處理中 · 交易號")}</div>
+                    {o.gift_trade_nos.map((g, i) => (
+                      <div key={i} className="mt-1.5 flex items-center justify-between gap-2">
+                        <span className="font-mono text-base md:text-lg tracking-wider text-slate-800 break-all" data-testid={`order-gift-trade-no-${o.id}-${i}`}>{g.trade_no}</span>
+                        <button onClick={() => copy(g.trade_no)} data-testid={`order-gift-trade-copy-${o.id}-${i}`} className="shrink-0 inline-flex items-center gap-1 text-violet-600 text-sm font-semibold hover:text-violet-800"><Copy className="h-4 w-4" />{tr("複製")}</button>
+                      </div>
+                    ))}
+                  </div>
+                )}
                 <div className="mt-3 md:mt-4 pt-3 border-t border-slate-200/70 flex items-center justify-center md:justify-end gap-2.5 md:gap-2">
                   {o.status === "pending_payment" && <button data-testid={`order-delete-${o.id}`} onClick={() => removeOrder(o)} className="h-8 md:h-9 px-4 rounded-full bg-white max-md:bg-slate-100 text-slate-600 text-xs hover:bg-orange-50 hover:text-orange-500 whitespace-nowrap">{tr("刪除訂單")}</button>}
                   <button data-testid={`order-reorder-${o.id}`} onClick={() => reorder(o)} className="h-8 md:h-9 px-4 rounded-full bg-slate-900 text-white text-xs hover:bg-slate-800 whitespace-nowrap">{tr("再來一單")}</button>
@@ -220,22 +231,17 @@ function OrdersInner() {
                   ))}
                 </div>
 
-                {/* Gift card codes */}
-                {(detail.giftcard_codes || []).length > 0 && (
-                  <div className="bg-white rounded-2xl p-4 shadow-[0_6px_20px_-12px_rgba(232,121,42,0.35)]" data-testid="order-giftcard-codes">
-                    <div className="text-sm font-semibold text-violet-700 mb-2 flex items-center gap-1.5">🎁 {tr("您的禮品卡卡號")}</div>
+                {(detail.gift_trade_nos || []).length > 0 && (
+                  <div className="rounded-2xl bg-violet-50 border border-violet-100 p-4" data-testid="order-gift-trade-detail">
+                    <div className="text-sm font-bold text-violet-700 mb-2 flex items-center gap-1.5"><Gift className="h-4 w-4" />{detail.status === "completed" ? tr("轉贈成功 · 交易號") : tr("轉贈處理中 · 交易號")}</div>
                     <div className="space-y-2">
-                      {detail.giftcard_codes.map((g, i) => (
-                        <div key={i} className="flex items-center justify-between gap-2 rounded-xl bg-violet-50 border border-violet-100 px-3 py-2">
-                          <div className="min-w-0">
-                            <div className="font-mono text-sm font-bold text-slate-800 break-all">{g.code}</div>
-                            <div className="text-[11px] text-slate-500">{g.product_name} · {tr("面額")} ${Number(g.face_value_usd).toFixed(2)}</div>
-                          </div>
-                          <button onClick={() => copy(g.code)} className="shrink-0 text-violet-500 hover:text-violet-700" data-testid={`order-giftcard-copy-${i}`}><Copy className="h-4 w-4" /></button>
+                      {detail.gift_trade_nos.map((g, i) => (
+                        <div key={i} className="flex items-center justify-between gap-2">
+                          <div className="min-w-0"><div className="font-mono text-base tracking-wider text-slate-800 break-all">{g.trade_no}</div><div className="text-[11px] text-slate-500">{g.product_name} {g.spec_label}</div></div>
+                          <button onClick={() => copy(g.trade_no)} className="shrink-0 inline-flex items-center gap-1 text-violet-600 text-sm font-semibold hover:text-violet-800"><Copy className="h-4 w-4" />{tr("複製")}</button>
                         </div>
                       ))}
                     </div>
-                    <div className="text-[11px] text-slate-400 mt-2">{tr("可於「我的錢包 → 禮品卡充值」兌換，或分享給好友使用。")}</div>
                   </div>
                 )}
 

@@ -627,6 +627,23 @@ async def admin_gift_card_delete(cid: str, admin: dict = Depends(current_admin))
     return {"ok": True}
 
 
+@router.get("/gift-card-orders")
+async def admin_gift_card_orders(status: str = "", q: str = "", limit: int = 300, admin: dict = Depends(current_admin)):
+    gift_ids = [p["id"] async for p in db.products.find({"is_giftcard": True}, {"_id": 0, "id": 1})]
+    query: dict = {"$or": [{"is_giftcard_order": True}, {"items.product_id": {"$in": gift_ids}}]}
+    if status:
+        query["status"] = status
+    if q:
+        query = {"$and": [query, {"$or": [{"order_no": {"$regex": q, "$options": "i"}}, {"gift_trade_no": {"$regex": q}}, {"gift_trade_nos.trade_no": {"$regex": q}}, {"user_email": {"$regex": q, "$options": "i"}}]}]}
+    rows = await db.orders.find(query, {"_id": 0, "id": 1, "order_no": 1, "user_id": 1, "user_email": 1, "items": 1, "total_usd": 1, "currency": 1, "rate_to_usd": 1,
+                                        "status": 1, "created_at": 1, "paid_at": 1, "completed_at": 1, "delivery_info": 1, "recharge_account": 1, "gift_trade_nos": 1, "gift_trade_no": 1}).sort("created_at", -1).to_list(limit)
+    for r in rows:
+        r["account_no"] = account_no(r.get("user_id", ""))
+        r["items"] = [i for i in r.get("items", []) if i.get("product_id") in gift_ids] or r.get("items", [])
+    counts = {c["_id"]: c["n"] async for c in db.orders.aggregate([{"$match": {"$or": [{"is_giftcard_order": True}, {"items.product_id": {"$in": gift_ids}}]}}, {"$group": {"_id": "$status", "n": {"$sum": 1}}}])}
+    return {"rows": rows, "counts": counts}
+
+
 @router.get("/gift-card-redemptions")
 async def admin_gift_card_redemptions(q: str = "", limit: int = 500, admin: dict = Depends(current_admin)):
     query = {"status": "redeemed"}
@@ -1512,7 +1529,7 @@ ALL_PERMISSIONS = [
     "overview", "sales-analysis", "download-reports",
     "members", "user-tags", "member-assets", "blacklist", "user-logs", "verifications", "user-batch", "feedback", "user-reports",
     "products", "categories", "reviews",
-    "giftcards", "giftcard-new", "giftcard-redeem", "giftcard-orders", "giftcard-api",
+    "giftcard-orders",
     "home-decoration", "banners", "recommendations", "promos", "notifications", "announcements",
     "activities",
     "orders", "order-settlement", "topups", "payments", "reconciliation", "currencies", "finance-reports",
