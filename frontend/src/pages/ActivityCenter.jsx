@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { Zap, Gift, Package, Percent, Users, Wallet, Sparkles, ChevronRight, Ticket, Star, Flame, Crown, Coins } from "lucide-react";
+import { Zap, Gift, Package, Percent, Users, Wallet, Sparkles, ChevronRight, Ticket, Star, Flame, Crown, Coins, ArrowLeft } from "lucide-react";
 import { publicApi } from "@/lib/api";
 import { ArticleCard } from "@/pages/ArticleCenter";
 import { tr } from "@/i18n";
@@ -57,6 +57,7 @@ export default function ActivityCenter() {
       <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-rose-500 via-orange-500 to-amber-400 px-5 md:px-8 py-6 md:py-9 text-white shadow-lg">
         <Sparkles className="absolute -right-4 -top-4 h-28 w-28 text-white/10" />
         <div className="relative">
+          <Link to="/" data-testid="activity-center-back" className="inline-flex items-center gap-1.5 text-white/90 text-sm font-medium hover:text-white mb-3"><ArrowLeft className="h-4 w-4" />{tr("返回首頁")}</Link>
           <h1 className="font-head text-2xl md:text-4xl font-extrabold drop-shadow flex items-center gap-2"><Sparkles className="h-6 w-6 md:h-8 md:w-8" />{cfg.header_title || tr("活動中心")}</h1>
           {cfg.header_subtitle && <p className="text-white/90 text-sm md:text-base mt-1.5">{cfg.header_subtitle}</p>}
         </div>
