@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Show, useUser } from "@clerk/react";
 import { Minus, Plus, Trash2, CheckCircle2, Ticket, Wallet, Crown, Star, Tag } from "lucide-react";
@@ -61,12 +61,8 @@ function CheckoutInner() {
   const [quote, setQuote] = useState(null);
   const [usePoints, setUsePoints] = useState(false);
   const [pointsAmt, setPointsAmt] = useState("");
-  const [cartPromos, setCartPromos] = useState([]);
-  const [flashMap, setFlashMap] = useState({});
 
   useEffect(() => { publicApi.get("/promos/public").then((r) => setPromos(r.data)).catch(() => {}); }, []);
-  useEffect(() => { publicApi.get("/cart-promotions/public").then((r) => setCartPromos(r.data)).catch(() => {}); }, []);
-  useEffect(() => { publicApi.get("/flash-sales/public").then((r) => { const m = {}; r.data.forEach((f) => { m[`${f.product_id}:${f.spec_id}`] = f; }); setFlashMap(m); }).catch(() => {}); }, []);
   useEffect(() => { callApi({ method: "GET", url: "/me/wallet" }).then((r) => setWallet(r.data.balance_usd)).catch(() => setWallet(0)); }, [callApi]);
   useEffect(() => { callApi({ method: "GET", url: "/me/profile" }).then((r) => setProfile(r.data)).catch(() => {}); }, [callApi]);
   useEffect(() => { if (promo && subtotalUsd < (promo.min_order_usd || 0)) setPromo(null); }, [subtotalUsd, promo]);
@@ -75,32 +71,20 @@ function CheckoutInner() {
   useEffect(() => {
     if (items.length === 0) return;
     const up = usePoints ? (parseInt(pointsAmt, 10) || 0) : 0;
-    callApi({ method: "POST", url: "/orders/quote", data: { items: items.map((i) => ({ product_id: i.product_id, spec_id: i.spec_id, quantity: i.quantity, combo_id: i.combo_id || null })), currency: code, recharge_account: "", promo_code: promo?.code || null, use_points: up } })
+    callApi({ method: "POST", url: "/orders/quote", data: { items: items.map((i) => ({ product_id: i.product_id, spec_id: i.spec_id, quantity: i.quantity})), currency: code, recharge_account: "", promo_code: promo?.code || null, use_points: up } })
       .then((r) => setQuote(r.data)).catch(() => setQuote(null));
   }, [callApi, itemsKey, promo, usePoints, pointsAmt, code]); // eslint-disable-line
 
   const maxPoints = quote?.points_available ?? profile?.points ?? 0;
   const togglePoints = () => { const nv = !usePoints; setUsePoints(nv); if (nv && !pointsAmt) setPointsAmt(String(maxPoints)); };
 
-  const flashOf = (i) => flashMap[`${i.product_id}:${i.spec_id}`];
-  const effUnit = (i) => { const f = flashOf(i); return f ? f.flash_price_usd : i.unit_price_usd; };
-  const effSubtotal = useMemo(() => items.reduce((s, i) => s + effUnit(i) * i.quantity, 0), [items, flashMap]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const discountUsd = quote ? quote.discount_usd : (promo?.discount_usd || 0);
   const levelDiscount = quote?.level_discount_usd || 0;
   const pointsDiscount = quote?.points_discount_usd || 0;
-  const totalUsd = quote ? quote.total_usd : Math.max(0, effSubtotal - discountUsd);
+  const totalUsd = quote ? quote.total_usd : Math.max(0, subtotalUsd - discountUsd);
   const level = quote?.level || profile?.level;
 
-  const promoHint = useMemo(() => {
-    if (!cartPromos.length) return null;
-    const next = cartPromos.filter((c) => (c.threshold_usd || 0) > effSubtotal + 1e-6).sort((a, b) => a.threshold_usd - b.threshold_usd)[0];
-    if (next) {
-      const benefit = next.promo_type === "reduce" ? tr("立減 {0}", format(next.value)) : tr("享 {0} 折", (10 - next.value / 10).toFixed(1));
-      return { reached: false, gap: next.threshold_usd - effSubtotal, title: next.title || tr("滿減優惠"), benefit };
-    }
-    return { reached: true };
-  }, [cartPromos, effSubtotal, format]);
 
   if (items.length === 0) {
     return (
@@ -115,7 +99,7 @@ function CheckoutInner() {
     const codeStr = (c || promoInput).trim();
     if (!codeStr) return;
     try {
-      const r = await publicApi.post("/promo/validate", { code: codeStr, subtotal_usd: effSubtotal });
+      const r = await publicApi.post("/promo/validate", { code: codeStr, subtotal_usd: subtotalUsd });
       setPromo(r.data);
       toast.success(tr("優惠券已套用，折抵 {0}", format(r.data.discount_usd)));
     } catch (e) {
@@ -136,7 +120,7 @@ function CheckoutInner() {
         method: "POST",
         url: "/orders",
         data: {
-          items: items.map((i) => ({ product_id: i.product_id, spec_id: i.spec_id, quantity: i.quantity, combo_id: i.combo_id || null })),
+          items: items.map((i) => ({ product_id: i.product_id, spec_id: i.spec_id, quantity: i.quantity})),
           currency: code,
           recharge_account: "",
           delivery_info: {},
@@ -177,9 +161,7 @@ function CheckoutInner() {
                     <div className="text-[14px] md:text-base text-slate-800 truncate">{i.spec_label}</div>
                     {i.badge && <span className="mt-1 inline-block max-w-full truncate rounded-md bg-fuchsia-500 text-white text-[10px] md:text-[11px] px-1.5 md:px-2 py-0.5 leading-4 whitespace-nowrap">{i.badge}</span>}
                     <div className="mt-1 flex items-center gap-2 flex-wrap">
-                      {flashOf(i) && <span data-testid={`cart-flash-badge-${i.key}`} className="rounded-md bg-rose-500 text-white text-[10px] md:text-[11px] px-1.5 py-0.5 font-bold whitespace-nowrap">{tr("秒殺價")}</span>}
-                      <span className="font-head text-base md:text-lg text-orange-500 whitespace-nowrap"><span className="text-xs md:text-sm font-medium">{code}$</span> <span className="font-bold">{format(effUnit(i)).replace(/[^\d.,]/g, "")}</span></span>
-                      {flashOf(i) && <span className="text-xs md:text-sm text-slate-400 line-through whitespace-nowrap">{format(i.unit_price_usd)}</span>}
+                      <span className="font-head text-base md:text-lg text-orange-500 whitespace-nowrap"><span className="text-xs md:text-sm font-medium">{code}$</span> <span className="font-bold">{format(i.unit_price_usd).replace(/[^\d.,]/g, "")}</span></span>
                     </div>
                   </div>
                   <div className="flex items-center gap-2 md:gap-3 shrink-0">
@@ -197,20 +179,12 @@ function CheckoutInner() {
           <div className={`${dots} px-6 sm:px-8 py-5 hidden md:block`}>
             <div className="bg-slate-100 rounded-full h-16 flex items-center justify-end px-8 text-lg">
               <span className="font-bold text-slate-900">{tr("商品總額：")}</span>
-              <span className="font-head font-extrabold text-orange-500 ml-1" data-testid="cart-subtotal">{format(effSubtotal)}</span>
+              <span className="font-head font-extrabold text-orange-500 ml-1" data-testid="cart-subtotal">{format(subtotalUsd)}</span>
             </div>
           </div>
         </div>
 
         {/* 滿減進度提示 */}
-        {promoHint && (
-          <div data-testid="checkout-cartpromo-hint" className={`rounded-2xl px-4 py-3 flex items-center gap-2.5 text-sm font-medium ${promoHint.reached ? "bg-emerald-50 text-emerald-700 border border-emerald-100" : "bg-orange-50 text-orange-700 border border-orange-100"}`}>
-            <Tag className={`h-4 w-4 shrink-0 ${promoHint.reached ? "text-emerald-500" : "text-orange-500"}`} />
-            {promoHint.reached
-              ? <span>{tr("已滿足滿減活動，優惠已自動抵扣！")}</span>
-              : <span>{tr("再買 {0} 即可{1}（{2}）", format(promoHint.gap), promoHint.benefit, promoHint.title)}</span>}
-          </div>
-        )}
 
         {/* Coupons */}
         <div className="bg-white rounded-3xl shadow-sm p-4 sm:p-8" data-testid="checkout-coupon-card">
@@ -224,7 +198,7 @@ function CheckoutInner() {
           <div className="mt-5 h-1 rounded-full bg-slate-100"><div className="h-1 w-1/4 rounded-full bg-orange-400" /></div>
           <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {promos.length === 0 && <div className="text-sm text-slate-400">{tr("暫無可用優惠券")}</div>}
-            {promos.map((p) => <CouponCard key={p.code} p={p} subtotalUsd={effSubtotal} applied={promo?.code === p.code} onApply={applyPromo} format={format} />)}
+            {promos.map((p) => <CouponCard key={p.code} p={p} subtotalUsd={subtotalUsd} applied={promo?.code === p.code} onApply={applyPromo} format={format} />)}
           </div>
         </div>
 
@@ -270,21 +244,15 @@ function CheckoutInner() {
             </label>
 
             <div className="mt-5 md:mt-6 space-y-2.5 md:space-y-3 text-[13px] md:text-sm">
-              <div className="flex items-center justify-between"><span className="text-slate-600">{tr("商品總額:")}</span><span className="text-orange-500">{format(quote ? quote.subtotal_usd : effSubtotal)}</span></div>
+              <div className="flex items-center justify-between"><span className="text-slate-600">{tr("商品總額:")}</span><span className="text-orange-500">{format(quote ? quote.subtotal_usd : subtotalUsd)}</span></div>
               <div className="flex items-center justify-between"><span className="text-slate-600">{tr("優惠金額:")}</span><span className="text-orange-500" data-testid="checkout-discount">-{format(discountUsd)}</span></div>
-              {(quote?.cart_discount_usd || 0) > 0 && (
-                <div className="flex items-center justify-between" data-testid="checkout-cart-discount"><span className="text-slate-600 flex items-center gap-1"><Tag className="h-3.5 w-3.5 text-emerald-500" />{tr(quote.cart_promo_title || "滿減優惠")}:</span><span className="text-orange-500">-{format(quote.cart_discount_usd)}</span></div>
-              )}
-              {(quote?.combo_discount_usd || 0) > 0 && (
-                <div className="flex items-center justify-between" data-testid="checkout-combo-discount"><span className="text-slate-600 flex items-center gap-1"><Tag className="h-3.5 w-3.5 text-rose-500" />{tr(quote.combo_title || "套餐優惠")}:</span><span className="text-orange-500">-{format(quote.combo_discount_usd)}</span></div>
-              )}
               {level && (level.discount_percent || 0) > 0 && (
                 <div className="flex items-center justify-between" data-testid="checkout-level-discount"><span className="text-slate-600 flex items-center gap-1"><Crown className="h-3.5 w-3.5 text-amber-500" />{tr("{0} 專屬 {1}% 折扣:", tr(level.name), level.discount_percent)}</span><span className="text-orange-500">-{format(levelDiscount)}</span></div>
               )}
               {pointsDiscount > 0 && (
                 <div className="flex items-center justify-between" data-testid="checkout-points-discount"><span className="text-slate-600 flex items-center gap-1"><Star className="h-3.5 w-3.5 text-amber-500" />{tr("積分抵現 ({0} 分):", quote.points_used)}</span><span className="text-orange-500">-{format(pointsDiscount)}</span></div>
               )}
-              <div className="flex items-center justify-between"><span className="text-slate-600">{tr("支付手續費:")}</span><span className="text-slate-500"><span className="line-through mr-2">{format(effSubtotal * 0.03)}</span><span className="text-orange-500">{format(0)}</span></span></div>
+              <div className="flex items-center justify-between"><span className="text-slate-600">{tr("支付手續費:")}</span><span className="text-slate-500"><span className="line-through mr-2">{format(subtotalUsd * 0.03)}</span><span className="text-orange-500">{format(0)}</span></span></div>
             </div>
           </div>
           <div className={`${dots} px-6 sm:px-8 py-5 hidden md:block`}>

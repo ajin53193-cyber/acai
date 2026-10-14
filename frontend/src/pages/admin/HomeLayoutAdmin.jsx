@@ -6,7 +6,6 @@ import { Head, Btn, Input, Card } from "./ui";
 
 const PRESETS = [
   { v: "/", label: tr("首頁") },
-  { v: "/lottery", label: tr("積分抽獎") },
   { v: "/invite", label: tr("邀請好友") },
   { v: "/sign-up", label: tr("註冊頁") },
   { v: "/article", label: tr("最新公告") },

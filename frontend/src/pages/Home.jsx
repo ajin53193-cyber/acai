@@ -1,11 +1,9 @@
 import React, { useEffect, useState, useRef } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import { ChevronRight, ChevronLeft, Zap, Megaphone, ShieldCheck, Rocket, Headphones, Tag, Globe, Star, Users, Gift, Percent, Volume2, Package } from "lucide-react";
+import { Link } from "react-router-dom";
+import { ChevronRight, ChevronLeft, Zap, Megaphone, ShieldCheck, Rocket, Headphones, Tag, Globe, Star, Gift, Percent, Volume2 } from "lucide-react";
 import { useUser } from "@clerk/react";
 import { publicApi, useApi } from "@/lib/api";
 import { useAuthModal } from "@/components/auth/AuthModal";
-import { useCurrency } from "@/context/CurrencyContext";
-import { useCart } from "@/context/CartContext";
 
 import { ArticleCard } from "@/pages/ArticleCenter";
 import { useSiteConfig } from "@/lib/siteConfig";
@@ -25,13 +23,9 @@ export default function Home() {
   const [categories, setCategories] = useState([]);
   const [home, setHome] = useState({});
   const [news, setNews] = useState([]);
-  const [flash, setFlash] = useState([]);
-  const [combos, setCombos] = useState([]);
   const isMobile = useIsMobile();
   const { isSignedIn } = useUser();
   const { openAuth } = useAuthModal();
-  const { addCombo } = useCart();
-  const navigate = useNavigate();
   const callApi = useApi();
   const cfg = useSiteConfig();
   const { hero, hero_slides: heroSlides, announcement, promo_banners: promos, features, register } = cfg;
@@ -48,8 +42,6 @@ export default function Home() {
     publicApi.get("/categories").then((r) => setCategories(r.data)).catch(() => {});
     publicApi.get("/products/home").then((r) => setHome(r.data)).catch(() => {});
     publicApi.get("/articles", { params: { page: 1, size: 10 } }).then((r) => setNews(r.data.rows)).catch(() => {});
-    publicApi.get("/flash-sales/public").then((r) => setFlash(r.data)).catch(() => {});
-    publicApi.get("/combos/public").then((r) => setCombos(r.data)).catch(() => {});
   }, []);
 
   // Scan-to-register: a visitor arriving with ?ref=CODE who isn't signed in gets the register sheet (prefilled code).
@@ -68,7 +60,6 @@ export default function Home() {
       .then(() => localStorage.removeItem("ref_code"))
       .catch((e) => { if (e.response?.status && e.response.status !== 500) localStorage.removeItem("ref_code"); });
   }, [isSignedIn]); // eslint-disable-line react-hooks/exhaustive-deps
-  const refetchFlash = () => publicApi.get("/flash-sales/public").then((r) => setFlash(r.data)).catch(() => {});
 
   const hot = home.hot || [];
   const quick = (home.quick || []).slice(0, 6);
@@ -142,8 +133,6 @@ export default function Home() {
                 </Carousel>
               </section>
             ),
-            flash_sale: flash.length > 0 ? <FlashSaleSection key="flash_sale" items={flash} onExpire={refetchFlash} /> : null,
-            combos: combos.length > 0 ? <CombosSection key="combos" combos={combos} onBuy={(c) => { addCombo(c); navigate("/checkout"); }} /> : null,
             hot_products: (
               <section key="hot_products" className="mt-6 md:mt-8">
                 <SectionTitle title={tr("熱門產品")} to="/category/livestream" />
@@ -166,7 +155,7 @@ export default function Home() {
               </section>
             ),
             promo_banners: (
-              <section key="promo_banners" className="mt-6 md:mt-8 grid grid-cols-2 gap-3 md:gap-4">
+              <section key="promo_banners" className={`mt-6 md:mt-8 grid gap-3 md:gap-4 ${(promos || []).filter((b) => b.image).length > 1 ? "grid-cols-2" : "grid-cols-1"}`}>
                 {(promos || []).filter((b) => b.image).map((b, i) => (
                   <SmartLink key={i} to={b.link} data-testid={`promo-banner-${i + 1}`} className="block overflow-hidden rounded-2xl hover:shadow-lg transition-shadow">
                     <img src={b.image} alt={b.alt || ""} className="w-full h-auto object-cover" />
@@ -436,115 +425,6 @@ function SectionTitle({ title, to, icon }) {  return (
 
 function MTitle({ children }) {
   return <h2 className="font-head text-[17px] md:text-lg font-bold text-slate-900 relative inline-block z-0 max-md:after:content-[''] max-md:after:absolute max-md:after:left-0 max-md:after:right-0 max-md:after:bottom-0.5 max-md:after:h-2 max-md:after:bg-orange-200/80 max-md:after:-z-10 max-md:after:rounded-sm">{children}</h2>;
-}
-
-function Countdown({ end, onEnd }) {
-  const [left, setLeft] = useState(() => Math.max(0, new Date(end).getTime() - Date.now()));
-  useEffect(() => {
-    const t = setInterval(() => {
-      const ms = Math.max(0, new Date(end).getTime() - Date.now());
-      setLeft(ms);
-      if (ms <= 0) { clearInterval(t); if (onEnd) onEnd(); }
-    }, 1000);
-    return () => clearInterval(t);
-  }, [end, onEnd]);
-  if (!end) return null;
-  if (left <= 0) return <span className="text-rose-600 font-bold" data-testid="flash-ended">{tr("已結束")}</span>;
-  const s = Math.floor(left / 1000);
-  const hh = String(Math.floor(s / 3600)).padStart(2, "0");
-  const mm = String(Math.floor((s % 3600) / 60)).padStart(2, "0");
-  const ss = String(s % 60).padStart(2, "0");
-  const Box = ({ children }) => <span className="inline-flex items-center justify-center min-w-[22px] h-6 rounded bg-slate-900 text-white text-xs font-bold px-1 font-mono">{children}</span>;
-  return (
-    <span className="inline-flex items-center gap-0.5" data-testid="flash-countdown"><Box>{hh}</Box><span className="text-slate-900 font-bold">:</span><Box>{mm}</Box><span className="text-slate-900 font-bold">:</span><Box>{ss}</Box></span>
-  );
-}
-
-function FlashSaleSection({ items, onExpire }) {
-  const { format } = useCurrency();
-  const earliestEnd = items.map((i) => i.end_at).filter(Boolean).sort()[0];
-  return (
-    <section className="mt-5 md:mt-6" data-testid="flash-sale-section">
-      <div className="rounded-2xl bg-gradient-to-br from-rose-50 to-orange-50 border border-rose-100 p-3 md:p-4">
-        <div className="flex items-center gap-2 mb-3">
-          <span className="flex items-center gap-1 font-head font-extrabold text-rose-600 text-lg"><Zap className="h-5 w-5 fill-rose-500 text-rose-500" />{tr("限時秒殺")}</span>
-          {earliestEnd && <span className="ml-auto flex items-center gap-1.5 text-xs text-slate-500">{tr("距結束")} <Countdown end={earliestEnd} onEnd={onExpire} /></span>}
-        </div>
-        <Carousel testid="flash-carousel">
-          {items.map((f) => {
-            const pct = f.stock > 0 ? Math.min(100, Math.round((f.sold / f.stock) * 100)) : 0;
-            const soldout = f.remaining <= 0;
-            return (
-              <Link key={f.id} to={`/product/${f.product_id}`} data-testid={`flash-item-${f.id}`}
-                className="group shrink-0 w-[140px] sm:w-[164px] bg-white rounded-2xl border border-rose-100 shadow-sm p-2 hover:shadow-md transition-all relative">
-                <span className="absolute top-1.5 left-1.5 z-10 text-[10px] font-bold bg-rose-500 text-white rounded px-1.5 py-0.5">{tr("秒殺")}</span>
-                <div className="relative w-full aspect-square rounded-xl overflow-hidden bg-white">
-                  <img src={f.image} alt={f.product_name} className="h-full w-full object-cover group-hover:scale-105 transition-transform" />
-                  {soldout && <span className="absolute inset-0 bg-slate-900/55 flex items-center justify-center text-white font-head font-extrabold text-sm" data-testid={`flash-soldout-${f.id}`}>{tr("已搶光")}</span>}
-                </div>
-                <h3 className="font-semibold text-[12px] leading-snug text-slate-800 truncate mt-2">{f.product_name}</h3>
-                <div className="text-[11px] text-slate-400 truncate">{f.spec_label}</div>
-                <div className="flex items-baseline gap-1.5 mt-1">
-                  <span className="font-head font-extrabold text-rose-600">{format(f.flash_price_usd)}</span>
-                  <span className="text-[11px] text-slate-400 line-through">{format(f.original_price_usd)}</span>
-                </div>
-                <div className="mt-1.5 h-2.5 rounded-full bg-rose-100 overflow-hidden">
-                  <div className="h-full bg-gradient-to-r from-rose-500 to-orange-400" style={{ width: `${Math.max(8, pct)}%` }} />
-                </div>
-                <div className="text-[10px] text-rose-500 mt-0.5">{soldout ? tr("已搶光") : tr("已搶 {0}%", pct)}</div>
-              </Link>
-            );
-          })}
-        </Carousel>
-      </div>
-    </section>
-  );
-}
-
-function CombosSection({ combos, onBuy }) {
-  const { format } = useCurrency();
-  return (
-    <section className="mt-6 md:mt-8" data-testid="combos-section">
-      <div className="flex items-center gap-2 mb-3">
-        <Package className="hidden md:block h-5 w-5 text-rose-500" />
-        <MTitle>{tr("超值套餐")}</MTitle>
-      </div>
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4">
-        {combos.map((c) => {
-          const dead = c.status && c.status !== "active";
-          return (
-          <div key={c.id} data-testid={`combo-card-${c.id}`} className={`bg-white rounded-2xl border border-rose-100 shadow-sm p-3 flex gap-3 relative overflow-hidden ${dead ? "opacity-70" : ""}`}>
-            {!dead && c.original_total_usd > c.price_usd && (
-              <span data-testid={`combo-save-${c.id}`} className="absolute top-0 right-0 z-10 bg-rose-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-bl-lg">
-                {tr("立省 {0}", format(c.original_total_usd - c.price_usd))}{c.original_total_usd > 0 ? `（${Math.round((1 - c.price_usd / c.original_total_usd) * 100)}%）` : ""}
-              </span>
-            )}
-            <div className="h-20 w-20 rounded-xl bg-rose-50 overflow-hidden shrink-0 flex items-center justify-center relative">
-              {c.image ? <img src={c.image} alt={c.title} className="h-full w-full object-cover" /> : <Package className="h-8 w-8 text-rose-300" />}
-              {dead && <span className="absolute inset-0 bg-slate-900/55 flex items-center justify-center text-white font-head font-bold text-xs" data-testid={`combo-dead-${c.id}`}>{c.status === "ended" ? tr("已結束") : tr("已售罄")}</span>}
-            </div>
-            <div className="min-w-0 flex-1 flex flex-col">
-              <div className="font-semibold text-sm text-slate-800 truncate">{c.title}</div>
-              <div className="text-[11px] text-slate-400 line-clamp-1 mt-0.5">{c.items.map((i) => `${i.product_name}×${i.quantity}`).join("、")}</div>
-              {!dead && (c.end_at || c.remaining != null) && (
-                <div className="flex items-center gap-2 mt-1 text-[10px]">
-                  {c.end_at && <span className="flex items-center gap-0.5 text-amber-600"><Zap className="h-3 w-3" /><Countdown end={c.end_at} /></span>}
-                  {c.remaining != null && <span className="text-rose-500 font-semibold" data-testid={`combo-remaining-${c.id}`}>{tr("僅剩 {0} 份", c.remaining)}</span>}
-                </div>
-              )}
-              <div className="mt-auto flex items-end justify-between pt-1.5">
-                <div><span className="font-head font-extrabold text-rose-600">{format(c.price_usd)}</span> <span className="text-[11px] text-slate-400 line-through">{format(c.original_total_usd)}</span></div>
-                {dead
-                  ? <button disabled data-testid={`combo-buy-${c.id}`} className="h-8 px-3 rounded-full bg-slate-200 text-slate-400 text-xs font-bold cursor-not-allowed">{c.status === "ended" ? tr("已結束") : tr("已售罄")}</button>
-                  : <button data-testid={`combo-buy-${c.id}`} onClick={() => onBuy(c)} className="h-8 px-3 rounded-full bg-rose-500 text-white text-xs font-bold hover:bg-rose-600">{tr("立即搶購")}</button>}
-              </div>
-            </div>
-          </div>
-          );
-        })}
-      </div>
-    </section>
-  );
 }
 
 function HeroCarousel({ slides }) {

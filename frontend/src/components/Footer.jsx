@@ -41,7 +41,7 @@ const PAY_BADGES = [
 const COLS = [
   [tr("關於我們"), [[tr("公司介紹"), "/article/about-us"], [tr("隱私權政策"), "/article/privacy-policy"], [tr("條款與條件"), "/article/terms-conditions"], [tr("聯絡我們"), "/article/contact-us"]]],
   [tr("購物指南"), [[tr("購物流程"), "/article/shopping"], [tr("出貨流程"), "/article/delivery"], [tr("退款政策"), "/article/refund-policy"], [tr("成為經銷商"), "/article/reseller", true]]],
-  [tr("幫助訊息"), [[tr("活動中心"), "/activities"], [tr("常見問題"), "/article/faq"], [tr("我的訂單"), "/orders"], [tr("我的認證"), "/account/verify"], [tr("我的優惠券"), "/account/coupons"]]],
+  [tr("幫助訊息"), [[tr("常見問題"), "/article/faq"], [tr("我的訂單"), "/orders"], [tr("我的認證"), "/account/verify"], [tr("我的優惠券"), "/account/coupons"]]],
 ];
 
 export default function Footer() {

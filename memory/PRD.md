@@ -376,3 +376,10 @@
 - data-testid：ac-hero、activity-center-back、ac-hero-countdown、ac-coupon-wall、ac-coupon-<code>、ac-coupon-claim-<code>、ac-wheel、ac-invite、ac-recharge、ac-recharge-<i>、ac-flash、ac-flash-<id>、ac-bundles、ac-combo-<id>、ac-combo-buy-<id>、ac-cartpromo-<i>。
 - 驗證：截圖確認佈局與各區塊渲染；未登入點領券彈出登入框。
 - Round 25 補充（依使用者 mock 再調整）：Hero 加品牌/彩帶/「最高立省 N%」(自動取券與充值最高比例)/天時分秒倒計時（無限時活動時倒數至月底）；Coupon Wall 改橫向票券含豎排「領券/已領取」撕邊；轉盤加底座、奬品文字、剩餘次數角標、中獎播報（新公開 GET /api/lottery/recent-winners）；邀請卡（海報+階梯禮盒+進度條）與右欄邀請里程碑折線卡（新公開 GET /api/referral/public）；充值有禮 4 格；秒殺/套餐/滿減無資料顯示「敬請期待」占位；每區英文小標+中文大標。截圖驗證通過。
+
+## 2026-10 Round 26：依使用者要求「活動全部取消」
+- 前台：刪除 ActivityCenter.jsx、Lottery.jsx 與路由 /activities、/lottery；首頁移除限時秒殺區、超值套餐區、「精選活動合集」橫幅（單張橫幅改滿版）；結帳頁移除秒殺價/滿減提示/滿減與套餐折扣列；錢包充值頁移除充值有禮提示；帳戶頁移除積分抽獎按鈕；頁腳移除活動中心連結；首頁裝修連結選項移除 /lottery。
+- 後台：刪除「活動管理」整組菜單（秒殺/充值活動/滿減/抽獎/套餐/活動記錄）與運營管理「活動中心」及對應 7 個頁面檔；RolesAdmin 與 ALL_PERMISSIONS 同步；cms_api 預設 home_layout 移除 flash_sale/combos、promo_banners 移除活動橫幅。
+- 資料：flash_sales / combos / cart_promotions / recharge_bonus_rules 全部 active=false，lottery 設定 enabled=false（後端計價引擎與 API 路由保留但不再生效）。
+- 保留：邀請返利（運營管理）、優惠券、積分等非活動模組。
+- 驗證：首頁無秒殺/套餐/活動橫幅；後台登入無「活動管理」「活動中心」；/lottery/config enabled=false。
