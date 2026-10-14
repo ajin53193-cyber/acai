@@ -134,3 +134,8 @@
 - 後端：`GET /api/admin/products`（q/category/active/ids/page/size 分頁）、`GET /api/admin/products/badges`（角標建議）、`GET /api/admin/products/{id}`（含 related 名稱）、POST/PUT（`_prep_product`：圖片 data URL 上傳、簡→繁、規格 new-id 換 uuid、第一個下單欄位同步 account_field_label/hint）、`PATCH`（active/sort_order/sales_count/tags 快速改）。ProductIn 新增 related_ids。
 - 分類：`GET/POST /api/admin/categories`、`PUT/DELETE /api/admin/categories/{id}`（有商品時 409）；新增 active 旗標，公開 `/api/categories` 與 `/api/products/home` 只回顯示中的分類。
 - 前端：`admin/ProductsAdmin.jsx`（表格 30/頁、搜尋防抖、分類/狀態篩選、行內排序與上下架；編輯對話框 5 分頁：基本資訊+圖片上傳 / 規格與價格(售價、原價、角標 datalist、有貨、排序) / 下單需填寫(欄位類型、必填、提示、下拉選項) / 商品說明(富文本) / 相關推薦(搜尋加入)）、`admin/CategoriesAdmin.jsx`。側欄運營管理新增「分類管理」。
+
+## 2026-06 批量商品操作 + 訂單管理升級 + 規格限購設定（iteration_20 後端 30/30、前端全通）
+- 批量：`POST /api/admin/products/bulk {ids, action: set_active|set_category|add_tags|remove_tags|delete, value}`；前端表格勾選（全選/單選）→ 批量列（上架/下架/移動分類/加標籤/移除標籤/刪除）。
+- 訂單：`GET /api/admin/orders?status&q&date_from&date_to&info&page&size` → {total, rows, summary{total_usd, paid_usd, by_status}}；`GET /api/admin/orders/export`（CSV, BOM, 繁體表頭）。`admin/OrdersAdmin.jsx`：統計卡、搜尋、日期區間+快捷（今天/7天/30天/本月）、狀態頁籤含數量、展開列顯示填寫資料與操作按鈕、匯出 CSV。
+- 限購：Spec 新增 `limit`（'' 依角標自動 / none 不限 / daily / weekly / monthly / lifetime / newcomer）與 `limit_count`；後端 `_spec_limit` 統一判斷，下單按視窗內已購份數扣減；`/daily-limit` 回傳 remaining。商品頁提示文案支援每週/終生/多份。後台規格表新增「限購」欄（下拉 + 份數）。
