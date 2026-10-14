@@ -41,6 +41,8 @@ import { IntegrationConfigAdmin } from "@/pages/admin/IntegrationConfigAdmin";
 import { AdminsAdmin } from "@/pages/admin/AdminsAdmin";
 import { RolesAdmin } from "@/pages/admin/RolesAdmin";
 import { OperationLogsAdmin } from "@/pages/admin/OperationLogsAdmin";
+import { InventoryAdmin } from "@/pages/admin/InventoryAdmin";
+import { SpecTemplatesAdmin } from "@/pages/admin/SpecTemplatesAdmin";
 import { tr } from "@/i18n";
 
 // Full admin IA — collapsible two-level menu. Keys map to real pages in PAGES; everything else renders <Soon/>.
@@ -89,6 +91,9 @@ const PAGES = {
   verifications: (p) => <VerificationsAdmin {...p} />,
   feedback: (p) => <FeedbackAdmin {...p} />,
   products: (p) => <ProductsAdmin {...p} />,
+  "product-new": (p) => <ProductsAdmin autoCreate {...p} />,
+  inventory: (p) => <InventoryAdmin {...p} />,
+  specs: (p) => <SpecTemplatesAdmin {...p} />,
   categories: (p) => <CategoriesAdmin {...p} />,
   reviews: (p) => <Reviews {...p} />,
   promos: (p) => <Promos {...p} />,

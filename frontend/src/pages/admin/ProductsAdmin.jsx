@@ -17,7 +17,7 @@ const inferLimit = (b = "") => (/每月一單|每月一单/.test(b) ? "monthly" 
 const FIELD_TYPES = { text: tr("文字"), select: tr("下拉選擇"), password: tr("密碼"), textarea: tr("多行文字") };
 const priceRange = (specs) => { const ps = (specs || []).map((s) => s.price_usd).filter((n) => n > 0); if (!ps.length) return "-"; const a = Math.min(...ps), b = Math.max(...ps); return a === b ? `$${a}` : `$${a} ~ $${b}`; };
 
-export function ProductsAdmin({ callApi }) {
+export function ProductsAdmin({ callApi, autoCreate }) {
   const [data, setData] = useState({ total: 0, rows: [] });
   const [cats, setCats] = useState([]);
   const [q, setQ] = useState("");
@@ -26,6 +26,7 @@ export function ProductsAdmin({ callApi }) {
   const [status, setStatus] = useState("");
   const [page, setPage] = useState(1);
   const [editing, setEditing] = useState(null);
+  const [autoOpened, setAutoOpened] = useState(false);
   const [sel, setSel] = useState([]);
   const size = 30;
 
@@ -33,6 +34,7 @@ export function ProductsAdmin({ callApi }) {
   const load = useCallback(() => callApi({ method: "GET", url: `/admin/products?q=${encodeURIComponent(qd)}&category=${cat}&active=${status}&page=${page}&size=${size}` }).then((r) => setData(r.data)).catch(() => toast.error(tr("載入失敗"))), [callApi, qd, cat, status, page]);
   useEffect(() => { load(); }, [load]);
   useEffect(() => { callApi({ method: "GET", url: "/admin/categories" }).then((r) => setCats(r.data)).catch(() => {}); }, [callApi]);
+  useEffect(() => { if (autoCreate && !autoOpened && cats.length) { setEditing({ ...EMPTY, category: cats[0]?.id || "" }); setAutoOpened(true); } }, [autoCreate, autoOpened, cats]);
 
   const openEdit = async (row) => { const r = await callApi({ method: "GET", url: `/admin/products/${row.id}` }); setEditing({ ...EMPTY, ...r.data, related: r.data.related || [] }); };
   const patch = async (row, body) => { try { await callApi({ method: "PATCH", url: `/admin/products/${row.id}`, data: body }); load(); } catch (e) { toast.error(e.response?.data?.detail || tr("更新失敗")); } };
@@ -193,7 +195,7 @@ function ProductForm({ item, cats, callApi, onClose, onSaved }) {
           </div>
         )}
 
-        {tab === "specs" && <SpecsEditor specs={f.specs} badges={badges} isGiftcard={f.is_giftcard} onChange={(v) => set("specs", v)} />}
+        {tab === "specs" && <SpecsEditor specs={f.specs} badges={badges} isGiftcard={f.is_giftcard} callApi={callApi} onChange={(v) => set("specs", v)} />}
         {tab === "delivery" && <DeliveryEditor fields={f.delivery_fields} onChange={(v) => set("delivery_fields", v)} />}
 
         {tab === "content" && (
@@ -215,9 +217,18 @@ function ProductForm({ item, cats, callApi, onClose, onSaved }) {
   );
 }
 
-function SpecsEditor({ specs, badges, isGiftcard, onChange }) {
+function SpecsEditor({ specs, badges, isGiftcard, callApi, onChange }) {
   const set = (i, k, v) => onChange(specs.map((s, idx) => (idx === i ? { ...s, [k]: v } : s)));
   const move = (i, d) => { const j = i + d; if (j < 0 || j >= specs.length) return; const a = [...specs]; [a[i], a[j]] = [a[j], a[i]]; onChange(a); };
+  const [tpls, setTpls] = useState([]);
+  useEffect(() => { callApi && callApi({ method: "GET", url: "/admin/spec-templates" }).then((r) => setTpls(r.data || [])).catch(() => {}); }, [callApi]);
+  const applyTpl = (id) => {
+    const t = tpls.find((x) => x.id === id);
+    if (!t) return;
+    const add = (t.specs || []).map((s, k) => ({ id: `tpl-${Date.now()}-${k}`, label: s.label || "", price_usd: s.price_usd || 0, sale_price_usd: s.sale_price_usd ?? null, badge: s.badge || "", in_stock: s.in_stock !== false, limit: "", limit_count: 1 }));
+    onChange([...specs, ...add]);
+    toast.success(tr("已套用模板「{0}」", t.name));
+  };
   return (
     <div>
       <div className="text-[11px] text-slate-400 mb-2">{tr("售價為實際結帳價格；「原價」填寫後商品頁顯示刪除線。限購：「依角標自動」會依角標文字（每日一單 / 每月一單 / 新客專享）判斷；也可明確指定每日 / 每週 / 每月 / 終生限購份數或新用戶專享。")}{isGiftcard && tr(" 本商品為禮品卡：「卡面額」為付款後自動發放的禮品卡金額（留空則用售價）。")}</div>
@@ -251,7 +262,15 @@ function SpecsEditor({ specs, badges, isGiftcard, onChange }) {
         </table>
       </Card>
       <datalist id="badge-list">{badges.map((b) => <option key={b} value={b} />)}</datalist>
-      <Btn kind="ghost" className="mt-3" data-testid="pf-add-spec" onClick={() => onChange([...specs, { id: `new-${Date.now()}`, label: "", price_usd: 0, sale_price_usd: null, badge: "", in_stock: true, limit: "", limit_count: 1 }])}><Plus className="h-4 w-4 inline -mt-0.5 mr-1" />{tr("新增規格")}</Btn>
+      <div className="mt-3 flex flex-wrap items-center gap-2">
+        <Btn kind="ghost" data-testid="pf-add-spec" onClick={() => onChange([...specs, { id: `new-${Date.now()}`, label: "", price_usd: 0, sale_price_usd: null, badge: "", in_stock: true, limit: "", limit_count: 1 }])}><Plus className="h-4 w-4 inline -mt-0.5 mr-1" />{tr("新增規格")}</Btn>
+        {tpls.length > 0 && (
+          <select data-testid="pf-apply-tpl" defaultValue="" onChange={(e) => { if (e.target.value) { applyTpl(e.target.value); e.target.value = ""; } }} className={selBase + " w-48 text-xs"}>
+            <option value="">{tr("套用規格模板…")}</option>
+            {tpls.map((t) => <option key={t.id} value={t.id}>{t.name}（{(t.specs || []).length}）</option>)}
+          </select>
+        )}
+      </div>
     </div>
   );
 }

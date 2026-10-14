@@ -134,6 +134,7 @@ class Spec(BaseModel):
     giftcard_value_usd: Optional[float] = None
     badge: str = ""
     in_stock: bool = True
+    stock: Optional[int] = None
     limit: str = ""
     limit_count: int = 1
 
@@ -2331,6 +2332,65 @@ async def admin_delete_product(product_id: str, admin: dict = Depends(require_ro
     if r.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Not found")
     return {"ok": True}
+
+
+@api_router.get("/admin/inventory")
+async def admin_inventory(q: str = "", only_low: bool = False, admin: dict = Depends(require_role("admin"))):
+    prods = await db.products.find({}, {"_id": 0, "id": 1, "name": 1, "image": 1, "is_giftcard": 1, "active": 1, "specs": 1}).sort("sort_order", 1).to_list(2000)
+    rows = []
+    ql = q.lower().strip()
+    for p in prods:
+        for s in p.get("specs", []):
+            if ql and ql not in f"{p['name']}{s.get('label','')}".lower():
+                continue
+            stock = s.get("stock")
+            if only_low and (stock is None or stock > 5):
+                continue
+            rows.append({"product_id": p["id"], "product_name": p["name"], "image": p.get("image", ""), "active": p.get("active", True),
+                         "is_giftcard": p.get("is_giftcard", False), "spec_id": s["id"], "label": s.get("label", ""),
+                         "price_usd": s.get("price_usd", 0), "in_stock": s.get("in_stock", True), "stock": stock})
+    return rows
+
+
+@api_router.put("/admin/inventory")
+async def admin_inventory_update(body: dict, admin: dict = Depends(require_role("admin"))):
+    pid, sid = body.get("product_id"), body.get("spec_id")
+    if not pid or not sid:
+        raise HTTPException(status_code=400, detail="缺少參數")
+    sets = {}
+    if "in_stock" in body:
+        sets["specs.$[e].in_stock"] = bool(body["in_stock"])
+    if "stock" in body:
+        v = body["stock"]
+        sets["specs.$[e].stock"] = (int(v) if v not in (None, "") else None)
+    if sets:
+        await db.products.update_one({"id": pid}, {"$set": sets}, array_filters=[{"e.id": sid}])
+    return {"ok": True}
+
+
+@api_router.get("/admin/spec-templates")
+async def list_spec_templates(admin: dict = Depends(require_role("admin"))):
+    return await db.spec_templates.find({}, {"_id": 0}).sort("created_at", -1).to_list(200)
+
+
+@api_router.post("/admin/spec-templates")
+async def create_spec_template(body: dict, admin: dict = Depends(require_role("admin"))):
+    doc = {"id": new_id(), "name": (body.get("name") or "規格模板").strip(), "specs": body.get("specs") or [], "created_at": now_iso()}
+    await db.spec_templates.insert_one(dict(doc))
+    return doc
+
+
+@api_router.put("/admin/spec-templates/{tid}")
+async def update_spec_template(tid: str, body: dict, admin: dict = Depends(require_role("admin"))):
+    await db.spec_templates.update_one({"id": tid}, {"$set": {"name": (body.get("name") or "規格模板").strip(), "specs": body.get("specs") or []}})
+    return {"ok": True}
+
+
+@api_router.delete("/admin/spec-templates/{tid}")
+async def delete_spec_template(tid: str, admin: dict = Depends(require_role("admin"))):
+    await db.spec_templates.delete_one({"id": tid})
+    return {"ok": True}
+
 
 
 def _orders_query(status: Optional[str], q: str, date_from: str, date_to: str, info: str = "") -> dict:
