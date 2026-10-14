@@ -470,6 +470,44 @@ async def public_recharge_bonus():
     return await db.recharge_bonus_rules.find({"active": True}, {"_id": 0}).sort("min_usd", 1).to_list(50)
 
 
+class RedeemGiftCardIn(BaseModel):
+    code: str
+
+
+@api_router.post("/me/redeem-giftcard")
+async def redeem_giftcard(body: RedeemGiftCardIn, member: dict = Depends(current_member)):
+    code = (body.code or "").strip().upper()
+    card = await db.gift_cards.find_one({"code": code}, {"_id": 0})
+    if not card:
+        raise HTTPException(status_code=404, detail="禮品卡不存在，請檢查卡號")
+    if card["status"] == "redeemed":
+        raise HTTPException(status_code=400, detail="此禮品卡已被使用")
+    if card["status"] != "active":
+        raise HTTPException(status_code=400, detail="此禮品卡已停用")
+    r = await db.gift_cards.find_one_and_update({"id": card["id"], "status": "active"},
+                                                {"$set": {"status": "redeemed", "redeemed_by": member["user_id"], "redeemed_at": now_iso(), "redeemed_via": "member"}})
+    if not r:
+        raise HTTPException(status_code=400, detail="此禮品卡已被使用")
+    bal = await _wallet_tx(member["user_id"], "giftcard", float(card["face_value_usd"]), f"禮品卡充值 {code}", card["id"])
+    asyncio.create_task(log_user(member["user_id"], "topup", "禮品卡充值", f"{code} · USD$ {float(card['face_value_usd']):.2f}"))
+    return {"ok": True, "amount_usd": card["face_value_usd"], "balance_usd": bal}
+
+
+@api_router.post("/giftcard/redeem")
+async def external_redeem_giftcard(body: RedeemGiftCardIn, request: Request):
+    key = request.headers.get("x-api-key", "")
+    doc = await db.settings.find_one({"key": "giftcard_api"}, {"_id": 0})
+    valid = ((doc or {}).get("value") or {}).get("api_key")
+    if not valid or key != valid:
+        raise HTTPException(status_code=401, detail="invalid api key")
+    code = (body.code or "").strip().upper()
+    r = await db.gift_cards.find_one_and_update({"code": code, "status": "active"},
+                                                {"$set": {"status": "redeemed", "redeemed_at": now_iso(), "redeemed_via": "api"}})
+    if not r:
+        raise HTTPException(status_code=400, detail="card not found or already used")
+    return {"valid": True, "code": code, "face_value_usd": r["face_value_usd"]}
+
+
 @api_router.post("/promo/validate")
 async def validate_promo(payload: dict):
     code = (payload.get("code") or "").strip().upper()
@@ -981,9 +1019,18 @@ async def check_levelup(user_id: str):
         await db.users.update_one({"user_id": user_id}, {"$set": {"points": nb}})
         await db.point_transactions.insert_one({"id": new_id(), "user_id": user_id, "delta": pts, "balance_after": nb, "source": "levelup", "reason": f"升級至{cur['name']}贈送", "ref": cur["name"], "created_at": now_iso()})
     code = (lvl.get("reward_coupon_code") or "").strip().upper()
+    granted_coupon = False
     if code and await db.promos.find_one({"code": code, "active": True}, {"_id": 1}) and not await db.user_coupons.find_one({"user_id": user_id, "code": code}):
         await db.user_coupons.insert_one({"id": new_id(), "user_id": user_id, "code": code, "claimed_at": now_iso(), "source": "levelup"})
-    await log_user(user_id, "level", f"升級至{cur['name']}", (f"贈 {pts} 積分" if pts else "") + (f" + 優惠券 {code}" if code else ""))
+        granted_coupon = True
+    reward_bits = []
+    if pts > 0:
+        reward_bits.append(f"{pts} 積分")
+    if granted_coupon:
+        reward_bits.append(f"專屬優惠券 {code}")
+    reward_txt = ("升級禮包（" + "、".join(reward_bits) + "）") if reward_bits else "升級禮包"
+    await log_user(user_id, "level", f"升級至{cur['name']}", (f"贈 {pts} 積分" if pts else "") + (f" + 優惠券 {code}" if granted_coupon else ""))
+    asyncio.create_task(admin_api.notify_user(user_id, "level_up", {"level": cur["name"], "reward": (reward_txt + " ") if reward_bits else ""}))
 
 
 @api_router.get("/me/wallet")

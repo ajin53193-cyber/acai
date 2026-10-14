@@ -563,6 +563,100 @@ async def admin_recharge_bonus_delete(rid: str, admin: dict = Depends(current_ad
     return {"ok": True}
 
 
+# ----------------------------- Gift Cards (禮品卡) -----------------------------
+import secrets
+
+
+def _gen_card_code() -> str:
+    raw = secrets.token_hex(8).upper()
+    return "GC" + "-".join(raw[i:i + 4] for i in range(0, 16, 4))
+
+
+class GiftCardBatchIn(BaseModel):
+    count: int = 1
+    face_value_usd: float
+    note: str = ""
+
+
+@router.get("/gift-cards")
+async def admin_gift_cards(status: str = "", q: str = "", limit: int = 500, admin: dict = Depends(current_admin)):
+    query = {}
+    if status:
+        query["status"] = status
+    if q:
+        query["$or"] = [{"code": {"$regex": q, "$options": "i"}}, {"batch_no": {"$regex": q, "$options": "i"}}, {"note": {"$regex": q, "$options": "i"}}]
+    rows = await db.gift_cards.find(query, {"_id": 0}).sort("created_at", -1).to_list(limit)
+    agg = {s["_id"]: s["n"] async for s in db.gift_cards.aggregate([{"$group": {"_id": "$status", "n": {"$sum": 1}}}])}
+    val = await db.gift_cards.aggregate([{"$group": {"_id": None, "total": {"$sum": "$face_value_usd"}, "redeemed": {"$sum": {"$cond": [{"$eq": ["$status", "redeemed"]}, "$face_value_usd", 0]}}}}]).to_list(1)
+    summary = {"active": agg.get("active", 0), "redeemed": agg.get("redeemed", 0), "disabled": agg.get("disabled", 0),
+               "total_value": round((val[0]["total"] if val else 0) or 0, 2), "redeemed_value": round((val[0]["redeemed"] if val else 0) or 0, 2)}
+    return {"rows": rows, "summary": summary}
+
+
+@router.post("/gift-cards")
+async def admin_gift_cards_create(body: GiftCardBatchIn, admin: dict = Depends(current_admin)):
+    n = max(1, min(int(body.count), 500))
+    if body.face_value_usd <= 0:
+        raise HTTPException(status_code=400, detail="面額必須大於 0")
+    batch_no = "B" + datetime.now(timezone.utc).strftime("%y%m%d%H%M%S")
+    docs = []
+    for _ in range(n):
+        docs.append({"id": uuid.uuid4().hex[:12], "code": _gen_card_code(), "face_value_usd": round(float(body.face_value_usd), 2), "status": "active",
+                     "batch_no": batch_no, "note": body.note, "created_at": datetime.now(timezone.utc).isoformat(),
+                     "redeemed_by": None, "redeemed_at": None, "redeemed_via": None})
+    await db.gift_cards.insert_many([dict(d) for d in docs])
+    return {"ok": True, "batch_no": batch_no, "count": n, "codes": [d["code"] for d in docs]}
+
+
+@router.post("/gift-cards/{cid}/disable")
+async def admin_gift_card_disable(cid: str, admin: dict = Depends(current_admin)):
+    c = await db.gift_cards.find_one({"id": cid}, {"_id": 0, "status": 1})
+    if not c or c.get("status") == "redeemed":
+        raise HTTPException(status_code=400, detail="已核銷的卡不可停用")
+    new_status = "active" if c.get("status") == "disabled" else "disabled"
+    await db.gift_cards.update_one({"id": cid}, {"$set": {"status": new_status}})
+    return {"ok": True, "status": new_status}
+
+
+@router.delete("/gift-cards/{cid}")
+async def admin_gift_card_delete(cid: str, admin: dict = Depends(current_admin)):
+    await db.gift_cards.delete_one({"id": cid})
+    return {"ok": True}
+
+
+@router.get("/gift-card-redemptions")
+async def admin_gift_card_redemptions(q: str = "", limit: int = 500, admin: dict = Depends(current_admin)):
+    query = {"status": "redeemed"}
+    if q:
+        query["code"] = {"$regex": q, "$options": "i"}
+    rows = await db.gift_cards.find(query, {"_id": 0}).sort("redeemed_at", -1).to_list(limit)
+    uids = list({r["redeemed_by"] for r in rows if r.get("redeemed_by")})
+    users = {u["user_id"]: u async for u in db.users.find({"user_id": {"$in": uids}}, {"_id": 0, "user_id": 1, "email": 1, "phone": 1})}
+    for r in rows:
+        u = users.get(r.get("redeemed_by"), {})
+        r["account_no"] = account_no(r["redeemed_by"]) if r.get("redeemed_by") else "-"
+        r["user_label"] = ("" if u.get("email", "").endswith("@" + email_auth.PHONE_DOMAIN) else u.get("email", "")) or u.get("phone", "") or (r.get("redeemed_via") or "-")
+    return rows
+
+
+@router.get("/gift-card-api")
+async def admin_gift_card_api(admin: dict = Depends(current_admin)):
+    doc = await db.settings.find_one({"key": "giftcard_api"}, {"_id": 0}) or {}
+    key = (doc.get("value") or {}).get("api_key")
+    if not key:
+        key = "gck_" + secrets.token_hex(20)
+        await db.settings.update_one({"key": "giftcard_api"}, {"$set": {"key": "giftcard_api", "value": {"api_key": key}}}, upsert=True)
+    base = os.environ.get("APP_PUBLIC_URL", "").rstrip("/")
+    return {"api_key": key, "endpoint": (base + "/api/giftcard/redeem") if base else "/api/giftcard/redeem"}
+
+
+@router.post("/gift-card-api/regenerate")
+async def admin_gift_card_api_regen(admin: dict = Depends(current_admin)):
+    key = "gck_" + secrets.token_hex(20)
+    await db.settings.update_one({"key": "giftcard_api"}, {"$set": {"key": "giftcard_api", "value": {"api_key": key}}}, upsert=True)
+    return {"api_key": key}
+
+
 # ----------------------------- Translations -----------------------------
 class TranslationIn(BaseModel):
     src: str
@@ -593,16 +687,17 @@ async def admin_retranslate(body: RetranslateIn, admin: dict = Depends(current_a
 
 
 # ----------------------------- Notifications -----------------------------
-EVENT_TITLES = {"order_paid": "订单已支付", "order_completed": "订单已完成", "order_cancelled": "订单已取消", "order_rejected": "充值资料被驳回", "topup_paid": "钱包充值到账"}
+EVENT_TITLES = {"order_paid": "订单已支付", "order_completed": "订单已完成", "order_cancelled": "订单已取消", "order_rejected": "充值资料被驳回", "topup_paid": "钱包充值到账", "level_up": "会员升级"}
 DEFAULT_NOTIFY = {
     "email_enabled": True, "sms_enabled": False,
-    "events": {"order_paid": True, "order_completed": True, "order_cancelled": True, "order_rejected": True, "topup_paid": True},
+    "events": {"order_paid": True, "order_completed": True, "order_cancelled": True, "order_rejected": True, "topup_paid": True, "level_up": True},
     "templates": {
         "order_paid": {"subject": "【GOGO589】订单已支付 {order_id}", "body": "您好，您的订单 {order_id}（{product}，{amount}）已支付成功，我们将尽快为您处理。"},
         "order_completed": {"subject": "【GOGO589】订单已完成 {order_id}", "body": "您好，您的订单 {order_id}（{product}，{amount}）已充值完成，感谢您的购买！"},
         "order_cancelled": {"subject": "【GOGO589】订单已取消 {order_id}", "body": "您好，您的订单 {order_id}（{product}，{amount}）已取消。{reason}如已付款，款项已退回您的钱包余额。"},
         "order_rejected": {"subject": "【GOGO589】订单资料被驳回 {order_id}", "body": "您好，您的订单 {order_id} 充值资料被驳回：{reason}。请登录后重新填写。"},
         "topup_paid": {"subject": "【GOGO589】钱包充值到账 {amount}", "body": "您好，您的充值 {amount} 已到账，当前余额 {balance}。"},
+        "level_up": {"subject": "【GOGO589】恭喜升级为 {level} 🎉", "body": "恭喜您升级为 {level}！{reward}已存入您的账户，登录即可查看与使用。"},
     },
 }
 

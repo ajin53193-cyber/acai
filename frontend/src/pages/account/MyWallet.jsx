@@ -46,6 +46,8 @@ export function BalanceBanner({ data }) {
 const TX_ICONS = {
   payment: [ShoppingBag, "from-[#FF9A3C] to-[#F2672D]"],
   topup: [PlusCircle, "from-[#34D399] to-[#059669]"],
+  topup_bonus: [Gift, "from-[#FBBF24] to-[#F97316]"],
+  giftcard: [Gift, "from-[#A78BFA] to-[#7C3AED]"],
   admin_credit: [Gift, "from-[#FBBF24] to-[#F59E0B]"],
   admin_debit: [MinusCircle, "from-[#94A3B8] to-[#64748B]"],
   refund: [RotateCcw, "from-[#60A5FA] to-[#2563EB]"],
@@ -61,7 +63,7 @@ function TxIcon({ kind, credit }) {
   );
 }
 
-const KIND_LABEL = { payment: tr("訂單付款"), topup: tr("錢包充值"), admin_credit: tr("平台加款"), admin_debit: tr("平台扣款"), admin_refund: tr("平台退款"), refund: tr("退款") };
+const KIND_LABEL = { payment: tr("訂單付款"), topup: tr("錢包充值"), topup_bonus: tr("充值贈送"), admin_credit: tr("平台加款"), admin_debit: tr("平台扣款"), admin_refund: tr("平台退款"), refund: tr("退款"), giftcard: tr("禮品卡充值") };
 
 function TxDetailSheet({ t, onClose }) {
   const { format } = useCurrency();

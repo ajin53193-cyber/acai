@@ -25,6 +25,8 @@ export default function WalletTopUp() {
   const [busy, setBusy] = useState(false);
   const [pending, setPending] = useState(null);
   const [bonusRules, setBonusRules] = useState([]);
+  const [gcCode, setGcCode] = useState("");
+  const [gcBusy, setGcBusy] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => { publicApi.get("/payment-methods").then((r) => setMethods(r.data)).catch(() => {}); }, []);
@@ -48,6 +50,18 @@ export default function WalletTopUp() {
 
   const value = custom ? Number(custom) || 0 : amount;
   const shown = methods.filter((m) => cat === "all" || m.category === cat);
+
+  const redeemGiftCard = async () => {
+    const code = gcCode.trim();
+    if (!code) return toast.error(tr("請輸入禮品卡卡號"));
+    setGcBusy(true);
+    try {
+      const r = await callApi({ method: "POST", url: "/me/redeem-giftcard", data: { code } });
+      toast.success(tr("禮品卡充值成功 +{0}，餘額 {1}", format(r.data.amount_usd), format(r.data.balance_usd)));
+      setGcCode(""); load();
+    } catch (e) { toast.error(e.response?.data?.detail || tr("核銷失敗")); }
+    setGcBusy(false);
+  };
   const selected = methods.find((m) => m.id === methodId);
   const isUsdt = selected?.provider === "crypto";
 
@@ -98,6 +112,13 @@ export default function WalletTopUp() {
             </div>
           );
         })()}
+        <div className="mt-4 rounded-xl border border-violet-200 bg-violet-50/50 p-3.5" data-testid="giftcard-redeem-box">
+          <div className="flex items-center gap-2 mb-2"><Gift className="h-4 w-4 text-violet-500" /><span className="text-sm font-semibold text-slate-800">{tr("禮品卡充值")}</span></div>
+          <div className="flex gap-2">
+            <input data-testid="giftcard-code-input" value={gcCode} onChange={(e) => setGcCode(e.target.value.toUpperCase())} placeholder={tr("輸入禮品卡卡號 GC-XXXX-XXXX-XXXX-XXXX")} className="h-10 flex-1 rounded-xl bg-white border border-violet-200 px-3 text-sm font-mono outline-none focus:ring-2 focus:ring-violet-300" />
+            <button data-testid="giftcard-redeem-btn" onClick={redeemGiftCard} disabled={gcBusy} className="h-10 px-4 rounded-xl bg-violet-500 hover:bg-violet-600 text-white text-sm font-semibold whitespace-nowrap disabled:opacity-50">{gcBusy ? tr("核銷中…") : tr("立即充值")}</button>
+          </div>
+        </div>
 
         <div className="mt-6 font-semibold text-slate-900">{tr("支付方式")}</div>
         <div className="mt-3 flex items-center justify-between sm:justify-start gap-1 sm:gap-2" data-testid="pm-category-tabs">

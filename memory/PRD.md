@@ -206,3 +206,14 @@
 - 驗證：apply_recharge_bonus(120)→命中100檔+500積分；check_levelup 普通→白銀 +200積分、等級更新、優惠券因已領取而正確跳過（冪等）。
 - data-testid：recharge-bonus-admin/rb-table/rb-add/rb-row-*/rb-modal/rb-min/rb-type/rb-value/rb-save、topup-bonus-banner、level-reward-points/level-reward-coupon。
 - 說明：前端管理頁與充值頁橫幅已編譯通過但未跑視覺測試；後端邏輯已直測。**後續**：Round 6 禮品卡管理、Round 7 其餘營銷活動（秒殺/滿減滿折/抽獎）。
+
+## 2026-10 後台 Round 6：禮品卡管理 + 升級禮包提醒 + 充值贈送回執（後端 curl/直測通過，前端編譯通過）
+- **禮品卡管理**（`GiftCardsAdmin.jsx` 導出 3 頁；admin_api `/admin/gift-cards*`）：
+  - 禮品卡列表(giftcards)+創建(giftcard-new)→ GiftCardsAdmin：統計卡(未使用/已核銷/發行總額/已核銷額) + 列表(卡號/面額/狀態/批次/時間/停用/刪除) + 批量創建 modal(數量1~500、面額、備註，生成後可複製全部卡號)。
+  - 卡券核銷記錄(giftcard-redeem)+禮品卡訂單(giftcard-orders)→ GiftCardRedemptionsAdmin：已核銷卡列表（卡號/面額/用戶/方式[用戶充值|外部API]/時間）。
+  - 核銷API配置(giftcard-api)→ GiftCardApiAdmin：X-Api-Key + endpoint + curl 示例 + 重新生成。
+  - 核銷流程：卡 {code,face_value_usd,status(active|redeemed|disabled),batch_no,redeemed_by/at/via}。會員 `POST /api/me/redeem-giftcard {code}` → 原子認領 + `_wallet_tx(kind=giftcard)` 充值錢包（WalletTopUp 頁新增禮品卡充值框 giftcard-redeem-box/giftcard-code-input/giftcard-redeem-btn）。外部 `POST /api/giftcard/redeem`（X-Api-Key，來自 settings.giftcard_api）→ 核銷返回 {valid,face_value_usd}；重複 400、錯誤 key 401。
+- **升級禮包提醒**：admin_api 新增 `level_up` 通知事件（EVENT_TITLES/DEFAULT_NOTIFY 模板「恭喜升級為 {level}，{reward}」）；`check_levelup` 升級時 `notify_user(level_up)`（郵件；站內以 MyAccount 等級/積分/優惠券更新呈現）。
+- **充值贈送回執**：MyWallet 的 KIND_LABEL/TX_ICONS 新增 `topup_bonus`(充值贈送, 禮物圖標橙) 與 `giftcard`(禮品卡充值, 紫)，使贈送/禮品卡入帳在錢包流水中單獨標識。
+- 驗證：member redeem 100→125；external api redeem OK/reuse 400/bad-key 401；topup_bonus 與 levelup 於前幾輪已驗。
+- **後續**：Round 7 營銷活動補全（秒殺 / 滿減滿折 / 抽獎）。
