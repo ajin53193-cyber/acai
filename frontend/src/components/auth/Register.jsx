@@ -14,7 +14,7 @@ const validPassword = (p) => p.length >= 8 && p.length <= 32 && [/[0-9]/, /[a-zA
 export function Register({ onBack, onClose, finishTicket }) {
   const { signUp, setActive, isLoaded } = useSignUp();
   const { getToken } = useAuth();
-  const [kind, setKind] = useState("email");
+  const [kind, setKind] = useState("phone");
   const [dialCode, setDialCode] = useState("+886");
   const [email, setEmail] = useState("");
   const [code, setCode] = useState("");
@@ -80,7 +80,7 @@ export function Register({ onBack, onClose, finishTicket }) {
         <span className="relative text-lg font-bold pb-1 text-orange-600">{tr("註冊帳號")}<span className="absolute left-1/2 -translate-x-1/2 -bottom-0.5 h-1 w-7 rounded-full bg-orange-500" /></span>
       </div>
       <div className="flex items-center gap-2 mb-4" data-testid="register-kind">
-        {[["email", tr("郵箱註冊")], ["phone", tr("手機號碼註冊")]].map(([k, l]) => (
+        {[["phone", tr("手機號碼註冊")], ["email", tr("郵箱註冊")]].map(([k, l]) => (
           <button key={k} data-testid={`register-kind-${k}`} onClick={() => switchKind(k)}
             className={`h-8 px-4 rounded-full text-[13px] font-semibold transition-colors ${kind === k ? "bg-orange-500 text-white" : "bg-orange-50 text-orange-500 hover:bg-orange-100"}`}>{l}</button>
         ))}

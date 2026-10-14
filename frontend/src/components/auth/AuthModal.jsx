@@ -221,7 +221,7 @@ function AuthModal({ open, onOpenChange }) {
               <button
                 key={key}
                 data-testid={`auth-tab-${key}`}
-                onClick={() => switchTab(key === "email" && tab === "phone" ? "phone" : key)}
+                onClick={() => switchTab(key === "email" && tab === "email" ? "email" : key === "email" ? "phone" : key)}
                 className={`relative text-lg md:text-lg font-bold pb-1 transition-colors ${
                   (key === "account" ? tab === "account" : tab !== "account") ? "text-orange-500 md:text-orange-600" : "text-slate-800 md:text-slate-500 hover:text-slate-700"
                 }`}
@@ -236,7 +236,7 @@ function AuthModal({ open, onOpenChange }) {
 
           {codeTabs && (
             <div className="flex items-center gap-2 mb-4" data-testid="auth-code-kind">
-              {[["email", tr("郵箱驗證碼")], ["phone", tr("手機驗證碼")]].map(([k, l]) => (
+              {[["phone", tr("手機驗證碼")], ["email", tr("郵箱驗證碼")]].map(([k, l]) => (
                 <button key={k} data-testid={`auth-code-kind-${k}`} onClick={() => switchTab(k)}
                   className={`h-8 px-4 rounded-full text-[13px] font-semibold transition-colors ${tab === k ? "bg-orange-500 text-white" : "bg-orange-50 text-orange-500 hover:bg-orange-100"}`}>{l}</button>
               ))}
