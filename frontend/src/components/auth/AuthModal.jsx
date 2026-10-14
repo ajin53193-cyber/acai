@@ -327,7 +327,7 @@ function AuthModal({ open, onOpenChange }) {
           </div>
 
           {/* divider */}
-          <div className="flex items-center gap-3 my-6 max-md:-mx-5 max-md:px-5 max-md:py-5 max-md:mt-8 max-md:[background-image:radial-gradient(#E5E7EB_1.5px,transparent_1.6px)] max-md:[background-size:14px_14px]">
+          <div className="flex items-center gap-3 my-6 max-md:my-3 max-md:-mx-5 max-md:px-5 max-md:py-3 max-md:[background-image:radial-gradient(#E5E7EB_1.5px,transparent_1.6px)] max-md:[background-size:14px_14px]">
             <span className="hidden md:block flex-1 h-px bg-slate-200" />
             <span className="text-sm text-slate-500 md:text-slate-400 mx-auto md:mx-0">{tr("其他方式登入")}</span>
             <span className="hidden md:block flex-1 h-px bg-slate-200" />
@@ -338,10 +338,10 @@ function AuthModal({ open, onOpenChange }) {
             <button
               data-testid="auth-google"
               onClick={() => oauth("oauth_google")}
-              className="h-14 w-14 rounded-full border border-slate-200 bg-white flex items-center justify-center hover:shadow-md transition-shadow"
+              className="h-11 w-11 md:h-14 md:w-14 rounded-full border border-slate-200 bg-white flex items-center justify-center hover:shadow-md transition-shadow"
               aria-label={tr("Google 登入")}
             >
-              <svg viewBox="0 0 24 24" className="h-7 w-7">
+              <svg viewBox="0 0 24 24" className="h-5 w-5 md:h-7 md:w-7">
                 <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.27-4.74 3.27-8.1z" />
                 <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84A11 11 0 0 0 12 23z" />
                 <path fill="#FBBC05" d="M5.84 14.1a6.6 6.6 0 0 1 0-4.2V7.06H2.18a11 11 0 0 0 0 9.88l3.66-2.84z" />
@@ -351,10 +351,10 @@ function AuthModal({ open, onOpenChange }) {
             <button
               data-testid="auth-apple"
               onClick={() => oauth("oauth_apple")}
-              className="h-14 w-14 rounded-full bg-black flex items-center justify-center hover:shadow-md transition-shadow"
+              className="h-11 w-11 md:h-14 md:w-14 rounded-full bg-black flex items-center justify-center hover:shadow-md transition-shadow"
               aria-label={tr("Apple 登入")}
             >
-              <Apple className="h-7 w-7 text-white fill-white" />
+              <Apple className="h-5 w-5 md:h-7 md:w-7 text-white fill-white" />
             </button>
           </div>
         </div>
