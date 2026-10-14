@@ -13,7 +13,7 @@ const TABS = [
   ["phone", tr("透過手機")],
 ];
 
-const field = "w-full min-w-0 h-14 rounded-2xl bg-slate-100 px-5 text-base outline-none focus:ring-2 focus:ring-orange-300 placeholder:text-slate-400";
+const field = "w-full min-w-0 h-11 md:h-14 rounded-full md:rounded-2xl bg-[#F5F5F5] md:bg-slate-100 px-5 text-sm md:text-base outline-none focus:ring-2 focus:ring-orange-300 placeholder:text-slate-400";
 
 const validPassword = (p) => {
   if (p.length < 8 || p.length > 32) return false;
@@ -108,7 +108,7 @@ export function ForgotPassword({ onBack, onClose }) {
             data-testid="forgot-send-code"
             onClick={sendCode}
             disabled={loading}
-            className="absolute right-2 top-1/2 -translate-y-1/2 h-10 px-3 rounded-xl bg-orange-100 text-orange-600 font-bold text-sm hover:bg-orange-200 disabled:opacity-50 whitespace-nowrap transition-colors"
+            className="absolute right-1.5 md:right-2 top-1/2 -translate-y-1/2 h-8 md:h-10 px-3 rounded-full md:rounded-xl bg-orange-100 text-orange-500 md:text-orange-600 font-semibold md:font-bold text-sm hover:bg-orange-200 disabled:opacity-50 whitespace-nowrap transition-colors"
           >
             {tr("發送驗證碼")}
           </button>

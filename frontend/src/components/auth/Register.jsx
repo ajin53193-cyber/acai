@@ -5,7 +5,7 @@ import { publicApi } from "@/lib/api";
 import { PhoneInput, toE164, isValidPhone } from "./PhoneInput";
 import { tr } from "@/i18n";
 
-const field = "w-full min-w-0 h-12 md:h-14 rounded-2xl bg-slate-100 px-5 text-base outline-none focus:ring-2 focus:ring-orange-300 placeholder:text-slate-400";
+const field = "w-full min-w-0 h-11 md:h-14 rounded-full md:rounded-2xl bg-[#F5F5F5] md:bg-slate-100 px-5 text-sm md:text-base outline-none focus:ring-2 focus:ring-orange-300 placeholder:text-slate-400";
 const apiErr = (e, fallback) => e?.response?.data?.detail || e?.errors?.[0]?.message || fallback;
 const validPassword = (p) => p.length >= 8 && p.length <= 32 && [/[0-9]/, /[a-zA-Z]/, /[^0-9a-zA-Z]/].filter((r) => r.test(p)).length >= 2;
 
@@ -82,7 +82,7 @@ export function Register({ onBack, onClose, finishTicket }) {
         <div className="relative">
           <input data-testid="register-code" size={1} value={code} onChange={(e) => setCode(e.target.value)} placeholder={tr("驗證碼")} inputMode="numeric" maxLength={6} className={`${field} pr-32`} />
           <button data-testid="register-send-code" onClick={sendCode} disabled={loading}
-            className="absolute right-2 top-1/2 -translate-y-1/2 h-9 md:h-10 px-3 rounded-xl bg-orange-100 text-orange-600 font-bold text-sm hover:bg-orange-200 disabled:opacity-50 whitespace-nowrap transition-colors">
+            className="absolute right-1.5 md:right-2 top-1/2 -translate-y-1/2 h-8 md:h-10 px-3 rounded-full md:rounded-xl bg-orange-100 text-orange-500 md:text-orange-600 font-semibold md:font-bold text-sm hover:bg-orange-200 disabled:opacity-50 whitespace-nowrap transition-colors">
             {sent ? tr("重新發送") : tr("發送驗證碼")}
           </button>
         </div>
