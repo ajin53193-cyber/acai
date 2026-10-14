@@ -37,6 +37,7 @@ _usdt_creds = None
 award_points = None
 log_user = None
 get_points_config = None
+upload_b64 = None
 ADMIN_TOKEN_TTL = 12 * 3600
 
 
@@ -1255,3 +1256,136 @@ async def admin_reports(days: int = 30, format: str = "json", admin: dict = Depe
         return StreamingResponse(iter([("\ufeff" + buf.getvalue()).encode()]), media_type="text/csv", headers={"Content-Disposition": f"attachment; filename=report_{days}d.csv"})
     totals = {k: round(sum(r[k] for r in data), 2) for k in ("orders", "revenue_usd", "paid_orders", "topups", "topup_usd", "new_users")}
     return {"days": days, "rows": data, "totals": totals}
+
+
+# ---------------- 邀請返利（Referral） ----------------
+REFERRAL_DEFAULTS = {"enabled": True, "referrer_points": 500, "referee_points": 200,
+                     "poster_title": "邀請好友 · 一起賺積分", "poster_subtitle": "掃碼註冊並完成首充，雙方立得積分獎勵"}
+
+
+class ReferralConfigIn(BaseModel):
+    enabled: bool = True
+    referrer_points: int = 500
+    referee_points: int = 200
+    poster_title: str = ""
+    poster_subtitle: str = ""
+
+
+class PosterIn(BaseModel):
+    name: str = ""
+    image_b64: str = ""
+    image_name: str = "poster.png"
+    image: str = ""
+    active: bool = True
+    sort: int = 0
+
+
+def _ref_user_label(u: dict) -> str:
+    if not u:
+        return ""
+    email = u.get("email", "") or ""
+    if email.endswith("@" + email_auth.PHONE_DOMAIN):
+        email = ""
+    return email or u.get("phone", "") or (u.get("user_id", "") or "")[-8:]
+
+
+async def _ref_cfg() -> dict:
+    doc = await db.settings.find_one({"key": "referral"}, {"_id": 0})
+    return {**REFERRAL_DEFAULTS, **((doc or {}).get("value") or {})}
+
+
+@router.get("/referral/config")
+async def admin_referral_config(admin: dict = Depends(current_admin)):
+    return await _ref_cfg()
+
+
+@router.put("/referral/config")
+async def admin_referral_config_put(body: ReferralConfigIn, admin: dict = Depends(current_admin)):
+    await db.settings.update_one({"key": "referral"}, {"$set": {"key": "referral", "value": body.dict()}}, upsert=True)
+    return {"ok": True}
+
+
+@router.get("/referral/stats")
+async def admin_referral_stats(admin: dict = Depends(current_admin)):
+    bound_q = {"referred_by": {"$exists": True, "$nin": [None, ""]}}
+    total_bound = await db.users.count_documents(bound_q)
+    total_rewarded = await db.users.count_documents({"referral_rewarded": True})
+    total_inviters = len([x for x in await db.users.distinct("referred_by", bound_q) if x])
+    agg = await db.users.aggregate([{"$group": {"_id": None, "pts": {"$sum": "$referral_points_earned"}}}]).to_list(1)
+    points_granted = int((agg[0].get("pts") if agg else 0) or 0)
+    return {"total_bound": total_bound, "total_rewarded": total_rewarded,
+            "total_inviters": total_inviters, "points_granted": points_granted}
+
+
+@router.get("/referral/records")
+async def admin_referral_records(q: str = "", rewarded: str = "", limit: int = 500, admin: dict = Depends(current_admin)):
+    query = {"referred_by": {"$exists": True, "$nin": [None, ""]}}
+    if rewarded == "yes":
+        query["referral_rewarded"] = True
+    elif rewarded == "no":
+        query["referral_rewarded"] = {"$ne": True}
+    rows = await db.users.find(query, {"_id": 0, "user_id": 1, "email": 1, "phone": 1, "referred_by": 1,
+                                       "referral_rewarded": 1, "referred_at": 1, "referral_rewarded_at": 1}
+                               ).sort("referred_at", -1).to_list(limit)
+    inviter_ids = list({r["referred_by"] for r in rows if r.get("referred_by")})
+    inviters = {u["user_id"]: u async for u in db.users.find({"user_id": {"$in": inviter_ids}}, {"_id": 0, "user_id": 1, "email": 1, "phone": 1})}
+    cfg = await _ref_cfg()
+    out = []
+    ql = q.lower().strip()
+    for r in rows:
+        inv = inviters.get(r.get("referred_by"), {})
+        rw = bool(r.get("referral_rewarded"))
+        item = {
+            "referee_label": _ref_user_label(r), "referee_account": account_no(r["user_id"]),
+            "inviter_label": _ref_user_label(inv), "inviter_account": account_no(r["referred_by"]) if r.get("referred_by") else "",
+            "referred_at": r.get("referred_at", ""), "rewarded": rw, "rewarded_at": r.get("referral_rewarded_at", ""),
+            "referrer_points": int(cfg["referrer_points"]) if rw else 0, "referee_points": int(cfg["referee_points"]) if rw else 0,
+        }
+        if ql and ql not in " ".join([item["referee_label"], item["inviter_label"], item["referee_account"], item["inviter_account"]]).lower():
+            continue
+        out.append(item)
+    return out
+
+
+@router.get("/referral/leaderboard")
+async def admin_referral_leaderboard(limit: int = 20, admin: dict = Depends(current_admin)):
+    rows = await db.users.find({"referral_invited": {"$gt": 0}},
+                               {"_id": 0, "user_id": 1, "email": 1, "phone": 1, "referral_invited": 1, "referral_points_earned": 1}
+                               ).sort("referral_invited", -1).to_list(limit)
+    return [{"account": account_no(r["user_id"]), "label": _ref_user_label(r),
+             "invited": int(r.get("referral_invited") or 0), "points_earned": int(r.get("referral_points_earned") or 0)} for r in rows]
+
+
+@router.get("/referral/posters")
+async def admin_referral_posters(admin: dict = Depends(current_admin)):
+    return await db.referral_posters.find({}, {"_id": 0}).sort("sort", 1).to_list(100)
+
+
+@router.post("/referral/posters")
+async def admin_referral_poster_create(body: PosterIn, admin: dict = Depends(current_admin)):
+    img = body.image
+    if body.image_b64:
+        img = await upload_b64("gogo589/referral", body.image_b64, body.image_name, max_mb=4)
+    if not img:
+        raise HTTPException(status_code=400, detail="請上傳海報背景圖")
+    doc = {"id": uuid.uuid4().hex[:12], "name": body.name.strip() or "海報模板", "image": img,
+           "active": bool(body.active), "sort": int(body.sort), "created_at": datetime.now(timezone.utc).isoformat()}
+    await db.referral_posters.insert_one(dict(doc))
+    return doc
+
+
+@router.put("/referral/posters/{pid}")
+async def admin_referral_poster_update(pid: str, body: PosterIn, admin: dict = Depends(current_admin)):
+    upd = {"name": body.name.strip() or "海報模板", "active": bool(body.active), "sort": int(body.sort)}
+    if body.image_b64:
+        upd["image"] = await upload_b64("gogo589/referral", body.image_b64, body.image_name, max_mb=4)
+    elif body.image:
+        upd["image"] = body.image
+    await db.referral_posters.update_one({"id": pid}, {"$set": upd})
+    return {"ok": True}
+
+
+@router.delete("/referral/posters/{pid}")
+async def admin_referral_poster_delete(pid: str, admin: dict = Depends(current_admin)):
+    await db.referral_posters.delete_one({"id": pid})
+    return {"ok": True}

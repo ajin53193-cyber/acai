@@ -1264,7 +1264,8 @@ async def log_user(user_id: str, type_: str, action: str, detail: str = "", ip: 
         logger.warning("log_user failed: %s", e)
 
 
-REFERRAL_DEFAULT = {"enabled": True, "referrer_points": 500, "referee_points": 200}
+REFERRAL_DEFAULT = {"enabled": True, "referrer_points": 500, "referee_points": 200,
+                    "poster_title": "邀請好友 · 一起賺積分", "poster_subtitle": "掃碼註冊並完成首充，雙方立得積分獎勵"}
 
 
 async def get_referral_cfg() -> dict:
@@ -1309,7 +1310,7 @@ async def apply_referral_reward(user_id: str, ref: str):
     inviter = u.get("referred_by")
     if not inviter or u.get("referral_rewarded"):
         return
-    await db.users.update_one({"user_id": user_id}, {"$set": {"referral_rewarded": True}})
+    await db.users.update_one({"user_id": user_id}, {"$set": {"referral_rewarded": True, "referral_rewarded_at": now_iso()}})
     await _grant_points(user_id, int(cfg.get("referee_points") or 0), "referral", "邀請好友獎勵（受邀）", ref)
     await _grant_points(inviter, int(cfg.get("referrer_points") or 0), "referral", "邀請好友獎勵（邀請人）", user_id)
     await db.users.update_one({"user_id": inviter}, {"$inc": {"referral_invited": 1, "referral_points_earned": int(cfg.get("referrer_points") or 0)}})
@@ -1323,11 +1324,13 @@ async def my_referral(member: dict = Depends(current_member)):
     u = await db.users.find_one({"user_id": uid}, {"_id": 0, "referred_by": 1, "referral_rewarded": 1, "referral_invited": 1, "referral_points_earned": 1}) or {}
     cfg = await get_referral_cfg()
     has_topup = bool(await db.topup_orders.find_one({"user_id": uid, "status": "paid"}, {"_id": 1}))
+    posters = await db.referral_posters.find({"active": True}, {"_id": 0, "id": 1, "name": 1, "image": 1}).sort("sort", 1).to_list(50)
     return {"code": code, "enabled": bool(cfg.get("enabled")), "referrer_points": int(cfg.get("referrer_points") or 0),
             "referee_points": int(cfg.get("referee_points") or 0), "bound": bool(u.get("referred_by")),
             "can_bind": not u.get("referred_by") and not has_topup,
             "invited": int(u.get("referral_invited") or 0), "points_earned": int(u.get("referral_points_earned") or 0),
-            "rewarded": bool(u.get("referral_rewarded"))}
+            "rewarded": bool(u.get("referral_rewarded")),
+            "posters": posters, "poster_title": cfg.get("poster_title") or "", "poster_subtitle": cfg.get("poster_subtitle") or ""}
 
 
 @api_router.post("/me/referral/bind")
@@ -1346,7 +1349,7 @@ async def bind_referral(body: dict, member: dict = Depends(current_member)):
     inviter = await db.users.find_one({"referral_code": code}, {"_id": 0, "user_id": 1})
     if not inviter:
         raise HTTPException(status_code=404, detail="邀請碼不存在")
-    await db.users.update_one({"user_id": uid}, {"$set": {"referred_by": inviter["user_id"]}})
+    await db.users.update_one({"user_id": uid}, {"$set": {"referred_by": inviter["user_id"], "referred_at": now_iso()}})
     return {"ok": True, "message": "綁定成功，首次充值後你和好友都將獲得積分獎勵！"}
 
 
@@ -2650,6 +2653,7 @@ admin_api._usdt_creds = _usdt_creds
 admin_api.award_points = award_points
 admin_api.log_user = log_user
 admin_api.get_points_config = get_points_config
+admin_api.upload_b64 = _upload_b64
 cms_api.db = db
 cms_api.upload_b64 = _upload_b64
 cms_api.new_id = new_id
