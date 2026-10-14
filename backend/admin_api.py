@@ -1032,13 +1032,14 @@ async def admin_retranslate(body: RetranslateIn, admin: dict = Depends(current_a
 
 
 # ----------------------------- Notifications -----------------------------
-EVENT_TITLES = {"order_paid": "订单已支付", "order_completed": "订单已完成", "order_cancelled": "订单已取消", "order_rejected": "充值资料被驳回", "topup_paid": "钱包充值到账", "level_up": "会员升级"}
+EVENT_TITLES = {"order_paid": "订单已支付", "order_completed": "订单已完成", "order_cancelled": "订单已取消", "order_rejected": "充值资料被驳回", "topup_paid": "钱包充值到账", "level_up": "会员升级", "giftcard_completed": "礼品卡转赠成功"}
 DEFAULT_NOTIFY = {
     "email_enabled": True, "sms_enabled": False,
-    "events": {"order_paid": True, "order_completed": True, "order_cancelled": True, "order_rejected": True, "topup_paid": True, "level_up": True},
+    "events": {"order_paid": True, "order_completed": True, "order_cancelled": True, "order_rejected": True, "topup_paid": True, "level_up": True, "giftcard_completed": True},
     "templates": {
         "order_paid": {"subject": "【GOGO589】订单已支付 {order_id}", "body": "您好，您的订单 {order_id}（{product}，{amount}）已支付成功，我们将尽快为您处理。"},
         "order_completed": {"subject": "【GOGO589】订单已完成 {order_id}", "body": "您好，您的订单 {order_id}（{product}，{amount}）已充值完成，感谢您的购买！"},
+        "giftcard_completed": {"subject": "【GOGO589】礼品卡转赠成功 {order_id}", "body": "您好，您的礼品卡订单 {order_id}（{product}，{amount}）已转赠成功。交易号：{trade_nos}。请妥善保存交易号，凭交易号与收礼人手机号即可核销使用。"},
         "order_cancelled": {"subject": "【GOGO589】订单已取消 {order_id}", "body": "您好，您的订单 {order_id}（{product}，{amount}）已取消。{reason}如已付款，款项已退回您的钱包余额。"},
         "order_rejected": {"subject": "【GOGO589】订单资料被驳回 {order_id}", "body": "您好，您的订单 {order_id} 充值资料被驳回：{reason}。请登录后重新填写。"},
         "topup_paid": {"subject": "【GOGO589】钱包充值到账 {amount}", "body": "您好，您的充值 {amount} 已到账，当前余额 {balance}。"},
@@ -1088,7 +1089,7 @@ async def notify_user(user_id: str, event: str, ctx: dict):
         u = await db.users.find_one({"user_id": user_id}, {"_id": 0, "email": 1, "phone": 1}) or {}
         email = u.get("email", "")
         if cfg.get("email_enabled") and email and not email.endswith("@" + email_auth.PHONE_DOMAIN):
-            rows = [("订单编号", ctx.get("order_id")), ("商品", ctx.get("product")), ("金额", ctx.get("amount")), ("余额", ctx.get("balance")), ("原因", ctx.get("reason"))]
+            rows = [("订单编号", ctx.get("order_id")), ("商品", ctx.get("product")), ("金额", ctx.get("amount")), ("交易号", ctx.get("trade_nos")), ("收礼人", ctx.get("recipient")), ("余额", ctx.get("balance")), ("原因", ctx.get("reason"))]
             link = f"{os.environ.get('APP_PUBLIC_URL', '').rstrip('/')}/orders" if ctx.get("order_id") and os.environ.get("APP_PUBLIC_URL") else ""
             html = notify_email(EVENT_TITLES.get(event, subject), body, rows, link)
             try:
@@ -1529,7 +1530,7 @@ ALL_PERMISSIONS = [
     "overview", "sales-analysis", "download-reports",
     "members", "user-tags", "member-assets", "blacklist", "user-logs", "verifications", "user-batch", "feedback", "user-reports",
     "products", "categories", "reviews",
-    "giftcard-list", "giftcard-pool", "giftcard-orders", "giftcard-new", "giftcard-trade-query", "giftcard-api",
+    "giftcard-list", "giftcard-pool", "giftcard-orders", "giftcard-new", "giftcard-trade-query", "giftcard-api", "giftcard-report",
     "home-decoration", "banners", "recommendations", "promos", "notifications", "announcements",
     "activities",
     "orders", "order-settlement", "topups", "payments", "reconciliation", "currencies", "finance-reports",

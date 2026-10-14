@@ -821,6 +821,16 @@ async def dispatch_giftcards(order: dict):
     return nos
 
 
+def _notify_completed(o: dict, nos):
+    """Gift-card completion → giftcard_completed (with 交易號); otherwise order_completed."""
+    if nos:
+        info_vals = [v for f in (o.get("delivery_info") or {}).values() for v in (f or {}).values() if str(v or "").strip()]
+        ctx = admin_api.order_ctx(o, trade_nos=" / ".join(n["trade_no"] for n in nos), count=str(len(nos)), recipient=" / ".join(str(v) for v in info_vals))
+        asyncio.create_task(admin_api.notify_user(o["user_id"], "giftcard_completed", ctx))
+    else:
+        asyncio.create_task(admin_api.notify_user(o["user_id"], "order_completed", admin_api.order_ctx(o)))
+
+
 async def _compute_order(order: OrderIn, member_ctx: dict = None):
     items_out = []
     subtotal_usd = 0.0
@@ -1858,8 +1868,7 @@ async def auto_dispatch_giftcards(only_order_id: str = "") -> int:
         tl = o.get("timeline", []) + [{"status": "completed", "at": now_iso(), "by": "system"}]
         await db.orders.update_one({"id": o["id"]}, {"$set": {"status": "completed", "completed_at": now_iso(), "timeline": tl, "confirmed_by": "system"}})
         asyncio.create_task(admin_api.record_admin_log("system", "system", "GIFTCARD", f"/orders/{o['id']} 禮品卡自動審核通過（號碼庫命中） {o.get('order_no', '')}", 200))
-        if nos:
-            asyncio.create_task(admin_api.notify_user(o["user_id"], "order_completed", admin_api.order_ctx(o)))
+        _notify_completed(o, nos)
         n += 1
     return n
 
@@ -1904,7 +1913,7 @@ async def admin_confirm_topup(order_id: str, admin: dict = Depends(require_role(
     nos = await dispatch_giftcards(o)
     if nos:
         upd.update({"gift_trade_nos": nos, "gift_trade_no": nos[0]["trade_no"], "is_giftcard_order": True})
-    asyncio.create_task(admin_api.notify_user(o["user_id"], "order_completed", admin_api.order_ctx(o)))
+    _notify_completed(o, nos)
     return {**o, **upd}
 
 
@@ -2315,7 +2324,7 @@ async def admin_giftcard_complete(body: GiftBulkIn, admin: dict = Depends(admin_
         nos = await dispatch_giftcards(o)
         tl = o.get("timeline", []) + [{"status": "completed", "at": now_iso(), "by": admin.get("email", "admin")}]
         await db.orders.update_one({"id": o["id"]}, {"$set": {"status": "completed", "completed_at": now_iso(), "timeline": tl, "confirmed_by": admin.get("email", "")}, "$unset": {"gift_dispatch_at": 1}})
-        asyncio.create_task(admin_api.notify_user(o["user_id"], "order_completed", admin_api.order_ctx(o)))
+        _notify_completed(o, nos)
         done += 1
     return {"done": done}
 
@@ -2674,7 +2683,7 @@ async def admin_update_order(order_id: str, body: StatusUpdate, admin: dict = De
         nos = await dispatch_giftcards(o)
         if nos:
             update.update({"gift_trade_nos": nos, "gift_trade_no": nos[0]["trade_no"], "is_giftcard_order": True})
-        asyncio.create_task(admin_api.notify_user(o["user_id"], "order_completed", admin_api.order_ctx(o)))
+        _notify_completed(o, nos)
     elif body.status == "cancelled" and o.get("status") != "cancelled":
         reason = f"取消原因：{body.admin_note}。" if body.admin_note else ""
         asyncio.create_task(admin_api.notify_user(o["user_id"], "order_cancelled", admin_api.order_ctx(o, reason=reason, refunded="是" if update.get("refunded_at") else "否")))

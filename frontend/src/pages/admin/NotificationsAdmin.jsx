@@ -5,9 +5,9 @@ import { Switch } from "@/components/ui/switch";
 import { tr } from "@/i18n";
 import { Btn, Card, Head, useLoad } from "./ui";
 
-const EVENTS = [["order_paid", tr("訂單付款成功")], ["order_completed", tr("訂單充值完成")], ["order_cancelled", tr("訂單已取消")], ["order_rejected", tr("充值資料被駁回")], ["topup_paid", tr("錢包充值到帳")]];
+const EVENTS = [["order_paid", tr("訂單付款成功")], ["order_completed", tr("訂單充值完成")], ["giftcard_completed", tr("禮品卡轉贈成功")], ["order_cancelled", tr("訂單已取消")], ["order_rejected", tr("充值資料被駁回")], ["topup_paid", tr("錢包充值到帳")]];
 const EVENT_LABEL = Object.fromEntries(EVENTS);
-const VARS = { order_paid: "{order_id} {product} {amount}", order_completed: "{order_id} {product} {amount}", order_cancelled: "{order_id} {product} {amount} {reason}", order_rejected: "{order_id} {product} {amount} {reason}", topup_paid: "{amount} {balance}" };
+const VARS = { order_paid: "{order_id} {product} {amount}", order_completed: "{order_id} {product} {amount}", giftcard_completed: "{order_id} {product} {amount} {trade_nos} {count} {recipient}", order_cancelled: "{order_id} {product} {amount} {reason}", order_rejected: "{order_id} {product} {amount} {reason}", topup_paid: "{amount} {balance}" };
 
 const fmt = (s) => (s ? new Date(s).toLocaleString("zh-CN", { hour12: false }) : "-");
 

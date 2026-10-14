@@ -78,7 +78,7 @@ export function GiftCardOrdersAdmin({ callApi }) {
     if (kind === "reject") { reason = window.prompt(tr("駁回原因（用戶將看到）"), tr("轉贈帳號有誤，請重新填寫")); if (reason === null) return; }
     if (kind === "cancel" && !window.confirm(tr("確定取消 {0} 筆訂單？將退回餘額並恢復庫存。", ids.length))) return;
     if (kind === "supplement" && !window.confirm(tr("將把這些訂單填寫的號碼加入號碼庫並重新自動審核，確定？"))) return;
-    try { const r = await callApi({ method: "POST", url: `/admin/giftcard/orders/${kind}`, data: { ids, reason } }); toast.success(tr("已處理 {0} 筆", r.data.done)); load(); }
+    try { const r = await callApi({ method: "POST", url: `/admin/giftcard/orders/${kind}`, data: { ids, reason } }); toast.success(tr("已處理 {0} 筆", r.data.done)); load(); window.dispatchEvent(new Event("admin-badge-refresh")); }
     catch (e) { toast.error(e.response?.data?.detail || tr("操作失敗")); }
   };
   const allIds = data.rows.map((o) => o.id);

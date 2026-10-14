@@ -28,6 +28,7 @@ import { UserLogsAdmin } from "@/pages/admin/UserLogsAdmin";
 import { GiftCardPoolAdmin, GiftCardOrdersAdmin } from "@/pages/admin/GiftCardPoolAdmin";
 import { GiftCardTxnAdmin, GiftCardApiAdmin } from "@/pages/admin/GiftCardTxnAdmin";
 import { GiftCardNewAdmin } from "@/pages/admin/GiftCardNewAdmin";
+import { GiftCardReportAdmin } from "@/pages/admin/GiftCardReportAdmin";
 import { HomeLayoutAdmin } from "@/pages/admin/HomeLayoutAdmin";
 import { IntegrationConfigAdmin } from "@/pages/admin/IntegrationConfigAdmin";
 import { AdminsAdmin } from "@/pages/admin/AdminsAdmin";
@@ -46,7 +47,7 @@ const MENU = [
   { key: "dashboard", g: tr("儀表盤"), icon: LayoutDashboard, defaultOpen: true, items: [["overview", tr("數據概覽")], ["sales-analysis", tr("銷售分析")], ["download-reports", tr("下載報表")]] },
   { key: "users", g: tr("用戶管理"), icon: Users, defaultOpen: true, items: [["members", tr("用戶列表")], ["user-tags", tr("用戶標籤")], ["member-assets", tr("會員資產")], ["blacklist", tr("黑名單管理")], ["user-logs", tr("用戶日誌")], ["verifications", tr("用戶認證")], ["user-batch", tr("用戶批量操作")], ["feedback", tr("用戶反饋")], ["user-reports", tr("用戶報表統計")]] },
   { key: "products", g: tr("商品管理"), icon: Package, items: [["products", tr("商品列表")], ["categories", tr("商品分類")], ["reviews", tr("商品評論")]] },
-  { key: "giftcards", g: tr("禮品卡"), icon: Gift, items: [["giftcard-list", tr("禮品卡列表")], ["giftcard-pool", tr("號碼庫")], ["giftcard-orders", tr("訂單管理")], ["giftcard-new", tr("添加禮品卡")], ["giftcard-trade-query", tr("交易號查詢")], ["giftcard-api", tr("核銷接口API")]] },
+  { key: "giftcards", g: tr("禮品卡"), icon: Gift, items: [["giftcard-list", tr("禮品卡列表")], ["giftcard-pool", tr("號碼庫")], ["giftcard-orders", tr("訂單管理")], ["giftcard-new", tr("添加禮品卡")], ["giftcard-trade-query", tr("交易號查詢")], ["giftcard-api", tr("核銷接口API")], ["giftcard-report", tr("稽核報表")]] },
   { key: "ops", g: tr("運營管理"), icon: Megaphone, items: [["home-decoration", tr("首頁裝修")], ["activities", tr("新聞 & 促銷")], ["banners", tr("輪播圖管理")], ["recommendations", tr("推薦位管理")], ["promos", tr("優惠券管理")], ["notifications", tr("消息中心")], ["announcements", tr("公告管理")]] },
   { key: "finance", g: tr("財務管理"), icon: DollarSign, items: [["orders", tr("訂單管理")], ["order-settlement", tr("訂單結算")], ["topups", tr("充值審核")], ["payments", tr("支付渠道配置")], ["reconciliation", tr("財務對賬")], ["currencies", tr("匯率配置")], ["finance-reports", tr("財務報表")]] },
   { key: "system", g: tr("系統配置"), icon: Settings, items: [["siteconfig", tr("基礎設置")], ["admins", tr("管理員管理")], ["roles", tr("角色權限管理")], ["operation-logs", tr("操作日誌")], ["sms-config", tr("短信配置")], ["email-config", tr("郵箱配置")], ["oauth-config", tr("授權配置")], ["translations", tr("翻譯管理")], ["paylogos", tr("頁尾支付Logo")]] },
@@ -57,21 +58,26 @@ const SECTION_LABEL = Object.fromEntries([...MENU.flatMap((m) => m.items), ...LE
 const ALL_STATUSES = Object.keys(STATUS_LABELS);
 const inputCls = "w-full h-10 rounded-lg bg-slate-800 border border-slate-700 px-3 text-sm text-slate-100 outline-none focus:border-primary";
 
-const NavGroup = ({ gkey, g, Icon, items, section, setSection, open, toggle }) => {
+const Badge = ({ n, testId }) => (n > 0 ? <span data-testid={testId} className="ml-auto shrink-0 min-w-[18px] h-[18px] px-1.5 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center leading-none">{n > 99 ? "99+" : n}</span> : null);
+
+const NavGroup = ({ gkey, g, Icon, items, section, setSection, open, toggle, badges = {} }) => {
   const active = items.some(([k]) => k === section);
+  const groupBadge = items.reduce((s, [k]) => s + (badges[k] || 0), 0);
   return (
     <div>
       <button data-testid={`admin-group-${gkey}`} onClick={toggle}
         className={`w-full flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-semibold transition-colors ${active ? "text-orange-600" : "text-slate-600 hover:bg-slate-100"}`}>
         <Icon className="h-4 w-4 shrink-0" /><span className="flex-1 text-left truncate">{g}</span>
+        {!open && <Badge n={groupBadge} testId={`admin-group-badge-${gkey}`} />}
         <ChevronDown className={`h-3.5 w-3.5 shrink-0 transition-transform ${open ? "rotate-180" : ""}`} />
       </button>
       {open && (
         <div className="mt-0.5 mb-1 ml-3.5 pl-3 border-l border-slate-200 space-y-0.5">
           {items.map(([k, label]) => (
             <button key={k} data-testid={`admin-nav-${k}`} onClick={() => setSection(k)}
-              className={`w-full flex items-center rounded-md px-2.5 py-1.5 text-[13px] transition-colors ${section === k ? "bg-orange-500 text-white font-semibold" : "text-slate-500 hover:bg-slate-100 hover:text-slate-800"}`}>
+              className={`w-full flex items-center gap-2 rounded-md px-2.5 py-1.5 text-[13px] transition-colors ${section === k ? "bg-orange-500 text-white font-semibold" : "text-slate-500 hover:bg-slate-100 hover:text-slate-800"}`}>
               <span className="truncate">{label}</span>
+              <Badge n={badges[k] || 0} testId={`admin-nav-badge-${k}`} />
             </button>
           ))}
         </div>
@@ -115,6 +121,7 @@ const PAGES = {
   "giftcard-new": (p) => <GiftCardNewAdmin {...p} />,
   "giftcard-trade-query": (p) => <GiftCardTxnAdmin {...p} />,
   "giftcard-api": (p) => <GiftCardApiAdmin {...p} />,
+  "giftcard-report": (p) => <GiftCardReportAdmin {...p} />,
   "home-decoration": (p) => <HomeLayoutAdmin {...p} />,
   admins: (p) => <AdminsAdmin {...p} />,
   roles: (p) => <RolesAdmin {...p} />,
@@ -129,10 +136,19 @@ function AdminInner() {
   const [section, setSection] = useState("overview");
   const [open, setOpen] = useState(MENU.filter((m) => m.defaultOpen).map((m) => m.key));
   const [me, setMe] = useState(null);
+  const [badges, setBadges] = useState({});
   const toggle = (k) => setOpen((o) => (o.includes(k) ? o.filter((x) => x !== k) : [...o, k]));
   const go = (k) => { setSection(k); const grp = MENU.find((m) => m.items.some(([ik]) => ik === k)); if (grp) setOpen((o) => (o.includes(grp.key) ? o : [...o, grp.key])); };
 
   useEffect(() => { callApi({ method: "GET", url: "/admin/me" }).then((r) => setMe(r.data)).catch(() => setMe({ is_super: true, permissions: [] })); }, [callApi]);
+  useEffect(() => {
+    const tick = () => callApi({ method: "GET", url: "/admin/giftcard/badge" }).then((r) => setBadges({ "giftcard-orders": r.data.manual || 0 })).catch(() => {});
+    tick();
+    const onRefresh = () => tick();
+    window.addEventListener("admin-badge-refresh", onRefresh);
+    const id = setInterval(tick, 30000);
+    return () => { clearInterval(id); window.removeEventListener("admin-badge-refresh", onRefresh); };
+  }, [callApi]);
 
   const allowed = (k) => !me || me.is_super || (me.permissions || []).includes(k);
   const visibleMenu = (me && !me.is_super)
@@ -152,7 +168,7 @@ function AdminInner() {
           <div className="min-w-0"><span className="font-head font-bold text-white block leading-tight">{tr("管理後台")}</span>{me && <span className="text-[10px] text-slate-400 truncate block" data-testid="admin-me-role">{me.role_name || (me.is_super ? tr("超級管理員") : tr("管理員"))}</span>}</div>
         </div>
         <nav className="flex-1 py-3 space-y-0.5 px-2 overflow-y-auto">
-          {visibleMenu.map((m) => <NavGroup key={m.key} gkey={m.key} g={m.g} Icon={m.icon} items={m.items} section={section} setSection={go} open={open.includes(m.key)} toggle={() => toggle(m.key)} />)}
+          {visibleMenu.map((m) => <NavGroup key={m.key} gkey={m.key} g={m.g} Icon={m.icon} items={m.items} section={section} setSection={go} open={open.includes(m.key)} toggle={() => toggle(m.key)} badges={badges} />)}
           <div className="pt-2 mt-2 border-t border-slate-800">
             {LEAVES.map(([k, label, Icon]) => (
               <button key={k} data-testid={`admin-nav-${k}`} onClick={() => setSection(k)}

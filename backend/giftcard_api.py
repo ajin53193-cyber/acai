@@ -4,7 +4,7 @@ import io
 import re
 import secrets
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, Header, HTTPException
@@ -97,6 +97,7 @@ async def create_txns(order: dict, nos: list):
         await db.giftcard_txns.update_one({"trade_no": n["trade_no"]}, {"$setOnInsert": {
             "id": uuid.uuid4().hex, "trade_no": n["trade_no"], "order_id": order["id"], "order_no": order.get("order_no", ""), "user_id": order.get("user_id", ""),
             "product_name": n.get("product_name", ""), "spec_label": n.get("spec_label", ""), "amount": float(amount or 0), "currency": p.get("price_currency") or "HKD",
+            "amount_usd": round(float(it.get("unit_price_usd") or 0), 2),
             "phone": phone, "recipient_name": name, "redeemed": False, "created_at": now_iso()}}, upsert=True)
 
 
@@ -175,6 +176,95 @@ async def numbers_delete(nid: str, admin: dict = Depends(admin_api.current_admin
     await db.giftcard_numbers.delete_one({"id": nid})
     await op_log(admin.get("email", ""), f"號碼庫刪除 {(n or {}).get('key', nid)}")
     return {"ok": True}
+
+
+# ----------------------------- badge & audit report -----------------------------
+async def gift_base_cond() -> dict:
+    gift_ids = [p["id"] async for p in db.products.find({"is_giftcard": True}, {"_id": 0, "id": 1})]
+    return {"$or": [{"is_giftcard_order": True}, {"items.product_id": {"$in": gift_ids}}], "status": {"$ne": "pending_payment"}}
+
+
+@router.get("/badge")
+async def badge(admin: dict = Depends(admin_api.current_admin)):
+    base = await gift_base_cond()
+    return {"manual": await db.orders.count_documents({**base, "status": "processing", "gift_manual": True})}
+
+
+def _parse_range(date_from: str, date_to: str, tz_offset: int):
+    off = timedelta(minutes=max(-840, min(840, tz_offset)))
+    now_local = datetime.now(timezone.utc) - off
+    try:
+        d_to = datetime.strptime(date_to, "%Y-%m-%d") if date_to else now_local.replace(tzinfo=None)
+        d_from = datetime.strptime(date_from, "%Y-%m-%d") if date_from else d_to
+    except ValueError:
+        raise HTTPException(status_code=400, detail="日期格式錯誤")
+    d_from, d_to = d_from.replace(hour=0, minute=0, second=0, microsecond=0), d_to.replace(hour=0, minute=0, second=0, microsecond=0)
+    if d_from > d_to:
+        d_from, d_to = d_to, d_from
+    ndays = min((d_to - d_from).days + 1, 366)
+    d_to = d_from + timedelta(days=ndays - 1)
+    start = (d_from.replace(tzinfo=timezone.utc) + off).isoformat()
+    end = (d_to.replace(tzinfo=timezone.utc) + off + timedelta(days=1)).isoformat()
+    days = [(d_from + timedelta(days=i)).strftime("%Y-%m-%d") for i in range(ndays)]
+    return off, start, end, days
+
+
+def _day_of(ts: str, off: timedelta) -> str:
+    try:
+        return (datetime.fromisoformat(ts.replace("Z", "+00:00")) - off).strftime("%Y-%m-%d")
+    except Exception:
+        return ""
+
+
+async def build_report(date_from: str, date_to: str, tz_offset: int) -> dict:
+    off, start, end, days = _parse_range(date_from, date_to, tz_offset)
+    base = await gift_base_cond()
+    rows = {d: {"date": d, "sold": 0, "sold_usd": 0.0, "completed": 0, "completed_usd": 0.0, "redeemed": 0, "redeemed_usd": 0.0} for d in days}
+    async for o in db.orders.find({**base, "status": {"$nin": ["pending_payment", "cancelled"]}, "created_at": {"$gte": start, "$lt": end}}, {"_id": 0, "created_at": 1, "total_usd": 1}):
+        r = rows.get(_day_of(o["created_at"], off))
+        if r:
+            r["sold"] += 1
+            r["sold_usd"] += float(o.get("total_usd") or 0)
+    async for o in db.orders.find({**base, "status": "completed", "completed_at": {"$gte": start, "$lt": end}}, {"_id": 0, "completed_at": 1, "total_usd": 1}):
+        r = rows.get(_day_of(o["completed_at"], off))
+        if r:
+            r["completed"] += 1
+            r["completed_usd"] += float(o.get("total_usd") or 0)
+    txns = await db.giftcard_txns.find({"redeemed": True, "redeemed_at": {"$gte": start, "$lt": end}}, {"_id": 0, "redeemed_at": 1, "amount_usd": 1, "order_id": 1, "product_name": 1, "spec_label": 1}).to_list(50000)
+    missing = {t["order_id"] for t in txns if t.get("amount_usd") is None}
+    unit_map = {}
+    if missing:
+        async for o in db.orders.find({"id": {"$in": list(missing)}}, {"_id": 0, "id": 1, "items": 1}):
+            for it in o.get("items", []):
+                unit_map[(o["id"], it.get("product_name"), it.get("spec_label"))] = float(it.get("unit_price_usd") or 0)
+    for t in txns:
+        r = rows.get(_day_of(t["redeemed_at"], off))
+        if r:
+            r["redeemed"] += 1
+            r["redeemed_usd"] += float(t["amount_usd"]) if t.get("amount_usd") is not None else unit_map.get((t["order_id"], t.get("product_name"), t.get("spec_label")), 0.0)
+    out_rows = [{**r, "sold_usd": round(r["sold_usd"], 2), "completed_usd": round(r["completed_usd"], 2), "redeemed_usd": round(r["redeemed_usd"], 2)} for r in rows.values()]
+    summary = {k: round(sum(r[k] for r in out_rows), 2) for k in ("sold", "sold_usd", "completed", "completed_usd", "redeemed", "redeemed_usd")}
+    summary["manual_pending"] = await db.orders.count_documents({**base, "status": "processing", "gift_manual": True})
+    summary["unredeemed"] = await db.giftcard_txns.count_documents({"redeemed": False})
+    return {"date_from": days[0], "date_to": days[-1], "days": len(days), "summary": summary, "rows": out_rows}
+
+
+@router.get("/report")
+async def report(date_from: str = "", date_to: str = "", tz_offset: int = 0, admin: dict = Depends(admin_api.current_admin)):
+    return await build_report(date_from, date_to, tz_offset)
+
+
+@router.get("/report/export")
+async def report_export(date_from: str = "", date_to: str = "", tz_offset: int = 0, admin: dict = Depends(admin_api.current_admin)):
+    data = await build_report(date_from, date_to, tz_offset)
+    buf = io.StringIO()
+    w = csv.writer(buf)
+    w.writerow(["日期", "售出筆數", "售出金額(USD)", "完成筆數", "完成金額(USD)", "核銷筆數", "核銷金額(USD)"])
+    for r in data["rows"]:
+        w.writerow([r["date"], r["sold"], f"{r['sold_usd']:.2f}", r["completed"], f"{r['completed_usd']:.2f}", r["redeemed"], f"{r['redeemed_usd']:.2f}"])
+    s = data["summary"]
+    w.writerow(["合計", s["sold"], f"{s['sold_usd']:.2f}", s["completed"], f"{s['completed_usd']:.2f}", s["redeemed"], f"{s['redeemed_usd']:.2f}"])
+    return StreamingResponse(iter(["\ufeff" + buf.getvalue()]), media_type="text/csv", headers={"Content-Disposition": f"attachment; filename=giftcard_audit_{data['date_from']}_{data['date_to']}.csv"})
 
 
 # ----------------------------- transactions & redemption -----------------------------
