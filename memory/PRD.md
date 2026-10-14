@@ -72,7 +72,6 @@
 - P1：手機版其餘頁面（分類、商品詳情、結帳、會員中心）依用戶截圖逐頁調整。
 - P0：testing_agent 跑後台訂單狀態流轉 + 回歸（前台 E2E 已由主代理手測通過）。
 - P1：結帳頁多幣別匯率計算驗證。
-- P1：卡支付/PayPal/銀行轉帳目前仍為測試支付即時入帳（用戶選擇保留）；日後可接 Stripe/PayPal。
 - 備註：商標 logo 不內建，需由後台上傳。
 - 重構：Home.jsx 過於龐大。
 
@@ -145,3 +144,9 @@
 - 端點：`GET /api/admin/notifications/logs?event&status&q&limit`、`POST /api/admin/notifications/logs/{lid}/resend`。
 - 訂單新增狀態 `cancelled`（已取消）：PATCH 為 cancelled 且原狀態已付款(錢包)→自動 refund 入錢包（refunded_at/refund_usd，冪等）；後台訂單列「取消訂單」按鈕（prompt 原因→通知用戶）、已退回錢包提示；狀態頁籤/統計含已取消。
 - 後台「通知設定」頁：5 事件卡（含訂單已取消）、模板變數提示、發送記錄表（事件/狀態/搜尋篩選、展開內容、重發）。
+
+## 2026-06 PayPal 接入收尾（iteration_24 後端 9/9、前端全通）
+- `payments_api._paypal_cfg`：後台 PayPal 配置留空時回退 `.env` PAYPAL_CLIENT_ID / PAYPAL_CLIENT_SECRET / PAYPAL_ENV(sandbox|live) / PAYPAL_WEBHOOK_ID（目前皆為空 → 下單回 503「PayPal 尚未設定」；憑證錯誤回 502「PayPal 憑證無效」）。流程：Orders v2 建單 → 跳轉 approve → 返回 /account/wallet/topups?topup=id 輪詢 → APPROVED 自動 capture → settle 入帳。
+- 新增 `POST /api/webhook/paypal`（CHECKOUT.ORDER.APPROVED / PAYMENT.CAPTURE.COMPLETED，依 custom_id/order_id 找單；設定 webhook_id 時以 verify-webhook-signature 驗簽）。
+- 新增 `POST /api/admin/payment-methods/{id}/test`（PayPal/Stripe 連線測試，回 env/來源/webhook_url；webhook_url 優先 APP_PUBLIC_URL）。後台支付管理列新增「測試連線」按鈕、PayPal 配置新增 Webhook ID 欄；充值頁底部提示依方式顯示。
+- **待用戶**：提供 PayPal Client ID / Secret（填入 .env 或後台 PayPal 配置），並於 PayPal 後台設定 Webhook 指向 {APP_PUBLIC_URL}/api/webhook/paypal。部署 Secrets 新增：PAYPAL_CLIENT_ID、PAYPAL_CLIENT_SECRET、PAYPAL_ENV、PAYPAL_WEBHOOK_ID。

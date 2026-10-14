@@ -49,11 +49,15 @@ class RejectIn(BaseModel):
     reason: str = ""
 
 
+def _public_base(request: Request) -> str:
+    return (os.environ.get("APP_PUBLIC_URL") or str(request.base_url)).rstrip("/")
+
+
 def _stripe(request: Request) -> StripeCheckout:
     key = os.environ.get("STRIPE_API_KEY")
     if not key:
         raise HTTPException(status_code=503, detail="Stripe 尚未設定")
-    return StripeCheckout(api_key=key, webhook_url=f"{str(request.base_url).rstrip('/')}/api/webhook/stripe")
+    return StripeCheckout(api_key=key, webhook_url=f"{_public_base(request)}/api/webhook/stripe")
 
 
 def _paypal_cfg(cfg: dict) -> dict:
@@ -232,10 +236,10 @@ async def admin_payment_method_test(mid: str, request: Request, admin: dict = De
         cfg = _paypal_cfg(pm.get("config") or {})
         source = "db" if (pm.get("config") or {}).get("client_id") else ("env" if os.environ.get("PAYPAL_CLIENT_ID") else "none")
         await _paypal_token(cfg)
-        return {"ok": True, "provider": "paypal", "env": cfg["env"], "source": source, "webhook_url": f"{str(request.base_url).rstrip('/')}/api/webhook/paypal", "webhook_verified": bool(cfg["webhook_id"])}
+        return {"ok": True, "provider": "paypal", "env": cfg["env"], "source": source, "webhook_url": f"{_public_base(request)}/api/webhook/paypal", "webhook_verified": bool(cfg["webhook_id"])}
     if pm.get("provider") == "stripe":
         _stripe(request)
-        return {"ok": True, "provider": "stripe", "source": "env", "webhook_url": f"{str(request.base_url).rstrip('/')}/api/webhook/stripe"}
+        return {"ok": True, "provider": "stripe", "source": "env", "webhook_url": f"{_public_base(request)}/api/webhook/stripe"}
     raise HTTPException(status_code=400, detail="此支付方式無需連線測試")
 
 

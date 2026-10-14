@@ -1,0 +1,54 @@
+{
+  "summary": "Iteration 24 — PayPal env-fallback + admin 测试连线 button + /webhook/paypal + top-up footnote tested end-to-end. Backend: 9/9 pytest passed in /app/backend/tests/test_paypal_env_fallback.py (JUnit XML at /app/test_reports/pytest/iter24_results.xml). Covered: (1) /api/me/wallet/topup/checkout with PayPal method & empty creds → 503 'PayPal 尚未設定 Client ID / Secret'. (2) /api/admin/payment-methods/{paypal}/test with empty creds → 503 '尚未設定'; with cfg {client_id:'AbcTest',api_secret:'wrongsecret',env:'sandbox'} → 502 'PayPal 憑證無效' (verified via localhost:8001 because public ingress rewrites upstream 502 to CloudFlare HTML); checkout with same bad creds → 502; restored to empty → 503 (confirmed). (3) Stripe .../test → 200 {ok:true, provider:'stripe', webhook_url ends with /api/webhook/stripe}. (4) Manual bank .../test → 400. (5) Unknown mid .../test → 404. (6) Missing admin headers → 401/403. (7) POST /api/webhook/paypal {event_type:'PAYMENT.CAPTURE.COMPLETED', resource:{custom_id:'nope'}} → 200 {status:'ignored'}. (8) empty body / non-JSON webhook → 4xx/5xx without killing the service (GET /api/payment-methods still 200 after).\n\nFrontend member (/account/wallet/topup, zh-CN, 1920x1000): logged in as tester+clerk_test. Payment method cards: 5 providers (USDT, Stripe-card, Stripe-ewallet, PayPal, manual bank). PayPal card selected → topup-footnote = '将跳转至安全收银台，付款完成后自动入帐' ✓. Bank card → '转帐后请于充值记录上传凭证，人工核对后入帐' ✓. USDT card → topup-footnote absent (count=0) ✓. PayPal + topup-preset-50 + topup-submit → network 503 and sonner toast 'PayPal 尚未設定 Client ID / Secret' ✓; URL unchanged (no PayPal redirect) ✓.\n\nFrontend admin (/admin/login + TOTP, zh-CN, 1920x1000): 支付管理 page loaded. pm-test-<id> present only on Stripe (both) and PayPal rows; USDT and 銀行轉帳 rows have no pm-test button ✓. Click pm-test on Stripe → toast 'Stripe 连接成功 / Webhook 网址：http://.../api/webhook/stripe' ✓. Click pm-test on PayPal → toast 'PayPal 尚未設定 Client ID / Secret' ✓. Opened pm-edit-<paypal_id>: config form includes pm-form-cfg-client_id, pm-form-cfg-api_secret, pm-form-cfg-env, pm-form-cfg-webhook_id (all count=1) ✓.\n\nPost-test state: PayPal method config restored to {client_id:'', api_secret:'', env:'sandbox'}, active=true (verified via GET /api/admin/payment-methods).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Admin · 支付管理", "issues": ["Stripe 测试连线 toast webhook_url 使用 http:// 内部 cluster URL（crossborder-topup.cluster-12.preview.emergentcf.cloud）而非前端 REACT_APP_BACKEND_URL（https 外部域名），管理员看到 http 可能疑惑。来自 request.base_url。建议后端用 APP_PUBLIC_URL 或替换 scheme=https。"]},
+      {"screen": "Admin · 支付管理 Stripe toast", "issues": ["spec 期望文字 'Stripe 连线成功'，实际为 'Stripe 连接成功' — 字词差异，功能OK。"]}
+    ]
+  },
+  "verified_checks": {
+    "backend_pytest": "9/9 passed, 3.23s, JUnit XML at /app/test_reports/pytest/iter24_results.xml",
+    "checkout_paypal_unconfigured": "POST /api/me/wallet/topup/checkout {method_id:paypal} → 503 'PayPal 尚未設定 Client ID / Secret'",
+    "admin_test_paypal_unconfigured": "POST /api/admin/payment-methods/{paypal}/test → 503 (empty creds)",
+    "admin_test_paypal_bad_creds": "After PUT config.client_id=AbcTest/api_secret=wrongsecret → POST .../test → 502 'PayPal 憑證無效'; checkout → 502. (via localhost; public ingress rewrites upstream 502 HTML)",
+    "admin_test_stripe_ok": "200 {ok:true, provider:'stripe', webhook_url endswith /api/webhook/stripe}",
+    "admin_test_manual_400": "manual bank method → 400 '此支付方式無需連線測試'",
+    "admin_test_notfound_404": "unknown mid → 404",
+    "admin_test_unauth": "no admin headers → 401/403",
+    "webhook_paypal_unknown": "{event_type:'PAYMENT.CAPTURE.COMPLETED', resource:{custom_id:'nope'}} → 200 {status:'ignored'}",
+    "webhook_bad_body": "empty / non-JSON → 4xx/5xx, GET /api/payment-methods still 200 after",
+    "frontend_topup_footnote": "paypal→'将跳转至安全收银台，付款完成后自动入帐'; bank→'转帐后请于充值记录上传凭证，人工核对后入帐'; usdt→(hidden,count=0)",
+    "frontend_topup_error_toast": "PayPal + preset50 + submit → sonner toast 'PayPal 尚未設定 Client ID / Secret', URL unchanged (no PayPal redirect)",
+    "frontend_admin_pm_test_buttons": "pm-test only on PayPal + 2 Stripe rows; USDT + 銀行轉帳 have no pm-test",
+    "frontend_admin_pm_test_toasts": "Stripe→'Stripe 连接成功 Webhook 网址：…/api/webhook/stripe'; PayPal→'PayPal 尚未設定 Client ID / Secret'",
+    "frontend_pm_edit_webhook_id": "pm-form-cfg-{client_id,api_secret,env,webhook_id} 全部存在"
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_paypal_env_fallback.py",
+    "/app/test_reports/pytest/iter24_results.xml"
+  ],
+  "action_items": [
+    "可选：/admin/payment-methods/{mid}/test 返回的 webhook_url 来自 request.base_url，当请求经过内部 ingress 时返回 http:// 内部主机名。考虑使用 APP_PUBLIC_URL 环境变量或 X-Forwarded-Proto 替换 scheme=https，让管理员看到的 Webhook URL 与真实外部地址一致（这是真要配到 PayPal/Stripe webhook 时需要的）。",
+    "可选：Stripe pm-test toast 文案 '连接成功' 与 spec 预期 '连线成功' 不一致（功能无影响）。"
+  ],
+  "critical_code_review_comments": [
+    "payments_api._paypal_cfg 的 env 回退写得很干净：DB 填空字串自动走 PAYPAL_CLIENT_ID 等。建议 PUT /admin/payment-methods 时，若 config.api_secret 为空字串，不要覆盖已存在的加密密文（目前写法会覆盖）。此次把密钥改空字串刚好符合测试需求，但在生产环境里管理员若无意保存一次就把 .env 回退的凭证清空了，容易误伤 — 可以改成仅当 api_secret 为空字串时跳过写入。",
+    "paypal_webhook 入口 await request.json() 对空 body / 非 JSON 会抛 JSONDecodeError → FastAPI 500。虽然服务未被打死（已验证），但建议 try/except 包起来返回 400，避免 500 刷日志。",
+    "admin_payment_method_test 对 paypal 用 _paypal_token 做试调，可能在 PayPal 慢回应时触发 20s httpx 超时 → 502。建议把 timeout 调小一点（如 10s）给前端更快反馈。"
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_paypal_env_fallback.py",
+    "/app/test_reports/pytest/iter24_results.xml",
+    "/app/test_reports/iteration_24.json"
+  ],
+  "success_rate": {"backend": "100% (9/9)", "frontend": "100% (6 scenarios + 1 webhook field check)"},
+  "test_credentials": "member tester+clerk_test@shop.com / Gogo589!Tester#4m9Z (device trust satisfied in preview); admin admin+clerk_test@shop.com / Gogo589!Admin#7x2Q + TOTP (secret cached /tmp/admin_totp_secret, generated via pyotp from mongo admin_2fa). /tmp/jwt_member, /tmp/jwt_admin, /tmp/xat still valid for backend.",
+  "seed_data_creation": "Temporarily set PayPal pm config.client_id='AbcTest', api_secret='wrongsecret', env='sandbox' via admin PUT, then reset to empty string. Final state verified: {client_id:'', api_secret:'', env:'sandbox'}, active=true.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "PayPal env-fallback flow fully covered. Note: public ingress returns a CloudFlare 502 HTML page whenever the backend emits 502, so when asserting body on 502 responses, hit http://localhost:8001 instead of the public URL. Admin TOTP secret cached at /tmp/admin_totp_secret for pyotp. PayPal method id = 2715956d-a364-4838-aae4-af248bd7afb6; Stripe (card) = 4ef42eb9-23a3-47bd-bfc7-72b244ef5326; manual bank = 075910cf-572b-48d7-96b7-fd47fc1f12fe.",
+  "rca of the issue": "N/A — all expected scenarios pass. Only cosmetic observations: (a) admin pm-test Stripe toast reads '连接成功' not '连线成功'; (b) webhook_url returned from /admin/payment-methods/{mid}/test uses request.base_url (http://internal-cluster-host) rather than the external REACT_APP_BACKEND_URL — admins should still manually enter the external https URL when configuring PayPal/Stripe webhooks."
+}
