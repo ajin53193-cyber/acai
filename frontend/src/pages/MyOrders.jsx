@@ -35,6 +35,7 @@ function OrderInfoForm({ order, callApi, onDone }) {
     catch (e) { toast.error(e.response?.data?.detail || tr("提交失敗")); }
     setBusy(false);
   };
+  if (order.info_submitted !== false && order.is_giftcard_order && order.status === "processing") return <GiftTransferring order={order} onRefresh={onDone} callApi={callApi} />;
   if (order.info_submitted !== false) return <div data-testid="order-info-locked" className="w-full rounded-xl bg-orange-50 text-orange-600 text-xs px-3 py-2.5 text-center">{tr("充值資料已提交，等待人工處理；如帳號有誤將由平台駁回後開放修改")}</div>;
   if (!open) return <button data-testid="order-info-edit" onClick={() => setOpen(true)} className="w-full h-10 rounded-xl border border-orange-300 text-orange-600 text-sm font-semibold hover:bg-orange-50">{tr("填寫充值資料")}</button>;
   const inp = "w-full h-11 rounded-xl bg-slate-100 border-0 px-3 text-sm outline-none focus:ring-2 focus:ring-orange-300 placeholder:text-slate-400";
@@ -61,6 +62,30 @@ function OrderInfoForm({ order, callApi, onDone }) {
         </div>
       ))}
       <button data-testid="order-info-submit" onClick={submit} disabled={busy} className="w-full h-11 rounded-full bg-orange-500 text-white font-bold hover:bg-orange-600 disabled:opacity-60">{busy ? tr("提交中…") : tr("提交充值資料")}</button>
+    </div>
+  );
+}
+
+function GiftTransferring({ order, onRefresh, callApi }) {
+  const end = order.gift_dispatch_at ? new Date(order.gift_dispatch_at).getTime() : 0;
+  const [left, setLeft] = useState(() => (end ? Math.max(0, end - Date.now()) : 0));
+  useEffect(() => {
+    const t = setInterval(() => setLeft(end ? Math.max(0, end - Date.now()) : 0), 1000);
+    const poll = setInterval(() => callApi({ method: "GET", url: `/orders/${order.id}` }).then((r) => { if (r.data.status !== "processing") onRefresh(r.data); }).catch(() => {}), 10000);
+    return () => { clearInterval(t); clearInterval(poll); };
+  }, [end, order.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  const total = end && order.info_submitted_at ? Math.max(1, end - new Date(order.info_submitted_at).getTime()) : 1;
+  const pct = end ? Math.min(100, Math.round(((total - left) / total) * 100)) : 60;
+  const mm = Math.floor(left / 60000), ss = Math.floor((left % 60000) / 1000);
+  return (
+    <div data-testid="order-gift-transferring" className="w-full rounded-2xl bg-gradient-to-b from-violet-50 to-white border border-violet-100 px-4 py-5 text-center">
+      <div className="relative mx-auto h-16 w-16">
+        <svg viewBox="0 0 36 36" className="h-16 w-16 -rotate-90"><circle cx="18" cy="18" r="15.5" fill="none" stroke="#ede9fe" strokeWidth="3" /><circle cx="18" cy="18" r="15.5" fill="none" stroke="#7c3aed" strokeWidth="3" strokeLinecap="round" strokeDasharray={`${pct} 100`} pathLength="100" /></svg>
+        <Loader2 className="absolute inset-0 m-auto h-5 w-5 text-violet-500 animate-spin" />
+      </div>
+      <div className="mt-3 font-head font-extrabold text-violet-700">{tr("系統轉贈中")}…</div>
+      {end > 0 && left > 0 && <div className="font-head text-3xl font-extrabold text-violet-800 mt-1" data-testid="order-gift-countdown">{mm}:{String(ss).padStart(2, "0")}</div>}
+      <div className="text-xs text-slate-500 mt-2 leading-5">{tr("系統轉贈中，請耐心等候，請勿關閉頁面。完成後將自動顯示交易號。")}</div>
     </div>
   );
 }

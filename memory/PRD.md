@@ -412,3 +412,13 @@
 - Round 30 續：禮品卡規格新增「折扣」欄（spec.discount_percent，售價 = 原價×折扣%）與 fx bar「全部折扣」（product.price_discount）一鍵套用；改原價自動重算售價、卡面額預設跟隨原價；編輯彈窗加寬至 96vw/1400px、規格名稱欄固定 240px。驗證：1000×85 → 850 (≈USD 108.70)。
 - Round 30 續：商品頁限購規格數量鎖定：qty-inc 在達 limit_count 時 disabled、上限改為 limit_count，切換規格自動夾緊數量。截圖驗證 每日一單 → 1 且 + 置灰。
 - Round 30 續：禮品卡交易號改為「訂單完成時」生成：dispatch_giftcards 自付款流程移除，改在 admin_confirm_topup 與 admin_update_order(status→completed) 呼叫；MyOrders 僅 status==completed 顯示「轉贈成功 · 交易號」。已清理 8 筆未完成訂單的提前交易號。函式直測：完成訂單 → 生成 20261014…(32 位)。
+
+## 2026-10 Round 31：禮品卡完整流程（依使用者規格）
+- 後端新模組 backend/giftcard_api.py（router /api/admin/giftcard/*，ext_router /api/ext/txn/redeem）：
+  - 設定 settings.key=giftcard {auto_delay_min, auto_delay_max(分鐘，預設2–5), api_key}；GET/PUT /settings、POST /api-key/regenerate
+  - 號碼庫 giftcard_numbers {phone(數字), phone_tail(末8), name, note, active}：GET/POST(批量文字 每行 手機號,姓名)/PATCH/DELETE /numbers；pool_hit() 以完整號或末8位比對
+  - 交易號 giftcard_txns {trade_no, order_id/no, user_id, product_name, spec_label, amount(面額 local), currency, phone, recipient_name, redeemed, redeemed_at/by}：GET /txns(q, redeemed, date_from/to)、GET /txns/export(CSV)、POST /redeem(trade_no, phone?, amount?)；外部 POST /ext/txn/redeem (X-API-Key; body transactionNo/phone/amount; code 0/404/422/409, 401 無效 key)
+- server.py：submit_order_info 對禮品卡訂單 → status processing、is_giftcard_order、gift_auto_hit/gift_manual；命中→gift_dispatch_at=now+隨機延遲；未命中→admin_logs 記錄待人工。auto_dispatch_giftcards 每 20s（及用戶查單時）把到期訂單設 completed、dispatch_giftcards 生成 32 位交易號 + create_txns、記錄「禮品卡自動審核通過（號碼庫命中）」。admin 端點：GET /admin/giftcard/orders(status: need_info/processing/manual/completed/redeemed/cancelled, q)、POST /admin/giftcard/orders/complete|reject|cancel {ids, reason}（取消走 admin_update_order 退款 + _restore_spec_stock）。下單時規格 stock 為數字則扣減，取消恢復。
+- 前台 MyOrders：禮品卡 processing 顯示紫色 GiftTransferring 卡（環形進度、倒計時(有 gift_dispatch_at 時)、每 10s 輪詢，完成後自動刷新顯示交易號）；completed 顯示「轉贈成功 · 交易號」。
+- 後台頁：GiftCardPoolAdmin.jsx（號碼庫 + 自動審核延遲設定；GiftCardOrdersAdmin 訂單管理：分頁籤/搜尋/多選批量完成·駁回·取消）、GiftCardTxnAdmin.jsx（交易號查詢 + 人工核銷 + 歷史 + CSV；GiftCardApiAdmin 核銷接口 API key 顯示/重置 + 文件）。
+- 驗證：Python 直測全流程（命中→自動完成→32 位交易號→核銷 404/422/409/成功→訂單 redeemed；未命中→待人工→駁回回待填資料）；後台 4 頁截圖渲染正常。

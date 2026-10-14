@@ -20,6 +20,7 @@ import storage as objstore
 from translate import Translator, to_simplified, to_traditional
 import email_auth
 import admin_api
+import giftcard_api
 import secrets
 import cms_api
 import payments_api
@@ -816,6 +817,7 @@ async def dispatch_giftcards(order: dict):
             nos.append({"trade_no": _gen_gift_trade_no(), "product_name": it.get("product_name", ""), "spec_label": it.get("spec_label", "")})
     if nos:
         await db.orders.update_one({"id": order["id"]}, {"$set": {"giftcards_dispatched": True, "gift_trade_nos": nos, "gift_trade_no": nos[0]["trade_no"], "is_giftcard_order": True}})
+        await giftcard_api.create_txns(order, nos)
     return nos
 
 
@@ -1817,8 +1819,52 @@ async def submit_order_info(order_id: str, body: OrderInfoIn, member: dict = Dep
     acct = next(iter(first.values()), o.get("recharge_account", ""))
     upd = {"delivery_info": merged, "recharge_account": acct, "info_submitted": True, "info_submitted_at": now_iso(), "info_rejected": False,
            "recharge_note": body.recharge_note or o.get("recharge_note", ""), "contact": body.contact or o.get("contact", "")}
+    if await _order_has_giftcard(o) and o.get("status") in ("paid", "processing"):
+        vals = [v for f in merged.values() for v in (f or {}).values()]
+        hit = await giftcard_api.pool_hit(vals)
+        upd.update({"status": "processing", "is_giftcard_order": True, "gift_auto_hit": bool(hit), "gift_manual": not hit,
+                    "timeline": o.get("timeline", []) + [{"status": "processing", "at": now_iso(), "by": "system", "note": "號碼庫命中，排定自動完成" if hit else "未命中號碼庫，待人工處理"}]})
+        if hit:
+            cfg = await giftcard_api.get_settings()
+            lo, hi = int(cfg["auto_delay_min"]) * 60, int(cfg["auto_delay_max"]) * 60
+            delay = lo + (secrets.randbelow(hi - lo + 1) if hi > lo else 0)
+            upd["gift_dispatch_at"] = (datetime.now(timezone.utc) + timedelta(seconds=delay)).isoformat()
+        else:
+            upd.pop("gift_dispatch_at", None)
+            asyncio.create_task(admin_api.record_admin_log("system", "system", "GIFTCARD", f"/orders/{order_id} 禮品卡未命中號碼庫，待人工處理 {o.get('order_no', '')}", 202))
     await db.orders.update_one({"id": order_id}, {"$set": upd})
     return {**o, **upd}
+
+
+async def _order_has_giftcard(o: dict) -> bool:
+    ids = [it["product_id"] for it in o.get("items", [])]
+    return bool(ids) and await db.products.count_documents({"id": {"$in": ids}, "is_giftcard": True}) > 0
+
+
+async def auto_dispatch_giftcards(only_order_id: str = "") -> int:
+    """Complete gift-card orders whose scheduled dispatch time has passed; generate 交易號."""
+    q = {"gift_dispatch_at": {"$lte": datetime.now(timezone.utc).isoformat()}, "giftcards_dispatched": {"$ne": True}, "status": {"$in": ["paid", "processing"]}}
+    if only_order_id:
+        q["id"] = only_order_id
+    n = 0
+    async for o in db.orders.find(q, {"_id": 0}):
+        nos = await dispatch_giftcards(o)
+        tl = o.get("timeline", []) + [{"status": "completed", "at": now_iso(), "by": "system"}]
+        await db.orders.update_one({"id": o["id"]}, {"$set": {"status": "completed", "completed_at": now_iso(), "timeline": tl, "confirmed_by": "system"}})
+        asyncio.create_task(admin_api.record_admin_log("system", "system", "GIFTCARD", f"/orders/{o['id']} 禮品卡自動審核通過（號碼庫命中） {o.get('order_no', '')}", 200))
+        if nos:
+            asyncio.create_task(admin_api.notify_user(o["user_id"], "order_completed", admin_api.order_ctx(o)))
+        n += 1
+    return n
+
+
+async def _giftcard_dispatch_loop():
+    while True:
+        try:
+            await auto_dispatch_giftcards()
+        except Exception as e:
+            logger.warning(f"giftcard auto dispatch failed: {e}")
+        await asyncio.sleep(20)
 
 
 class RejectInfoIn(BaseModel):
@@ -2153,6 +2199,8 @@ async def create_order(order: OrderIn, member: dict = Depends(current_member)):
         "paid_at": None,
     }
     await db.orders.insert_one(doc)
+    for it in doc.get("items", []):
+        await db.products.update_one({"id": it["product_id"], "specs": {"$elemMatch": {"id": it["spec_id"], "stock": {"$type": "number"}}}}, {"$inc": {"specs.$.stock": -int(it.get("quantity") or 1)}})
     doc.pop("_id", None)
     if extras["points_used"] > 0:
         u = await db.users.find_one({"user_id": member["user_id"]}, {"_id": 0, "points": 1}) or {}
@@ -2198,6 +2246,7 @@ async def pay_order(order_id: str, member: dict = Depends(current_member)):
 
 @api_router.get("/orders")
 async def my_orders(status: Optional[str] = None, member: dict = Depends(current_member)):
+    await auto_dispatch_giftcards()
     query = {"user_id": member["user_id"]}
     if status == "awaiting_info":
         query.update({"status": "paid", "info_submitted": False})
@@ -2211,10 +2260,83 @@ async def my_orders(status: Optional[str] = None, member: dict = Depends(current
 @api_router.get("/orders/{order_id}")
 async def get_order(order_id: str, member: dict = Depends(current_member)):
     scope = {} if member["role"] == "admin" else {"user_id": member["user_id"]}
+    await auto_dispatch_giftcards(order_id)
     o = await db.orders.find_one({"id": order_id, **scope}, {"_id": 0})
     if not o:
         raise HTTPException(status_code=404, detail="訂單不存在")
     return o
+
+
+async def _restore_spec_stock(o: dict):
+    for it in o.get("items", []):
+        await db.products.update_one({"id": it["product_id"], "specs": {"$elemMatch": {"id": it["spec_id"], "stock": {"$type": "number"}}}}, {"$inc": {"specs.$.stock": int(it.get("quantity") or 1)}})
+
+
+class GiftBulkIn(BaseModel):
+    ids: List[str] = []
+    reason: str = ""
+
+
+GIFT_STATUS_Q = {
+    "need_info": {"status": "paid", "info_submitted": {"$ne": True}},
+    "processing": {"status": "processing"},
+    "manual": {"status": "processing", "gift_manual": True},
+    "completed": {"status": "completed", "redeemed": {"$ne": True}},
+    "redeemed": {"redeemed": True},
+    "cancelled": {"status": "cancelled"},
+}
+
+
+@api_router.get("/admin/giftcard/orders")
+async def admin_giftcard_orders(status: str = "", q: str = "", page: int = 1, size: int = 50, admin: dict = Depends(admin_api.current_admin)):
+    gift_ids = [p["id"] async for p in db.products.find({"is_giftcard": True}, {"_id": 0, "id": 1})]
+    base = {"$or": [{"is_giftcard_order": True}, {"items.product_id": {"$in": gift_ids}}], "status": {"$ne": "pending_payment"}}
+    cond: dict = {**base, **GIFT_STATUS_Q.get(status, {})}
+    if q:
+        cond = {"$and": [cond, {"$or": [{"order_no": {"$regex": q, "$options": "i"}}, {"gift_trade_nos.trade_no": {"$regex": q}}, {"recharge_account": {"$regex": q}}, {"user_email": {"$regex": q, "$options": "i"}}]}]}
+    total = await db.orders.count_documents(cond)
+    rows = await db.orders.find(cond, {"_id": 0}).sort("created_at", -1).skip((page - 1) * size).to_list(size)
+    for r in rows:
+        r["account_no"] = admin_api.account_no(r.get("user_id", ""))
+    counts = {k: await db.orders.count_documents({**base, **v}) for k, v in GIFT_STATUS_Q.items()}
+    return {"rows": rows, "total": total, "counts": counts}
+
+
+@api_router.post("/admin/giftcard/orders/complete")
+async def admin_giftcard_complete(body: GiftBulkIn, admin: dict = Depends(admin_api.current_admin)):
+    done = 0
+    async for o in db.orders.find({"id": {"$in": body.ids}, "status": {"$in": ["paid", "processing", "shipped"]}}, {"_id": 0}):
+        nos = await dispatch_giftcards(o)
+        tl = o.get("timeline", []) + [{"status": "completed", "at": now_iso(), "by": admin.get("email", "admin")}]
+        await db.orders.update_one({"id": o["id"]}, {"$set": {"status": "completed", "completed_at": now_iso(), "timeline": tl, "confirmed_by": admin.get("email", "")}, "$unset": {"gift_dispatch_at": 1}})
+        asyncio.create_task(admin_api.notify_user(o["user_id"], "order_completed", admin_api.order_ctx(o)))
+        done += 1
+    return {"done": done}
+
+
+@api_router.post("/admin/giftcard/orders/reject")
+async def admin_giftcard_reject(body: GiftBulkIn, admin: dict = Depends(admin_api.current_admin)):
+    done = 0
+    reason = body.reason.strip() or "轉贈資料有誤，請重新填寫"
+    async for o in db.orders.find({"id": {"$in": body.ids}, "status": {"$in": ["paid", "processing"]}}, {"_id": 0}):
+        tl = o.get("timeline", []) + [{"status": "info_rejected", "at": now_iso(), "by": admin.get("email", "admin"), "note": reason}]
+        upd = {"status": "paid", "info_submitted": False, "info_rejected": True, "info_reject_reason": reason, "info_rejected_at": now_iso(), "timeline": tl}
+        await db.orders.update_one({"id": o["id"]}, {"$set": upd, "$unset": {"gift_dispatch_at": 1, "gift_auto_hit": 1, "gift_manual": 1}})
+        asyncio.create_task(admin_api.notify_user(o["user_id"], "order_rejected", admin_api.order_ctx(o, reason=reason)))
+        done += 1
+    return {"done": done}
+
+
+@api_router.post("/admin/giftcard/orders/cancel")
+async def admin_giftcard_cancel(body: GiftBulkIn, admin: dict = Depends(admin_api.current_admin)):
+    done = 0
+    for oid in body.ids:
+        try:
+            await admin_update_order(oid, StatusUpdate(status="cancelled", admin_note=body.reason), {"email": admin.get("email", "admin"), "role": "admin", "user_id": admin.get("user_id", "")})
+            done += 1
+        except HTTPException:
+            pass
+    return {"done": done}
 
 
 # ----------------------------- Admin endpoints -----------------------------
@@ -2500,6 +2622,9 @@ async def admin_update_order(order_id: str, body: StatusUpdate, admin: dict = De
     update = {"status": body.status, "timeline": tl}
     if body.admin_note is not None:
         update["admin_note"] = body.admin_note
+    if body.status == "cancelled" and o.get("status") != "cancelled" and not o.get("stock_restored"):
+        await _restore_spec_stock(o)
+        update["stock_restored"] = True
     if body.status == "cancelled" and o.get("status") in ("paid", "processing", "shipped", "exception") and o.get("payment_method") == "wallet" and not o.get("refunded_at"):
         await _wallet_tx(o["user_id"], "refund", float(o.get("total_usd") or 0), f"訂單取消退款 {o.get('order_no') or o['id']}", o["id"])
         update["refunded_at"] = now_iso()
@@ -2891,6 +3016,7 @@ async def i18n_stats():
 
 email_auth.db = db
 admin_api.db = db
+giftcard_api.db = db
 admin_api.translator = translator
 admin_api.require_role = require_role
 admin_api._wallet_tx = _wallet_tx
@@ -2915,6 +3041,8 @@ payments_api.upload_b64 = _upload_b64
 payments_api.new_id = new_id
 payments_api.now_iso = now_iso
 app.include_router(payments_api.router)
+app.include_router(giftcard_api.router, prefix="/api")
+app.include_router(giftcard_api.ext_router, prefix="/api")
 app.include_router(admin_api.router)
 app.include_router(api_router)
 app.include_router(clerk_router)
@@ -2966,6 +3094,7 @@ async def on_startup():
     await seed()
     await translator.load()
     await admin_api.load_integration_settings()
+    asyncio.create_task(_giftcard_dispatch_loop())
 
 
 @app.middleware("http")

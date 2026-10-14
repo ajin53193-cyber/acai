@@ -25,7 +25,8 @@ import { UserTagsAdmin } from "@/pages/admin/UserTagsAdmin";
 import { MemberAssetsAdmin } from "@/pages/admin/MemberAssetsAdmin";
 import { BlacklistAdmin } from "@/pages/admin/BlacklistAdmin";
 import { UserLogsAdmin } from "@/pages/admin/UserLogsAdmin";
-import { GiftCardPlaceholder } from "@/pages/admin/GiftCardPlaceholder";
+import { GiftCardPoolAdmin, GiftCardOrdersAdmin } from "@/pages/admin/GiftCardPoolAdmin";
+import { GiftCardTxnAdmin, GiftCardApiAdmin } from "@/pages/admin/GiftCardTxnAdmin";
 import { GiftCardNewAdmin } from "@/pages/admin/GiftCardNewAdmin";
 import { HomeLayoutAdmin } from "@/pages/admin/HomeLayoutAdmin";
 import { IntegrationConfigAdmin } from "@/pages/admin/IntegrationConfigAdmin";
@@ -108,12 +109,12 @@ const PAGES = {
   "member-assets": (p) => <MemberAssetsAdmin {...p} />,
   blacklist: (p) => <BlacklistAdmin {...p} />,
   "user-logs": (p) => <UserLogsAdmin {...p} />,
-  "giftcard-pool": (p) => <GiftCardPlaceholder title={tr("號碼庫")} {...p} />,
-  "giftcard-orders": (p) => <GiftCardPlaceholder title={tr("訂單管理")} {...p} />,
+  "giftcard-pool": (p) => <GiftCardPoolAdmin {...p} />,
+  "giftcard-orders": (p) => <GiftCardOrdersAdmin {...p} />,
   "giftcard-list": (p) => <ProductsAdmin giftcardOnly {...p} />,
   "giftcard-new": (p) => <GiftCardNewAdmin {...p} />,
-  "giftcard-trade-query": (p) => <GiftCardPlaceholder title={tr("交易號查詢")} {...p} />,
-  "giftcard-api": (p) => <GiftCardPlaceholder title={tr("核銷接口API")} {...p} />,
+  "giftcard-trade-query": (p) => <GiftCardTxnAdmin {...p} />,
+  "giftcard-api": (p) => <GiftCardApiAdmin {...p} />,
   "home-decoration": (p) => <HomeLayoutAdmin {...p} />,
   admins: (p) => <AdminsAdmin {...p} />,
   roles: (p) => <RolesAdmin {...p} />,
