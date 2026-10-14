@@ -27,8 +27,7 @@ export function AuthModalProvider({ children }) {
 }
 
 const TABS = [
-  ["email", tr("信箱登入")],
-  ["phone", tr("手機登入")],
+  ["email", tr("驗證碼登入")],
   ["account", tr("帳號登入")],
 ];
 

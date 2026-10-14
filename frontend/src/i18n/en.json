@@ -810,5 +810,6 @@
  "驗證碼將發送至 {0}": "Verification code will be sent to {0}",
  "驗證碼已發送至 {0}": "Verification code sent to {0}",
  "密碼長度為8~32位，數字、字母、符號至少包含兩種": "Password must be 8-32 characters, including at least two types among numbers, letters, and symbols",
- "1.密碼長度為8~32位，數字、字母、符號至少包含兩種；": "1. Password must be 8-32 characters, including at least two types: numbers, letters, or symbols;"
+ "1.密碼長度為8~32位，數字、字母、符號至少包含兩種；": "1. Password must be 8-32 characters, including at least two types: numbers, letters, or symbols;",
+ "驗證碼登入": "Login with verification code"
 }
