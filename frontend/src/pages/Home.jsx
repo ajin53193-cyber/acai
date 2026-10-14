@@ -6,19 +6,18 @@ import { publicApi } from "@/lib/api";
 import { useAuthModal } from "@/components/auth/AuthModal";
 
 import { ArticleCard } from "@/pages/ArticleCenter";
+import { useSiteConfig } from "@/lib/siteConfig";
 import { tr } from "@/i18n";
 
-const FEATURES = [
-  [ShieldCheck, tr("正版安全"), tr("涵蓋 500+ 款全球正版 APP 內購服務")],
-  [Rocket, tr("自動化極速出貨"), tr("90% 以上產品及服務線上自動秒發")],
-  [Headphones, tr("7x24 多語言服務"), tr("全世界線上呼叫中心提供服務")],
-  [Percent, tr("天天平價折扣不停"), tr("享受每日全類目產品特價促銷")],
-  [Globe, tr("全球 APP 發行"), tr("為 APP 開發者提供全球用戶發行服務")],
-];
+const FEATURE_ICONS = [ShieldCheck, Rocket, Headphones, Percent, Globe];
 
 function salesText(n) {
   return n >= 1000 ? `${Math.round(n / 1000)}k+` : `${n}+`;
 }
+
+const SmartLink = ({ to, className, children, ...rest }) => /^https?:\/\//.test(to || "")
+  ? <a href={to} target="_blank" rel="noreferrer" className={className} {...rest}>{children}</a>
+  : <Link to={to || "/"} className={className} {...rest}>{children}</Link>;
 
 export default function Home() {
   const [categories, setCategories] = useState([]);
@@ -27,6 +26,8 @@ export default function Home() {
   const isMobile = useIsMobile();
   const { isSignedIn } = useUser();
   const { openAuth } = useAuthModal();
+  const cfg = useSiteConfig();
+  const { hero, announcement, promo_banners: promos, features, register } = cfg;
 
   useEffect(() => {
     publicApi.get("/categories").then((r) => setCategories(r.data)).catch(() => {});
@@ -40,42 +41,44 @@ export default function Home() {
 
   return (
     <div>
-      {!isSignedIn && (
+      {!isSignedIn && register.enabled !== false && (
         <div data-testid="mobile-register-bar" className="md:hidden fixed inset-x-0 bottom-0 z-40 bg-[#5a3a22] text-white px-4 h-14 flex items-center gap-3 safe-bottom-box">
           <Gift className="h-6 w-6 text-orange-300 shrink-0" />
-          <span className="text-sm font-medium truncate">{tr("新用戶註冊最高領")} <span className="text-lg font-bold">9%</span>{tr("優惠券")}</span>
-          <button data-testid="mobile-register-btn" onClick={openAuth} className="ml-auto shrink-0 h-9 px-5 rounded-full bg-orange-500 text-white text-sm font-bold">{tr("立即註冊")}</button>
+          <span className="text-sm font-medium truncate">{register.bar_text} <span className="text-lg font-bold">{register.percent}</span>{register.bar_suffix}</span>
+          <button data-testid="mobile-register-btn" onClick={openAuth} className="ml-auto shrink-0 h-9 px-5 rounded-full bg-orange-500 text-white text-sm font-bold">{register.button}</button>
         </div>
       )}
       {/* Hero banner */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4">
         <div className="relative overflow-hidden rounded-2xl sm:rounded-3xl bg-gradient-to-r from-orange-100 via-amber-50 to-orange-50 border border-orange-100">
           <div className="relative z-10 px-4 sm:px-10 py-4 sm:py-12 max-w-[60%]">
-            <div className="text-[11px] sm:text-sm font-medium sm:font-semibold text-slate-500 sm:text-orange-500 mb-1 sm:mb-2">{tr("(UTC+8) 限時活動")}</div>
-            <h1 className="font-head text-[20px] sm:text-4xl lg:text-5xl font-extrabold text-orange-500 sm:text-orange-600 leading-tight whitespace-nowrap">{tr("低價氪金 戰力超神")}</h1>
+            <div className="text-[11px] sm:text-sm font-medium sm:font-semibold text-slate-500 sm:text-orange-500 mb-1 sm:mb-2">{hero.kicker}</div>
+            <h1 className="font-head text-[20px] sm:text-4xl lg:text-5xl font-extrabold text-orange-500 sm:text-orange-600 leading-tight whitespace-nowrap">{hero.title}</h1>
             <div className="font-head text-[17px] sm:text-3xl lg:text-4xl font-extrabold text-[#5a3a22] sm:text-slate-800 mt-0.5 sm:mt-2 whitespace-nowrap">
-              {tr("神券在手 下單省最高")} <span className="text-orange-500">7%</span>
+              {hero.subtitle} <span className="text-orange-500">{hero.highlight}</span>
             </div>
             <div className="flex flex-nowrap sm:flex-wrap gap-1.5 sm:gap-2 mt-3 sm:mt-6 overflow-hidden">
-              {[[tr("手遊"), "games"], [tr("端遊"), "games"], [tr("點卡官方速充"), "pointcard"]].map(([label, cid]) => (
-                <Link key={label} to={`/category/${cid}`} data-testid={`hero-pill-${cid}-${label}`}
-                  className="bg-white/90 hover:bg-white text-[#5a3a22] sm:text-orange-600 font-medium sm:font-semibold text-[11px] sm:text-sm rounded-full px-3 sm:px-5 py-0.5 sm:py-2 sm:border sm:border-orange-200 whitespace-nowrap transition-colors">{label}</Link>
+              {(hero.pills || []).map((p, i) => (
+                <SmartLink key={i} to={p.link} data-testid={`hero-pill-${i}`}
+                  className="bg-white/90 hover:bg-white text-[#5a3a22] sm:text-orange-600 font-medium sm:font-semibold text-[11px] sm:text-sm rounded-full px-3 sm:px-5 py-0.5 sm:py-2 sm:border sm:border-orange-200 whitespace-nowrap transition-colors">{p.label}</SmartLink>
               ))}
             </div>
           </div>
-          <img src="https://static.prod-images.emergentagent.com/jobs/8c0ad436-0c2e-49bb-a5bb-0efc73c32f62/images/2ad58532ad0f875a0c9c030d9069119b5960735a7e1383d2f707ce6813e0bc05.jpeg"
+          <img src={hero.image}
             alt="hero" className="absolute right-0 top-0 h-full w-[48%] sm:w-[55%] object-cover object-[35%_center] sm:object-left pointer-events-none" />
         </div>
       </div>
 
       {/* Announcement */}
+      {announcement.enabled !== false && (
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-2.5 md:mt-3">
-        <Link to="/article" data-testid="home-announcement" className="flex items-center gap-3 bg-white/70 md:bg-orange-50 md:border md:border-orange-100 rounded-lg md:rounded-full pr-4 md:px-4 py-0 md:py-2 text-[13px] md:text-sm text-slate-700 md:text-orange-700 overflow-hidden">
+        <SmartLink to={announcement.link} data-testid="home-announcement" className="flex items-center gap-3 bg-white/70 md:bg-orange-50 md:border md:border-orange-100 rounded-lg md:rounded-full pr-4 md:px-4 py-0 md:py-2 text-[13px] md:text-sm text-slate-700 md:text-orange-700 overflow-hidden">
           <span className="h-9 w-10 md:h-auto md:w-auto bg-orange-100/80 md:bg-transparent flex items-center justify-center shrink-0"><Volume2 className="h-4 w-4 text-orange-500 md:text-orange-700" /></span>
-          <span className="font-medium truncate"><span className="md:hidden">{tr("gogo589 用戶界面升級公告")}</span><span className="hidden md:inline">{tr("gogo589 介面升級公告：全新繁中介面上線，人工極速發貨，祝您購物愉快！")}</span></span>
+          <span className="font-medium truncate"><span className="md:hidden">{announcement.text_mobile || announcement.text}</span><span className="hidden md:inline">{announcement.text}</span></span>
           <span className="h-4 w-4 rounded-full bg-orange-100 md:bg-transparent flex items-center justify-center shrink-0 md:ml-auto"><ChevronRight className="h-3 w-3 md:h-4 md:w-4 text-orange-500 md:text-orange-700" /></span>
-        </Link>
+        </SmartLink>
       </div>
+      )}
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Quick order */}
@@ -121,12 +124,11 @@ export default function Home() {
 
         {/* Promo banners */}
         <section className="mt-6 md:mt-8 grid grid-cols-2 gap-3 md:gap-4">
-          <Link to="/sign-up" data-testid="promo-banner-1" className="block overflow-hidden rounded-2xl hover:shadow-lg transition-shadow">
-            <img src="https://customer-assets-39nsmqrw.emergentagent.net/job_crossborder-topup/artifacts/b55a2354a230f99b_image.png" alt={tr("新版上線有禮 5% OFF")} className="w-full h-auto object-cover" />
-          </Link>
-          <Link to="/article" data-testid="promo-banner-2" className="block overflow-hidden rounded-2xl hover:shadow-lg transition-shadow">
-            <img src="https://customer-assets-39nsmqrw.emergentagent.net/job_crossborder-topup/artifacts/3673631df7a58fe1_image.png" alt={tr("精選活動合集 優惠一站搞定")} className="w-full h-auto object-cover" />
-          </Link>
+          {(promos || []).filter((b) => b.image).map((b, i) => (
+            <SmartLink key={i} to={b.link} data-testid={`promo-banner-${i + 1}`} className="block overflow-hidden rounded-2xl hover:shadow-lg transition-shadow">
+              <img src={b.image} alt={b.alt || ""} className="w-full h-auto object-cover" />
+            </SmartLink>
+          ))}
         </section>
 
         {/* Hot categories: 6 categories, each a 2-page swipeable 5x2 grid */}
@@ -169,42 +171,46 @@ export default function Home() {
 
       {/* Feature band */}
       <section className="mt-8 md:hidden px-4" data-testid="features-mobile-banner">
-        <img src="/banners/features-mobile.png" alt={tr("gogo589 全球應用內購服務：正版安全、極速出貨、7x24 客服、天天折扣、全球發行")} className="w-full h-auto rounded-2xl shadow-sm" />
+        <img src={features.mobile_image} alt={features.tagline} className="w-full h-auto rounded-2xl shadow-sm" />
       </section>
       <section className="hidden md:block mt-14 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center mb-10">
-          <img src="/gogo589-logo.png" alt="gogo589" className="h-8 md:h-12 w-auto object-contain mx-auto" />
-          <div className="text-xs md:text-base tracking-[0.35em] text-slate-500 font-medium mt-2 pl-[0.35em]">{tr("全球應用內購服務")}</div>
+          <img src={cfg.logo.image} alt="gogo589" className="h-8 md:h-12 w-auto object-contain mx-auto" />
+          <div className="text-xs md:text-base tracking-[0.35em] text-slate-500 font-medium mt-2 pl-[0.35em]">{features.tagline}</div>
         </div>
         <div className="grid grid-cols-5 gap-x-1.5 md:gap-x-6 gap-y-10">
-          {FEATURES.map(([Icon, title, desc], i) => (
+          {(features.items || []).map((f, i) => {
+            const Icon = FEATURE_ICONS[i % FEATURE_ICONS.length];
+            return (
             <div key={i} className="text-center flex flex-col items-center">
               <div className="h-11 w-11 md:h-[72px] md:w-[72px] rounded-xl md:rounded-[20px] bg-gradient-to-br from-orange-400 to-orange-500 flex items-center justify-center shadow-md md:shadow-lg shadow-orange-200/70 mb-2 md:mb-4">
                 <Icon className="h-5 w-5 md:h-9 md:w-9 text-white" strokeWidth={1.75} />
               </div>
-              <div className="font-bold text-[11px] md:text-base text-slate-800 leading-tight">{title}</div>
-              <p className="hidden md:block text-xs text-slate-400 mt-1.5 leading-relaxed max-w-[180px]">{desc}</p>
+              <div className="font-bold text-[11px] md:text-base text-slate-800 leading-tight">{f.title}</div>
+              <p className="hidden md:block text-xs text-slate-400 mt-1.5 leading-relaxed max-w-[180px]">{f.desc}</p>
             </div>
-          ))}
+          ); })}
         </div>
       </section>
 
       {/* Register CTA band */}
+      {register.enabled !== false && (<>
       <section className="mt-4 md:hidden px-4">
         <button type="button" data-testid="cta-register-banner" onClick={openAuth} className="block w-full overflow-hidden rounded-2xl shadow-sm active:scale-[0.99] transition-transform">
-          <img src="/banners/register-mobile.png" alt={tr("新用戶註冊，最高領 9% 優惠券，立即註冊")} className="w-full h-auto" />
+          <img src={register.mobile_image} alt={register.title} className="w-full h-auto" />
         </button>
       </section>
       <section className="hidden md:block mt-6 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="relative overflow-hidden rounded-2xl sm:rounded-3xl bg-gradient-to-r from-orange-500 via-orange-500 to-amber-500 px-8 py-8 flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="text-white text-center sm:text-left">
-            <div className="font-head text-2xl font-extrabold">{tr("新用戶註冊，最高領 9% 優惠券")}</div>
-            <p className="text-sm text-white/85 mt-1">{tr("註冊即享首單優惠，海量正版 App 充值等你來！")}</p>
+            <div className="font-head text-2xl font-extrabold">{register.title}</div>
+            <p className="text-sm text-white/85 mt-1">{register.subtitle}</p>
           </div>
-          <Link to="/sign-up" data-testid="cta-register-btn" className="shrink-0 bg-white text-orange-600 font-bold rounded-full px-8 py-3 hover:shadow-lg transition-shadow">{tr("立即註冊")}</Link>
+          <Link to="/sign-up" data-testid="cta-register-btn" className="shrink-0 bg-white text-orange-600 font-bold rounded-full px-8 py-3 hover:shadow-lg transition-shadow">{register.button}</Link>
           <Gift className="absolute right-40 -bottom-6 h-32 w-32 text-white/10 hidden lg:block" />
         </div>
       </section>
+      </>)}
     </div>
   );
 }

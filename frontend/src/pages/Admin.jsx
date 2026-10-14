@@ -1,9 +1,8 @@
 import { useEffect, useState, useCallback } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Show, useUser } from "@clerk/react";
-import { LayoutDashboard, Package, ShoppingBag, Star, DollarSign, Tag, Users, Plus, Pencil, Trash2, X, Loader2, ArrowLeft, TrendingUp, Clock, ShieldAlert, Settings, CreditCard, ArrowUp, ArrowDown, ImagePlus, Wallet, BadgeCheck, MessageSquare, Globe, Bell } from "lucide-react";
+import { LayoutDashboard, Package, ShoppingBag, Star, DollarSign, Tag, Users, Plus, Pencil, Trash2, X, Loader2, ArrowLeft, TrendingUp, Clock, ShieldAlert, Settings, CreditCard, ArrowUp, ArrowDown, ImagePlus, Wallet, BadgeCheck, MessageSquare, Globe, Bell, Megaphone } from "lucide-react";
 import { toast } from "sonner";
-import { QRCodeSVG } from "qrcode.react";
 import { useApi, publicApi } from "@/lib/api";
 import { STATUS_LABELS, STATUS_ORDER, StatusBadge } from "@/lib/status";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
@@ -16,6 +15,8 @@ import { TopupsAdmin } from "@/pages/admin/TopupsAdmin";
 import { ReportsAdmin } from "@/pages/admin/ReportsAdmin";
 import { TranslationsAdmin } from "@/pages/admin/TranslationsAdmin";
 import { NotificationsAdmin } from "@/pages/admin/NotificationsAdmin";
+import { ActivitiesAdmin } from "@/pages/admin/ActivitiesAdmin";
+import { SiteConfigAdmin } from "@/pages/admin/SiteConfigAdmin";
 import { tr } from "@/i18n";
 
 const NAV = [
@@ -24,9 +25,9 @@ const NAV = [
 const NAV_GROUPS = [
   [tr("財務管理"), [["wallets", tr("錢包管理"), Wallet], ["payments", tr("支付管理"), CreditCard], ["currencies", tr("匯率管理"), DollarSign], ["topups", tr("充值訂單"), Wallet]]],
   [tr("運營管理"), [["products", tr("商品管理"), Package], ["orders", tr("訂單管理"), ShoppingBag], ["verifications", tr("認證審核"), BadgeCheck], ["reviews", tr("評價管理"), Star], ["feedback", tr("用戶反饋"), MessageSquare]]],
-  [tr("活動管理"), [["settings", tr("活動配置"), Settings], ["promos", tr("優惠碼"), Tag]]],
+  [tr("活動管理"), [["activities", tr("活動配置"), Megaphone], ["promos", tr("優惠碼"), Tag]]],
   [tr("會員與數據"), [["members", tr("會員管理"), Users], ["reports", tr("數據報表"), TrendingUp]]],
-  [tr("系統設定"), [["translations", tr("翻譯管理"), Globe], ["notifications", tr("通知設定"), Bell], ["paylogos", tr("頁尾支付Logo"), ImagePlus]]],
+  [tr("系統設定"), [["siteconfig", tr("網站配置"), Settings], ["translations", tr("翻譯管理"), Globe], ["notifications", tr("通知設定"), Bell], ["paylogos", tr("頁尾支付Logo"), ImagePlus]]],
 ];
 
 const ALL_STATUSES = Object.keys(STATUS_LABELS);
@@ -77,7 +78,8 @@ function AdminInner() {
         {section === "reviews" && <Reviews callApi={callApi} />}
         {section === "currencies" && <Currencies callApi={callApi} />}
         {section === "promos" && <Promos callApi={callApi} />}
-        {section === "settings" && <SiteSettings callApi={callApi} />}
+        {section === "activities" && <ActivitiesAdmin callApi={callApi} />}
+        {section === "siteconfig" && <SiteConfigAdmin callApi={callApi} />}
         {section === "paylogos" && <PaymentLogos callApi={callApi} />}
         {section === "users" && <UsersSec callApi={callApi} />}
         {section === "members" && <MembersAdmin callApi={callApi} />}
@@ -545,42 +547,6 @@ export default function Admin() {
     </div>
   );
   return <Show when="signed-in"><AdminInner /></Show>;
-}
-
-
-function SiteSettings({ callApi }) {
-  const [form, setForm] = useState({ whatsapp_number: "", whatsapp_link: "", cs_label: "" });
-  const [saving, setSaving] = useState(false);
-  useEffect(() => { callApi({ method: "GET", url: "/settings" }).then((r) => setForm(r.data)).catch(() => {}); }, [callApi]);
-  const save = async () => {
-    setSaving(true);
-    try {
-      const body = { ...form };
-      if (body.whatsapp_number && !body.whatsapp_link?.includes("wa.me/" + body.whatsapp_number.replace(/\D/g, ""))) body.whatsapp_link = "https://wa.me/" + body.whatsapp_number.replace(/\D/g, "");
-      const r = await callApi({ method: "PUT", url: "/admin/settings", data: body });
-      setForm(r.data); toast.success(tr("已儲存，頁尾二維碼已更新"));
-    } catch { toast.error(tr("儲存失敗")); }
-    setSaving(false);
-  };
-  const inp = "w-full h-11 rounded-xl bg-slate-800 border border-slate-700 px-4 text-sm text-white outline-none focus:border-orange-400";
-  return (
-    <div>
-      <SectionHeader title={tr("網站設定 · 客服 WhatsApp")} />
-      <div className="grid md:grid-cols-2 gap-6 max-w-4xl">
-        <div className="space-y-4">
-          <label className="block text-sm text-slate-300">{tr("WhatsApp 號碼（含國碼，選填）")}<input data-testid="settings-whatsapp-number" value={form.whatsapp_number || ""} onChange={(e) => setForm({ ...form, whatsapp_number: e.target.value })} placeholder="+85261234567" className={`${inp} mt-1`} /></label>
-          <label className="block text-sm text-slate-300">{tr("WhatsApp 連結（二維碼內容）")}<input data-testid="settings-whatsapp-link" value={form.whatsapp_link || ""} onChange={(e) => setForm({ ...form, whatsapp_link: e.target.value })} placeholder={tr("https://wa.me/85261234567 或群組邀請連結")} className={`${inp} mt-1`} /></label>
-          <label className="block text-sm text-slate-300">{tr("二維碼下方文字")}<input data-testid="settings-cs-label" value={form.cs_label || ""} onChange={(e) => setForm({ ...form, cs_label: e.target.value })} className={`${inp} mt-1`} /></label>
-          <button data-testid="settings-save" onClick={save} disabled={saving} className="h-11 px-8 rounded-full bg-orange-500 hover:bg-orange-600 text-white font-semibold disabled:opacity-60">{tr("儲存")}</button>
-        </div>
-        <div className="flex flex-col items-center justify-center bg-slate-800 rounded-2xl p-6">
-          <div className="bg-white rounded-xl p-2"><QRCodeSVG value={form.whatsapp_link || "https://wa.me/"} size={160} fgColor="#E8792A" /></div>
-          <div className="text-xs text-slate-400 mt-3">{form.cs_label}</div>
-          <div className="text-[11px] text-slate-500 mt-1 break-all text-center">{form.whatsapp_link}</div>
-        </div>
-      </div>
-    </div>
-  );
 }
 
 

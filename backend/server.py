@@ -20,6 +20,7 @@ import storage as objstore
 from translate import Translator, to_simplified, to_traditional
 import email_auth
 import admin_api
+import cms_api
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -359,11 +360,13 @@ async def get_product(product_id: str):
 
 
 @api_router.get("/articles")
-async def list_articles(page: int = 1, size: int = 15):
-    q = {"active": True, "page": {"$ne": True}}
+async def list_articles(page: int = 1, size: int = 15, type: str = ""):
+    q = cms_api.article_visible_query()
+    if type:
+        q["type"] = type
     total = await db.articles.count_documents(q)
     proj = {"_id": 0, "content_html": 0}
-    rows = await db.articles.find(q, proj).sort("sort_order", 1).skip((page - 1) * size).to_list(size)
+    rows = await db.articles.find(q, proj).sort([("sort_order", 1), ("published_at", -1)]).skip((page - 1) * size).to_list(size)
     return {"total": total, "rows": rows}
 
 
@@ -372,7 +375,7 @@ async def get_article(article_id: str):
     a = await db.articles.find_one_and_update({"id": article_id, "active": True}, {"$inc": {"view_count": 1}}, projection={"_id": 0})
     if not a:
         raise HTTPException(status_code=404, detail="Article not found")
-    rows = [] if a.get("page") else await db.articles.find({"active": True, "page": {"$ne": True}}, {"_id": 0, "id": 1, "title": 1, "sort_order": 1}).sort("sort_order", 1).to_list(500)
+    rows = [] if a.get("page") else await db.articles.find(cms_api.article_visible_query(), {"_id": 0, "id": 1, "title": 1, "sort_order": 1}).sort([("sort_order", 1), ("published_at", -1)]).to_list(500)
     idx = next((i for i, r in enumerate(rows) if r["id"] == article_id), -1)
     a["prev"] = rows[idx - 1] if idx > 0 else None
     a["next"] = rows[idx + 1] if 0 <= idx < len(rows) - 1 else None
@@ -1730,6 +1733,10 @@ admin_api._wallet_tx = _wallet_tx
 admin_api._usdt_settle = _usdt_settle
 admin_api._usdt_call = _usdt_call
 admin_api._usdt_creds = _usdt_creds
+cms_api.db = db
+cms_api.upload_b64 = _upload_b64
+cms_api.new_id = new_id
+app.include_router(cms_api.router)
 app.include_router(admin_api.router)
 app.include_router(api_router)
 app.include_router(clerk_router)

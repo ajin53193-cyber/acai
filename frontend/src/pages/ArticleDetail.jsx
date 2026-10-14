@@ -34,6 +34,13 @@ export default function ArticleDetail() {
             <span data-testid="article-views">{tr("閱讀量：")}{a.view_count}{tr("次")}</span>
           </div>
           <div className="mt-6 md:mt-8 kavip-content article-content text-[15px] leading-relaxed text-slate-700" data-testid="article-content" dangerouslySetInnerHTML={{ __html: a.content_html }} />
+          {a.link && (
+            <div className="mt-8 text-center">
+              {/^https?:\/\//.test(a.link)
+                ? <a href={a.link} target="_blank" rel="noreferrer" data-testid="article-cta" className="inline-block h-11 leading-[44px] px-10 rounded-full bg-orange-500 hover:bg-orange-600 text-white font-bold">{tr("立即參與")}</a>
+                : <Link to={a.link} data-testid="article-cta" className="inline-block h-11 leading-[44px] px-10 rounded-full bg-orange-500 hover:bg-orange-600 text-white font-bold">{tr("立即參與")}</Link>}
+            </div>
+          )}
           <div className="mt-8 md:mt-10 pt-5 border-t border-slate-100 flex flex-col sm:flex-row sm:justify-between gap-3 text-sm">
             {a.prev ? (
               <Link to={`/article/${a.prev.id}`} data-testid="article-prev" className="inline-flex items-center gap-1 text-slate-600 hover:text-orange-600 min-w-0">

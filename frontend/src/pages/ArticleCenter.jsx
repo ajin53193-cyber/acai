@@ -6,7 +6,8 @@ import { tr } from "@/i18n";
 
 const PAGE_SIZE = 15;
 
-export const isPromo = (a) => /優惠|优惠|折扣|OFF|%|活動|活动|盛惠|大禮包|大礼包|好券|會員日|会员日|coupon|discount|promo|event|sale/i.test(a.title || "");
+export const ARTICLE_TYPES = [["", tr("全部")], ["promo", tr("優惠活動")], ["tutorial", tr("充值教學")], ["news", tr("新聞公告")]];
+export const isPromo = (a) => a.type === "promo" || (!a.type && /優惠|优惠|折扣|OFF|%|活動|活动|盛惠|大禮包|大礼包|好券|會員日|会员日|coupon|discount|promo|event|sale/i.test(a.title || ""));
 
 export function ArticleCard({ n, testId }) {
   return (
@@ -19,7 +20,8 @@ export function ArticleCard({ n, testId }) {
         <Sparkles className="absolute left-1 top-1/2 -translate-y-1/2 h-3 w-3 text-white" />
         <Sparkles className="absolute right-1 top-1/2 -translate-y-1/2 h-3 w-3 text-white" />
         <div className="aspect-[2/1] overflow-hidden rounded-lg border-[3px] border-white shadow-sm bg-white">
-          <img src={n.cover} alt={n.title} loading="lazy" className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-300" />
+          {n.cover ? <img src={n.cover} alt={n.title} loading="lazy" className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-300" />
+            : <div className="h-full w-full bg-gradient-to-br from-orange-400 to-amber-300 flex items-center justify-center text-white font-bold text-sm px-3 text-center leading-snug">{n.title}</div>}
         </div>
       </div>
       <div className="px-3 py-3 flex items-center gap-2">
@@ -36,14 +38,15 @@ export function ArticleCard({ n, testId }) {
 
 export default function ArticleCenter() {
   const [page, setPage] = useState(1);
+  const [type, setType] = useState("");
   const [data, setData] = useState({ total: 0, rows: [] });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     setLoading(true);
-    publicApi.get("/articles", { params: { page, size: PAGE_SIZE } }).then((r) => setData(r.data)).catch(() => {}).finally(() => setLoading(false));
+    publicApi.get("/articles", { params: { page, size: PAGE_SIZE, type } }).then((r) => setData(r.data)).catch(() => {}).finally(() => setLoading(false));
     window.scrollTo({ top: 0 });
-  }, [page]);
+  }, [page, type]);
 
   const pages = Math.max(1, Math.ceil(data.total / PAGE_SIZE));
 
@@ -52,6 +55,13 @@ export default function ArticleCenter() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 md:py-6">
         <div className="text-sm text-slate-400 mb-4 md:mb-6 flex items-center gap-1.5" data-testid="article-breadcrumb">
           <Link to="/" className="hover:text-orange-600">{tr("首頁")}</Link><span>/</span><span className="text-slate-600">{tr("新聞資訊")}</span>
+        </div>
+
+        <div className="flex gap-2 mb-4 md:mb-6 overflow-x-auto no-scrollbar" data-testid="article-type-tabs">
+          {ARTICLE_TYPES.map(([k, label]) => (
+            <button key={k} data-testid={`article-type-${k || "all"}`} onClick={() => { setType(k); setPage(1); }}
+              className={`shrink-0 h-8 px-4 rounded-full text-[13px] font-semibold transition-colors ${type === k ? "bg-orange-500 text-white" : "bg-white text-slate-600 hover:text-orange-600 shadow-sm"}`}>{label}</button>
+          ))}
         </div>
 
         {loading ? (

@@ -10,6 +10,7 @@ import { useCurrency } from "@/context/CurrencyContext";
 import { useAuthModal } from "@/components/auth/AuthModal";
 import CurrencySelector from "@/components/CurrencySelector";
 import { openService } from "@/components/ServiceWidget";
+import { useSiteConfig } from "@/lib/siteConfig";
 import { AddToHomeDialog } from "@/components/AddToHomeDialog";
 import {
   DropdownMenu,
@@ -35,6 +36,7 @@ const CAT_ICONS = {
 };
 
 export default function Header() {
+  const cfg = useSiteConfig();
   const navigate = useNavigate();
   const { pathname } = useLocation();
   const showMobileSearch = pathname === "/" || pathname.startsWith("/search");
@@ -63,9 +65,11 @@ export default function Header() {
     <header className="sticky top-0 z-40 w-full bg-[#FFF4EA]">
       <div style={{ height: "env(safe-area-inset-top)" }} />
       {/* Top promo bar */}
-      <a href="https://www.dbto.ai/zh-CN?-affi-100506" target="_blank" rel="noreferrer" data-testid="promo-experience-btn" className="block bg-[#F7A23B]">
-        <img src="/banners/top-ai-promo.png" alt={tr("最強 AI 免費試用，價格超實惠 立即體驗")} className="w-full h-auto max-h-10 md:max-h-12 object-cover md:object-contain mx-auto block" />
+      {cfg.top_promo.enabled !== false && cfg.top_promo.image && (
+      <a href={cfg.top_promo.link || "#"} target="_blank" rel="noreferrer" data-testid="promo-experience-btn" className="block bg-[#F7A23B]">
+        <img src={cfg.top_promo.image} alt={cfg.top_promo.alt || ""} className="w-full h-auto max-h-10 md:max-h-12 object-cover md:object-contain mx-auto block" />
       </a>
+      )}
 
       {/* Main header */}
       <div className="bg-white md:border-b border-orange-100 shadow-sm relative">
@@ -76,7 +80,7 @@ export default function Header() {
           </button>
           {/* Logo */}
           <Link to="/" data-testid="logo-link" className="flex flex-col items-start shrink-0 leading-none">
-            <img src="/gogo589-logo.png" alt="gogo589" className="h-7 md:h-9 w-auto object-contain" />
+            <img src={cfg.logo.image} alt="gogo589" className="h-7 md:h-9 w-auto object-contain" />
             <div className="text-[10px] text-slate-400 font-medium mt-0.5 hidden sm:block">{tr("全球應用內購服務")}</div>
           </Link>
 

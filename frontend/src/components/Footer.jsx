@@ -5,6 +5,7 @@ import { publicApi } from "@/lib/api";
 import { openService } from "@/components/ServiceWidget";
 import { Star, Apple, CreditCard } from "lucide-react";
 import { tr } from "@/i18n";
+import { useSiteConfig } from "@/lib/siteConfig";
 
 const PAY_BADGES = [
   <span className="font-black italic text-base text-[#1A1F71]">VISA</span>,
@@ -44,6 +45,7 @@ const COLS = [
 ];
 
 export default function Footer() {
+  const cfg = useSiteConfig();
   const [settings, setSettings] = useState({ whatsapp_link: "https://wa.me/", cs_label: tr("WhatsApp 掃碼聯繫客服") });
   const [logos, setLogos] = useState(null);
   useEffect(() => {
@@ -131,7 +133,7 @@ export default function Footer() {
       <div className="bg-black/10 md:bg-black/10 max-md:bg-transparent max-md:pb-[calc(3.5rem+env(safe-area-inset-bottom))]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 md:py-5 flex flex-col md:flex-row md:items-center justify-between gap-1.5 md:gap-3 text-center md:text-left">
           <div className="flex items-center justify-center md:justify-start gap-4">
-            <img src="/gogo589-logo.png" alt="gogo589" className="hidden md:block h-6 w-auto opacity-80" style={{ filter: "brightness(0) invert(1)" }} />
+            <img src={cfg.logo.image} alt="gogo589" className="hidden md:block h-6 w-auto opacity-80" style={{ filter: "brightness(0) invert(1)" }} />
             <span className="text-[13px] md:text-[11px] text-white/70">{tr("© 2015-2026 gogo589.com 版權所有，並保留所有權利")}</span>
           </div>
           <div className="text-[12px] md:text-[11px] text-white/55 md:text-right leading-relaxed">
