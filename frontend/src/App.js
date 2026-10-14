@@ -27,6 +27,7 @@ import WalletTransactions from "@/pages/account/WalletTransactions";
 import WalletTopups from "@/pages/account/WalletTopups";
 import GoogleCallback from "@/pages/GoogleCallback";
 import AdminLogin from "@/pages/AdminLogin";
+import ActivityCenter from "@/pages/ActivityCenter";
 import Info from "@/pages/Info";
 import ArticleCenter from "@/pages/ArticleCenter";
 import ArticleDetail from "@/pages/ArticleDetail";
@@ -76,6 +77,7 @@ function App() {
                   <Route path="/product/:id" element={<ProductDetail />} />
                   <Route path="/checkout" element={<Checkout />} />
                   <Route path="/info/:slug" element={<Info />} />
+                  <Route path="/activities" element={<ActivityCenter />} />
                   <Route path="/article" element={<ArticleCenter />} />
                   <Route path="/article/:id" element={<ArticleDetail />} />
                   <Route element={<AccountLayout />}>

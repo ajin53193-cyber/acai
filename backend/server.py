@@ -515,7 +515,9 @@ async def public_flash_sales():
 async def lottery_config_public():
     cfg = await admin_api.get_lottery_cfg()
     prizes = [{"id": p["id"], "label": p["label"], "color": p.get("color", "#fb923c"), "type": p.get("type", "none")} for p in cfg.get("prizes", [])]
-    return {"enabled": bool(cfg.get("enabled")), "cost_points": int(cfg.get("cost_points") or 0), "free_daily": bool(cfg.get("free_daily")), "prizes": prizes}
+    return {"enabled": bool(cfg.get("enabled")), "cost_points": int(cfg.get("cost_points") or 0), "free_daily": bool(cfg.get("free_daily")),
+            "invite_only": bool(cfg.get("invite_only")), "invite_draws": int(cfg.get("invite_draws") or 1),
+            "title": cfg.get("title") or "邀請好友 · 抽大獎", "subtitle": cfg.get("subtitle") or "", "rules": cfg.get("rules") or "", "prizes": prizes}
 
 
 @api_router.get("/lottery/recent-winners")
@@ -621,6 +623,8 @@ async def lottery_draw(body: dict = None, member: dict = Depends(current_member)
     daily_free = count == 1 and bool(cfg.get("free_daily")) and not await _free_draw_used_today(uid)
     use_bonus = count == 1 and not daily_free and bonus > 0
     use_free = daily_free or use_bonus
+    if cfg.get("invite_only") and not use_free:
+        raise HTTPException(status_code=400, detail="抽獎次數不足，邀請好友註冊即可獲得抽獎機會")
     free_kind = "daily" if daily_free else ("bonus" if use_bonus else "")
     charge = 0 if use_free else cost * count
     bal = int(u.get("points") or 0)
@@ -1513,7 +1517,12 @@ async def bind_referral(body: dict, member: dict = Depends(current_member)):
     if not inviter:
         raise HTTPException(status_code=404, detail="邀請碼不存在")
     await db.users.update_one({"user_id": uid}, {"$set": {"referred_by": inviter["user_id"], "referred_at": now_iso()}})
-    return {"ok": True, "message": "綁定成功，首次充值後你和好友都將獲得積分獎勵！"}
+    lcfg = await admin_api.get_lottery_cfg()
+    draws = int(lcfg.get("invite_draws") or 1) if lcfg.get("enabled") else 0
+    await db.users.update_one({"user_id": inviter["user_id"]}, {"$inc": {"referral_invited": 1, "lottery_bonus_draws": draws}})
+    if draws:
+        await log_user(inviter["user_id"], "referral", "邀請成功", f"好友 {admin_api.account_no(uid)} 註冊成功，獲得 {draws} 次抽獎機會")
+    return {"ok": True, "message": "綁定成功！你的好友已獲得抽獎機會"}
 
 
 

@@ -783,8 +783,13 @@ class LotteryPrizeIn(BaseModel):
 
 class LotteryConfigIn(BaseModel):
     enabled: bool = True
-    cost_points: int = 100
-    free_daily: bool = True
+    cost_points: int = 0
+    free_daily: bool = False
+    invite_only: bool = True
+    invite_draws: int = 1
+    title: str = "邀請好友 · 抽大獎"
+    subtitle: str = "每成功邀請 1 位好友註冊，即得 1 次抽獎機會"
+    rules: str = ""
     prizes: List[LotteryPrizeIn] = []
 
 
@@ -801,7 +806,8 @@ async def admin_lottery_put(body: LotteryConfigIn, admin: dict = Depends(current
         if not d.get("id"):
             d["id"] = uuid.uuid4().hex[:8]
         prizes.append(d)
-    val = {"enabled": body.enabled, "cost_points": int(body.cost_points), "free_daily": bool(body.free_daily), "prizes": prizes}
+    val = {"enabled": body.enabled, "cost_points": int(body.cost_points), "free_daily": bool(body.free_daily), "invite_only": bool(body.invite_only),
+           "invite_draws": max(1, int(body.invite_draws)), "title": body.title, "subtitle": body.subtitle, "rules": body.rules, "prizes": prizes}
     await db.settings.update_one({"key": "lottery"}, {"$set": {"key": "lottery", "value": val}}, upsert=True)
     return val
 
@@ -1508,7 +1514,7 @@ ALL_PERMISSIONS = [
     "products", "categories", "reviews",
     "giftcards", "giftcard-new", "giftcard-redeem", "giftcard-orders", "giftcard-api",
     "home-decoration", "banners", "recommendations", "promos", "notifications", "announcements",
-    "activities",
+    "activities", "invite-lottery",
     "orders", "order-settlement", "topups", "payments", "reconciliation", "currencies", "finance-reports",
     "siteconfig", "admins", "roles", "operation-logs", "sms-config", "email-config", "oauth-config", "translations", "paylogos",
 ]
