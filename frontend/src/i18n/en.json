@@ -830,5 +830,10 @@
  "請稍候再試": "Please try again later",
  "郵箱註冊": "Register with Email",
  "手機號碼註冊暫未開放，請先使用郵箱註冊": "Mobile number registration is not available yet, please use email to register",
- "手機驗證碼登入暫未開放，請使用郵箱驗證碼": "Mobile verification code login is not available yet, please use email verification code"
+ "手機驗證碼登入暫未開放，請使用郵箱驗證碼": "Mobile verification code login is not available yet, please use email verification code",
+ "Google 登入失敗": "Google login failed",
+ "信箱 / 手機號 / 帳號": "Email / Phone / Account",
+ "已取消 Google 登入": "Google login canceled",
+ "正在透過 Google 登入…": "Logging in with Google…",
+ "登入狀態無效，請重新嘗試": "Invalid login status, please try again"
 }

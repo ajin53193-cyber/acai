@@ -25,6 +25,7 @@ import MyWallet from "@/pages/account/MyWallet";
 import WalletTopUp from "@/pages/account/WalletTopUp";
 import WalletTransactions from "@/pages/account/WalletTransactions";
 import WalletTopups from "@/pages/account/WalletTopups";
+import GoogleCallback from "@/pages/GoogleCallback";
 import Info from "@/pages/Info";
 import ArticleCenter from "@/pages/ArticleCenter";
 import ArticleDetail from "@/pages/ArticleDetail";
@@ -91,6 +92,7 @@ function App() {
                   <Route path="/sign-up/*" element={<AuthRedirect />} />
                 </Route>
                 <Route path="/admin" element={<Admin />} />
+                <Route path="/auth/google" element={<GoogleCallback />} />
                 <Route path="/sso-callback" element={<AuthenticateWithRedirectCallback signInFallbackRedirectUrl="/" signUpFallbackRedirectUrl="/" />} />
               </Routes>
             </CartProvider>

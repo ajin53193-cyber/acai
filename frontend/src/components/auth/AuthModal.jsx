@@ -119,7 +119,8 @@ function AuthModal({ open, onOpenChange }) {
           setLoading(false);
           return toast.error(tr("請輸入帳號與密碼"));
         }
-        const ident = identifier.includes("@") ? identifier.trim() : toE164(dialCode, identifier);
+        const raw = identifier.trim();
+        const ident = raw.includes("@") ? raw : /^\+?\d[\d\s-]{5,}$/.test(raw) ? (raw.startsWith("+") ? raw.replace(/[\s-]/g, "") : toE164(dialCode, raw)) : raw;
         const r = await publicApi.post("/auth/email/password-login", { identifier: ident, password });
         return await finishTicket(r.data.ticket);
       } else {
@@ -145,6 +146,22 @@ function AuthModal({ open, onOpenChange }) {
   }
 
   async function oauth(strategy) {
+    if (strategy === "oauth_google") {
+      // REMINDER: DO NOT HARDCODE THE URL, OR ADD ANY FALLBACKS OR REDIRECT URLS, THIS BREAKS THE AUTH
+      const state = Math.random().toString(36).slice(2) + Date.now().toString(36);
+      sessionStorage.setItem("g_oauth_state", state);
+      sessionStorage.setItem("g_oauth_return", window.location.pathname + window.location.search);
+      const params = new URLSearchParams({
+        client_id: process.env.REACT_APP_GOOGLE_CLIENT_ID,
+        redirect_uri: window.location.origin + "/auth/google",
+        response_type: "code",
+        scope: "openid email profile",
+        state,
+        prompt: "select_account",
+      });
+      window.location.href = `https://accounts.google.com/o/oauth2/v2/auth?${params}`;
+      return;
+    }
     if (!siLoaded) return;
     try {
       await signIn.authenticateWithRedirect({
@@ -231,7 +248,7 @@ function AuthModal({ open, onOpenChange }) {
                 size={1}
                 value={identifier}
                 onChange={(e) => setIdentifier(e.target.value)}
-                placeholder={tab === "account" ? tr("信箱 / 帳號") : tr("信箱")}
+                placeholder={tab === "account" ? tr("信箱 / 手機號 / 帳號") : tr("信箱")}
                 className="w-full min-w-0 h-11 md:h-14 rounded-full md:rounded-2xl bg-[#F5F5F5] md:bg-slate-100 px-5 text-sm md:text-base outline-none focus:ring-2 focus:ring-orange-300 placeholder:text-slate-400"
               />
             )}

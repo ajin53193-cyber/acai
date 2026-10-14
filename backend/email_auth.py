@@ -348,3 +348,42 @@ async def phone_reset_password(body: PhoneRegisterIn):
     if r.status_code >= 300:
         raise HTTPException(status_code=400, detail="重設失敗")
     return {"ticket": await _ticket(user["id"])}
+
+
+# ----------------------------- Google OAuth (own client, code flow) -----------------------------
+# REMINDER: DO NOT HARDCODE THE URL, OR ADD ANY FALLBACKS OR REDIRECT URLS, THIS BREAKS THE AUTH
+class GoogleIn(BaseModel):
+    code: str
+    redirect_uri: str
+
+
+@router.post("/google")
+async def google_login(body: GoogleIn):
+    async with httpx.AsyncClient(timeout=20) as c:
+        tok = await c.post("https://oauth2.googleapis.com/token", data={
+            "code": body.code, "client_id": os.environ["GOOGLE_CLIENT_ID"], "client_secret": os.environ["GOOGLE_CLIENT_SECRET"],
+            "redirect_uri": body.redirect_uri, "grant_type": "authorization_code"})
+        if tok.status_code != 200:
+            logger.warning("google token exchange failed: %s", tok.text[:300])
+            raise HTTPException(status_code=400, detail="Google 授權失敗，請重試")
+        info = await c.get("https://openidconnect.googleapis.com/v1/userinfo", headers={"Authorization": f"Bearer {tok.json()['access_token']}"})
+    if info.status_code != 200:
+        raise HTTPException(status_code=400, detail="無法取得 Google 帳號資料")
+    g = info.json()
+    email = (g.get("email") or "").lower()
+    if not email or not g.get("email_verified", True):
+        raise HTTPException(status_code=400, detail="Google 帳號未綁定已驗證的信箱")
+    user = await _find_user(email)
+    is_new = user is None
+    if is_new:
+        payload = {"email_address": [email], "skip_password_requirement": True, "public_metadata": {"google_sub": g.get("sub", "")}}
+        if g.get("given_name"):
+            payload["first_name"] = g["given_name"]
+        if g.get("family_name"):
+            payload["last_name"] = g["family_name"]
+        r = await _clerk("POST", "/users", json=payload)
+        if r.status_code >= 300:
+            logger.error("google create user failed: %s", r.text[:300])
+            raise HTTPException(status_code=502, detail="建立帳號失敗，請稍後再試")
+        user = r.json()
+    return {"ticket": await _ticket(user["id"]), "is_new": is_new, "email": email}
