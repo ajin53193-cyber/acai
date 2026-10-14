@@ -1430,6 +1430,37 @@ async def my_referral(member: dict = Depends(current_member)):
             "milestones_granted": u.get("referral_milestones_granted") or []}
 
 
+ACTIVITY_CENTER_DEFAULT = {
+    "header_title": "活動中心",
+    "header_subtitle": "秒殺、抽獎、套餐、充值、滿減、邀請，好康活動一站逛完",
+    "cards": [
+        {"key": "flash", "type": "flash", "enabled": True, "sort": 1, "title": "限時秒殺", "desc": "超低價限時搶購", "badge": "", "to": "/", "icon": "Zap", "color": "rose"},
+        {"key": "lottery", "type": "lottery", "enabled": True, "sort": 2, "title": "幸運大轉盤", "desc": "積分換好禮，100% 有獎", "badge": "", "to": "/lottery", "icon": "Gift", "color": "orange"},
+        {"key": "combo", "type": "combo", "enabled": True, "sort": 3, "title": "超值套餐", "desc": "組合購買更划算", "badge": "", "to": "/", "icon": "Package", "color": "violet"},
+        {"key": "recharge", "type": "recharge", "enabled": True, "sort": 4, "title": "充值有禮", "desc": "充值達標送錢包 / 積分", "badge": "", "to": "/account/wallet/topup", "icon": "Wallet", "color": "emerald"},
+        {"key": "cartpromo", "type": "cartpromo", "enabled": True, "sort": 5, "title": "滿減優惠", "desc": "下單滿額自動立減", "badge": "", "to": "/", "icon": "Percent", "color": "sky"},
+        {"key": "invite", "type": "invite", "enabled": True, "sort": 6, "title": "邀請好友", "desc": "邀請得積分，雙方受益", "badge": "", "to": "/invite", "icon": "Users", "color": "pink"},
+    ],
+}
+
+
+async def get_activity_center_cfg() -> dict:
+    doc = await db.settings.find_one({"key": "activity_center"}, {"_id": 0})
+    v = (doc or {}).get("value")
+    if not v:
+        return dict(ACTIVITY_CENTER_DEFAULT)
+    return {"header_title": v.get("header_title") or ACTIVITY_CENTER_DEFAULT["header_title"],
+            "header_subtitle": v.get("header_subtitle") or ACTIVITY_CENTER_DEFAULT["header_subtitle"],
+            "cards": v.get("cards") or ACTIVITY_CENTER_DEFAULT["cards"]}
+
+
+@api_router.get("/activity-center")
+async def public_activity_center():
+    cfg = await get_activity_center_cfg()
+    cards = sorted([c for c in cfg.get("cards", []) if c.get("enabled")], key=lambda c: c.get("sort", 99))
+    return {"header_title": cfg.get("header_title"), "header_subtitle": cfg.get("header_subtitle"), "cards": cards}
+
+
 @api_router.post("/referral/visit")
 async def referral_visit(body: dict):
     """Log a referral-link visit (deduped per browser vid + code) to power the conversion funnel."""
@@ -2767,6 +2798,7 @@ admin_api.log_user = log_user
 admin_api.get_points_config = get_points_config
 admin_api.upload_b64 = _upload_b64
 admin_api.run_referral_weekly = run_referral_weekly
+admin_api.get_activity_center_cfg = get_activity_center_cfg
 cms_api.db = db
 cms_api.upload_b64 = _upload_b64
 cms_api.new_id = new_id

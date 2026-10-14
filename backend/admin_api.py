@@ -39,6 +39,7 @@ log_user = None
 get_points_config = None
 upload_b64 = None
 run_referral_weekly = None
+get_activity_center_cfg = None
 ADMIN_TOKEN_TTL = 12 * 3600
 
 
@@ -1478,4 +1479,23 @@ async def admin_referral_weekly_run(admin: dict = Depends(current_admin)):
     if run_referral_weekly is None:
         raise HTTPException(status_code=500, detail="weekly settle unavailable")
     await run_referral_weekly()
+    return {"ok": True}
+
+
+# ---------------- 活動中心配置（Activity Center） ----------------
+class ActivityCenterIn(BaseModel):
+    header_title: str = ""
+    header_subtitle: str = ""
+    cards: list = []
+
+
+@router.get("/activity-center")
+async def admin_activity_center_get(admin: dict = Depends(current_admin)):
+    return await get_activity_center_cfg()
+
+
+@router.put("/activity-center")
+async def admin_activity_center_put(body: ActivityCenterIn, admin: dict = Depends(current_admin)):
+    await db.settings.update_one({"key": "activity_center"},
+                                 {"$set": {"key": "activity_center", "value": body.dict()}}, upsert=True)
     return {"ok": True}

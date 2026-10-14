@@ -317,3 +317,10 @@
 - data-testid：activity-center、activity-cards、activity-card-<key>、activity-card-badge、activity-articles、activity-article-<id>、home-activity-center-entry。
 - 驗證：/activities 截圖確認橫幅 + 6 卡 + 角標（抽獎天天可抽、邀請得積分、其餘敬請期待）正常渲染；首頁橫幅已替換為活動中心入口；前端編譯通過。
 - 備註：使用者先前要求的「渠道來源分析/流失提醒/商品帶貨海報」已起頭（後端 referral_visits 記錄 source、config 加 funnel 阈值欄位，皆為相容新增、不影響現有功能），本輪優先完成活動中心，後續可回頭續做該三項。
+
+## 2026-10 後台 Round 18：活動中心後台配置（可自訂入口卡/排序/文案）
+- **後端**：settings.activity_center 存配置（header_title/header_subtitle/cards[]）。公開 `GET /api/activity-center` 回「已啟用且按 sort 排序」的卡片 + 頁首文案（無配置回 ACTIVITY_CENTER_DEFAULT 6 卡）。後台 `GET/PUT /api/admin/activity-center`（GET 回含停用卡的完整配置）。每張卡：{key,type,enabled,sort,title,desc,badge,to,icon,color}；type∈flash/lottery/combo/recharge/cartpromo/invite/custom（前6自動角標，custom 用 badge 文字）。
+- **前台** ActivityCenter 改為配置驅動：頁首與卡片全部讀 `/activity-center`；角標 badge 有填用自訂，否則按 type 即時計算；icon 走 ICONS 映射、color 走 GRADS 固定漸層類（Tailwind 安全）。
+- **後台頁** ActivityCenterAdmin（運營管理 → 活動中心，Admin.jsx key `activity-center`）：編輯頁首主/副標題；卡片列表可上下移排序、啟用/停用、改標題/描述/類型/連結/角標文字/圖示/顏色、刪除、新增自訂卡；儲存。
+- data-testid：activity-center-admin、ac-header-title/subtitle、ac-cards、ac-card-<i>（title/desc/type/to/badge/icon/color/enabled/del/up/down）、ac-add、ac-save。
+- 驗證：DB 模擬實測 PUT→公開 GET 只回啟用卡且按 sort 排序、custom 角標生效、停用卡排除、admin GET 含停用卡、刪除配置回預設 6 卡；前端編譯通過；/activities 公開頁先前截圖正常。
