@@ -1749,5 +1749,9 @@
  "卡面額 {0}": "Face value {0}",
  "計價幣別": "Pricing currency",
  "填寫 {0} 金額後自動換算為 USD 售價；修改匯率會重新換算所有規格。": "Enter {0} amounts; USD prices are converted automatically. Changing the rate recalculates all specs.",
- "本商品為禮品卡：請以計價幣別填寫金額，系統依匯率自動換算 USD；「卡面額」留空則同售價。": "Gift card: enter amounts in the pricing currency; USD is converted by rate. Leave face value empty to use the price."
+ "本商品為禮品卡：請以計價幣別填寫金額，系統依匯率自動換算 USD；「卡面額」留空則同售價。": "Gift card: enter amounts in the pricing currency; USD is converted by rate. Leave face value empty to use the price.",
+ "折": "%",
+ "原價 × {0}%": "Original × {0}%",
+ "全部折扣": "Apply to all",
+ "填寫原價與折扣後自動算出售價（如 1000 × 85折 = 850），並依匯率換算 USD。": "Enter original price and discount to auto-compute the price (e.g. 1000 × 85% = 850), converted to USD by rate."
 }

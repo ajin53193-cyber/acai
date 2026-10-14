@@ -136,6 +136,7 @@ class Spec(BaseModel):
     price_local: Optional[float] = None
     sale_price_local: Optional[float] = None
     giftcard_value_local: Optional[float] = None
+    discount_percent: Optional[float] = None
     badge: str = ""
     in_stock: bool = True
     stock: Optional[int] = None
@@ -172,6 +173,7 @@ class Product(BaseModel):
     is_giftcard: bool = False
     price_currency: str = ""
     price_rate: float = 0
+    price_discount: Optional[float] = None
     sales_count: int = 0
     rating: float = 5.0
     sort_order: int = 0
@@ -196,6 +198,7 @@ class ProductIn(BaseModel):
     is_giftcard: bool = False
     price_currency: str = ""
     price_rate: float = 0
+    price_discount: Optional[float] = None
     sales_count: int = 0
     rating: float = 5.0
     sort_order: int = 0
