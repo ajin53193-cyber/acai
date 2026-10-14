@@ -1736,5 +1736,11 @@
  "有效期": "Validity",
  "確定刪除文章「{0}」？": "Delete article \"{0}\"?",
  "輸入文章內容，可插入圖片…": "Enter article content, images supported…",
- "新增/編輯新聞、促銷與充值教學文章，顯示於首頁「新聞 & 促銷」與文章列表；可設定有效期，到期自動下架。": "Create/edit news, promotion and tutorial articles shown on the home page \"News & Promotions\" and article list; set validity to auto-unpublish."
+ "新增/編輯新聞、促銷與充值教學文章，顯示於首頁「新聞 & 促銷」與文章列表；可設定有效期，到期自動下架。": "Create/edit news, promotion and tutorial articles shown on the home page \"News & Promotions\" and article list; set validity to auto-unpublish.",
+ "禮品卡": "Gift Cards",
+ "號碼庫": "Code Pool",
+ "添加禮品卡": "Add Gift Card",
+ "交易號查詢": "Trade No. Lookup",
+ "核銷接口API": "Redeem API",
+ "此模組待配置": "Module not configured yet"
 }

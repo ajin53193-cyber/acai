@@ -9,7 +9,7 @@ const PERM_GROUPS = [
   [tr("儀表盤"), [["overview", tr("數據概覽")], ["sales-analysis", tr("銷售分析")], ["download-reports", tr("下載報表")]]],
   [tr("用戶管理"), [["members", tr("用戶列表")], ["user-tags", tr("用戶標籤")], ["member-assets", tr("會員資產")], ["blacklist", tr("黑名單")], ["user-logs", tr("用戶日誌")], ["verifications", tr("用戶認證")], ["user-batch", tr("批量操作")], ["feedback", tr("用戶反饋")], ["user-reports", tr("用戶報表")]]],
   [tr("商品管理"), [["products", tr("商品列表")], ["product-new", tr("新增商品")], ["categories", tr("商品分類")], ["specs", tr("規格管理")], ["inventory", tr("庫存管理")], ["reviews", tr("商品評論")]]],
-  [tr("禮品卡"), [["giftcard-orders", tr("禮品卡訂單")]]],
+  [tr("禮品卡"), [["giftcard-pool", tr("號碼庫")], ["giftcard-orders", tr("訂單管理")], ["giftcard-new", tr("添加禮品卡")], ["giftcard-trade-query", tr("交易號查詢")], ["giftcard-api", tr("核銷接口API")]]],
   [tr("運營管理"), [["home-decoration", tr("首頁裝修")], ["activities", tr("新聞 & 促銷")], ["banners", tr("輪播圖")], ["recommendations", tr("推薦位")], ["promos", tr("優惠券")], ["notifications", tr("消息中心")], ["announcements", tr("公告")]]],
   [tr("財務管理"), [["orders", tr("訂單管理")], ["order-settlement", tr("訂單結算")], ["topups", tr("充值審核")], ["payments", tr("支付渠道")], ["reconciliation", tr("財務對賬")], ["currencies", tr("匯率配置")], ["finance-reports", tr("財務報表")]]],
   [tr("系統配置"), [["siteconfig", tr("基礎設置")], ["admins", tr("管理員管理")], ["roles", tr("角色權限")], ["operation-logs", tr("操作日誌")], ["sms-config", tr("短信配置")], ["email-config", tr("郵箱配置")], ["oauth-config", tr("授權配置")], ["translations", tr("翻譯管理")], ["paylogos", tr("支付Logo")]]],

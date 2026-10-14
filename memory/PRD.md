@@ -399,3 +399,9 @@
 - 驗證：iteration_37 後端 5/5 + 前台未登入/登入/後台全通過（test file: backend/tests/test_invite_lottery.py）。
 - Round 28 撤銷（使用者不滿意設計）：刪除 ActivityCenter.jsx、/activities 路由、InviteLotteryAdmin 與菜單/權限、Register 邀請碼橫幅、測試檔；lottery/referral enabled=false；promo banner 2 連結恢復 /article。後端新增的 invite_only/invite_draws 設定欄位與 bind→draws 邏輯保留（功能關閉時無效）。
 - Round 29：我的錢包「充值記錄」卡片改用與其他兩卡同風格的 3D 插畫 /banners/wallet-topups-3d.webp（以 Nano Banana 參考交易紀錄圖生成並去背），底色 #FBE3C9，副標改「充值單 · 到帳狀態」，移除 USDT 圖示分支。backend/.env 已加 EMERGENT_LLM_KEY。截圖驗證通過。
+
+## 2026-10 Round 30：禮品卡模組重建（使用者逐步指導中）
+- 使用者澄清：禮品卡是商品；要求先只建後台「禮品卡」分類：號碼庫 / 訂單管理 / 添加禮品卡 / 交易號查詢 / 核銷接口API（keys: giftcard-pool, giftcard-orders, giftcard-new, giftcard-trade-query, giftcard-api），5 頁目前皆為 GiftCardPlaceholder 占位；RolesAdmin / ALL_PERMISSIONS / i18n 同步。
+- 本輪較早誤做（待使用者指示處理）：server.py dispatch_giftcards 改為付款後生成 32 位交易號（YYYYMMDD+24 位）存 orders.gift_trade_nos/gift_trade_no；MyOrders 訂單卡與詳情顯示「轉贈成功 · 交易號」+複製；admin_api 新增 GET /admin/gift-card-orders；錢包充值頁移除禮品卡兌換碼框；刪除舊 GiftCardsAdmin.jsx（卡密列表/創建/核銷記錄/API 頁）；新增示範商品 products.id=giftcard-shkp-hkd（is_giftcard）。
+- 修復：WalletTopUp.jsx 多餘 </div> 導致編譯錯誤。
+- 使用者將一步步指示後續各模組內容，勿自行擴充。

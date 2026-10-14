@@ -87,7 +87,6 @@ export default function WalletTopUp() {
           <span className="absolute left-4 top-1/2 -translate-y-1/2 text-sm text-slate-400">USD$</span>
           <input data-testid="topup-custom" type="number" min="50" value={custom} onChange={(e) => setCustom(e.target.value)} placeholder={tr("自訂金額（最低 50）")} className="w-full h-12 rounded-xl bg-white pl-14 pr-4 text-sm outline-none focus:ring-2 focus:ring-orange-300" />
         </div>
-        </div>
 
         <div className="mt-6 font-semibold text-slate-900">{tr("支付方式")}</div>
         <div className="mt-3 flex items-center justify-between sm:justify-start gap-1 sm:gap-2" data-testid="pm-category-tabs">
