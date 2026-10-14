@@ -7,7 +7,6 @@ import { useApi, publicApi } from "@/lib/api";
 import { STATUS_LABELS, STATUS_ORDER, StatusBadge } from "@/lib/status";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Switch } from "@/components/ui/switch";
-import WalletAdmin from "@/pages/admin/WalletAdmin";
 import { VerificationsAdmin, FeedbackAdmin } from "@/pages/admin/SupportAdmin";
 import PaymentMethodsAdmin from "@/pages/admin/PaymentMethodsAdmin";
 import { MembersAdmin } from "@/pages/admin/MembersAdmin";
@@ -27,7 +26,7 @@ const NAV = [
   ["overview", tr("總覽"), LayoutDashboard],
 ];
 const NAV_GROUPS = [
-  [tr("財務管理"), [["wallets", tr("錢包管理"), Wallet], ["payments", tr("支付管理"), CreditCard], ["currencies", tr("匯率管理"), DollarSign], ["topups", tr("充值訂單"), Wallet]]],
+  [tr("財務管理"), [["payments", tr("支付管理"), CreditCard], ["currencies", tr("匯率管理"), DollarSign], ["topups", tr("充值訂單"), Wallet]]],
   [tr("運營管理"), [["products", tr("商品管理"), Package], ["categories", tr("分類管理"), LayoutGrid], ["orders", tr("訂單管理"), ShoppingBag], ["verifications", tr("認證審核"), BadgeCheck], ["reviews", tr("評價管理"), Star], ["feedback", tr("用戶反饋"), MessageSquare]]],
   [tr("活動管理"), [["activities", tr("活動配置"), Megaphone], ["promos", tr("優惠碼"), Tag]]],
   [tr("會員與數據"), [["members", tr("會員管理"), Users], ["reports", tr("數據報表"), TrendingUp]]],
@@ -76,7 +75,6 @@ function AdminInner() {
         {section === "products" && <ProductsAdmin callApi={callApi} />}
         {section === "categories" && <CategoriesAdmin callApi={callApi} />}
         {section === "orders" && <OrdersAdmin callApi={callApi} />}
-        {section === "wallets" && <WalletAdmin callApi={callApi} />}
         {section === "payments" && <PaymentMethodsAdmin callApi={callApi} />}
         {section === "verifications" && <VerificationsAdmin callApi={callApi} />}
         {section === "feedback" && <FeedbackAdmin callApi={callApi} />}

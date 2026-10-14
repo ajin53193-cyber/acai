@@ -5,7 +5,36 @@ import { tr } from "@/i18n";
 import { Btn, Card, Input, Pill, Table, Head, fmt, useLoad } from "./ui";
 import { STATUS_LABELS } from "@/lib/status";
 
-function MemberDetail({ uid, callApi, onClose, onChanged }) {
+const KIND_LABEL = { credit: tr("加款"), debit: tr("扣款"), refund: tr("退款") };
+
+function WalletAdjust({ uid, balance, callApi, onDone }) {
+  const [kind, setKind] = useState("credit");
+  const [amount, setAmount] = useState("");
+  const [note, setNote] = useState("");
+  const [busy, setBusy] = useState(false);
+  const submit = async () => {
+    const v = parseFloat(amount);
+    if (!v || v <= 0) return toast.error(tr("請輸入正確金額"));
+    if (kind === "debit" && v > Number(balance) + 1e-9) return toast.error(tr("扣款金額超過會員餘額"));
+    if (!window.confirm(tr("確定{0} USD$ {1}？", KIND_LABEL[kind], v.toFixed(2)))) return;
+    setBusy(true);
+    try { await callApi({ method: "POST", url: `/admin/wallets/${uid}/adjust`, data: { kind, amount_usd: v, note } }); toast.success(tr("{0}成功", KIND_LABEL[kind])); setAmount(""); setNote(""); onDone(); }
+    catch (e) { toast.error(e.response?.data?.detail || tr("操作失敗")); }
+    setBusy(false);
+  };
+  return (
+    <Card className="p-4 mt-4" data-testid="member-wallet-adjust">
+      <div className="flex items-center justify-between mb-3"><div className="font-semibold text-slate-800 text-sm">{tr("餘額調整")}</div><div className="flex gap-1.5">{Object.entries(KIND_LABEL).map(([k, l]) => <button key={k} data-testid={`wallet-kind-${k}`} onClick={() => setKind(k)} className={`h-8 px-3 rounded-full text-xs font-semibold ${kind === k ? (k === "debit" ? "bg-red-500 text-white" : "bg-emerald-500 text-white") : "bg-slate-100 text-slate-500"}`}>{l}</button>)}</div></div>
+      <div className="grid grid-cols-[120px_1fr_auto] gap-2">
+        <Input data-testid="wallet-adjust-amount" type="number" min="0.01" step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder={tr("金額 USD")} />
+        <Input data-testid="wallet-adjust-note" value={note} onChange={(e) => setNote(e.target.value)} placeholder={tr("備註（會顯示在會員的交易紀錄）")} />
+        <Btn kind={kind === "debit" ? "danger" : "ok"} data-testid="wallet-adjust-submit" onClick={submit} disabled={busy}>{busy ? tr("處理中…") : tr("確認{0}", KIND_LABEL[kind])}</Btn>
+      </div>
+    </Card>
+  );
+}
+
+export function MemberDetail({ uid, callApi, onClose, onChanged }) {
   const [d, load] = useLoad(callApi, `/admin/members/${uid}`);
   useEffect(() => { const h = (e) => e.key === "Escape" && onClose(); window.addEventListener("keydown", h); return () => window.removeEventListener("keydown", h); }, [onClose]);
   const act = async (path, body, msg) => {
@@ -36,6 +65,7 @@ function MemberDetail({ uid, callApi, onClose, onChanged }) {
           {d.banned ? <Btn kind="ok" data-testid="member-unban" onClick={() => act("unban", {}, tr("已解除封禁"))}>{tr("解封")}</Btn> : <Btn kind="danger" data-testid="member-ban" onClick={() => window.confirm(tr("確定封禁此會員？其所有登入將被登出")) && act("ban", {}, tr("已封禁"))}>{tr("封禁")}</Btn>}
           <Btn kind="ghost" data-testid="member-reset-pw" onClick={resetPw}>{tr("重置密碼")}</Btn>
         </div>
+        <WalletAdjust uid={uid} balance={d.balance_usd} callApi={callApi} onDone={() => { load(); onChanged(); }} />
         <h3 className="font-semibold text-slate-800 mt-6 mb-2 text-sm">{tr("最近訂單")}</h3>
         <Card className="divide-y divide-slate-100">{(d.orders || []).length === 0 ? <div className="p-4 text-xs text-slate-400">{tr("暫無訂單")}</div> : d.orders.map((o) => <div key={o.id} className="px-4 py-2.5 text-xs flex items-center gap-3"><span className="font-mono text-slate-500">{o.id.slice(0, 8)}</span><span className="flex-1 truncate text-slate-700">{o.items?.[0]?.name}</span><span className="font-semibold">USD$ {Number(o.total_usd || 0).toFixed(2)}</span><Pill>{STATUS_LABELS[o.status] || o.status}</Pill></div>)}</Card>
         <h3 className="font-semibold text-slate-800 mt-6 mb-2 text-sm">{tr("最近錢包流水")}</h3>

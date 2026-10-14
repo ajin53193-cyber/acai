@@ -125,12 +125,21 @@ class CreditIn(BaseModel):
 
 
 @router.get("/topups")
-async def admin_topups(status: str = "", q: str = "", limit: int = 200, admin: dict = Depends(current_admin)):
+async def admin_topups(status: str = "", q: str = "", date_from: str = "", date_to: str = "", limit: int = 300, admin: dict = Depends(current_admin)):
     query = {}
     if status:
         query["status"] = status
+    if date_from or date_to:
+        rng = {}
+        if date_from:
+            rng["$gte"] = date_from
+        if date_to:
+            rng["$lte"] = date_to + "T23:59:59.999999"
+        query["created_at"] = rng
     if q:
-        query["$or"] = [{"out_trade_no": {"$regex": q, "$options": "i"}}, {"order_no": {"$regex": q, "$options": "i"}}, {"user_id": {"$regex": q, "$options": "i"}}, {"tx_id": {"$regex": q, "$options": "i"}}]
+        rx = {"$regex": re.escape(q), "$options": "i"}
+        uids = [u["user_id"] async for u in db.users.find({"$or": [{"email": rx}, {"phone": rx}, {"name": rx}]}, {"_id": 0, "user_id": 1})]
+        query["$or"] = [{"out_trade_no": rx}, {"order_no": rx}, {"reference_code": rx}, {"user_id": rx}, {"tx_id": rx}, {"user_id": {"$in": uids}}]
     items = await db.topup_orders.find(query, {"_id": 0}).sort("created_at", -1).to_list(limit)
     uids = list({t["user_id"] for t in items})
     users = {u["user_id"]: u async for u in db.users.find({"user_id": {"$in": uids}}, {"_id": 0, "user_id": 1, "email": 1, "phone": 1, "name": 1})}
@@ -138,7 +147,9 @@ async def admin_topups(status: str = "", q: str = "", limit: int = 200, admin: d
         u = users.get(t["user_id"], {})
         t["user_email"] = u.get("email", "")
         t["user_phone"] = u.get("phone", "")
-    return items
+    base = {k: v for k, v in query.items() if k != "status"}
+    counts = {c["_id"]: c["n"] async for c in db.topup_orders.aggregate([{"$match": base}, {"$group": {"_id": "$status", "n": {"$sum": 1}}}])}
+    return {"rows": items, "counts": counts, "total": sum(counts.values())}
 
 
 @router.post("/topups/{tid}/requery")

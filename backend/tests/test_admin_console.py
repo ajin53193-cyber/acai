@@ -137,7 +137,7 @@ class TestTopups:
     def test_list(self, admin_headers):
         r = requests.get(f"{BASE}/api/admin/topups", headers=admin_headers, timeout=30)
         assert r.status_code == 200
-        items = r.json()
+        items = r.json()["rows"]
         assert isinstance(items, list) and items, "topups list empty"
         it = items[0]
         for k in ("id", "status", "amount_usd", "user_id", "user_email", "out_trade_no"):
@@ -146,7 +146,7 @@ class TestTopups:
     def test_list_filter_paid(self, admin_headers):
         r = requests.get(f"{BASE}/api/admin/topups?status=paid", headers=admin_headers, timeout=30)
         assert r.status_code == 200
-        for it in r.json():
+        for it in r.json()["rows"]:
             assert it["status"] == "paid"
 
     def test_requery_on_expired(self, admin_headers):
@@ -162,7 +162,7 @@ class TestTopups:
         before = float(rb.json()["balance_usd"])
         amt = float(rb.json()["balance_usd"])  # placeholder; real amount from topup
         rt = requests.get(f"{BASE}/api/admin/topups?q={EXPIRED_TOPUP_ID[:8]}", headers=admin_headers, timeout=30)
-        topup = next(t for t in rt.json() if t["id"] == EXPIRED_TOPUP_ID)
+        topup = next(t for t in rt.json()["rows"] if t["id"] == EXPIRED_TOPUP_ID)
         if topup["status"] == "paid":
             pytest.skip(f"topup {EXPIRED_TOPUP_ID} already paid in a prior run")
         amt = float(topup["amount_usd"])

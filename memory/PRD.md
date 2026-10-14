@@ -150,3 +150,8 @@
 - 新增 `POST /api/webhook/paypal`（CHECKOUT.ORDER.APPROVED / PAYMENT.CAPTURE.COMPLETED，依 custom_id/order_id 找單；設定 webhook_id 時以 verify-webhook-signature 驗簽）。
 - 新增 `POST /api/admin/payment-methods/{id}/test`（PayPal/Stripe 連線測試，回 env/來源/webhook_url；webhook_url 優先 APP_PUBLIC_URL）。後台支付管理列新增「測試連線」按鈕、PayPal 配置新增 Webhook ID 欄；充值頁底部提示依方式顯示。
 - **待用戶**：提供 PayPal Client ID / Secret（填入 .env 或後台 PayPal 配置），並於 PayPal 後台設定 Webhook 指向 {APP_PUBLIC_URL}/api/webhook/paypal。部署 Secrets 新增：PAYPAL_CLIENT_ID、PAYPAL_CLIENT_SECRET、PAYPAL_ENV、PAYPAL_WEBHOOK_ID。
+
+## 2026-06 後台 UI 調整（用戶逐頁審閱）
+- 移除側欄「錢包管理」頁；加款/扣款/退款表單併入「會員管理 → 會員詳情」抽屜（`MembersAdmin.jsx` WalletAdjust，`MemberDetail` 已 export 供其他頁重用）。`WalletAdmin.jsx` 已刪除。
+- 支付管理 `PaymentMethodsAdmin.jsx` 改淺色高對比設計：列只保留 停用/啟用、編輯、排序、刪除；「更換 Logo」與「測試連線」移入編輯對話框。
+- 充值訂單 `TopupsAdmin.jsx` 重做：工具列（日期區間 + 今天/7天/30天/本月 + 查詢 + 清除）、狀態頁籤含數量、欄位僅 日期時間 / 帳戶ID（點擊開會員詳情）/ 付款方式（Logo）/ 付款金額（應付）/ 單號·轉帳碼（可複製）/ 操作（狀態膠囊 + 憑證預覽彈窗 + 審核通過/駁回/手動入帳/重查網關）。後端 `GET /api/admin/topups` 改回 `{rows, counts, total}` 並支援 date_from/date_to、信箱/手機/轉帳碼搜尋。
