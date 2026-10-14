@@ -70,7 +70,6 @@
 
 ## 待辦（優先序）
 - P1：手機版其餘頁面（分類、商品詳情、結帳、會員中心）依用戶截圖逐頁調整。
-- P1：訂單狀態郵件/站內通知（用戶暫緩）。
 - P0：testing_agent 跑後台訂單狀態流轉 + 回歸（前台 E2E 已由主代理手測通過）。
 - P1：結帳頁多幣別匯率計算驗證。
 - P1：卡支付/PayPal/銀行轉帳目前仍為測試支付即時入帳（用戶選擇保留）；日後可接 Stripe/PayPal。
@@ -139,3 +138,10 @@
 - 批量：`POST /api/admin/products/bulk {ids, action: set_active|set_category|add_tags|remove_tags|delete, value}`；前端表格勾選（全選/單選）→ 批量列（上架/下架/移動分類/加標籤/移除標籤/刪除）。
 - 訂單：`GET /api/admin/orders?status&q&date_from&date_to&info&page&size` → {total, rows, summary{total_usd, paid_usd, by_status}}；`GET /api/admin/orders/export`（CSV, BOM, 繁體表頭）。`admin/OrdersAdmin.jsx`：統計卡、搜尋、日期區間+快捷（今天/7天/30天/本月）、狀態頁籤含數量、展開列顯示填寫資料與操作按鈕、匯出 CSV。
 - 限購：Spec 新增 `limit`（'' 依角標自動 / none 不限 / daily / weekly / monthly / lifetime / newcomer）與 `limit_count`；後端 `_spec_limit` 統一判斷，下單按視窗內已購份數扣減；`/daily-limit` 回傳 remaining。商品頁提示文案支援每週/終生/多份。後台規格表新增「限購」欄（下拉 + 份數）。
+
+## 2026-06 錢包充值前台驗證 + 訂單狀態通知（iteration_22 前端 24/24、iteration_23 後端 20/20 + 前端全通）
+- 錢包充值前台（金額/支付方式分類/銀行轉帳上傳憑證/Stripe 跳轉收銀台/後台審核入帳/支付方式停用啟用）全部實測通過；先前 E2E 失敗純因腳本以繁體文字定位（UI 為簡體）。
+- 通知：`admin_api.notify_user` 事件 order_paid（pay-wallet / pay）、order_completed（confirm 與 PATCH completed）、order_cancelled（PATCH cancelled）、order_rejected、topup_paid；`order_ctx()` 提供 {order_id} {product} {amount} {reason} {balance}；品牌 HTML 郵件 `mailer.notify_email`；簡訊改用 `sms.send_sms_text`（SUBMAIL send.json 自由內容，+86 不支援）；每次發送寫入 `notification_logs`（channel/to/subject/body/status/error）。
+- 端點：`GET /api/admin/notifications/logs?event&status&q&limit`、`POST /api/admin/notifications/logs/{lid}/resend`。
+- 訂單新增狀態 `cancelled`（已取消）：PATCH 為 cancelled 且原狀態已付款(錢包)→自動 refund 入錢包（refunded_at/refund_usd，冪等）；後台訂單列「取消訂單」按鈕（prompt 原因→通知用戶）、已退回錢包提示；狀態頁籤/統計含已取消。
+- 後台「通知設定」頁：5 事件卡（含訂單已取消）、模板變數提示、發送記錄表（事件/狀態/搜尋篩選、展開內容、重發）。

@@ -1,0 +1,39 @@
+{
+  "summary": "Iteration 23 — Full backend + admin frontend testing of order-status notifications (Mailgun email, SMS disabled) + new order_cancelled status with auto wallet refund + notification settings/logs admin page. Backend: pytest 20/20 passed in /app/backend/tests/test_notifications_cancel.py (JUnit XML saved). Covered: GET/PUT /api/admin/notifications (5 events + 5 templates incl order_cancelled subject/body with {order_id}/{product}/{amount}/{reason}; PUT persists & revert works); order_paid log triggered on POST /api/orders + /pay-wallet (email channel, to=tester+clerk_test@shop.com, subject contains order_no, body has {product} substituted = no literal '{product}' remains; status 'sent' or 'failed' both accepted per spec); order_completed log on both POST /admin/orders/{id}/confirm and PATCH /admin/orders/{id} {status:'completed'}; order_cancelled on PATCH cancelled: refund_usd equals total_usd, refunded_at set, wallet balance restored, wallet_transactions has kind=refund, log body contains '测试取消' reason; double-cancel does NOT double-refund (idempotent); unpaid pending_payment → cancelled sets status without refunded_at and without wallet credit, but still fires order_cancelled notification; PATCH invalid status 'foo' → 400; order_rejected on POST /admin/orders/{id}/reject-info (body contains reason); logs filters status/event/q work; POST /admin/notifications/logs/{lid}/resend returns 200 or 502 (Mailgun test-mailbox) and appends a NEW log row (verified total+1); resend 404 for bad id; unauth GET /admin/notifications and /logs → 401/403; event switch (events.order_paid=false) suppresses future order_paid logs; /admin/orders?status=cancelled returns only cancelled rows; summary.by_status includes 'cancelled'; /admin/dashboard?days=30 by_status includes 'cancelled' (confirmed 已取消=7 in donut chart).\n\nFrontend admin console (1920x1080, zh-CN): /admin login via admin+clerk_test@shop.com+TOTP OK. 通知设置 (notifications-admin) page shows all 5 event cards notify-event-{order_paid, order_completed, order_cancelled, order_rejected, topup_paid}, each with notify-event-switch-/notify-subject-/notify-body- testids. Edited notify-body-order_cancelled with marker, clicked notify-save → toast '已保存' (visible '已重新发送' etc as per actions), navigated away to orders and back — marker persisted ✓. Reverted and verified via API. 发送记录 (notify-logs) rendered 36 rows initially; notify-logs-event SELECT filter to order_cancelled narrowed to 8 rows (all event=order_cancelled); clicking a row expanded body (notify-log-<id>); notify-log-resend-<id> fired toast and list grew 8→9 ✓.\n\n订单管理 (orders-admin): 已取消 tab exists; status buckets show 已取消 7→8 after UI cancel. Created paid order via API, expanded row (testid 'order-row-<id>'), admin-order-cancel-<id> button visible, clicked → native prompt accepted with reason 'E2E UI 取消' → status badge flipped to 已取消 ✓, admin-order-refunded-<id> rendered '已退回钱包 USD$ 5.38' ✓, cancel + abnormal buttons disappeared on cancelled rows ✓.\n\nCleanup: all E2E-created orders are either cancelled (wallet auto-refunded) or completed; residual debit of $175.64 credited back via /api/admin/wallets/{uid}/adjust → member wallet restored to exactly 451.66 USD (matches iter22 target). Notification template residue [E2E追加][E2E_PERSIST_X] cleaned from order_cancelled body via PUT /admin/notifications.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "verified_checks": {
+    "backend_pytest": "20/20 passed, 12.01s, JUnit XML at /app/test_reports/pytest/iter23_results.xml",
+    "invalid_status": "PATCH /admin/orders/{id} {status:'foo'} → 400 (verified via curl)",
+    "template_substitution": "order_paid log bodies have {product} replaced (no literal '{product}' remains)",
+    "frontend_notifications": "notify-event-* cards x5, switch/subject/body testids present; save+navigate+return → body change persists; revert works; notify-logs event filter narrows rows; notify-log-resend adds a new log row (8→9); toast on save/resend visible",
+    "frontend_orders_cancel": "admin-order-cancel-<id> on paid row → prompt → status badge '已取消' + admin-order-refunded-<id> '已退回钱包 USD$ 5.38'; cancel/abnormal btns removed for cancelled; 已取消 tab count 7→8",
+    "dashboard_bucket": "donut 订单状态分布 shows 已取消=7; /api/admin/dashboard by_status.cancelled present"
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_notifications_cancel.py",
+    "/app/test_reports/pytest/iter23_results.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "OrdersAdmin.jsx: the expanded order row uses data-testid=order-row-<id> (not admin-order-row-<id>) — spec in the review request names it 'admin-order-row'. Not a bug (admin-order-cancel-<id> / admin-order-refunded-<id> are consistent), but worth standardising the prefix to admin-order-row-<id> for naming consistency.",
+    "admin_api.notify_user swallows Mailgun 4xx/5xx into log.status='failed' without surfacing to the admin UI except via /logs — consider showing failed-count badge on notifications-admin so admins notice bounces (currently they only see per-row '失败' in the list).",
+    "server.pay_order_wallet locks wallet via tx but notify_user() is invoked after commit without a background task — fine for latency but if Mailgun is slow (>2s) the client POST /pay-wallet waits. Could offload to BackgroundTasks for better UX.",
+    "cancel refund path (admin_update_order PATCH) is idempotent via refunded_at check — good. However refund_usd is stored as total_usd regardless of partial payments; currently no partial-payment scenarios exist so this is correct for now."
+  ],
+  "updated_files": [
+    "/app/test_reports/iteration_23.json",
+    "/app/test_reports/pytest/iter23_results.xml"
+  ],
+  "success_rate": {"backend": "100% (20/20 pytest + manual curl)", "frontend": "100% (notifications + orders cancel E2E)"},
+  "test_credentials": "member tester+clerk_test@shop.com (user_3Kc4MFu2DHwZuy8itp5vS09nzaL); admin admin+clerk_test@shop.com + TOTP DNY74VQQI3454NAKX3XW7INOIG4UCTQA. /tmp/jwt_member, /tmp/jwt_admin, /tmp/xat preserved and still valid.",
+  "seed_data_creation": "Created multiple test orders (TEST_acct_iter23 / TEST_e2e_ui): 2 cancelled (refund verified), ~4 completed (confirm/PATCH), 1 pending-payment cancelled, 1 rejected-info. Member wallet drained to 276.02 by completed orders then credited back $175.64 to restore 451.66 USD target. One residual notification template edit cleaned via PUT. All test data is prefixed TEST_ for identification.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Backend notifications+cancel flow is fully covered by /app/backend/tests/test_notifications_cancel.py (xdist-parallel, ~12s). Order creation picks random in-stock specs priced $2-$30 excluding daily/monthly/newbie limit badges. Admin tokens: refresh via /tmp/jwt_admin + /tmp/xat (still valid; mint fresh with python3 /app/tests/mint_ticket.py <user_id> + /admin/auth/login + /admin/auth/totp). Member balance target 451.66 restored. Notification resend may return 502 when Mailgun rejects the +clerk_test mailbox — not a bug, log row is still inserted. Frontend row testid is 'order-row-<id>' (not admin-order-row-<id>) when selecting the expandable row.",
+  "rca of the issue": "N/A — no issues found. All 20 backend tests pass; all admin UI flows (notifications settings persistence, logs filter/expand/resend, orders admin cancel + refund display) verified end-to-end."
+}
