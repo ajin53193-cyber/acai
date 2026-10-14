@@ -19,6 +19,7 @@ export function useApi() {
         headers: {
           ...(config.headers || {}),
           "X-Lang": API_LANG,
+          "X-Admin-Token": sessionStorage.getItem("admin_token") || undefined,
           Authorization: token ? `Bearer ${token}` : undefined,
         },
       });

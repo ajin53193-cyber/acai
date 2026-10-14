@@ -19,6 +19,7 @@ from fastapi.concurrency import run_in_threadpool
 import storage as objstore
 from translate import Translator, to_simplified, to_traditional
 import email_auth
+import admin_api
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -103,9 +104,13 @@ async def current_member(user: dict = Depends(require_user)) -> dict:
 
 
 def require_role(*roles: str):
-    async def check(member: dict = Depends(current_member)) -> dict:
+    async def check(request: Request, member: dict = Depends(current_member)) -> dict:
         if member["role"] not in roles:
             raise HTTPException(status_code=403, detail="Not allowed")
+        if member.get("banned"):
+            raise HTTPException(status_code=403, detail="帳號已被停用")
+        if "admin" in roles and request.url.path.startswith("/api/admin"):
+            await admin_api.admin_guard(request, member)
         return member
     return check
 
@@ -818,8 +823,9 @@ async def _usdt_settle(topup: dict, gw: dict) -> dict:
         {"$set": {"status": "paid", "paid_at": gw.get("paid_at") or now_iso(), "tx_id": gw.get("tx_id", ""), "pay_amount": gw.get("pay_amount", topup.get("pay_amount"))}},
         projection={"_id": 0}, return_document=ReturnDocument.AFTER)
     if r:
-        await _wallet_tx(topup["user_id"], "topup", float(topup["amount_usd"]), f"錢包充值（USDT {topup.get('network', 'TRC20')}）", ref=topup.get("order_no", ""))
+        bal = await _wallet_tx(topup["user_id"], "topup", float(topup["amount_usd"]), f"錢包充值（USDT {topup.get('network', 'TRC20')}）", ref=topup.get("order_no", ""))
         await db.users.update_one({"user_id": topup["user_id"]}, {"$set": {"last_payment_method_id": topup.get("method_id", "")}})
+        asyncio.create_task(admin_api.notify_user(topup["user_id"], "topup_paid", {"amount": f"USD$ {float(topup['amount_usd']):.2f}", "balance": f"USD$ {bal:.2f}"}))
         return r
     return await db.topup_orders.find_one({"id": topup["id"]}, {"_id": 0})
 
@@ -966,6 +972,7 @@ async def admin_reject_info(order_id: str, body: RejectInfoIn, admin: dict = Dep
     tl = o.get("timeline", []) + [{"status": "info_rejected", "at": now_iso(), "by": admin.get("email", "admin"), "note": body.reason}]
     upd = {"status": "paid", "info_submitted": False, "info_rejected": True, "info_reject_reason": body.reason.strip() or "充值帳號有誤，請重新填寫", "info_rejected_at": now_iso(), "timeline": tl}
     await db.orders.update_one({"id": order_id}, {"$set": upd})
+    asyncio.create_task(admin_api.notify_user(o["user_id"], "order_rejected", {"order_id": o.get("order_no") or o["id"], "reason": upd["info_reject_reason"], "amount": f"USD$ {float(o.get('total_usd') or 0):.2f}"}))
     return {**o, **upd}
 
 
@@ -1355,6 +1362,8 @@ async def admin_update_order(order_id: str, body: StatusUpdate, admin: dict = De
     if body.admin_note is not None:
         update["admin_note"] = body.admin_note
     await db.orders.update_one({"id": order_id}, {"$set": update})
+    if body.status == "completed" and o.get("status") != "completed":
+        asyncio.create_task(admin_api.notify_user(o["user_id"], "order_completed", {"order_id": o.get("order_no") or o["id"], "amount": f"USD$ {float(o.get('total_usd') or 0):.2f}"}))
     return {**o, **update}
 
 
@@ -1714,6 +1723,14 @@ async def i18n_stats():
 
 
 email_auth.db = db
+admin_api.db = db
+admin_api.translator = translator
+admin_api.require_role = require_role
+admin_api._wallet_tx = _wallet_tx
+admin_api._usdt_settle = _usdt_settle
+admin_api._usdt_call = _usdt_call
+admin_api._usdt_creds = _usdt_creds
+app.include_router(admin_api.router)
 app.include_router(api_router)
 app.include_router(clerk_router)
 app.include_router(email_auth.router)

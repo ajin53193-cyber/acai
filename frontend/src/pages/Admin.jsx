@@ -1,11 +1,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Show, useUser } from "@clerk/react";
-import {
-  LayoutDashboard, Package, ShoppingBag, Star, DollarSign, Tag, Users,
-  Plus, Pencil, Trash2, X, Loader2, ArrowLeft, TrendingUp, Clock, ShieldAlert,
-  Settings, CreditCard, ArrowUp, ArrowDown, ImagePlus, Wallet, BadgeCheck, MessageSquare,
-} from "lucide-react";
+import { LayoutDashboard, Package, ShoppingBag, Star, DollarSign, Tag, Users, Plus, Pencil, Trash2, X, Loader2, ArrowLeft, TrendingUp, Clock, ShieldAlert, Settings, CreditCard, ArrowUp, ArrowDown, ImagePlus, Wallet, BadgeCheck, MessageSquare, Globe, Bell } from "lucide-react";
 import { toast } from "sonner";
 import { QRCodeSVG } from "qrcode.react";
 import { useApi, publicApi } from "@/lib/api";
@@ -15,6 +11,11 @@ import { Switch } from "@/components/ui/switch";
 import WalletAdmin from "@/pages/admin/WalletAdmin";
 import { VerificationsAdmin, FeedbackAdmin } from "@/pages/admin/SupportAdmin";
 import PaymentMethodsAdmin from "@/pages/admin/PaymentMethodsAdmin";
+import { MembersAdmin } from "@/pages/admin/MembersAdmin";
+import { TopupsAdmin } from "@/pages/admin/TopupsAdmin";
+import { ReportsAdmin } from "@/pages/admin/ReportsAdmin";
+import { TranslationsAdmin } from "@/pages/admin/TranslationsAdmin";
+import { NotificationsAdmin } from "@/pages/admin/NotificationsAdmin";
 import { tr } from "@/i18n";
 
 const NAV = [
@@ -28,7 +29,11 @@ const NAV = [
   ["reviews", tr("評價管理"), Star],
   ["currencies", tr("匯率管理"), DollarSign],
   ["promos", tr("優惠碼"), Tag],
-  ["users", tr("用戶管理"), Users],
+  ["members", tr("會員管理"), Users],
+  ["topups", tr("USDT 充值單"), Wallet],
+  ["reports", tr("數據報表"), TrendingUp],
+  ["translations", tr("翻譯管理"), Globe],
+  ["notifications", tr("通知設定"), Bell],
   ["settings", tr("網站設定"), Settings],
   ["paylogos", tr("頁尾支付Logo"), ImagePlus],
 ];
@@ -41,11 +46,11 @@ function AdminInner() {
   const [section, setSection] = useState("overview");
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-200 flex">
+    <div className="admin-light min-h-screen bg-slate-950 text-slate-200 flex">
       {/* Sidebar */}
       <aside className="w-16 md:w-60 bg-slate-900 border-r border-slate-800 flex flex-col shrink-0 sticky top-0 h-screen">
         <div className="h-16 flex items-center gap-2 px-4 border-b border-slate-800">
-          <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-primary to-blue-700 flex items-center justify-center text-white font-black">G</div>
+          <div className="h-8 w-8 rounded-lg bg-orange-500 flex items-center justify-center text-white font-black">G</div>
           <span className="hidden md:block font-head font-bold text-white">{tr("管理後台")}</span>
         </div>
         <nav className="flex-1 py-3 space-y-1 px-2">
@@ -63,6 +68,7 @@ function AdminInner() {
             </button>
           ))}
         </nav>
+        <button data-testid="admin-logout" onClick={() => { sessionStorage.removeItem("admin_token"); window.location.href = "/admin/login"; }} className="flex items-center gap-2 px-4 py-2.5 text-xs text-slate-500 hover:text-red-500 border-t border-slate-800"><ShieldAlert className="h-4 w-4" /> <span className="hidden md:block">{tr("登出後台")}</span></button>
         <Link to="/" className="flex items-center gap-2 px-4 py-3 text-xs text-slate-500 hover:text-white border-t border-slate-800">
           <ArrowLeft className="h-4 w-4" /> <span className="hidden md:block">{tr("返回商城")}</span>
         </Link>
@@ -82,6 +88,11 @@ function AdminInner() {
         {section === "settings" && <SiteSettings callApi={callApi} />}
         {section === "paylogos" && <PaymentLogos callApi={callApi} />}
         {section === "users" && <UsersSec callApi={callApi} />}
+        {section === "members" && <MembersAdmin callApi={callApi} />}
+        {section === "topups" && <TopupsAdmin callApi={callApi} />}
+        {section === "reports" && <ReportsAdmin callApi={callApi} />}
+        {section === "translations" && <TranslationsAdmin callApi={callApi} />}
+        {section === "notifications" && <NotificationsAdmin callApi={callApi} />}
       </main>
     </div>
   );
@@ -528,8 +539,9 @@ export default function Admin() {
 
   useEffect(() => {
     if (!isLoaded) return;
-    if (!isSignedIn) { navigate("/sign-in"); return; }
+    if (!isSignedIn || !sessionStorage.getItem("admin_token")) { navigate("/admin/login", { replace: true }); return; }
     callApi({ method: "GET", url: "/me" }).then((r) => setRole(r.data.role)).catch(() => setRole("member"));
+    callApi({ method: "GET", url: "/admin/notifications" }).catch((e) => { if (e.response?.status === 401) { sessionStorage.removeItem("admin_token"); navigate("/admin/login", { replace: true }); } });
   }, [isLoaded, isSignedIn, callApi, navigate]);
 
   if (!isLoaded || (isSignedIn && role === null)) return <div className="min-h-screen bg-slate-950 flex items-center justify-center"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>;

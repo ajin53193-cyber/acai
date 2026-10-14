@@ -151,3 +151,17 @@ code, .font-mono {
 
 
 #root { overflow-x: clip; }
+
+/* Admin console light theme (Kavip merchant style) — remaps legacy dark utility classes */
+.admin-light.bg-slate-950, .admin-light .bg-slate-950 { background-color: #f5f6f8 !important; }
+.admin-light .bg-slate-900 { background-color: #ffffff !important; }
+.admin-light .bg-slate-800, .admin-light .hover\:bg-slate-800:hover { background-color: #f1f5f9 !important; }
+.admin-light .border-slate-800, .admin-light .border-slate-700, .admin-light .divide-slate-800 > :not([hidden]) ~ :not([hidden]) { border-color: #e5e7eb !important; }
+.admin-light.text-slate-200, .admin-light .text-slate-200, .admin-light .text-slate-300 { color: #334155 !important; }
+.admin-light .text-slate-400 { color: #64748b !important; }
+.admin-light .text-white { color: #0f172a !important; }
+.admin-light [class*="bg-primary"].text-white, .admin-light [class*="bg-orange"].text-white, .admin-light [class*="bg-red"].text-white, .admin-light [class*="bg-emerald"].text-white, .admin-light [class*="bg-blue"].text-white, .admin-light [class*="bg-violet"].text-white, .admin-light [class*="bg-amber"].text-white, .admin-light [class*="bg-black"].text-white { color: #ffffff !important; }
+.admin-light .bg-primary { background-color: #f97316 !important; }
+.admin-light .text-primary { color: #ea580c !important; }
+.admin-light input, .admin-light select, .admin-light textarea { color: #0f172a; }
+.admin-light input::placeholder, .admin-light textarea::placeholder { color: #94a3b8; }
