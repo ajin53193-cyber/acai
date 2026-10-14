@@ -52,7 +52,6 @@ export default function PaymentMethodsAdmin({ callApi }) {
     } catch (e) { toast.error(e.response?.data?.detail || tr("儲存失敗")); }
   };
 
-  const catTone = { usdt: "bg-emerald-50 text-emerald-700", card: "bg-sky-50 text-sky-700", ewallet: "bg-violet-50 text-violet-700", bank: "bg-amber-50 text-amber-700" };
   const iconBtn = "h-9 w-9 rounded-lg border border-slate-200 bg-white text-slate-500 flex items-center justify-center hover:bg-slate-50 hover:text-slate-900 disabled:opacity-30 disabled:hover:bg-white transition-colors";
   return (
     <div data-testid="payment-methods-admin">
@@ -63,37 +62,29 @@ export default function PaymentMethodsAdmin({ callApi }) {
           {list.length === 0 && <Card className="p-10 text-center text-sm text-slate-400">{tr("尚未設定支付方式")}</Card>}
           {list.map((m, i) => (
             <Card key={m.id} data-testid={`pm-row-${m.id}`} className={`p-4 flex flex-wrap items-center gap-4 ${m.active ? "" : "opacity-60"}`}>
+              <span data-testid={`pm-channel-${m.id}`} className="font-mono text-sm font-bold text-slate-700 shrink-0 w-20">{m.channel_no}</span>
               <span className="h-14 w-32 shrink-0 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-center overflow-hidden px-2">
                 {m.image ? <img src={m.image} alt={m.name} className="max-h-10 max-w-full object-contain" /> : <span className="text-[11px] font-bold text-slate-500 text-center leading-tight">{m.name}</span>}
               </span>
-              <div className="flex-1 min-w-[220px]">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className="text-[15px] font-bold text-slate-900">{m.name}</span>
-                  <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${catTone[m.category] || "bg-slate-100 text-slate-600"}`}>{CATS[m.category] || m.category}</span>
-                  <span className="rounded-full px-2 py-0.5 text-[11px] font-semibold bg-slate-100 text-slate-600">{PROVIDERS[m.provider] || m.provider}</span>
-                  <span data-testid={`pm-status-${m.id}`} className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${m.active ? "bg-emerald-500 text-white" : "bg-slate-300 text-white"}`}>{m.active ? tr("啟用中") : tr("已停用")}</span>
-                </div>
-                <div className="text-xs text-slate-500 mt-1">{tr("限額")} <b className="text-slate-700">USD$ {m.min_usd} ~ {m.max_usd}</b> · {tr("手續費")} <b className="text-slate-700">{m.fee_percent > 0 ? `${m.fee_percent}%` : tr("免")}</b>{m.description && <span className="text-slate-400"> · {m.description}</span>}</div>
-              </div>
-              <div className="flex items-center gap-2 flex-wrap" onClick={(e) => e.stopPropagation()}>
+              <span data-testid={`pm-status-${m.id}`} className={`rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${m.active ? "bg-emerald-500 text-white" : "bg-slate-300 text-white"}`}>{m.active ? tr("啟用中") : tr("已停用")}</span>
+              <div className="flex items-center gap-2 flex-wrap ml-auto" onClick={(e) => e.stopPropagation()}>
                 <button data-testid={`pm-toggle-${m.id}`} onClick={() => update(m.id, { active: !m.active })} className={`h-9 px-3.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-colors ${m.active ? "bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200" : "bg-emerald-500 hover:bg-emerald-600 text-white"}`}>{m.active ? <><PowerOff className="h-3.5 w-3.5" />{tr("停用")}</> : <><Power className="h-3.5 w-3.5" />{tr("啟用")}</>}</button>
-                <Btn kind="ghost" data-testid={`pm-edit-${m.id}`} onClick={() => setEditing({ ...empty, ...m, config: m.config || {} })} className="flex items-center gap-1.5"><Pencil className="h-3.5 w-3.5" />{tr("編輯")}</Btn>
+                <Btn kind="ghost" data-testid={`pm-edit-${m.id}`} onClick={() => setEditing({ ...empty, ...m, config: m.config || {} })} className="flex items-center gap-1.5"><Pencil className="h-3.5 w-3.5" />{tr("配置")}</Btn>
                 <div className="flex items-center gap-1 ml-1 pl-3 border-l border-slate-200">
                   <button aria-label="up" disabled={i === 0} onClick={() => move(i, -1)} className={iconBtn}><ArrowUp className="h-4 w-4" /></button>
                   <button aria-label="down" disabled={i === list.length - 1} onClick={() => move(i, 1)} className={iconBtn}><ArrowDown className="h-4 w-4" /></button>
-                  <button data-testid={`pm-delete-${m.id}`} aria-label="delete" onClick={() => remove(m)} className="h-9 w-9 rounded-lg border border-red-200 bg-white text-red-500 flex items-center justify-center hover:bg-red-500 hover:text-white hover:border-red-500 transition-colors"><Trash2 className="h-4 w-4" /></button>
                 </div>
               </div>
             </Card>
           ))}
         </div>
       )}
-      {editing && <MethodForm f={editing} setF={setEditing} onSave={save} onClose={() => setEditing(null)} onTest={testConn} />}
+      {editing && <MethodForm f={editing} setF={setEditing} onSave={save} onClose={() => setEditing(null)} onTest={testConn} onDelete={remove} />}
     </div>
   );
 }
 
-function MethodForm({ f, setF, onSave, onClose, onTest }) {
+function MethodForm({ f, setF, onSave, onClose, onTest, onDelete }) {
   const set = (k, v) => setF((p) => ({ ...p, [k]: v }));
   const setCfg = (k, v) => setF((p) => ({ ...p, config: { ...p.config, [k]: v } }));
   return (
@@ -138,6 +129,7 @@ function MethodForm({ f, setF, onSave, onClose, onTest }) {
           <label className="flex items-center gap-2 text-sm"><Switch checked={f.active} onCheckedChange={(v) => set("active", v)} /> {tr("啟用（會員可選）")}</label>
         </div>
         <DialogFooter>
+          {f.id && <button data-testid={`pm-delete-${f.id}`} onClick={() => { onClose(); onDelete(f); }} className="h-10 px-4 rounded-lg border border-red-200 text-red-600 text-sm font-semibold flex items-center gap-1.5 mr-auto hover:bg-red-50 transition-colors"><Trash2 className="h-4 w-4" />{tr("刪除")}</button>}
           <button onClick={onClose} className="h-10 px-4 rounded-lg border border-slate-300 text-slate-600 text-sm">{tr("取消")}</button>
           <button data-testid="pm-form-save" onClick={() => onSave(f)} className="h-10 px-5 rounded-lg bg-orange-500 hover:bg-orange-600 text-white text-sm font-semibold">{tr("儲存")}</button>
         </DialogFooter>

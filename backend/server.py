@@ -733,6 +733,10 @@ async def _ensure_payment_methods():
     await db.payment_methods.update_many({"provider": "crypto", "category": "ewallet"}, {"$set": {"category": "usdt"}})
 
 
+def _channel_no(mid: str) -> str:
+    return "CH" + str(10000 + (int(hashlib.md5((mid or "").encode()).hexdigest()[:5], 16) % 90000)) if mid else "-"
+
+
 def _pm_public(m: dict) -> dict:
     return {k: v for k, v in m.items() if k != "config"}
 
@@ -742,7 +746,7 @@ def _pm_admin(m: dict) -> dict:
     for k in PM_SECRET_KEYS:
         if cfg.get(k):
             cfg[k] = cfg[k][:4] + "••••" + cfg[k][-2:] if len(cfg[k]) > 6 else "••••"
-    return {**m, "config": cfg}
+    return {**m, "config": cfg, "channel_no": _channel_no(m.get("id"))}
 
 
 @api_router.get("/payment-methods")
