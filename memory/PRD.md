@@ -389,3 +389,11 @@
 - 後台：刪除 用戶等級(UserLevelsAdmin)、積分管理(PointsAdmin)、邀請返利(ReferralAdmin) 菜單與頁面；會員列表移除等級欄、詳情移除等級/積分與積分調整卡；會員資產移除總積分/積分欄；用戶批量移除發放積分；用戶報表移除等級分佈；RolesAdmin 與 ALL_PERMISSIONS 同步。
 - 資料：points 設定 earn/order/topup/redeem 全部關閉；referral enabled/weekly/milestones 關閉；member_levels discount_percent 全部設 0（後端計價不再有等級折扣）。後端相關 API 與欄位保留但無效。
 - 驗證：後台菜單無三項、會員詳情無等級/積分；結帳頁與首頁正常渲染。
+
+## 2026-10 Round 28：新活動「邀請好友得抽獎次數 → 消耗次數抽獎」（活動中心 /activities）
+- 玩法：用戶分享專屬邀請連結 /activities?ref=CODE（含二維碼/複製/系統分享）；好友透過連結註冊並自動綁定（POST /me/referral/bind）→ 邀請人 lottery_bonus_draws += invite_draws（預設 1）、referral_invited += 1 並記錄用戶日誌；用戶消耗次數 POST /lottery/draw 抽獎（invite_only：無次數回 400「抽獎次數不足」；不吃積分、無每日免費）。
+- 後端：lottery 設定新增 invite_only / invite_draws / title / subtitle / rules（LotteryConfigIn + PUT /admin/lottery），公開 GET /lottery/config 回傳這些欄位；獎品改為餘額/實物/謝謝惠顧（無積分類型）；referral 設定重新 enabled。
+- 前台：ActivityCenter.jsx 重寫為單一活動頁：Hero（標題/副標/中獎播報）、大轉盤（旋轉動畫、剩餘次數、結果提示、未登入點擊彈登入）、邀請卡（已邀請/可用次數、邀請碼、二維碼、連結、複製/分享、三步驟）、活動規則、我的中獎紀錄；?ref 進站存 localStorage、未登入自動彈註冊、登入後自動綁定。Register 彈窗恢復邀請碼橫幅。首頁第二張 promo banner 連回 /activities。
+- 後台：運營管理 → 邀請抽獎活動（InviteLotteryAdmin，key invite-lottery）：啟用、每邀請得次數、標題/副標/規則、獎品表（名稱/類型/數值/權重/庫存/顏色）、最近抽獎紀錄；RolesAdmin/ALL_PERMISSIONS 同步。
+- data-testid：ac-hero、ac-winner-ticker、ac-wheel、ac-draws-left、ac-draw-btn、ac-draw-result、ac-login-btn、ac-rules、ac-invite、ac-invited、ac-invite-code、ac-invite-link、ac-copy-btn、ac-share-btn、ac-invite-login、ac-history；il-*。
+- 驗證：iteration_37 後端 5/5 + 前台未登入/登入/後台全通過（test file: backend/tests/test_invite_lottery.py）。
