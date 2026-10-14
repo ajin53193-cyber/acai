@@ -491,7 +491,12 @@ function CombosSection({ combos, onBuy }) {
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4">
         {combos.map((c) => (
-          <div key={c.id} data-testid={`combo-card-${c.id}`} className="bg-white rounded-2xl border border-rose-100 shadow-sm p-3 flex gap-3">
+          <div key={c.id} data-testid={`combo-card-${c.id}`} className="bg-white rounded-2xl border border-rose-100 shadow-sm p-3 flex gap-3 relative overflow-hidden">
+            {c.original_total_usd > c.price_usd && (
+              <span data-testid={`combo-save-${c.id}`} className="absolute top-0 right-0 z-10 bg-rose-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-bl-lg">
+                {tr("立省 {0}", format(c.original_total_usd - c.price_usd))}{c.original_total_usd > 0 ? `（${Math.round((1 - c.price_usd / c.original_total_usd) * 100)}%）` : ""}
+              </span>
+            )}
             <div className="h-20 w-20 rounded-xl bg-rose-50 overflow-hidden shrink-0 flex items-center justify-center">
               {c.image ? <img src={c.image} alt={c.title} className="h-full w-full object-cover" /> : <Package className="h-8 w-8 text-rose-300" />}
             </div>

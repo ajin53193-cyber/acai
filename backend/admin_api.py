@@ -879,6 +879,51 @@ async def admin_combo_delete(cid: str, admin: dict = Depends(current_admin)):
     return {"ok": True}
 
 
+# ----------------------------- Activity Records (活動記錄) -----------------------------
+async def _user_labels(uids: list) -> dict:
+    users = {u["user_id"]: u async for u in db.users.find({"user_id": {"$in": list(uids)}}, {"_id": 0, "user_id": 1, "email": 1, "phone": 1})}
+    out = {}
+    for uid, u in users.items():
+        email = u.get("email", "") or ""
+        label = ("" if email.endswith("@" + email_auth.PHONE_DOMAIN) else email) or u.get("phone", "") or "-"
+        out[uid] = {"label": label, "account_no": account_no(uid)}
+    return out
+
+
+@router.get("/activity-records")
+async def admin_activity_records(type: str = "all", limit: int = 200, admin: dict = Depends(current_admin)):
+    recs = []
+    if type in ("all", "seckill"):
+        orders = await db.orders.find({"items.flash_id": {"$ne": None}}, {"_id": 0}).sort("created_at", -1).to_list(limit)
+        for o in orders:
+            for it in o.get("items", []):
+                if it.get("flash_id"):
+                    recs.append({"type": "seckill", "created_at": o.get("created_at", ""), "user_id": o.get("user_id"),
+                                 "title": f"{it.get('product_name', '')} · {it.get('spec_label', '')}", "detail": f"×{it.get('quantity', 1)}",
+                                 "amount_usd": round(float(it.get("unit_price_usd") or 0) * int(it.get("quantity") or 1), 2),
+                                 "ref": o.get("order_no", ""), "status": o.get("status", "")})
+    if type in ("all", "combo"):
+        orders = await db.orders.find({"combo_discount_usd": {"$gt": 0}}, {"_id": 0}).sort("created_at", -1).to_list(limit)
+        for o in orders:
+            recs.append({"type": "combo", "created_at": o.get("created_at", ""), "user_id": o.get("user_id"),
+                         "title": o.get("combo_title", "") or "套餐", "detail": f"省 USD${float(o.get('combo_discount_usd') or 0):.2f}",
+                         "amount_usd": round(float(o.get("total_usd") or 0), 2), "ref": o.get("order_no", ""), "status": o.get("status", "")})
+    if type in ("all", "lottery"):
+        draws = await db.lottery_draws.find({}, {"_id": 0}).sort("created_at", -1).to_list(limit)
+        for d in draws:
+            recs.append({"type": "lottery", "created_at": d.get("created_at", ""), "user_id": d.get("user_id"),
+                         "title": d.get("prize_label", ""), "detail": ("免費抽" if d.get("free") else f"消耗 {d.get('cost_points', 0)} 積分"),
+                         "amount_usd": None, "ref": d.get("prize_type", ""), "status": "fulfilled" if d.get("fulfilled") else ("done" if d.get("prize_type") != "physical" else "pending")})
+    recs.sort(key=lambda r: r.get("created_at", ""), reverse=True)
+    recs = recs[:limit]
+    labels = await _user_labels({r["user_id"] for r in recs if r.get("user_id")})
+    for r in recs:
+        lb = labels.get(r.get("user_id"), {})
+        r["account_no"] = lb.get("account_no", "-")
+        r["user_label"] = lb.get("label", "-")
+    return recs
+
+
 # ----------------------------- Translations -----------------------------
 class TranslationIn(BaseModel):
     src: str

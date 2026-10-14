@@ -531,10 +531,14 @@ async def lottery_my_status(member: dict = Depends(current_member)):
             "free_daily": bool(cfg.get("free_daily")), "free_available": free_available, "enabled": bool(cfg.get("enabled"))}
 
 
-async def _pick_and_grant(uid: str, cfg: dict, points_bal: int):
+async def _pick_and_grant(uid: str, cfg: dict, points_bal: int, exclude_none: bool = False):
     """Weighted pick from current config + apply reward. Returns (win, new_points, wallet_usd)."""
     import random
     pool = [p for p in cfg.get("prizes", []) if int(p.get("weight") or 0) > 0 and int(p.get("stock", -1)) != 0]
+    if exclude_none:
+        real = [p for p in pool if p.get("type") != "none"]
+        if real:
+            pool = real
     if not pool:
         raise HTTPException(status_code=400, detail="暫無可抽獎品，請稍後再試")
     total = sum(int(p["weight"]) for p in pool)
@@ -592,8 +596,11 @@ async def lottery_draw(body: dict = None, member: dict = Depends(current_member)
                                                 "source": "lottery", "reason": f"抽獎消耗積分 x{count}", "ref": "", "created_at": now_iso()})
     results = []
     wallet_usd = None
+    import random as _rnd
+    has_real = any(p.get("type") != "none" and int(p.get("weight") or 0) > 0 for p in cfg.get("prizes", []))
+    guaranteed_idx = _rnd.randint(0, count - 1) if (count >= 10 and has_real) else -1
     for k in range(count):
-        win, bal, w = await _pick_and_grant(uid, cfg, bal)
+        win, bal, w = await _pick_and_grant(uid, cfg, bal, exclude_none=(k == guaranteed_idx))
         if w is not None:
             wallet_usd = w
         draw = {"id": new_id(), "user_id": uid, "prize_id": win["id"], "prize_label": win["label"], "prize_type": win.get("type", "none"),

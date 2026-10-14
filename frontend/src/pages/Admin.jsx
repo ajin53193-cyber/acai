@@ -34,6 +34,7 @@ import { FlashSaleAdmin } from "@/pages/admin/FlashSaleAdmin";
 import { LotteryAdmin } from "@/pages/admin/LotteryAdmin";
 import { CombosAdmin } from "@/pages/admin/CombosAdmin";
 import { HomeLayoutAdmin } from "@/pages/admin/HomeLayoutAdmin";
+import { ActivityRecordsAdmin } from "@/pages/admin/ActivityRecordsAdmin";
 import { tr } from "@/i18n";
 
 // Full admin IA — collapsible two-level menu. Keys map to real pages in PAGES; everything else renders <Soon/>.
@@ -111,6 +112,7 @@ const PAGES = {
   flashsale: (p) => <FlashSaleAdmin {...p} />,
   lottery: (p) => <LotteryAdmin {...p} />,
   combo: (p) => <CombosAdmin {...p} />,
+  "activity-records": (p) => <ActivityRecordsAdmin {...p} />,
   "home-decoration": (p) => <HomeLayoutAdmin {...p} />,
 };
 

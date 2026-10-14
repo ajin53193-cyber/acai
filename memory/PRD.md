@@ -252,3 +252,10 @@
 - data-testid：combos-admin/combo-*、homelayout-admin/hl-row-*/hl-toggle-*/homelayout-save、combos-section/combo-card-*/combo-buy-*、checkout-combo-discount、lottery-draw-btn-10/lottery-free-badge、flash-soldout-*/flash-ended。
 - 驗證：組合套餐 10/10 E2E；免費抽/連抽十次後端直測；首頁裝修 PUT/讀回/reset 全通。
 - **後續（未做）**：活動記錄 activity-records slot；輪播圖/推薦位/公告等運營 slot；系統配置（管理員/角色權限/操作日誌）。
+
+## 2026-10 後台 Round 10：活動記錄頁 + 連抽保底 + 套餐省額角標
+- **活動記錄頁**（`ActivityRecordsAdmin.jsx` → 活動管理「活動記錄」activity-records slot；admin_api `GET /admin/activity-records?type=all|seckill|lottery|combo`）：統一匯總秒殺搶購（orders.items.flash_id）、積分抽獎（lottery_draws）、套餐下單（orders.combo_discount_usd>0），含時間/帳戶ID/用戶/內容/明細/金額/狀態，Tab 篩選。`_user_labels` 批量解析用戶標籤。
+- **連抽惊喜保底**：`_pick_and_grant` 新增 `exclude_none`；`/lottery/draw` 當 count>=10 且有真實獎品時隨機指定一格強制中非「謝謝惠顧」獎，確保連抽十次至少中 1 個真實獎（實測 3 輪皆 ≥6/10）。
+- **套餐省額角標**：首頁套餐卡右上角 `combo-save-<id>`「立省 $X（N%）」紅色角標（已上線實測顯示「立省 $50.68（84%）」）。
+- data-testid：activity-records-admin/act-tab-*/act-table、combo-save-*。
+- 驗證：activity-records curl 回 26 筆（25 抽獎+1 秒殺）；連抽保底 3 輪通過；首頁角標截圖確認。
