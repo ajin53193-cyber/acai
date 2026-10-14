@@ -365,3 +365,4 @@
 - 移除「實時監控」（Admin.jsx/RolesAdmin.jsx 菜單、RealtimeAdmin.jsx、ALL_PERMISSIONS realtime key；後端 /analytics/realtime 路由保留無害）。
 - 驗證：函式直測今日(小時桶)與 30 天(日桶)資料正確；截圖確認今日/本月切換、圖表與指標卡渲染正常。
 - Round 24 補充：文章管理（ActivitiesAdmin, key=activities）自「活動管理 → 活動列表」移至「運營管理 → 新聞 & 促銷」；頁面標題/按鈕/彈窗/刪除提示改為「文章」措辭、類型 promo 標籤改「促銷活動」、「活動時間」欄改「有效期」；RolesAdmin 與 i18n 同步。截圖驗證通過。
+- Round 24 補充：首頁 promo_banners 第二張「精選活動合集」預設連結 /article → /activities（cms_api.py 預設值）；Footer「活動中心」連結同步改 /activities。實測點擊進入活動中心。
