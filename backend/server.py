@@ -1279,6 +1279,9 @@ REFERRAL_DEFAULT = {
         {"count": 5, "type": "points", "value": 800, "coupon_code": ""},
         {"count": 10, "type": "points", "value": 2000, "coupon_code": ""},
     ],
+    "funnel_alert_enabled": True,
+    "reg_rate_min": 30,
+    "topup_rate_min": 40,
 }
 
 
@@ -1432,10 +1435,13 @@ async def referral_visit(body: dict):
     """Log a referral-link visit (deduped per browser vid + code) to power the conversion funnel."""
     code = (body or {}).get("code", "").strip().upper()[:16]
     vid = (body or {}).get("vid", "").strip()[:64]
+    src = (body or {}).get("source", "link").strip().lower()
+    if src not in ("qr", "link"):
+        src = "link"
     if not code or not vid:
         return {"ok": True}
     await db.referral_visits.update_one({"code": code, "vid": vid},
-                                        {"$setOnInsert": {"code": code, "vid": vid, "created_at": now_iso()}}, upsert=True)
+                                        {"$setOnInsert": {"code": code, "vid": vid, "source": src, "created_at": now_iso()}}, upsert=True)
     return {"ok": True}
 
 

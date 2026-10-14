@@ -310,3 +310,10 @@
 - **漏斗聚合** `GET /api/admin/referral/funnel?days=14`：回 period 與 total 的 {visits（referral_visits）, registers（users.referred_at/referred_by）, topups（referral_rewarded_at/referral_rewarded）} + reg_rate（註冊/訪問）、topup_rate（首充/註冊）、overall_rate（首充/訪問）。
 - **後台看板**：AnalyticsTab 在趨勢圖上方新增漏斗卡（ref-funnel / ref-funnel-visits|registers|topups）：三段橫向條（訪問藍/註冊橙/首充綠，寬度按量），右側標相對上一步轉化率，右上角顯示整體轉化率。
 - 驗證：訪問端點去重 curl 驗（同 vid+code 2 次 →1 筆）；DB 模擬實測漏斗 3→2→1 = reg 66.7%/topup 50%/overall 33.3%；前後端編譯通過。
+
+## 2026-10 前台 Round 17：活動中心（活動大廳）+ 首頁橫幅入口
+- **新頁面** `/activities`（ActivityCenter.jsx，掛在 StoreLayout 下）：頂部漸層標題橫幅 +「功能活動入口卡」網格 6 張：限時秒殺、幸運大轉盤(/lottery)、超值套餐、充值有禮(/account/wallet/topup)、滿減優惠、邀請好友(/invite)。每卡帶狀態角標（即時數據）：秒殺「N 場進行中/敬請期待」、抽獎「天天可抽/暫停中」、套餐「N 款在售」、充值「N 檔好禮」、滿減「N 檔滿減」、邀請「邀請得積分」。下方列促銷活動文章（/articles?type=promo，復用 ArticleCard，無資料時隱藏）。狀態數據來自 /flash-sales/public、/combos/public、/recharge-bonus/public、/cart-promotions/public、/lottery/config。
+- **首頁入口**：將原「積分幸運大轉盤」橫幅（home-lottery-entry → /lottery）改為「活動中心」橫幅（home-activity-center-entry → /activities，Sparkles 圖示 + 「進入活動」按鈕）。
+- data-testid：activity-center、activity-cards、activity-card-<key>、activity-card-badge、activity-articles、activity-article-<id>、home-activity-center-entry。
+- 驗證：/activities 截圖確認橫幅 + 6 卡 + 角標（抽獎天天可抽、邀請得積分、其餘敬請期待）正常渲染；首頁橫幅已替換為活動中心入口；前端編譯通過。
+- 備註：使用者先前要求的「渠道來源分析/流失提醒/商品帶貨海報」已起頭（後端 referral_visits 記錄 source、config 加 funnel 阈值欄位，皆為相容新增、不影響現有功能），本輪優先完成活動中心，後續可回頭續做該三項。
