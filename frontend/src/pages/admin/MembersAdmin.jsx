@@ -210,22 +210,15 @@ export function MembersAdmin({ callApi }) {
       <Card className="overflow-x-auto">
         <table className="w-full text-sm" data-testid="members-table">
           <thead><tr className="text-left text-xs text-slate-500 border-b border-slate-200 bg-slate-50/70">
-            {[tr("帳戶ID"), tr("會員"), tr("手機號"), tr("等級"), tr("訂單數 / 消費"), tr("餘額"), tr("註冊時間"), tr("狀態"), tr("操作")].map((c) => <th key={c} className="px-4 py-3 font-semibold whitespace-nowrap">{c}</th>)}
+            {[tr("帳戶ID"), tr("等級"), tr("訂單數 / 消費"), tr("餘額"), tr("註冊時間"), tr("狀態"), tr("操作")].map((c) => <th key={c} className="px-4 py-3 font-semibold whitespace-nowrap">{c}</th>)}
           </tr></thead>
           <tbody className="divide-y divide-slate-100">
-            {rows.length === 0 ? <tr><td colSpan={9} className="px-4 py-14 text-center text-slate-400">{data === null ? tr("載入中…") : tr("暫無會員")}</td></tr> : rows.map((u) => {
+            {rows.length === 0 ? <tr><td colSpan={7} className="px-4 py-14 text-center text-slate-400">{data === null ? tr("載入中…") : tr("暫無會員")}</td></tr> : rows.map((u) => {
               const lvName = u.level?.name || tierOf(u.spent_usd || 0).label;
               const lvCls = u.level ? toneCls(u.level.color) + " border border-transparent" : tierOf(u.spent_usd || 0).cls;
               return (
                 <tr key={u.user_id} data-testid={`member-row-${u.user_id}`} className="hover:bg-orange-50/30 transition-colors">
                   <td className="px-4 py-3 whitespace-nowrap"><span className="font-head font-bold text-slate-900">{u.account_no}</span></td>
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-2.5">
-                      <span className={`h-9 w-9 shrink-0 rounded-full bg-gradient-to-br ${avatarTone(u.user_id)} flex items-center justify-center text-white text-sm font-bold`}>{initial(u)}</span>
-                      <div className="min-w-0"><div className="text-slate-800 font-medium truncate max-w-[180px]">{u.email || u.profile?.name || tr("未命名")}</div>{u.google && <div className="text-[10px] text-emerald-600">Google</div>}</div>
-                    </div>
-                  </td>
-                  <td className="px-4 py-3 text-slate-600 whitespace-nowrap">{u.phone || "-"}</td>
                   <td className="px-4 py-3"><span className={`inline-block rounded-full px-2 py-0.5 text-[11px] font-semibold whitespace-nowrap ${lvCls}`}>{lvName}</span></td>
                   <td className="px-4 py-3 text-slate-600 whitespace-nowrap">{u.order_count} / <span className="font-semibold text-slate-800">${Number(u.spent_usd || 0).toFixed(2)}</span></td>
                   <td className="px-4 py-3 font-head font-bold text-slate-900 whitespace-nowrap">${Number(u.balance_usd || 0).toFixed(2)}</td>

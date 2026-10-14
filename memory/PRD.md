@@ -356,3 +356,4 @@
 - 使用者明確要求不要庫存管理、商品規格、添加商品三個後台模組。已從 Admin.jsx 菜單與 PAGES 移除，刪除 InventoryAdmin.jsx / SpecTemplatesAdmin.jsx，ProductsAdmin 的 SpecsEditor 去掉「套用規格模板」下拉；後端 ALL_PERMISSIONS 同步移除三個 key（API 路由保留，無害）。商品管理菜單現為：商品列表 / 商品分類 / 商品評論。
 - 驗證：後台 2FA 登入 + 儀表盤截圖正常，前端編譯通過。
 - Round 23 補充：財務管理菜單「資金流水」更名為「充值審核」（Admin.jsx / RolesAdmin.jsx / TopupsAdmin 標題 / i18n zh-CN & en），截圖驗證通過。
+- Round 23 補充：用戶列表（MembersAdmin）移除「會員」與「手機號」兩欄，截圖驗證通過。
