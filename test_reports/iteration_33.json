@@ -1,0 +1,51 @@
+{
+  "summary": "Round 12 storefront FE E2E. Verified: (1) Home 超值套餐 combo dead-state cards & disabled buttons for soldout/ended demos; the active combo 立即抢购 is enabled and routes to checkout (login prompt as expected for logged-out). (2) ?ref=ABCD1234 captured in localStorage as 'ref_code'; navigating to /invite afterwards does not crash. (3) /invite logged-out shows the '登录后查看你的邀请奖励' empty state. Could NOT verify the fully logged-in /invite DOM (invite-page/code/link/copy-btn/count/points/bind-card) nor /account account-invite-btn because Clerk Device-Trust password sign-in is blocked by Clerk bot protection in headless automation (documented in /app/memory/test_credentials.md). This is an environmental limitation, not an app bug.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {"flow": "Member login (AuthModal 帐号登录)", "issue": "Clerk bot-protection silently blocks automated password submission — no error toast surfaced to the user when sign-in is rejected. Modal just stays open. Consider showing a user-facing error (e.g. '登录失败，请重试' or Clerk-mapped error) on Clerk failure response.", "affected_selectors": ["[role='dialog']", "[data-testid='auth-identifier']", "[data-testid='auth-password']"]}
+    ],
+    "design_issues": [
+      {"screen": "AuthModal DialogContent", "issues": ["React a11y warning: Missing `Description` or `aria-describedby={undefined}` for DialogContent (shadcn Radix dialog) — add DialogDescription or aria-describedby to silence and improve a11y."]}
+    ]
+  },
+  "verified_elements": {
+    "home_combos": {
+      "combo-dead-demo_soldout": "present",
+      "combo-buy-demo_soldout": "disabled, text='已售罄'",
+      "combo-dead-demo_ended": "present",
+      "combo-buy-demo_ended": "disabled, text='已结束'",
+      "active_combo_buy (combo-buy-7f7eb86527ad)": "enabled, text='立即抢购', click navigates to /checkout (login prompt as logged-out)"
+    },
+    "referral_capture": "visiting /?ref=ABCD1234 writes localStorage.ref_code='ABCD1234'; navigating to /invite after capture does not crash"
+  },
+  "not_tested_due_to_blocker": [
+    "data-testid=invite-page (logged-in render)",
+    "data-testid=invite-code (8-char code value)",
+    "data-testid=invite-link (contains '?ref=' assertion)",
+    "data-testid=invite-copy-btn",
+    "data-testid=invite-count / invite-points",
+    "data-testid=invite-bind-card (should show 'cannot bind' message for this already-paid member, no input)",
+    "/account data-testid=account-invite-btn -> /invite navigation"
+  ],
+  "test_report_links": [],
+  "action_items": [
+    "Add user-facing error state to AuthModal when Clerk sign-in attempt fails (currently silent).",
+    "Add DialogDescription / aria-describedby to the AuthModal DialogContent to resolve the a11y warning.",
+    "For next verification: main agent should either (a) manually sign in and visually confirm the /invite DOM & /account→/invite flow, or (b) provide a dev-only bypass or a signed Clerk session token for headless testing."
+  ],
+  "critical_code_review_comments": [
+    "AuthModal has no visible error/toast on failed Clerk login — poor UX; always surface the backend/Clerk error message.",
+    "Radix DialogContent missing DialogDescription (a11y warning in console).",
+    "Combo active-click flow correctly gates on auth and routes to checkout login prompt. Dead-state styling + disabled attribute both applied — good."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A (skipped)", "frontend": "~60% (combo dead-states + ref capture OK; invite/account logged-in path blocked by Clerk)"},
+  "test_credentials": "Used tester+clerk_test@shop.com / Gogo589!Tester#4m9Z (device-code 424242) per /app/memory/test_credentials.md — Clerk bot protection blocked the headless password login.",
+  "seed_data_creation": "none",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Combo dead-state DOM is verified end-to-end from the public preview URL (3 combos: 1 active, 1 soldout, 1 ended; testids match spec). Referral capture also verified (localStorage.ref_code). The logged-in /invite DOM assertions remain unverified due to Clerk bot protection on headless automation — this requires a human to log in manually in a real browser, or the main agent must expose a dev-mode auth bypass / signed Clerk session for test automation. Avoid retrying the headless Clerk password login — it will silently fail.",
+  "rca of the issue": "Clerk development instance (sk_test_...) enforces bot-protection on automated submissions. The in-app custom AuthModal calls Clerk's signIn SDK; Clerk server rejects the attempt without returning a visible error that the AuthModal surfaces, so the modal appears to do nothing. Mitigation for testing: use a real browser session OR mint a Clerk session token server-side (per Clerk integration playbook 'Testing' section) and seed it into localStorage/cookies before loading the page. Mitigation for UX: AuthModal should catch the SignIn error and display Clerk's localized message."
+}

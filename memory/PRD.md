@@ -267,3 +267,13 @@
 - **抽獎分享得次數**：user 新增 lottery_bonus_draws / lottery_share_date；`POST /api/lottery/share` 每日首次分享 +1 次免費抽獎（當日重複不給）；my-status 回 daily_free_available + bonus_draws + free_available；draw 免費優先用每日免費（free_kind=daily），否則用 bonus（free_kind=bonus 並扣減），`_free_draw_used_today` 只認 daily。Lottery 頁加「分享得抽獎次數」按鈕（lottery-share-btn）+ 免費/分享次數徽章。
 - data-testid：combo-remaining-*/combo-stock、hero-slides-list/hero-slide-*/hero-slide-add/hero-carousel、activity-stats、lottery-share-btn。
 - 驗證：iteration_32 storefront 11/11 通過（套餐限時庫存卡+結算、分享得次數、連抽）；套餐庫存/活動看板/輪播 config 後端 curl 全驗。
+
+## 2026-10 後台 Round 12：套餐售罄態 + 輪播圖連結選擇器 + 看板7日趨勢 + 邀請好友返積分
+- **套餐售罄態**：`/combos/public` 不再隱藏已結束/售罄的上架套餐，改回傳 `status`（active/soldout/ended，未開始仍隱藏）。首頁套餐卡 status!=active 時圖片加「已售罄/已結束」遮罩（combo-dead-*）且按鈕禁用。
+- **輪播圖連結選擇器**：HomeLayoutAdmin 輪播圖的連結改用 `LinkPicker`——下拉選首頁/抽獎/邀請/註冊/公告 + 分類頁（載 /admin/categories）+ 商品頁（搜 /admin/products）+ 自定義網址，取代手打 URL。
+- **看板7日趨勢**：`GET /admin/activity-trend?days=7` 回每日秒殺件數/抽獎次數/套餐單數；ActivityRecordsAdmin 統計卡下方 `TrendChart` CSS 柱狀圖（三色圖例）。
+- **邀請好友返積分**：settings key `referral`（REFERRAL_DEFAULT referrer 500 / referee 200 / enabled）。user 新增 referral_code/referred_by/referral_rewarded/referral_invited/referral_points_earned。
+  - `GET /api/me/referral`（懶生成 8 位碼、回 code/link 統計/can_bind）、`POST /api/me/referral/bind`（首充前綁定、禁自綁/重綁）、首充結算 `_usdt_settle` 觸發 `apply_referral_reward`（受邀 +200、邀請人 +500、冪等，`_grant_points` 寫 point_transactions）。
+  - 前台 `/invite`（Invite.jsx）：邀請碼 + 連結複製/分享 + 邀請數/積分統計 + 綁定碼輸入；首頁 `?ref=CODE` 存 localStorage，/invite 自動預填；我的帳戶 `account-invite-btn` 入口。
+- data-testid：combo-dead-*、slide-link-mode/slide-link-cat、activity-trend/trend-day-*、invite-page/invite-code/invite-link/invite-copy-btn/invite-count/invite-points/invite-bind-*、account-invite-btn。
+- 驗證：referral 獎勵腳本實測（A+500/B+200/冪等）、trend/stats/combo status curl 全驗；iteration_33 storefront 套餐售罄態 + ?ref 捕獲通過（登入後 /invite DOM 因 Clerk 無頭機器人攔截未跑，屬環境限制，端點已 curl 驗）。
