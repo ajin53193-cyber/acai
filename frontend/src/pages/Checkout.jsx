@@ -226,7 +226,7 @@ function CheckoutInner() {
               <div className="flex items-center justify-between"><span className="text-slate-600">{tr("商品總額:")}</span><span className="text-orange-500">{format(subtotalUsd)}</span></div>
               <div className="flex items-center justify-between"><span className="text-slate-600">{tr("優惠金額:")}</span><span className="text-orange-500" data-testid="checkout-discount">-{format(discountUsd)}</span></div>
               {level && (level.discount_percent || 0) > 0 && (
-                <div className="flex items-center justify-between" data-testid="checkout-level-discount"><span className="text-slate-600 flex items-center gap-1"><Crown className="h-3.5 w-3.5 text-amber-500" />{tr("{0} 專屬 {1}% 折扣:", level.name, level.discount_percent)}</span><span className="text-orange-500">-{format(levelDiscount)}</span></div>
+                <div className="flex items-center justify-between" data-testid="checkout-level-discount"><span className="text-slate-600 flex items-center gap-1"><Crown className="h-3.5 w-3.5 text-amber-500" />{tr("{0} 專屬 {1}% 折扣:", tr(level.name), level.discount_percent)}</span><span className="text-orange-500">-{format(levelDiscount)}</span></div>
               )}
               {pointsDiscount > 0 && (
                 <div className="flex items-center justify-between" data-testid="checkout-points-discount"><span className="text-slate-600 flex items-center gap-1"><Star className="h-3.5 w-3.5 text-amber-500" />{tr("積分抵現 ({0} 分):", quote.points_used)}</span><span className="text-orange-500">-{format(pointsDiscount)}</span></div>

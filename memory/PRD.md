@@ -182,3 +182,14 @@
 - data-testid：levels-admin/levels-table/level-*、tags-admin/tags-grid/tag-*、assets-admin/assets-table/asset-*、blacklist-admin/blacklist-*、userlogs-admin/userlogs-*、points-admin/points-tab-*/points-*、member-tags/member-tag-*/member-points-adjust/points-add/points-sub。
 - 修復：`/points/adjust` 投影 `{points:1}` 在用戶無 points 欄位時塌陷為 `{}` 誤報 404 → 改為 `if u is None`（已測 15/15 通過）。
 - **後續**：Round 3 禮品卡管理（列表/創建/核銷記錄/訂單/核銷API）、Round 4 營銷活動（秒殺/充值贈送/滿減滿折/抽獎）。建議後續補：point_transactions 建 (user_id,source,ref) 唯一索引防併發重複發放。
+
+## 2026-10 後台 Round 3：積分抵現前台 + 等級權益前台（iteration_28 前端 6/6 + 下單 e2e 全通，後端 curl 已驗）
+- **新增** `POST /api/orders/quote`（會員）：回傳即時報價 {subtotal_usd, discount_usd(promo), level_discount_usd, level_name, level_discount_percent, points_used, points_discount_usd, total_usd, points_available, level, redeem_enabled, points_per_usd_redeem, min_redeem}。
+- `_compute_order(order, member_ctx)`：先套 promo，再套**等級專屬折扣**（按 level.discount_percent），再套**積分抵現**（受 min_redeem / 可用積分 / 剩餘金額 上限約束）。`_member_context()` 計算累計消費→等級、積分。
+- `OrderIn` 新增 `use_points`。`create_order` 落盤 level_discount/points_used 等欄位並在下單時扣積分（point_transactions source=redeem）；訂單取消時退回積分（source=redeem_refund，冪等）。
+- `/me/profile` 補 level{name,color,discount_percent}、points、spent_usd。
+- **前台 Checkout.jsx**：拉 `/orders/quote`，顯示「等級專屬折扣」行（checkout-level-discount）、「使用積分抵現」卡片+開關（checkout-points-card/checkout-points-toggle）、積分抵現行（checkout-points-discount），總額以 quote.total_usd 為準；下單送 use_points。promo + 等級折扣 + 積分可疊加。
+- **前台 MyAccount.jsx**：帳戶基礎資訊顯示「會員等級」徽章（account-level，含專屬折扣文案）與「我的積分」（account-points）。
+- 積分配置預設啟用抵現：redeem_enabled=true, min_redeem=100, points_per_usd_redeem=100（管理員可在「積分管理」調整/關閉）。
+- 驗證：subtotal 5.38 → 白銀2%(-0.11) → 5.27；開積分→抵至 0.00；+promo GLOBAL2026(10%) 疊加正確；下單後積分正確扣減並落賬。
+- **後續**：Round 4 禮品卡管理、Round 5 營銷活動（秒殺/充值贈送/滿減滿折/抽獎）。建議：point_transactions 加 (user_id,source,ref) 唯一索引；積分抵現可擴充為「自訂抵扣數量」而非單一開關。

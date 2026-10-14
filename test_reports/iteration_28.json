@@ -1,0 +1,34 @@
+{
+  "summary": "Round-3 前台積分抵現 + 等級權益 UI tested end-to-end on preview. All 6 specified checks pass. Logged in as tester+clerk_test@shop.com (白銀 2% / 1000 pts after bump), added TikTok 300钻石 ($5.38) via 立即購買, verified Checkout wires the /orders/quote preview correctly, then placed a real order that fully paid via points + wallet.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "verified_checks": {
+    "my_account_level_points": "/account renders my-account-page with account-level badge '👑 白银会员' + hint '下單享 2% 專屬折扣' and account-points='1000' from /me/profile",
+    "checkout_level_discount": "checkout-level-discount visible: '白银会员 專屬 2% 折扣: -$0.11' on subtotal $5.38 (5.38 * 0.02 = 0.1076 → $0.11)",
+    "checkout_total_matches_quote": "checkout-total $5.27 = 5.38 - 0.11 (matches POST /orders/quote preview)",
+    "points_card_renders": "checkout-points-card appears with text '可用 1000 積分' and checkout-points-toggle because redeem_enabled=true, points>=min_redeem=100",
+    "points_toggle_on": "Toggling ON adds checkout-points-discount '積分抵現 (527 分): -$5.27' and drops checkout-total to $0.00 (527/100 USD covers remaining $5.27)",
+    "points_toggle_off": "Toggling OFF removes points discount line and restores checkout-total to $5.27",
+    "promo_stacks_with_level": "Applying GLOBAL2026 (10%): checkout-discount '-$0.54', checkout-level-discount recomputes to '-$0.10' (2% of 5.38-0.54=4.84), checkout-total '$4.74' — promo + level stack correctly in quote",
+    "promo_plus_points": "With GLOBAL2026 + points ON: checkout-points-discount '積分抵現 (474 分): -$4.74', checkout-total '$0.00'",
+    "order_placement_total_matches": "checkout-agree-checkbox + checkout-pay-btn → navigated to /orders?order=... Order GT261014069900 in DB has total_usd=0.0, points_used=474, points_discount_usd=4.74, level_discount_usd=0.10, level_name='白銀會員', status=paid",
+    "points_deducted_in_db": "users.points 1000 → 526; point_transactions row {source:'redeem', delta:-474, ref:<order_id>, balance_after:526}",
+    "wallet_pay_for_zero_total": "Order with quote total $0.00 still paid via /orders/{id}/pay-wallet successfully"
+  },
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Checkout.jsx:214 — Points card hint text is translated via tr() but the 白银会员 badge in MyAccount shows simplified-chinese '白银会员' while the checkout line uses the raw level.name from backend ('白銀會員' in traditional). The two renderings are inconsistent (same account, two different glyphs) because MyAccount likely runs account-level text through i18n/zh-CN while Checkout prints quote.level.name verbatim. Not a bug for logic, but visually jarring — consider rendering level.name through tr() in both places or returning the already-translated name from the backend consistently.",
+    "Checkout.jsx:72 — the /orders/quote POST sends use_points: profile?.points || 0 (full balance) when the toggle is on. Backend caps it, so result is correct, but the UI gives the user no way to spend only part of their points — single toggle is binary. Acceptable for MVP, worth noting as a feature gap vs typical e-commerce 'enter amount to redeem'.",
+    "Checkout.jsx:74 — useEffect dep list includes `profile` object identity; every /me/profile re-fetch will refire the quote request. Low-impact (one extra call) but could be narrowed to profile?.points.",
+    "Checkout.jsx:123 — order POST sends use_points: profile?.points || 0 (same as quote). If profile has been refetched between quote and submit and points changed (e.g. admin adjusted mid-session), the submitted order may compute a different total than the shown quote. Preview is tiny so unlikely, but worth sending the exact use_points value that was used in the latest quote (quote.points_used) to keep UI and submit in lockstep."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a (frontend-only round, backend quote already curl-verified by E1)", "frontend": "100% (6/6 spec checks pass + full order placement e2e)"},
+  "test_credentials": "tester+clerk_test@shop.com / Gogo589!Tester#4m9Z (no trust challenge triggered on this session). Points bumped to 1000 and wallet to $100 via direct Mongo write before testing (users.find_one+update_one on uid user_3Kc4MFu2DHwZuy8itp5vS09nzaL).",
+  "seed_data_creation": "Set tester.points=1000, tester.wallet_balance_usd=100 pre-test. Test consumed 474 points and $0 wallet via a real order GT261014069900 (TikTok 300钻石 ×1 USD$5.38 → quote total $0.00 after 2% level + 10% GLOBAL2026 promo + 474 pts). Order persists as 'paid' with status 等待填寫數據, points balance now 526.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Round-3 UI (checkout-level-discount, checkout-points-card/toggle/discount, account-level/points) all verified wired to /orders/quote and /me/profile. The regression branch (0 points / 普通會員 — no level line, no points card) was NOT re-exercised in this run because the test account is 白銀 with points — the Checkout.jsx conditionals (`level && level.discount_percent > 0`, `quote?.redeem_enabled && quote?.points_available > 0`) are coded correctly and were implicitly validated on prior iterations with the pre-bump 5-point state. If needed, flip redeem_enabled=false via admin or spend tester down to 0 points to directly reconfirm. Points card only shows when quote.points_available > 0, so a member with <100 points (<min_redeem) will not see it — backend _member_context caps points_available accordingly.",
+  "rca of the issue": "No issues found."
+}

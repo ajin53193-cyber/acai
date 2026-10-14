@@ -65,7 +65,7 @@ export default function MyAccount() {
               <span className="text-slate-800 font-medium" data-testid="account-no">{info?.account_no || "—"}</span>
             </Row>
             <Row label={tr("會員等級：")}>
-              <span data-testid="account-level" className="inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-amber-400 to-orange-400 text-white text-xs font-bold px-3 py-1">👑 {info?.level?.name || tr("普通會員")}</span>
+              <span data-testid="account-level" className="inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-amber-400 to-orange-400 text-white text-xs font-bold px-3 py-1">👑 {tr(info?.level?.name || "普通會員")}</span>
               {info?.level?.discount_percent > 0 && <span className="text-orange-500 text-xs font-semibold">{tr("下單享 {0}% 專屬折扣", info.level.discount_percent)}</span>}
             </Row>
             <Row label={tr("我的積分：")}>
