@@ -50,7 +50,6 @@ export function MemberDetail({ uid, callApi, onClose, onChanged }) {
         <div className="flex items-center justify-between mb-4"><h2 className="font-head text-lg font-bold text-slate-900">{tr("會員詳情")}</h2><button onClick={onClose} className="h-8 w-8 rounded-full bg-slate-100 flex items-center justify-center"><X className="h-4 w-4" /></button></div>
         <Card className="p-4">
           <Row k={tr("帳戶ID")} v={<span className="font-head font-bold text-slate-900 text-base">{d.account_no}</span>} />
-          <Row k={tr("用戶ID")} v={<span className="font-mono text-xs">{d.user_id}</span>} />
           <Row k={tr("信箱")} v={d.emails?.join(", ")} />
           <Row k={tr("手機")} v={d.phone} />
           <Row k="Google" v={d.google ? tr("已綁定") : tr("未綁定")} />
