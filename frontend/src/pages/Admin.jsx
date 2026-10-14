@@ -26,6 +26,7 @@ import { MemberAssetsAdmin } from "@/pages/admin/MemberAssetsAdmin";
 import { BlacklistAdmin } from "@/pages/admin/BlacklistAdmin";
 import { UserLogsAdmin } from "@/pages/admin/UserLogsAdmin";
 import { GiftCardPlaceholder } from "@/pages/admin/GiftCardPlaceholder";
+import { GiftCardNewAdmin } from "@/pages/admin/GiftCardNewAdmin";
 import { HomeLayoutAdmin } from "@/pages/admin/HomeLayoutAdmin";
 import { IntegrationConfigAdmin } from "@/pages/admin/IntegrationConfigAdmin";
 import { AdminsAdmin } from "@/pages/admin/AdminsAdmin";
@@ -109,7 +110,7 @@ const PAGES = {
   "user-logs": (p) => <UserLogsAdmin {...p} />,
   "giftcard-pool": (p) => <GiftCardPlaceholder title={tr("號碼庫")} {...p} />,
   "giftcard-orders": (p) => <GiftCardPlaceholder title={tr("訂單管理")} {...p} />,
-  "giftcard-new": (p) => <ProductsAdmin autoCreate giftcard {...p} />,
+  "giftcard-new": (p) => <GiftCardNewAdmin {...p} />,
   "giftcard-trade-query": (p) => <GiftCardPlaceholder title={tr("交易號查詢")} {...p} />,
   "giftcard-api": (p) => <GiftCardPlaceholder title={tr("核銷接口API")} {...p} />,
   "home-decoration": (p) => <HomeLayoutAdmin {...p} />,

@@ -406,3 +406,4 @@
 - 修復：WalletTopUp.jsx 多餘 </div> 導致編譯錯誤。
 - 使用者將一步步指示後續各模組內容，勿自行擴充。
 - Round 30 續：「添加禮品卡」= ProductsAdmin autoCreate + giftcard prop（表單預設 is_giftcard=true），與普通商品新增完全相同。截圖驗證。
+- Round 30 續：「添加禮品卡」改為獨立頁 GiftCardNewAdmin.jsx（ProductForm 新增 inline/title prop 並 export，EMPTY 改名 export EMPTY_PRODUCT），頁內直接渲染完整商品表單、is_giftcard 預設開、儲存後重置。截圖驗證。

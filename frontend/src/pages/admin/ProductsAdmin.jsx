@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Plus, Pencil, Trash2, Search, X, ArrowUp, ArrowDown } from "lucide-react";
 import { toast } from "sonner";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Switch } from "@/components/ui/switch";
 import { RichEditor } from "@/components/admin/RichEditor";
 import { Card, Btn, Input, Pill, Table, Head, ImgField } from "@/pages/admin/ui";
@@ -11,13 +11,13 @@ const lbl = "block text-xs font-semibold text-slate-500 mb-1";
 const selBase = "h-9 rounded-lg bg-slate-100 px-3 text-sm outline-none focus:ring-2 focus:ring-orange-300";
 const sel = selBase + " w-full";
 const ta = "w-full rounded-lg bg-slate-100 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-orange-300";
-const EMPTY = { name: "", category: "", brand: "", subtitle: "", image: "", description: "", content_html: "", tutorial: "", delivery_fields: [{ code: "account", name: "充值帳號", required: true, placeholder: "", tips: "", type: "text", options: [] }], specs: [], tags: [], is_giftcard: false, sales_count: 0, rating: 5, sort_order: 0, active: true, related_ids: [], related: [] };
+export const EMPTY_PRODUCT = { name: "", category: "", brand: "", subtitle: "", image: "", description: "", content_html: "", tutorial: "", delivery_fields: [{ code: "account", name: "充值帳號", required: true, placeholder: "", tips: "", type: "text", options: [] }], specs: [], tags: [], is_giftcard: false, sales_count: 0, rating: 5, sort_order: 0, active: true, related_ids: [], related: [] };
 const LIMIT_KINDS = { "": tr("依角標自動"), none: tr("不限購"), daily: tr("每日限購"), weekly: tr("每週限購"), monthly: tr("每月限購"), lifetime: tr("終生限購"), newcomer: tr("新用戶專享") };
 const inferLimit = (b = "") => (/每月一單|每月一单/.test(b) ? "monthly" : /每日一單|每日一单/.test(b) ? "daily" : /新客|新用戶|新用户|新使用者/.test(b) ? "newcomer" : "");
 const FIELD_TYPES = { text: tr("文字"), select: tr("下拉選擇"), password: tr("密碼"), textarea: tr("多行文字") };
 const priceRange = (specs) => { const ps = (specs || []).map((s) => s.price_usd).filter((n) => n > 0); if (!ps.length) return "-"; const a = Math.min(...ps), b = Math.max(...ps); return a === b ? `$${a}` : `$${a} ~ $${b}`; };
 
-export function ProductsAdmin({ callApi, autoCreate, giftcard }) {
+export function ProductsAdmin({ callApi, autoCreate }) {
   const [data, setData] = useState({ total: 0, rows: [] });
   const [cats, setCats] = useState([]);
   const [q, setQ] = useState("");
@@ -34,9 +34,9 @@ export function ProductsAdmin({ callApi, autoCreate, giftcard }) {
   const load = useCallback(() => callApi({ method: "GET", url: `/admin/products?q=${encodeURIComponent(qd)}&category=${cat}&active=${status}&page=${page}&size=${size}` }).then((r) => setData(r.data)).catch(() => toast.error(tr("載入失敗"))), [callApi, qd, cat, status, page]);
   useEffect(() => { load(); }, [load]);
   useEffect(() => { callApi({ method: "GET", url: "/admin/categories" }).then((r) => setCats(r.data)).catch(() => {}); }, [callApi]);
-  useEffect(() => { if (autoCreate && !autoOpened && cats.length) { setEditing({ ...EMPTY, category: cats[0]?.id || "", is_giftcard: !!giftcard }); setAutoOpened(true); } }, [autoCreate, autoOpened, cats, giftcard]);
+  useEffect(() => { if (autoCreate && !autoOpened && cats.length) { setEditing({ ...EMPTY_PRODUCT, category: cats[0]?.id || "" }); setAutoOpened(true); } }, [autoCreate, autoOpened, cats]);
 
-  const openEdit = async (row) => { const r = await callApi({ method: "GET", url: `/admin/products/${row.id}` }); setEditing({ ...EMPTY, ...r.data, related: r.data.related || [] }); };
+  const openEdit = async (row) => { const r = await callApi({ method: "GET", url: `/admin/products/${row.id}` }); setEditing({ ...EMPTY_PRODUCT, ...r.data, related: r.data.related || [] }); };
   const patch = async (row, body) => { try { await callApi({ method: "PATCH", url: `/admin/products/${row.id}`, data: body }); load(); } catch (e) { toast.error(e.response?.data?.detail || tr("更新失敗")); } };
   const del = async (row) => {
     if (!window.confirm(tr("確定刪除商品「{0}」？此操作無法復原", row.name))) return;
@@ -60,7 +60,7 @@ export function ProductsAdmin({ callApi, autoCreate, giftcard }) {
   return (
     <div data-testid="products-admin">
       <Head title={tr("商品管理")} sub={tr("共 {0} 件商品，可搜尋、按分類/狀態篩選；點擊編輯可修改規格、價格、角標與下單需填寫資料。", data.total)}
-        right={<Btn data-testid="product-add-btn" onClick={() => setEditing({ ...EMPTY, category: cats[0]?.id || "" })}><Plus className="h-4 w-4 inline -mt-0.5 mr-1" />{tr("新增商品")}</Btn>} />
+        right={<Btn data-testid="product-add-btn" onClick={() => setEditing({ ...EMPTY_PRODUCT, category: cats[0]?.id || "" })}><Plus className="h-4 w-4 inline -mt-0.5 mr-1" />{tr("新增商品")}</Btn>} />
       <div className="flex flex-wrap items-center gap-2 mb-4">
         <div className="relative"><Search className="h-4 w-4 absolute left-2.5 top-2.5 text-slate-400" /><Input data-testid="product-search" value={q} onChange={(e) => setQ(e.target.value)} placeholder={tr("搜尋名稱 / 品牌 / ID")} className="pl-8 w-64" /></div>
         <select data-testid="product-filter-category" className={selBase + " w-44"} value={cat} onChange={(e) => { setCat(e.target.value); setPage(1); }}><option value="">{tr("全部分類")}</option>{cats.map((c) => <option key={c.id} value={c.id}>{`${c.name}（${c.product_count}）`}</option>)}</select>
@@ -135,7 +135,7 @@ function Pager({ page, pages, onChange }) {
 
 const TABS = [["basic", tr("基本資訊")], ["specs", tr("規格與價格")], ["delivery", tr("下單需填寫")], ["content", tr("商品說明")], ["related", tr("相關推薦")]];
 
-function ProductForm({ item, cats, callApi, onClose, onSaved }) {
+export function ProductForm({ item, cats, callApi, onClose, onSaved, inline, title }) {
   const [f, setF] = useState({ ...item, tags: (item.tags || []).join(", ") });
   const [tab, setTab] = useState("basic");
   const [busy, setBusy] = useState(false);
@@ -165,10 +165,9 @@ function ProductForm({ item, cats, callApi, onClose, onSaved }) {
     setBusy(false);
   };
 
-  return (
-    <Dialog open onOpenChange={onClose}>
-      <DialogContent className="max-w-5xl max-h-[92vh] overflow-y-auto bg-white" data-testid="product-form">
-        <DialogHeader><DialogTitle>{f.id ? tr("編輯商品") : tr("新增商品")}{f.id && <span className="ml-2 text-xs font-normal text-slate-400">ID {f.id}</span>}</DialogTitle></DialogHeader>
+  const heading = title || (f.id ? tr("編輯商品") : tr("新增商品"));
+  const body = (
+    <>
         <div className="flex gap-2 border-b border-slate-200 -mt-1">
           {TABS.map(([k, label]) => <button key={k} data-testid={`pf-tab-${k}`} onClick={() => setTab(k)} className={`h-9 px-3 text-sm font-semibold border-b-2 -mb-px ${tab === k ? "border-orange-500 text-orange-600" : "border-transparent text-slate-500 hover:text-slate-800"}`}>{label}</button>)}
         </div>
@@ -208,10 +207,18 @@ function ProductForm({ item, cats, callApi, onClose, onSaved }) {
 
         {tab === "related" && <RelatedEditor related={f.related || []} selfId={f.id} callApi={callApi} onChange={(v) => set("related", v)} />}
 
-        <DialogFooter>
-          <Btn kind="ghost" onClick={onClose}>{tr("取消")}</Btn>
+        <div className="flex justify-end gap-2 pt-2">
+          {onClose && <Btn kind="ghost" onClick={onClose}>{tr("取消")}</Btn>}
           <Btn data-testid="pf-save" onClick={save} disabled={busy}>{busy ? tr("儲存中…") : tr("儲存")}</Btn>
-        </DialogFooter>
+        </div>
+    </>
+  );
+  if (inline) return <div className="rounded-2xl bg-white border border-slate-200 shadow-sm p-5 space-y-4" data-testid="product-form">{body}</div>;
+  return (
+    <Dialog open onOpenChange={onClose}>
+      <DialogContent className="max-w-5xl max-h-[92vh] overflow-y-auto bg-white" data-testid="product-form">
+        <DialogHeader><DialogTitle>{heading}{f.id && <span className="ml-2 text-xs font-normal text-slate-400">ID {f.id}</span>}</DialogTitle></DialogHeader>
+        {body}
       </DialogContent>
     </Dialog>
   );
