@@ -1,8 +1,61 @@
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
-import { GripVertical, Eye, EyeOff, Save, LayoutGrid, Images, Upload, Trash2, Plus } from "lucide-react";
+import { GripVertical, Eye, EyeOff, Save, LayoutGrid, Images, Upload, Trash2, Plus, Search } from "lucide-react";
 import { tr } from "@/i18n";
 import { Head, Btn, Input, Card } from "./ui";
+
+const PRESETS = [
+  { v: "/", label: tr("首頁") },
+  { v: "/lottery", label: tr("積分抽獎") },
+  { v: "/invite", label: tr("邀請好友") },
+  { v: "/sign-up", label: tr("註冊頁") },
+  { v: "/article", label: tr("最新公告") },
+];
+
+function LinkPicker({ callApi, value, onChange }) {
+  const [cats, setCats] = useState([]);
+  const [mode, setMode] = useState(() => {
+    if (!value) return "/";
+    if (PRESETS.some((p) => p.v === value)) return value;
+    if (value.startsWith("/category/")) return "__cat__";
+    if (value.startsWith("/product/")) return "__prod__";
+    return "__custom__";
+  });
+  const [q, setQ] = useState("");
+  const [res, setRes] = useState([]);
+  useEffect(() => { callApi({ method: "GET", url: "/admin/categories" }).then((r) => setCats(r.data)).catch(() => {}); }, [callApi]);
+  useEffect(() => {
+    if (mode !== "__prod__" || !q.trim()) return setRes([]);
+    const t = setTimeout(() => callApi({ method: "GET", url: `/admin/products?q=${encodeURIComponent(q)}&size=6` }).then((r) => setRes(r.data.rows)).catch(() => {}), 300);
+    return () => clearTimeout(t);
+  }, [q, mode, callApi]);
+  const selCls = "h-8 rounded-lg bg-slate-100 px-2 text-xs outline-none focus:ring-2 focus:ring-orange-300";
+  const onMode = (m) => { setMode(m); if (m !== "__cat__" && m !== "__prod__" && m !== "__custom__") onChange(m); else if (m === "__custom__") onChange(""); };
+  return (
+    <div className="space-y-1">
+      <select data-testid="slide-link-mode" className={selCls + " w-full"} value={mode} onChange={(e) => onMode(e.target.value)}>
+        {PRESETS.map((p) => <option key={p.v} value={p.v}>{p.label}</option>)}
+        <option value="__cat__">{tr("分類頁")}</option>
+        <option value="__prod__">{tr("商品頁")}</option>
+        <option value="__custom__">{tr("自定義網址")}</option>
+      </select>
+      {mode === "__cat__" && (
+        <select data-testid="slide-link-cat" className={selCls + " w-full"} value={value.replace("/category/", "")} onChange={(e) => onChange(`/category/${e.target.value}`)}>
+          <option value="">{tr("選擇分類")}</option>
+          {cats.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+        </select>
+      )}
+      {mode === "__prod__" && (
+        <div>
+          {value.startsWith("/product/") && <div className="text-[11px] text-emerald-600 mb-1">{tr("已選商品")}: {value}</div>}
+          <div className="relative"><Search className="h-3.5 w-3.5 absolute left-2 top-2 text-slate-400" /><Input className="pl-7 w-full h-8 text-xs" value={q} onChange={(e) => setQ(e.target.value)} placeholder={tr("搜尋商品")} /></div>
+          {res.length > 0 && <div className="mt-1 border rounded-lg divide-y max-h-32 overflow-y-auto">{res.map((p) => <button key={p.id} onClick={() => { onChange(`/product/${p.id}`); setRes([]); setQ(""); }} className="w-full flex items-center gap-2 px-2 py-1 text-left text-xs hover:bg-orange-50"><img src={p.image} alt="" className="h-6 w-6 rounded object-cover" /><span className="truncate">{p.name}</span></button>)}</div>}
+        </div>
+      )}
+      {mode === "__custom__" && <Input className="w-full h-8 text-xs" value={value} onChange={(e) => onChange(e.target.value)} placeholder="https:// 或 /path" />}
+    </div>
+  );
+}
 
 export function HomeLayoutAdmin({ callApi }) {
   const [layout, setLayout] = useState(null);
@@ -58,7 +111,7 @@ export function HomeLayoutAdmin({ callApi }) {
                 {s.image ? <img src={s.image} alt="" className="h-full w-full object-cover" /> : <Images className="h-5 w-5 text-slate-300" />}
               </div>
               <div className="flex-1 min-w-0 space-y-1">
-                <Input data-testid={`hero-slide-link-${i}`} className="w-full h-7 text-xs" value={s.link || ""} onChange={(e) => setSlide(i, "link", e.target.value)} placeholder={tr("點擊連結 如 /category/games 或 https://")} />
+                <LinkPicker callApi={callApi} value={s.link || ""} onChange={(v) => setSlide(i, "link", v)} />
                 <Input className="w-full h-7 text-xs" value={s.alt || ""} onChange={(e) => setSlide(i, "alt", e.target.value)} placeholder={tr("替代文字（選填）")} />
               </div>
               <div className="flex items-center gap-1 shrink-0">

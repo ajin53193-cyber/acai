@@ -651,12 +651,13 @@ async def public_combos():
     for c in rows:
         if c.get("start_at") and c["start_at"] > nowi:
             continue
-        if c.get("end_at") and c["end_at"] < nowi:
-            continue
         stock = int(c.get("stock") or 0)
         sold = int(c.get("sold") or 0)
-        if stock > 0 and sold >= stock:
-            continue
+        status = "active"
+        if c.get("end_at") and c["end_at"] < nowi:
+            status = "ended"
+        elif stock > 0 and sold >= stock:
+            status = "soldout"
         items = []
         orig = 0.0
         ok = True
@@ -675,7 +676,7 @@ async def public_combos():
         if not ok or not items:
             continue
         out.append({"id": c["id"], "title": c["title"], "image": c.get("image", ""), "price_usd": round(float(c["price_usd"]), 2),
-                    "original_total_usd": round(orig, 2), "items": items,
+                    "original_total_usd": round(orig, 2), "items": items, "status": status,
                     "end_at": c.get("end_at", ""), "stock": stock, "remaining": (max(0, stock - sold) if stock > 0 else None)})
     return out
 
@@ -1263,6 +1264,93 @@ async def log_user(user_id: str, type_: str, action: str, detail: str = "", ip: 
         logger.warning("log_user failed: %s", e)
 
 
+REFERRAL_DEFAULT = {"enabled": True, "referrer_points": 500, "referee_points": 200}
+
+
+async def get_referral_cfg() -> dict:
+    doc = await db.settings.find_one({"key": "referral"}, {"_id": 0})
+    return {**REFERRAL_DEFAULT, **((doc or {}).get("value") or {})}
+
+
+def _gen_referral_code() -> str:
+    import random
+    import string
+    return "".join(random.choices(string.ascii_uppercase + string.digits, k=8))
+
+
+async def _ensure_referral_code(user_id: str) -> str:
+    u = await db.users.find_one({"user_id": user_id}, {"_id": 0, "referral_code": 1}) or {}
+    if u.get("referral_code"):
+        return u["referral_code"]
+    for _ in range(5):
+        code = _gen_referral_code()
+        if not await db.users.find_one({"referral_code": code}, {"_id": 1}):
+            await db.users.update_one({"user_id": user_id}, {"$set": {"referral_code": code}})
+            return code
+    return user_id[-8:].upper()
+
+
+async def _grant_points(user_id: str, pts: int, source: str, reason: str, ref: str = ""):
+    if pts <= 0:
+        return
+    uu = await db.users.find_one({"user_id": user_id}, {"_id": 0, "points": 1}) or {}
+    nb = int(uu.get("points") or 0) + pts
+    await db.users.update_one({"user_id": user_id}, {"$set": {"points": nb}})
+    await db.point_transactions.insert_one({"id": new_id(), "user_id": user_id, "delta": pts, "balance_after": nb,
+                                            "source": source, "reason": reason, "ref": ref, "created_at": now_iso()})
+
+
+async def apply_referral_reward(user_id: str, ref: str):
+    """On a user's first successful top-up, reward both the referee and the referrer."""
+    cfg = await get_referral_cfg()
+    if not cfg.get("enabled"):
+        return
+    u = await db.users.find_one({"user_id": user_id}, {"_id": 0, "referred_by": 1, "referral_rewarded": 1}) or {}
+    inviter = u.get("referred_by")
+    if not inviter or u.get("referral_rewarded"):
+        return
+    await db.users.update_one({"user_id": user_id}, {"$set": {"referral_rewarded": True}})
+    await _grant_points(user_id, int(cfg.get("referee_points") or 0), "referral", "邀請好友獎勵（受邀）", ref)
+    await _grant_points(inviter, int(cfg.get("referrer_points") or 0), "referral", "邀請好友獎勵（邀請人）", user_id)
+    await db.users.update_one({"user_id": inviter}, {"$inc": {"referral_invited": 1, "referral_points_earned": int(cfg.get("referrer_points") or 0)}})
+    await log_user(inviter, "referral", "邀請獎勵", f"好友完成首充，獲得 {int(cfg.get('referrer_points') or 0)} 積分")
+
+
+@api_router.get("/me/referral")
+async def my_referral(member: dict = Depends(current_member)):
+    uid = member["user_id"]
+    code = await _ensure_referral_code(uid)
+    u = await db.users.find_one({"user_id": uid}, {"_id": 0, "referred_by": 1, "referral_rewarded": 1, "referral_invited": 1, "referral_points_earned": 1}) or {}
+    cfg = await get_referral_cfg()
+    has_topup = bool(await db.topup_orders.find_one({"user_id": uid, "status": "paid"}, {"_id": 1}))
+    return {"code": code, "enabled": bool(cfg.get("enabled")), "referrer_points": int(cfg.get("referrer_points") or 0),
+            "referee_points": int(cfg.get("referee_points") or 0), "bound": bool(u.get("referred_by")),
+            "can_bind": not u.get("referred_by") and not has_topup,
+            "invited": int(u.get("referral_invited") or 0), "points_earned": int(u.get("referral_points_earned") or 0),
+            "rewarded": bool(u.get("referral_rewarded"))}
+
+
+@api_router.post("/me/referral/bind")
+async def bind_referral(body: dict, member: dict = Depends(current_member)):
+    uid = member["user_id"]
+    code = (body or {}).get("code", "").strip().upper()
+    if not code:
+        raise HTTPException(status_code=400, detail="請輸入邀請碼")
+    u = await db.users.find_one({"user_id": uid}, {"_id": 0, "referred_by": 1, "referral_code": 1}) or {}
+    if u.get("referred_by"):
+        raise HTTPException(status_code=400, detail="你已綁定過邀請碼")
+    if code == (u.get("referral_code") or "").upper():
+        raise HTTPException(status_code=400, detail="不能使用自己的邀請碼")
+    if await db.topup_orders.find_one({"user_id": uid, "status": "paid"}, {"_id": 1}):
+        raise HTTPException(status_code=400, detail="首次充值前才能綁定邀請碼")
+    inviter = await db.users.find_one({"referral_code": code}, {"_id": 0, "user_id": 1})
+    if not inviter:
+        raise HTTPException(status_code=404, detail="邀請碼不存在")
+    await db.users.update_one({"user_id": uid}, {"$set": {"referred_by": inviter["user_id"]}})
+    return {"ok": True, "message": "綁定成功，首次充值後你和好友都將獲得積分獎勵！"}
+
+
+
 async def apply_recharge_bonus(user_id: str, amount_usd: float, ref: str):
     """On top-up settle, grant the best-matching recharge bonus (extra wallet or points)."""
     rules = await db.recharge_bonus_rules.find({"active": True}, {"_id": 0}).to_list(100)
@@ -1410,6 +1498,7 @@ async def _usdt_settle(topup: dict, gw: dict) -> dict:
         asyncio.create_task(admin_api.notify_user(topup["user_id"], "topup_paid", {"amount": f"USD$ {float(topup['amount_usd']):.2f}", "balance": f"USD$ {bal:.2f}"}))
         asyncio.create_task(award_points(topup["user_id"], float(topup["amount_usd"]), "topup", topup["id"]))
         asyncio.create_task(apply_recharge_bonus(topup["user_id"], float(topup["amount_usd"]), topup["id"]))
+        asyncio.create_task(apply_referral_reward(topup["user_id"], topup["id"]))
         asyncio.create_task(log_user(topup["user_id"], "topup", "錢包充值到賬", f"USD$ {float(topup['amount_usd']):.2f}（{label}）"))
         return r
     return await db.topup_orders.find_one({"id": topup["id"]}, {"_id": 0})

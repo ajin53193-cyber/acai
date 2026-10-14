@@ -72,6 +72,7 @@ export default function MyAccount() {
               <span className="text-amber-600 font-head font-bold text-base" data-testid="account-points">{info?.points ?? 0}</span>
               <Hint>{tr("（下單、充值可賺積分，結算可抵現）")}</Hint>
               <button data-testid="account-lottery-btn" onClick={() => navigate("/lottery")} className="inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-rose-500 to-orange-500 text-white text-xs font-bold px-3 py-1 hover:opacity-90">🎡 {tr("積分抽獎")}</button>
+              <button data-testid="account-invite-btn" onClick={() => navigate("/invite")} className="inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-orange-500 to-amber-500 text-white text-xs font-bold px-3 py-1 hover:opacity-90">👥 {tr("邀請好友")}</button>
             </Row>
             <Row label={tr("升級進度：")}>
               {info?.next_level ? (

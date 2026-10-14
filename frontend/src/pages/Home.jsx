@@ -36,6 +36,8 @@ export default function Home() {
   const { hero, hero_slides: heroSlides, announcement, promo_banners: promos, features, register } = cfg;
 
   useEffect(() => {
+    const ref = new URLSearchParams(window.location.search).get("ref");
+    if (ref) localStorage.setItem("ref_code", ref);
     publicApi.get("/categories").then((r) => setCategories(r.data)).catch(() => {});
     publicApi.get("/products/home").then((r) => setHome(r.data)).catch(() => {});
     publicApi.get("/articles", { params: { page: 1, size: 10 } }).then((r) => setNews(r.data.rows)).catch(() => {});
@@ -494,20 +496,23 @@ function CombosSection({ combos, onBuy }) {
         <MTitle>{tr("超值套餐")}</MTitle>
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4">
-        {combos.map((c) => (
-          <div key={c.id} data-testid={`combo-card-${c.id}`} className="bg-white rounded-2xl border border-rose-100 shadow-sm p-3 flex gap-3 relative overflow-hidden">
-            {c.original_total_usd > c.price_usd && (
+        {combos.map((c) => {
+          const dead = c.status && c.status !== "active";
+          return (
+          <div key={c.id} data-testid={`combo-card-${c.id}`} className={`bg-white rounded-2xl border border-rose-100 shadow-sm p-3 flex gap-3 relative overflow-hidden ${dead ? "opacity-70" : ""}`}>
+            {!dead && c.original_total_usd > c.price_usd && (
               <span data-testid={`combo-save-${c.id}`} className="absolute top-0 right-0 z-10 bg-rose-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-bl-lg">
                 {tr("立省 {0}", format(c.original_total_usd - c.price_usd))}{c.original_total_usd > 0 ? `（${Math.round((1 - c.price_usd / c.original_total_usd) * 100)}%）` : ""}
               </span>
             )}
-            <div className="h-20 w-20 rounded-xl bg-rose-50 overflow-hidden shrink-0 flex items-center justify-center">
+            <div className="h-20 w-20 rounded-xl bg-rose-50 overflow-hidden shrink-0 flex items-center justify-center relative">
               {c.image ? <img src={c.image} alt={c.title} className="h-full w-full object-cover" /> : <Package className="h-8 w-8 text-rose-300" />}
+              {dead && <span className="absolute inset-0 bg-slate-900/55 flex items-center justify-center text-white font-head font-bold text-xs" data-testid={`combo-dead-${c.id}`}>{c.status === "ended" ? tr("已結束") : tr("已售罄")}</span>}
             </div>
             <div className="min-w-0 flex-1 flex flex-col">
               <div className="font-semibold text-sm text-slate-800 truncate">{c.title}</div>
               <div className="text-[11px] text-slate-400 line-clamp-1 mt-0.5">{c.items.map((i) => `${i.product_name}×${i.quantity}`).join("、")}</div>
-              {(c.end_at || c.remaining != null) && (
+              {!dead && (c.end_at || c.remaining != null) && (
                 <div className="flex items-center gap-2 mt-1 text-[10px]">
                   {c.end_at && <span className="flex items-center gap-0.5 text-amber-600"><Zap className="h-3 w-3" /><Countdown end={c.end_at} /></span>}
                   {c.remaining != null && <span className="text-rose-500 font-semibold" data-testid={`combo-remaining-${c.id}`}>{tr("僅剩 {0} 份", c.remaining)}</span>}
@@ -515,11 +520,14 @@ function CombosSection({ combos, onBuy }) {
               )}
               <div className="mt-auto flex items-end justify-between pt-1.5">
                 <div><span className="font-head font-extrabold text-rose-600">{format(c.price_usd)}</span> <span className="text-[11px] text-slate-400 line-through">{format(c.original_total_usd)}</span></div>
-                <button data-testid={`combo-buy-${c.id}`} onClick={() => onBuy(c)} className="h-8 px-3 rounded-full bg-rose-500 text-white text-xs font-bold hover:bg-rose-600">{tr("立即搶購")}</button>
+                {dead
+                  ? <button disabled data-testid={`combo-buy-${c.id}`} className="h-8 px-3 rounded-full bg-slate-200 text-slate-400 text-xs font-bold cursor-not-allowed">{c.status === "ended" ? tr("已結束") : tr("已售罄")}</button>
+                  : <button data-testid={`combo-buy-${c.id}`} onClick={() => onBuy(c)} className="h-8 px-3 rounded-full bg-rose-500 text-white text-xs font-bold hover:bg-rose-600">{tr("立即搶購")}</button>}
               </div>
             </div>
           </div>
-        ))}
+          );
+        })}
       </div>
     </section>
   );

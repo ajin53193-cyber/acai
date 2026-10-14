@@ -15,11 +15,44 @@ const TYPE_META = {
   combo: { label: tr("套餐"), tone: "violet", Icon: Package },
 };
 
+const SERIES = [
+  { key: "seckill", label: tr("秒殺"), color: "#f43f5e" },
+  { key: "lottery", label: tr("抽獎"), color: "#f97316" },
+  { key: "combo", label: tr("套餐"), color: "#8b5cf6" },
+];
+
+function TrendChart({ data }) {
+  const max = Math.max(1, ...data.flatMap((d) => [d.seckill, d.lottery, d.combo]));
+  return (
+    <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 mb-5" data-testid="activity-trend">
+      <div className="flex items-center justify-between mb-3">
+        <div className="text-sm font-semibold text-slate-700">{tr("近 7 日活動趨勢")}</div>
+        <div className="flex gap-3">{SERIES.map((s) => <span key={s.key} className="inline-flex items-center gap-1 text-[11px] text-slate-500"><span className="h-2.5 w-2.5 rounded-sm" style={{ background: s.color }} />{s.label}</span>)}</div>
+      </div>
+      <div className="flex items-end gap-2 h-32">
+        {data.map((d) => (
+          <div key={d.date} className="flex-1 flex flex-col items-center gap-1" data-testid={`trend-day-${d.date}`}>
+            <div className="flex items-end gap-0.5 h-24 w-full justify-center">
+              {SERIES.map((s) => (
+                <div key={s.key} className="w-2 sm:w-2.5 rounded-t transition-all" title={`${s.label} ${d[s.key]}`}
+                  style={{ height: `${Math.max(2, (d[s.key] / max) * 96)}px`, background: s.color }} />
+              ))}
+            </div>
+            <span className="text-[10px] text-slate-400">{d.date.slice(5)}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export function ActivityRecordsAdmin({ callApi }) {
   const [type, setType] = useState("all");
   const [rows, setRows] = useState(null);
   const [stats, setStats] = useState(null);
+  const [trend, setTrend] = useState([]);
   useEffect(() => { callApi({ method: "GET", url: "/admin/activity-stats" }).then((r) => setStats(r.data)).catch(() => {}); }, [callApi]);
+  useEffect(() => { callApi({ method: "GET", url: "/admin/activity-trend?days=7" }).then((r) => setTrend(r.data)).catch(() => {}); }, [callApi]);
   useEffect(() => {
     setRows(null);
     callApi({ method: "GET", url: `/admin/activity-records?type=${type}&limit=300` }).then((r) => setRows(r.data)).catch(() => setRows([]));
@@ -43,6 +76,7 @@ export function ActivityRecordsAdmin({ callApi }) {
           <Stat icon={Package} tone="violet" label={tr("今日套餐")} value={`${stats.combo.orders} ${tr("單")}`} sub={`$${stats.combo.revenue_usd.toFixed(2)} · ${tr("省")} $${stats.combo.saved_usd.toFixed(2)}`} />
         </div>
       )}
+      {trend.length > 0 && <TrendChart data={trend} />}
       <div className="flex gap-2 mb-4">
         {TABS.map((t) => (
           <button key={t.key} data-testid={`act-tab-${t.key}`} onClick={() => setType(t.key)}

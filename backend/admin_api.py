@@ -954,6 +954,28 @@ async def admin_activity_stats(admin: dict = Depends(current_admin)):
     }
 
 
+@router.get("/activity-trend")
+async def admin_activity_trend(days: int = 7, admin: dict = Depends(current_admin)):
+    days = max(1, min(30, int(days)))
+    today = datetime.now(timezone.utc).date()
+    buckets = [(today - timedelta(days=i)).strftime("%Y-%m-%d") for i in range(days - 1, -1, -1)]
+    idx = {d: {"date": d, "seckill": 0, "lottery": 0, "combo": 0} for d in buckets}
+    start = buckets[0]
+    async for o in db.orders.find({"created_at": {"$gte": start}, "items.flash_id": {"$ne": None}}, {"_id": 0, "created_at": 1, "items": 1}):
+        d = (o.get("created_at") or "")[:10]
+        if d in idx:
+            idx[d]["seckill"] += sum(int(it.get("quantity") or 1) for it in o.get("items", []) if it.get("flash_id"))
+    async for o in db.orders.find({"created_at": {"$gte": start}, "combo_discount_usd": {"$gt": 0}}, {"_id": 0, "created_at": 1}):
+        d = (o.get("created_at") or "")[:10]
+        if d in idx:
+            idx[d]["combo"] += 1
+    async for dr in db.lottery_draws.find({"created_at": {"$gte": start}}, {"_id": 0, "created_at": 1}):
+        d = (dr.get("created_at") or "")[:10]
+        if d in idx:
+            idx[d]["lottery"] += 1
+    return [idx[d] for d in buckets]
+
+
 # ----------------------------- Translations -----------------------------
 class TranslationIn(BaseModel):
     src: str
