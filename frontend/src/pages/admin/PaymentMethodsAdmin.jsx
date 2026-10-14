@@ -58,26 +58,46 @@ export default function PaymentMethodsAdmin({ callApi }) {
       <Head title={tr("支付管理 · 錢包充值方式")} sub={tr("會員在「我的錢包」充值時可選擇以下方式；Logo、付款說明、對接參數皆可在此維護。Stripe / PayPal 付款成功自動入帳；銀行轉帳需上傳憑證由後台審核。")}
         right={<Btn data-testid="pm-add-btn" onClick={() => setEditing({ ...empty })} className="h-10 px-4 text-sm"><Plus className="h-4 w-4 inline -mt-0.5 mr-1" />{tr("新增支付方式")}</Btn>} />
       {list === null ? <Loader2 className="h-6 w-6 animate-spin text-orange-500" /> : (
-        <div className="space-y-3">
-          {list.length === 0 && <Card className="p-10 text-center text-sm text-slate-400">{tr("尚未設定支付方式")}</Card>}
-          {list.map((m, i) => (
-            <Card key={m.id} data-testid={`pm-row-${m.id}`} className={`p-4 flex flex-wrap items-center gap-4 ${m.active ? "" : "opacity-60"}`}>
-              <span data-testid={`pm-channel-${m.id}`} className="font-mono text-sm font-bold text-slate-700 shrink-0 w-20">{m.channel_no}</span>
-              <span className="h-14 w-32 shrink-0 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-center overflow-hidden px-2">
-                {m.image ? <img src={m.image} alt={m.name} className="max-h-10 max-w-full object-contain" /> : <span className="text-[11px] font-bold text-slate-500 text-center leading-tight">{m.name}</span>}
-              </span>
-              <span data-testid={`pm-status-${m.id}`} className={`rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${m.active ? "bg-emerald-500 text-white" : "bg-slate-300 text-white"}`}>{m.active ? tr("啟用中") : tr("已停用")}</span>
-              <div className="flex items-center gap-2 flex-wrap ml-auto" onClick={(e) => e.stopPropagation()}>
-                <button data-testid={`pm-toggle-${m.id}`} onClick={() => update(m.id, { active: !m.active })} className={`h-9 px-3.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-colors ${m.active ? "bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200" : "bg-emerald-500 hover:bg-emerald-600 text-white"}`}>{m.active ? <><PowerOff className="h-3.5 w-3.5" />{tr("停用")}</> : <><Power className="h-3.5 w-3.5" />{tr("啟用")}</>}</button>
-                <Btn kind="ghost" data-testid={`pm-edit-${m.id}`} onClick={() => setEditing({ ...empty, ...m, config: m.config || {} })} className="flex items-center gap-1.5"><Pencil className="h-3.5 w-3.5" />{tr("配置")}</Btn>
-                <div className="flex items-center gap-1 ml-1 pl-3 border-l border-slate-200">
-                  <button aria-label="up" disabled={i === 0} onClick={() => move(i, -1)} className={iconBtn}><ArrowUp className="h-4 w-4" /></button>
-                  <button aria-label="down" disabled={i === list.length - 1} onClick={() => move(i, 1)} className={iconBtn}><ArrowDown className="h-4 w-4" /></button>
-                </div>
-              </div>
-            </Card>
-          ))}
-        </div>
+        <Card className="overflow-hidden">
+          {list.length === 0 ? <div className="p-10 text-center text-sm text-slate-400">{tr("尚未設定支付方式")}</div> : (
+            <table className="w-full text-sm" data-testid="pm-table">
+              <thead>
+                <tr className="text-left text-xs text-slate-500 border-b border-slate-200 bg-slate-50/70">
+                  <th className="px-5 py-3 font-semibold">{tr("通道編號")}</th>
+                  <th className="px-5 py-3 font-semibold">{tr("收款方式")}</th>
+                  <th className="px-5 py-3 font-semibold">{tr("狀態")}</th>
+                  <th className="px-5 py-3 font-semibold text-right">{tr("操作")}</th>
+                  <th className="px-5 py-3 font-semibold text-center w-24">{tr("排序")}</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {list.map((m, i) => (
+                  <tr key={m.id} data-testid={`pm-row-${m.id}`} className={`hover:bg-orange-50/30 transition-colors ${m.active ? "" : "opacity-60"}`}>
+                    <td className="px-5 py-3.5 whitespace-nowrap"><span data-testid={`pm-channel-${m.id}`} className="font-mono text-sm font-bold text-slate-800">{m.channel_no}</span></td>
+                    <td className="px-5 py-3.5">
+                      <span className="h-12 w-28 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-center overflow-hidden px-2">
+                        {m.image ? <img src={m.image} alt={m.name} className="max-h-8 max-w-full object-contain" /> : <span className="text-[11px] font-bold text-slate-500 text-center leading-tight">{m.name}</span>}
+                      </span>
+                    </td>
+                    <td className="px-5 py-3.5"><span data-testid={`pm-status-${m.id}`} className={`inline-flex rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${m.active ? "bg-emerald-500 text-white" : "bg-slate-300 text-white"}`}>{m.active ? tr("啟用中") : tr("已停用")}</span></td>
+                    <td className="px-5 py-3.5">
+                      <div className="flex items-center gap-2 justify-end">
+                        <button data-testid={`pm-toggle-${m.id}`} onClick={() => update(m.id, { active: !m.active })} className={`h-9 px-3.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-colors ${m.active ? "bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200" : "bg-emerald-500 hover:bg-emerald-600 text-white"}`}>{m.active ? <><PowerOff className="h-3.5 w-3.5" />{tr("停用")}</> : <><Power className="h-3.5 w-3.5" />{tr("啟用")}</>}</button>
+                        <Btn kind="ghost" data-testid={`pm-edit-${m.id}`} onClick={() => setEditing({ ...empty, ...m, config: m.config || {} })} className="flex items-center gap-1.5"><Pencil className="h-3.5 w-3.5" />{tr("配置")}</Btn>
+                      </div>
+                    </td>
+                    <td className="px-5 py-3.5">
+                      <div className="flex items-center gap-1 justify-center">
+                        <button aria-label="up" disabled={i === 0} onClick={() => move(i, -1)} className={iconBtn}><ArrowUp className="h-4 w-4" /></button>
+                        <button aria-label="down" disabled={i === list.length - 1} onClick={() => move(i, 1)} className={iconBtn}><ArrowDown className="h-4 w-4" /></button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </Card>
       )}
       {editing && <MethodForm f={editing} setF={setEditing} onSave={save} onClose={() => setEditing(null)} onTest={testConn} onDelete={remove} />}
     </div>
