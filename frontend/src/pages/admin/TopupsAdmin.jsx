@@ -104,7 +104,6 @@ export function TopupsAdmin({ callApi }) {
                   <td className="px-4 py-3">
                     <button data-testid={`topup-member-${t.id}`} onClick={() => setMember(t.user_id)} className="text-left group">
                       <div className="font-head font-bold text-slate-900 text-[15px] group-hover:text-orange-600 underline-offset-2 group-hover:underline transition-colors">{t.account_no}</div>
-                      <div className="text-[11px] text-slate-400 truncate max-w-[200px]">{t.user_email || t.user_phone || t.user_id.slice(-10)}</div>
                     </button>
                   </td>
                   <td className="px-4 py-3 whitespace-nowrap">
