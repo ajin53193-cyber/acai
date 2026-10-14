@@ -17,7 +17,7 @@ const inferLimit = (b = "") => (/每月一單|每月一单/.test(b) ? "monthly" 
 const FIELD_TYPES = { text: tr("文字"), select: tr("下拉選擇"), password: tr("密碼"), textarea: tr("多行文字") };
 const priceRange = (specs) => { const ps = (specs || []).map((s) => s.price_usd).filter((n) => n > 0); if (!ps.length) return "-"; const a = Math.min(...ps), b = Math.max(...ps); return a === b ? `$${a}` : `$${a} ~ $${b}`; };
 
-export function ProductsAdmin({ callApi, autoCreate }) {
+export function ProductsAdmin({ callApi, autoCreate, giftcard }) {
   const [data, setData] = useState({ total: 0, rows: [] });
   const [cats, setCats] = useState([]);
   const [q, setQ] = useState("");
@@ -34,7 +34,7 @@ export function ProductsAdmin({ callApi, autoCreate }) {
   const load = useCallback(() => callApi({ method: "GET", url: `/admin/products?q=${encodeURIComponent(qd)}&category=${cat}&active=${status}&page=${page}&size=${size}` }).then((r) => setData(r.data)).catch(() => toast.error(tr("載入失敗"))), [callApi, qd, cat, status, page]);
   useEffect(() => { load(); }, [load]);
   useEffect(() => { callApi({ method: "GET", url: "/admin/categories" }).then((r) => setCats(r.data)).catch(() => {}); }, [callApi]);
-  useEffect(() => { if (autoCreate && !autoOpened && cats.length) { setEditing({ ...EMPTY, category: cats[0]?.id || "" }); setAutoOpened(true); } }, [autoCreate, autoOpened, cats]);
+  useEffect(() => { if (autoCreate && !autoOpened && cats.length) { setEditing({ ...EMPTY, category: cats[0]?.id || "", is_giftcard: !!giftcard }); setAutoOpened(true); } }, [autoCreate, autoOpened, cats, giftcard]);
 
   const openEdit = async (row) => { const r = await callApi({ method: "GET", url: `/admin/products/${row.id}` }); setEditing({ ...EMPTY, ...r.data, related: r.data.related || [] }); };
   const patch = async (row, body) => { try { await callApi({ method: "PATCH", url: `/admin/products/${row.id}`, data: body }); load(); } catch (e) { toast.error(e.response?.data?.detail || tr("更新失敗")); } };

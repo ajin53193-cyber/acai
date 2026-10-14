@@ -405,3 +405,4 @@
 - 本輪較早誤做（待使用者指示處理）：server.py dispatch_giftcards 改為付款後生成 32 位交易號（YYYYMMDD+24 位）存 orders.gift_trade_nos/gift_trade_no；MyOrders 訂單卡與詳情顯示「轉贈成功 · 交易號」+複製；admin_api 新增 GET /admin/gift-card-orders；錢包充值頁移除禮品卡兌換碼框；刪除舊 GiftCardsAdmin.jsx（卡密列表/創建/核銷記錄/API 頁）；新增示範商品 products.id=giftcard-shkp-hkd（is_giftcard）。
 - 修復：WalletTopUp.jsx 多餘 </div> 導致編譯錯誤。
 - 使用者將一步步指示後續各模組內容，勿自行擴充。
+- Round 30 續：「添加禮品卡」= ProductsAdmin autoCreate + giftcard prop（表單預設 is_giftcard=true），與普通商品新增完全相同。截圖驗證。

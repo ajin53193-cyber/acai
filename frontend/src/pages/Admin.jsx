@@ -109,7 +109,7 @@ const PAGES = {
   "user-logs": (p) => <UserLogsAdmin {...p} />,
   "giftcard-pool": (p) => <GiftCardPlaceholder title={tr("號碼庫")} {...p} />,
   "giftcard-orders": (p) => <GiftCardPlaceholder title={tr("訂單管理")} {...p} />,
-  "giftcard-new": (p) => <GiftCardPlaceholder title={tr("添加禮品卡")} {...p} />,
+  "giftcard-new": (p) => <ProductsAdmin autoCreate giftcard {...p} />,
   "giftcard-trade-query": (p) => <GiftCardPlaceholder title={tr("交易號查詢")} {...p} />,
   "giftcard-api": (p) => <GiftCardPlaceholder title={tr("核銷接口API")} {...p} />,
   "home-decoration": (p) => <HomeLayoutAdmin {...p} />,
