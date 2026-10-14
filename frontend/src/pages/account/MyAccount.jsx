@@ -27,7 +27,7 @@ export default function MyAccount() {
     callApi({ method: "GET", url: "/me/profile" }).then((r) => {
       setInfo(r.data);
       const p = r.data.profile || {};
-      setForm({ name: p.name || r.data.email || "", gender: p.gender || "male", contact_type: p.contact_type || tr("微信"), contact: p.contact || "" });
+      setForm({ name: p.name || (r.data.email && !r.data.email.endsWith("@phone.gogo589.com") ? r.data.email : ""), gender: p.gender || "male", contact_type: p.contact_type || tr("微信"), contact: p.contact || "" });
     }).catch(() => {});
   }, [callApi]);
 
@@ -56,7 +56,7 @@ export default function MyAccount() {
 
   return (
     <Panel title={tr("我的帳戶")} testId="my-account-page">
-      {binding && <BindPhoneDialog onClose={() => setBinding(false)} />}
+      {binding && <BindPhoneDialog kind={binding === "email" ? "email" : "phone"} onClose={() => setBinding(false)} />}
       <div className="grid lg:grid-cols-2 gap-4 md:gap-5">
         <Box>
           <Tag>{tr("帳戶基礎資訊")}</Tag>
@@ -65,7 +65,9 @@ export default function MyAccount() {
               <span className="text-slate-800 font-medium" data-testid="account-no">{info?.account_no || "—"}</span>
             </Row>
             <Row label={tr("信箱：")}>
-              <span className="text-slate-800 truncate">{email || tr("未綁定")}</span><Hint>{tr("（可用於登入）")}</Hint>
+              <span className="text-slate-800 truncate">{email || tr("未綁定")}</span>
+              <button data-testid="bind-email-btn" className="rounded-full bg-orange-50 text-orange-500 text-xs px-3 py-1 hover:bg-orange-100" onClick={() => setBinding("email")}>{email ? tr("更換") : tr("綁定信箱")}</button>
+              <Hint>{tr("（可用於登入）")}</Hint>
             </Row>
           </div>
         </Box>
@@ -76,10 +78,10 @@ export default function MyAccount() {
               {phone ? (
                 <>
                   <span className="text-slate-800 font-medium" data-testid="account-phone">{phone}</span>
-                  <button data-testid="bind-phone-change" className="rounded-full bg-orange-50 text-orange-500 text-xs px-3 py-1 hover:bg-orange-100" onClick={() => setBinding(true)}>{tr("更換")}</button>
+                  <button data-testid="bind-phone-change" className="rounded-full bg-orange-50 text-orange-500 text-xs px-3 py-1 hover:bg-orange-100" onClick={() => setBinding("phone")}>{tr("更換")}</button>
                 </>
               ) : (
-                <button data-testid="bind-phone-btn" className="rounded-full bg-orange-50 text-orange-500 text-sm px-4 py-1 hover:bg-orange-100" onClick={() => setBinding(true)}>{tr("綁定手機號")}</button>
+                <button data-testid="bind-phone-btn" className="rounded-full bg-orange-50 text-orange-500 text-sm px-4 py-1 hover:bg-orange-100" onClick={() => setBinding("phone")}>{tr("綁定手機號")}</button>
               )}
               <Hint>{tr("（綁定後，可使用手機號碼登錄）")}</Hint>
             </Row>

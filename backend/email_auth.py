@@ -22,7 +22,7 @@ CODE_TTL_MIN = 10
 RESEND_SECONDS = 60
 MAX_PER_HOUR = 6
 MAX_ATTEMPTS = 5
-PURPOSES = ("login", "register", "reset", "change_password")
+PURPOSES = ("login", "register", "reset", "change_password", "bind")
 TEST_SUFFIX = "+clerk_test@"
 TEST_PHONE_PREFIX = "+1201555"
 PHONE_DOMAIN = "phone.gogo589.com"
@@ -408,3 +408,59 @@ async def me_change_password_by_old(body: ChangePwByOldIn, user: dict = Depends(
     if r.status_code >= 300:
         raise HTTPException(status_code=400, detail=(r.json().get("errors") or [{}])[0].get("long_message") or "修改失敗")
     return {"ok": True}
+
+
+# ----------------------------- Bind email / phone to the logged-in account -----------------------------
+class BindSendIn(BaseModel):
+    identifier: str  # email or E.164 phone
+
+
+class BindIn(BindSendIn):
+    code: str
+
+
+@router.post("/me/bind/send-code")
+async def bind_send_code(body: BindSendIn, user: dict = Depends(require_user)):
+    ident = body.identifier.strip().lower()
+    if ident.startswith("+"):
+        ident = _check_phone(ident)
+        if await db.phone_accounts.find_one({"phone": ident, "user_id": {"$ne": user["user_id"]}}):
+            raise HTTPException(status_code=409, detail="此手機號已綁定其他帳號")
+    else:
+        if not re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+", ident) or ident.endswith("@" + PHONE_DOMAIN):
+            raise HTTPException(status_code=400, detail="請輸入正確的信箱")
+        other = await _find_user(ident)
+        if other and other["id"] != user["user_id"]:
+            raise HTTPException(status_code=409, detail="此信箱已綁定其他帳號")
+    return await _issue_code(ident, "bind")
+
+
+@router.post("/me/bind")
+async def bind_identifier(body: BindIn, user: dict = Depends(require_user)):
+    ident = body.identifier.strip().lower()
+    uid = user["user_id"]
+    await _consume_code(ident, "bind", body.code)
+    if ident.startswith("+"):
+        ident = _check_phone(ident)
+        if await db.phone_accounts.find_one({"phone": ident, "user_id": {"$ne": uid}}):
+            raise HTTPException(status_code=409, detail="此手機號已綁定其他帳號")
+        await db.phone_accounts.delete_many({"user_id": uid})
+        await db.phone_accounts.insert_one({"phone": ident, "user_id": uid, "created_at": _now().isoformat()})
+        await db.users.update_one({"user_id": uid}, {"$set": {"phone": ident}}, upsert=True)
+        r = await _clerk("GET", f"/users/{uid}")
+        meta = {**((r.json().get("public_metadata") or {}) if r.status_code == 200 else {}), "phone": ident}
+        await _clerk("PATCH", f"/users/{uid}", json={"public_metadata": meta})
+        return {"ok": True, "phone": ident}
+    other = await _find_user(ident)
+    if other and other["id"] != uid:
+        raise HTTPException(status_code=409, detail="此信箱已綁定其他帳號")
+    if not other:
+        r = await _clerk("POST", "/email_addresses", json={"user_id": uid, "email_address": ident, "verified": True, "primary": True})
+        if r.status_code >= 300:
+            logger.error("bind email failed: %s", r.text[:300])
+            raise HTTPException(status_code=400, detail="綁定失敗，請稍後再試")
+        u = await _clerk("GET", f"/users/{uid}")
+        for e in (u.json().get("email_addresses") or []) if u.status_code == 200 else []:
+            if e["email_address"].endswith("@" + PHONE_DOMAIN):
+                await _clerk("DELETE", f"/email_addresses/{e['id']}")
+    return {"ok": True, "email": ident}

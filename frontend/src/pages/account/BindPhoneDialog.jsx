@@ -1,27 +1,27 @@
 import { useEffect, useState } from "react";
 import { useUser } from "@clerk/react";
-import { toast } from "sonner";
 import { X } from "lucide-react";
+import { toast } from "sonner";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { PhoneInput, toE164, isValidPhone } from "@/components/auth/PhoneInput";
+import { useApi } from "@/lib/api";
 import { OrangeBtn } from "./AccountLayout";
 import { tr } from "@/i18n";
 
-const errMsg = (e) => {
-  const err = e?.errors?.[0];
-  if (err?.code === "form_param_unknown" || /phone_number is not a valid parameter/i.test(err?.message || "")) return tr("手機號碼功能尚未在 Clerk 後台啟用（User & Authentication → Phone），請聯繫站方開啟後再試");
-  return err?.longMessage || err?.message || e?.message || tr("操作失敗");
-};
+const errMsg = (e) => e?.response?.data?.detail || e?.message || tr("操作失敗，請稍後再試");
+const inputCls = "w-full min-w-0 h-11 md:h-14 rounded-full md:rounded-2xl bg-[#F5F5F5] md:bg-slate-100 pl-5 pr-28 text-sm md:text-base outline-none focus:ring-2 focus:ring-orange-300 placeholder:text-slate-400";
 
-export function BindPhoneDialog({ onClose }) {
+export function BindPhoneDialog({ onClose, kind = "phone" }) {
   const { user } = useUser();
+  const callApi = useApi();
+  const isPhone = kind === "phone";
   const [dialCode, setDialCode] = useState("+886");
   const [raw, setRaw] = useState("");
   const [code, setCode] = useState("");
-  const [pending, setPending] = useState(null);
+  const [sent, setSent] = useState(false);
   const [busy, setBusy] = useState(false);
   const [left, setLeft] = useState(0);
-  const full = toE164(dialCode, raw);
+  const identifier = isPhone ? toE164(dialCode, raw) : raw.trim();
 
   useEffect(() => {
     if (left <= 0) return;
@@ -30,14 +30,11 @@ export function BindPhoneDialog({ onClose }) {
   }, [left]);
 
   const sendCode = async () => {
-    if (!isValidPhone(full)) return toast.error(tr("請輸入正確的手機號碼"));
+    if (isPhone ? !isValidPhone(identifier) : !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(identifier)) return toast.error(isPhone ? tr("請輸入正確的手機號碼") : tr("請輸入正確的信箱"));
     setBusy(true);
     try {
-      const existing = user.phoneNumbers.find((p) => p.phoneNumber === full);
-      const res = existing || (await user.createPhoneNumber({ phoneNumber: full }));
-      await res.prepareVerification();
-      setPending(res);
-      setLeft(60);
+      await callApi({ method: "POST", url: "/auth/email/me/bind/send-code", data: { identifier } });
+      setSent(true); setLeft(60);
       toast.success(tr("驗證碼已發送"));
     } catch (e) { toast.error(errMsg(e)); }
     setBusy(false);
@@ -47,11 +44,9 @@ export function BindPhoneDialog({ onClose }) {
     if (code.trim().length < 4) return toast.error(tr("請輸入驗證碼"));
     setBusy(true);
     try {
-      const r = await pending.attemptVerification({ code: code.trim() });
-      if (r.verification?.status !== "verified") throw new Error(tr("驗證未通過，請重試"));
-      await user.update({ primaryPhoneNumberId: pending.id });
+      await callApi({ method: "POST", url: "/auth/email/me/bind", data: { identifier, code: code.trim() } });
       await user.reload();
-      toast.success(tr("手機號碼綁定成功"));
+      toast.success(isPhone ? tr("手機號碼綁定成功") : tr("信箱綁定成功"));
       onClose();
     } catch (e) { toast.error(errMsg(e)); }
     setBusy(false);
@@ -59,21 +54,25 @@ export function BindPhoneDialog({ onClose }) {
 
   return (
     <Dialog open onOpenChange={onClose}>
-      <DialogContent className="w-[88vw] max-w-sm rounded-2xl md:rounded-3xl p-5 md:p-6 border-0 bg-white [&>button]:hidden" data-testid="bind-phone-dialog">
+      <DialogContent className="w-[88vw] max-w-sm rounded-2xl md:rounded-3xl p-5 md:p-6 border-0 bg-white [&>button]:hidden" data-testid={`bind-${kind}-dialog`}>
         <div className="flex items-center justify-between">
-          <DialogTitle className="text-base md:text-lg font-bold text-slate-900">{tr("綁定手機號碼")}</DialogTitle>
-          <button onClick={onClose} aria-label={tr("關閉")} data-testid="bind-phone-close" className="h-8 w-8 rounded-full bg-[#FDEBD9] text-orange-500 flex items-center justify-center"><X className="h-4 w-4" /></button>
+          <DialogTitle className="text-base md:text-lg font-bold text-slate-900">{isPhone ? tr("綁定手機號碼") : tr("綁定信箱")}</DialogTitle>
+          <button onClick={onClose} aria-label={tr("關閉")} data-testid="bind-close" className="h-8 w-8 rounded-full bg-[#FDEBD9] text-orange-500 flex items-center justify-center"><X className="h-4 w-4" /></button>
         </div>
-        <p className="text-xs text-slate-500 -mt-1">{tr("綁定後可使用手機號碼登入，並接收訂單通知。")}</p>
+        <p className="text-xs text-slate-500 -mt-1">{isPhone ? tr("綁定後可使用手機號碼登入，並接收訂單通知。") : tr("綁定後可使用信箱登入與找回密碼。")}</p>
         <div className="space-y-3 mt-1">
-          <PhoneInput dialCode={dialCode} setDialCode={setDialCode} value={raw} onChange={(v) => { setRaw(v); if (pending) { setPending(null); setCode(""); setLeft(0); } }} testId="bind-phone-input" />
+          {isPhone ? (
+            <PhoneInput dialCode={dialCode} setDialCode={setDialCode} value={raw} onChange={(v) => { setRaw(v); setSent(false); setCode(""); setLeft(0); }} testId="bind-phone-input" />
+          ) : (
+            <input data-testid="bind-email-input" type="email" value={raw} onChange={(e) => { setRaw(e.target.value); setSent(false); setCode(""); setLeft(0); }} placeholder={tr("請輸入信箱")} className={inputCls.replace(" pr-28", " pr-5")} />
+          )}
           <div className="relative">
-            <input data-testid="bind-phone-code" inputMode="numeric" maxLength={6} value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))} placeholder={tr("請輸入簡訊驗證碼")} className="w-full min-w-0 h-11 md:h-14 rounded-full md:rounded-2xl bg-[#F5F5F5] md:bg-slate-100 pl-5 pr-28 text-sm md:text-base outline-none focus:ring-2 focus:ring-orange-300 placeholder:text-slate-400" />
-            <button data-testid="bind-phone-send" onClick={sendCode} disabled={busy || left > 0} className="absolute right-1.5 top-1/2 -translate-y-1/2 h-8 md:h-10 px-3 md:px-4 rounded-full bg-orange-100 text-orange-500 text-xs md:text-sm font-medium whitespace-nowrap disabled:text-slate-400 disabled:bg-slate-200/70 transition-colors">
-              {left > 0 ? tr("{0}s 後重發", left) : pending ? tr("重新發送") : tr("發送驗證碼")}
+            <input data-testid="bind-code" inputMode="numeric" maxLength={6} value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))} placeholder={isPhone ? tr("請輸入簡訊驗證碼") : tr("請輸入信箱驗證碼")} className={inputCls} />
+            <button data-testid="bind-send" onClick={sendCode} disabled={busy || left > 0} className="absolute right-1.5 top-1/2 -translate-y-1/2 h-8 md:h-10 px-3 md:px-4 rounded-full bg-orange-100 text-orange-500 text-xs md:text-sm font-medium whitespace-nowrap disabled:text-slate-400 disabled:bg-slate-200/70 transition-colors">
+              {left > 0 ? tr("{0}s 後重發", left) : sent ? tr("重新發送") : tr("發送驗證碼")}
             </button>
           </div>
-          <OrangeBtn data-testid="bind-phone-submit" onClick={verify} disabled={busy || !pending || code.length < 4} className="w-full max-md:h-11 max-md:text-sm max-md:px-6">{busy ? tr("處理中…") : tr("確認綁定")}</OrangeBtn>
+          <OrangeBtn data-testid="bind-submit" onClick={verify} disabled={busy || !sent || code.length < 4} className="w-full max-md:h-11 max-md:text-sm max-md:px-6">{busy ? tr("處理中…") : tr("確認綁定")}</OrangeBtn>
         </div>
       </DialogContent>
     </Dialog>
