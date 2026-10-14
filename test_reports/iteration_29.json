@@ -1,0 +1,44 @@
+{
+  "summary": "Round-4 frontend E2E tested on preview for the 4 new marketing features. 5 of 6 specified checks PASS. One real BUG found: on /checkout, the flash-sale product (蜜果直播 spec 15640-218076) is listed at ORIGINAL price $8.69 instead of the flash price $4.34, and the subtotal + promo-hint banner both reflect $8.69. Everything else (home flash section + countdown, home lottery entry, /lottery unauth-draw-opens-auth-modal, authed draw deducting 100 points with result/history/close, gift-card product auto-dispatching GC code on wallet payment and surfacing it in order detail with copy button) works as specified.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "Checkout cart item + subtotal (flash-sale pricing)",
+        "issue": "Flash-sale item 蜜果直播 (product 15640, spec 15640-218076) renders in /checkout at the ORIGINAL $8.69 instead of the active flash price $4.34. cart-subtotal = $8.69, cart-item line price = 'USD$ 8.69'. The promo-hint banner is correct for the (wrong) subtotal: 'checkout-cartpromo-hint: 再买 $41.31 即可立减 $5.00（全场满减）' — but with the correct flash price the hint should read '再买 $45.66'. Root cause is almost certainly client-side: the cart line uses the spec's base price (p.price) and Checkout computes subtotal client-side (sum of qty * i.price) rather than driving from GET /orders/quote or from the /flash-sales/public override. The backend _compute_order DOES apply the flash price on order submit (per E1's curl verification), so the user is still charged the correct $4.34 — but the Checkout display is misleading. User-facing bug.",
+        "selector": "[data-testid=\"cart-item-*\"], [data-testid=\"cart-subtotal\"], [data-testid=\"checkout-cartpromo-hint\"]",
+        "priority": "HIGH"
+      }
+    ],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "verified_checks": {
+    "flash_sale_section": "flash-sale-section renders with 1 item flash-item-* for product 15640 (蜜果直播 5万果豆) at $4.34 vs struck-through $8.69, progress '已抢 28%', flash-countdown '05:49:42' live-ticks",
+    "home_lottery_entry": "home-lottery-entry card '积分幸运大转盘 / 积分换好礼 100% 有奖' present on home, href=/lottery",
+    "lottery_page_unauth": "/lottery renders data-testid=lottery-page + lottery-wheel + lottery-draw-btn + lottery-draw-btn-2 + lottery-points '我的积分：0' when signed-out; clicking lottery-draw-btn opens the auth modal (data-testid=auth-modal) as spec'd",
+    "lottery_draw_authed": "After login as tester+clerk_test@shop.com (no trust challenge this session), lottery-points shows '我的积分：350'. Clicking lottery-draw-btn triggers wheel rotation (~4s CSS transition), then lottery-result modal appears with prize '🙏 谢谢惠顾'. lottery-points updates to '我的积分：250' (−100 cost). lottery-history prepends a '谢谢惠顾 2026-10-14 13:56' row. lottery-result-close closes the modal (count==0 after click).",
+    "checkout_giftcard_product": "/product/15680 (火兔直播), pick first spec, add-to-cart-btn, /checkout: subtotal $8.69, checkout-total $8.52 (2% 白银 level discount applied), checkout-wallet-balance $183.47. checkout-agree-checkbox + checkout-pay-btn → navigates to /orders?order=e3932714-8457-40f9-a8e8-f63fcf7470df. Opening order-detail drawer surfaces data-testid=order-giftcard-codes block: '🎁 您的礼品卡卡号  GC8C91-F402-C772-A68B  火兔直播 · 面额 $10.00  可于「我的钱包 → 礼品卡充值」兑换，或分享给好友使用。' with order-giftcard-copy-0 button present. End-to-end gift-card dispatch works.",
+    "flash_pricing_on_checkout": "FAIL — see ui_bugs; checkout displays $8.69 instead of $4.34 for the flash spec."
+  },
+  "test_report_links": [],
+  "action_items": [
+    "Fix Checkout.jsx / CartContext: when a cart line's product_id + spec_id matches an active entry from GET /api/flash-sales/public, override the displayed price to flash_price_usd for the cart item line, the cart-subtotal, and the promoHint calculation. Easiest fix: fetch /flash-sales/public once in Checkout, build a Map keyed by `${product_id}:${spec_id}` → flash_price_usd, and use effectivePrice(i) = flashMap.get(key) ?? i.price everywhere subtotal/qty math happens (same substitution the Home flash card already does). Alternative: have the cart/checkout read totals from POST /orders/quote (which _compute_order already applies flash pricing in) and display quote.subtotal_usd + quote.items[].unit_price.",
+    "Add a visible 'FLASH 秒杀价' badge + strike-through original price on the cart item in Checkout to match the Home card treatment, so the user sees the promo they are getting.",
+    "After fix, re-verify promo-hint math: with flash price 4.34 the hint should say '再买 $45.66 即可立减 $5.00（全场满减）' (50-4.34)."
+  ],
+  "critical_code_review_comments": [
+    "Checkout.jsx subtotal is computed client-side from CartContext item prices and does not consult /flash-sales/public, so any price promotion (flash, future per-user coupons on specific SKUs, bundle pricing) will silently display the wrong number in the cart while the backend actually charges the discounted amount. Prefer a single source of truth: drive subtotal/line pricing from /orders/quote.",
+    "The cart line still shows just 'USD$ <base>' with no flash badge / strike-through. From a UX perspective, even once the subtotal math is fixed, users need visual confirmation that they're getting the flash deal in the cart, not just on the home card.",
+    "Lottery.jsx: the result modal shows the raw prize `name` from the backend ('谢谢惠顾'); that works, but the lottery-history row contains BOTH '谢谢惠顾' AND the real monetary line 'USD$0.5 余额' from an earlier draw — meaning past draws without a monetary payout still render fine, but there is no visible 'cost: -100 积分' line in history. Consider adding `-100 积分` under each history row for symmetry with 'lottery-points' bookkeeping.",
+    "Home flash card: flash-countdown is 'HH:MM:SS' built with `Box`-wrapped digits; when the sale is <1h away the hh box still reads '05' etc. — works, but there is no end-of-sale state (what happens visually at 00:00:00?). Verify the FlashSaleSection hides or re-fetches when countdown hits 0 (not reproduced in this run because countdown was ~5h49m)."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a (frontend-only)", "frontend": "83% (5/6 spec checks pass; flash price in Checkout is wrong)"},
+  "test_credentials": "tester+clerk_test@shop.com / Gogo589!Tester#4m9Z, trust code 424242 (not triggered this session). Pre-run points 350, post-run 250 (one lottery draw of 100 cost, prize 谢谢惠顾). Wallet pre-run $183.47, charged $8.52 for giftcard order e3932714-8457-40f9-a8e8-f63fcf7470df (post ≈ $174.95). Admin and real-mailbox variants in /app/memory/test_credentials.md unchanged.",
+  "seed_data_creation": "Consumed one lottery draw (−100 points, prize 谢谢惠顾 so no points/wallet credit). Placed one real wallet order on gift-card product 15680 (火兔直播 50万金币), order id e3932714-8457-40f9-a8e8-f63fcf7470df, got GC code GC8C91-F402-C772-A68B. No seed data created.",
+  "retest_needed": true,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "After main agent fixes the flash-pricing display in Checkout, the retest is tiny: login as tester+clerk_test@shop.com → /product/15640 → click spec-option-15640-218076 → add-to-cart-btn → /checkout → assert cart-subtotal == '$4.34' AND the cart-item-* line shows $4.34 (ideally with a '秒杀价' badge + strike-through $8.69) AND checkout-cartpromo-hint reads '再买 $45.66 即可立减 $5.00（全场满减）'. Everything else in this iteration already passes and doesn't need re-running.",
+  "rca of the issue": "Flash-sale discount is applied server-side in _compute_order (confirmed by E1 via curl and by the fact that the GC order succeeded end-to-end), but the storefront Checkout page builds its own subtotal from CartContext line prices which are the spec's base price (p.price from /products or /cart). The cart lines never consult /api/flash-sales/public (unlike the Home FlashSaleSection which does), so the UI shows $8.69 for the flash spec. Mitigation: in Checkout.jsx (or inside CartContext), fetch /flash-sales/public and apply flash_price_usd when (item.product_id === f.product_id && item.spec_id === f.spec_id). Even simpler and more future-proof: switch the Checkout summary (subtotal, discount, total, promo-hint) to be rendered from quote data returned by POST /api/orders/quote, which already does the correct flash+level+promo+points arithmetic."
+}
