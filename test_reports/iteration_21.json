@@ -1,0 +1,47 @@
+{
+  "summary": "Iteration 21 — wallet top-up checkout (Stripe/PayPal/manual) + proof review + admin Overview dashboard + payment-method editor. Backend pytest 20/20 passed (/app/backend/tests/test_payments_topups_dashboard.py). Stripe checkout returns pay_url starts https://checkout.stripe.com + session_id cs_test_… and GET /me/wallet/topup/{id} status=pending; amount 10 < min_usd 50 → 400; invalid method_id → 400. PayPal method returns 503 'PayPal 尚未設定 Client ID / Secret' as expected. Stripe webhook with garbage signature → 400. Manual bank transfer: checkout → provider=manual, status=pending, reference_code 'GG…', bank{} present; proof upload with payer_name '張三' → status=reviewing + proof_image '/api/img/…'; listing shows it; unauth admin reject → 401; admin reject with reason '測試駁回' → status=rejected + reject_reason persisted; member re-upload proof → reviewing again; admin approve → status=paid and member wallet +60.00; approve again → 409; wallet restored via /admin/wallets/{uid}/adjust debit 60. Dashboard GET /admin/dashboard?days=30 returns full shape (days,current/previous{orders,revenue_usd,topups,topup_usd,new_users},totals{wallet_balance_usd,users,products,pending_dispatch,pending_topup_reviews,pending_verifications,open_feedback},series[30],by_status,payment_mix,category_mix,top_products,recent_orders,recent_topups); days=7 → 7 series items; days=3 clamps to 7; unauth → 401/403. USDT regression /me/wallet/topup/usdt still accepts; /me/wallet/topups list OK. Frontend (desktop 1920): admin TOTP login OK; /admin Overview renders dashboard-admin with kpi-revenue/-orders/-topup/-users, chart-revenue/-status/-orders/-category/-payment (9 SVGs total), recent-orders and top-products populated; dash-range-7/30 switch triggers reload; admin-nav-topups page shows the newly-created manual topup row with topup-proof-<id> thumb and topup-approve/-reject buttons; reject prompt accepts '測試駁回'; re-upload proof via API then UI approve shows status pill '已到帳'; wallet cleanup OK. Admin PaymentMethodsAdmin: pm-edit-<paypal> opens LIGHT dialog with pm-form-cfg-client_id/-api_secret/-env (sandbox/live) fields; pm-edit-<stripe> has NO pm-form-cfg-api_key field (correct — reads env STRIPE_API_KEY); pm-edit-<manual> shows bank_name/account_name/account_no/swift/bank_note; saved bank_name '測試銀行', account_name 'GOGO589 LTD', account_no '123-456-789' → subsequent manual checkout.bank.bank_name == '測試銀行' verified via API. Note: Radix dev warning 'Missing Description or aria-describedby for DialogContent' on payment-method edit dialog (same class of a11y nit as prior ProductForm from iter20).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "PaymentMethodsAdmin edit dialog", "issues": ["Radix dev warning: 'Missing Description or aria-describedby for DialogContent'. Add a visually-hidden <DialogDescription> for a11y (same pattern as ProductForm nit from iter20)."]}
+    ]
+  },
+  "verified_checks": {
+    "backend_pytest_20_20": {
+      "stripe": "checkout 50USD → pay_url checkout.stripe.com + session_id cs_test_, GET status pending; amount 10 → 400; invalid method_id → 400",
+      "paypal": "503 '尚未設定' as credentials not configured",
+      "stripe_webhook": "garbage body/signature → 400 (invalid webhook)",
+      "manual_flow": "checkout 60 → pending + GG… ref + bank{}; proof upload → reviewing + /api/img/; listing reflects reviewing; admin reject with reason → rejected; unauth → 401; re-upload after reject → reviewing; admin approve → paid + wallet +60; second approve → 409; wallet cleanup debit 60 → 200",
+      "dashboard": "days=30 full shape (current/previous/totals/series[30]/by_status/payment_mix/category_mix/top_products/recent_orders/recent_topups); days=7 → series[7]; days=3 clamps to 7; unauth → 401/403",
+      "regression": "USDT topup still accepts; /me/wallet/topups returns list"
+    },
+    "frontend_desktop_1920": {
+      "admin_login": "admin+clerk_test login + TOTP (pyotp) + Clerk ticket → /admin OK",
+      "dashboard": "dashboard-admin + kpi-revenue/-orders/-topup/-users + chart-revenue/-status/-orders/-category/-payment (9 SVGs) + recent-orders + top-products; dash-range-7 and -30 switch reloads",
+      "topups_admin": "topup-admin-row-<id> shows for created manual topup; topup-proof-<id> thumb + approve/reject buttons present; reject prompt '測試駁回' accepted → rejected; after re-upload via API, UI approve → status pill 已到帳",
+      "payments_admin": "paypal edit: client_id + api_secret + env (sandbox/live) selects; stripe edit: no api_key field; manual edit: bank_name/account_name/account_no/swift/bank_note; saved with 測試銀行 → next checkout.bank.bank_name == 測試銀行"
+    }
+  },
+  "test_report_links": ["/app/backend/tests/test_payments_topups_dashboard.py", "/app/test_reports/pytest/iter21.xml"],
+  "action_items": [
+    "(nit) PaymentMethodsAdmin edit DialogContent is missing DialogDescription/aria-describedby — add a visually-hidden <DialogDescription> to silence the Radix a11y warning."
+  ],
+  "critical_code_review_comments": [
+    "payments_api._paypal returns 502 'PayPal 請求失敗' when the gateway rejects auth with invalid creds; _paypal_token raises 503 'PayPal 尚未設定' when cid/sec are missing. If an admin saves client_id + wrong api_secret the user sees a 502 at checkout — consider surfacing 'PayPal 憑證無效' from the paypal/oauth2/token error more clearly.",
+    "payments_api.topup_checkout: for the manual provider, `bank` dict is populated from pm.config but all 6 keys are always written (empty string if unset). Harmless, but front-end BankPanel should treat empty strings as 'not shown' (it already appears to).",
+    "payments_api.admin_topup_approve rewrites status back to 'pending' before calling settle() — if settle() fails mid-way the order is left in 'pending' (not 'reviewing'). Low risk, but consider wrapping in try/except to restore the prior status on failure.",
+    "admin_api.admin_dashboard scans db.orders.find({created_at >= since}) and db.topup_orders.find({...}) with no index hint and no .limit — at scale (>50k orders in window) the dashboard will be slow. Add an index on created_at or precompute daily aggregates.",
+    "admin_api.admin_dashboard: `wallet_balance_usd` is summed from users collection via $sum of wallet_balance_usd, but there's no guard against negative balances skewing the total (admin debits can go negative). Not a bug, just noting.",
+    "server.py wallet_topup_status (~line 972) depends on payments_api.refresh_status; good separation. Minor: refresh_status silently swallows HTTPException from _stripe()/_paypal() (503 'not configured') — intentional for pending status, but worth a debug log."
+  ],
+  "updated_files": ["/app/backend/tests/test_payments_topups_dashboard.py", "/app/test_reports/iteration_21.json"],
+  "success_rate": {"backend": "100% (20/20)", "frontend": "100% of critical admin flows"},
+  "test_credentials": "admin+clerk_test@shop.com / Gogo589!Admin#7x2Q + TOTP via pyotp.TOTP('DNY74VQQI3454NAKX3XW7INOIG4UCTQA').now(); member tester+clerk_test@shop.com. Tokens at /tmp/jwt_admin, /tmp/jwt_member, admin X-Admin-Token at /tmp/xat (regenerated in iter21).",
+  "seed_data_creation": "During iter21 testing: pytest ran a 60-USD manual topup, uploaded proof, admin approved, then debited 60 back → member wallet net 0. UI run: created manual topup 551e1820-… (approved via UI, then debited 50 back via API) and a throwaway topup 246a4fc2-… (rejected via API cleanup). Payment method 'manual' bank fields saved to '測試銀行 / GOGO589 LTD / 123-456-789' per request — left in place for the user. No other residual data.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Regression file: /app/backend/tests/test_payments_topups_dashboard.py — run with `python3 -m pytest backend/tests/test_payments_topups_dashboard.py -o addopts=\"\" -v`. Manual bank transfer method id (as of iter21) = 075910cf-572b-48d7-96b7-fd47fc1f12fe; its bank fields are now populated with 測試銀行 / GOGO589 LTD / 123-456-789 (iter21 left them in place per request). PayPal method still unconfigured — any checkout returns 503. STRIPE_API_KEY=sk_test_emergent is set in backend/.env (never log it). Member wallet balance was restored to pre-test level via admin debit. Admin TOTP code must be freshly generated per run (30s window) via pyotp.TOTP(secret).now().",
+  "rca of the issue": "No bugs. Only a Radix dev-mode a11y warning (missing DialogDescription on payment-method edit dialog) carried over from the same pattern as iter20 ProductForm."
+}
