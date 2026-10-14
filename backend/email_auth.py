@@ -21,7 +21,7 @@ CODE_TTL_MIN = 10
 RESEND_SECONDS = 60
 MAX_PER_HOUR = 6
 MAX_ATTEMPTS = 5
-PURPOSES = ("login", "reset", "change_password")
+PURPOSES = ("login", "register", "reset", "change_password")
 TEST_SUFFIX = "+clerk_test@"
 TEST_CODE = "424242"
 db = None  # injected from server.py
@@ -85,8 +85,16 @@ class ResetIn(VerifyIn):
     new_password: str
 
 
+class RegisterIn(VerifyIn):
+    password: str
+
+
 class PasswordLoginIn(BaseModel):
     identifier: str
+    password: str
+
+
+class SetPwIn(BaseModel):
     password: str
 
 
@@ -139,8 +147,10 @@ async def send_code(body: SendIn):
     if body.purpose not in PURPOSES:
         raise HTTPException(status_code=400, detail="invalid purpose")
     user = await _find_user(body.email.lower())
-    if body.purpose == "reset" and not user:
-        raise HTTPException(status_code=404, detail="此信箱尚未註冊")
+    if body.purpose in ("login", "reset") and not user:
+        raise HTTPException(status_code=404, detail="此信箱尚未註冊，請先註冊")
+    if body.purpose == "register" and user:
+        raise HTTPException(status_code=409, detail="此信箱已註冊，請直接登入")
     res = await _issue_code(body.email, body.purpose)
     return {**res, "is_new": user is None}
 
@@ -150,14 +160,24 @@ async def verify_login(body: VerifyIn):
     email = body.email.lower()
     await _consume_code(email, "login", body.code)
     user = await _find_user(email)
-    is_new = user is None
-    if is_new:
-        r = await _clerk("POST", "/users", json={"email_address": [email], "skip_password_requirement": True})
-        if r.status_code >= 300:
-            logger.error("create user failed: %s", r.text[:300])
-            raise HTTPException(status_code=502, detail="註冊失敗，請稍後再試")
-        user = r.json()
-    return {"ticket": await _ticket(user["id"]), "is_new": is_new}
+    if not user:
+        raise HTTPException(status_code=404, detail="此信箱尚未註冊，請先註冊")
+    return {"ticket": await _ticket(user["id"]), "is_new": False}
+
+
+@router.post("/register")
+async def register(body: RegisterIn):
+    email = body.email.lower()
+    if not _pw_ok(body.password):
+        raise HTTPException(status_code=400, detail="密碼長度為8~32位，數字、字母、符號至少包含兩種")
+    await _consume_code(email, "register", body.code)
+    if await _find_user(email):
+        raise HTTPException(status_code=409, detail="此信箱已註冊，請直接登入")
+    r = await _clerk("POST", "/users", json={"email_address": [email], "password": body.password, "skip_password_checks": True})
+    if r.status_code >= 300:
+        logger.error("register failed: %s", r.text[:300])
+        raise HTTPException(status_code=400, detail=(r.json().get("errors") or [{}])[0].get("long_message") or "註冊失敗，請稍後再試")
+    return {"ticket": await _ticket(r.json()["id"])}
 
 
 @router.post("/password-login")
@@ -183,7 +203,7 @@ async def reset_password(body: ResetIn):
     user = await _find_user(email)
     if not user:
         raise HTTPException(status_code=404, detail="此信箱尚未註冊")
-    r = await _clerk("PATCH", f"/users/{user['id']}", json={"password": body.new_password, "sign_out_of_other_sessions": True})
+    r = await _clerk("PATCH", f"/users/{user['id']}", json={"password": body.new_password, "skip_password_checks": True, "sign_out_of_other_sessions": True})
     if r.status_code >= 300:
         logger.error("reset password failed: %s", r.text[:300])
         raise HTTPException(status_code=400, detail=(r.json().get("errors") or [{}])[0].get("long_message") or "重設失敗")
@@ -209,7 +229,22 @@ async def me_change_password(body: ChangePwIn, user: dict = Depends(require_user
     r.raise_for_status()
     email = _primary_email(r.json())
     await _consume_code(email, "change_password", body.code)
-    r = await _clerk("PATCH", f"/users/{user['user_id']}", json={"password": body.new_password})
+    r = await _clerk("PATCH", f"/users/{user['user_id']}", json={"password": body.new_password, "skip_password_checks": True})
     if r.status_code >= 300:
         raise HTTPException(status_code=400, detail=(r.json().get("errors") or [{}])[0].get("long_message") or "修改失敗")
+    return {"ok": True}
+
+
+@router.post("/me/set-password")
+async def me_set_password(body: SetPwIn, user: dict = Depends(require_user)):
+    """First-time password for accounts registered by phone (no code needed while no password exists)."""
+    if not _pw_ok(body.password):
+        raise HTTPException(status_code=400, detail="密碼長度為8~32位，數字、字母、符號至少包含兩種")
+    r = await _clerk("GET", f"/users/{user['user_id']}")
+    r.raise_for_status()
+    if r.json().get("password_enabled"):
+        raise HTTPException(status_code=409, detail="帳號已設定密碼，請使用修改密碼")
+    r = await _clerk("PATCH", f"/users/{user['user_id']}", json={"password": body.password, "skip_password_checks": True})
+    if r.status_code >= 300:
+        raise HTTPException(status_code=400, detail=(r.json().get("errors") or [{}])[0].get("long_message") or "設定失敗")
     return {"ok": True}

@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { PhoneInput, toE164, isValidPhone } from "./PhoneInput";
 import { ForgotPassword } from "./ForgotPassword";
+import { Register } from "./Register";
 import { tr } from "@/i18n";
 import { publicApi } from "@/lib/api";
 
@@ -27,20 +28,19 @@ export function AuthModalProvider({ children }) {
 }
 
 const TABS = [
-  ["email", tr("驗證碼登入")],
   ["account", tr("帳號登入")],
+  ["email", tr("驗證碼登入")],
 ];
 
 function AuthModal({ open, onOpenChange }) {
   const { signIn, setActive: setSignInActive, isLoaded: siLoaded } = useSignIn();
   const { signUp, setActive: setSignUpActive, isLoaded: suLoaded } = useSignUp();
-  const [tab, setTab] = useState("email");
+  const [tab, setTab] = useState("account");
   const [doc, setDoc] = useState(null);
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [code, setCode] = useState("");
   const [sent, setSent] = useState(false);
-  const [isSignUp, setIsSignUp] = useState(false);
   const [agree, setAgree] = useState(true);
   const [loading, setLoading] = useState(false);
   const [dialCode, setDialCode] = useState("+886");
@@ -51,7 +51,6 @@ function AuthModal({ open, onOpenChange }) {
     setTab(t);
     setSent(false);
     setCode("");
-    setIsSignUp(false);
     setTrust(null);
   };
 
@@ -87,7 +86,6 @@ function AuthModal({ open, onOpenChange }) {
     if (tab === "email") {
       try {
         const r = await publicApi.post("/auth/email/send-code", { email: identifier.trim(), purpose: "login" });
-        setIsSignUp(!!r.data.is_new);
         setSent(true);
         toast.success(tr("驗證碼已發送"));
       } catch (e) {
@@ -108,21 +106,14 @@ function AuthModal({ open, onOpenChange }) {
             ? { strategy: "email_code", emailAddressId: f.emailAddressId }
             : { strategy: "phone_code", phoneNumberId: f.phoneNumberId }
         );
-        setIsSignUp(false);
-      } catch (e) {
-        if (tab === "email") {
-          await signUp.create({ emailAddress: identifier });
-          await signUp.prepareEmailAddressVerification({ strategy: "email_code" });
-        } else {
-          await signUp.create({ phoneNumber: phoneFull });
-          await signUp.preparePhoneNumberVerification({ strategy: "phone_code" });
-        }
-        setIsSignUp(true);
+          } catch (e) {
+        const c = e?.errors?.[0]?.code;
+        throw Object.assign(new Error("unregistered"), { detail: c === "form_param_unknown" || c === "form_param_format_invalid" ? tr("手機驗證碼登入暫未開放，請使用郵箱驗證碼") : tr("此手機號尚未註冊，請先註冊") });
       }
       setSent(true);
       toast.success(tr("驗證碼已發送"));
     } catch (e) {
-      toast.error(e?.errors?.[0]?.message || tr("發送失敗，請稍後再試"));
+      toast.error(e?.detail || e?.errors?.[0]?.message || tr("發送失敗，請稍後再試"));
     }
     setLoading(false);
   }
@@ -151,24 +142,11 @@ function AuthModal({ open, onOpenChange }) {
         }
         if (tab === "email") {
           const r = await publicApi.post("/auth/email/verify", { email: identifier.trim(), code: code.trim() });
-          if (r.data.is_new) toast.success(tr("註冊成功"));
           return await finishTicket(r.data.ticket);
         }
-        if (isSignUp) {
-          const r =
-            tab === "email"
-              ? await signUp.attemptEmailAddressVerification({ code })
-              : await signUp.attemptPhoneNumberVerification({ code });
-          if (r.status === "complete") return await finish(r.createdSessionId, setSignUpActive);
-          toast.error(tr("註冊尚需補充資料"));
-        } else {
-          const r = await signIn.attemptFirstFactor({
-            strategy: tab === "email" ? "email_code" : "phone_code",
-            code,
-          });
-          if (r.status === "complete") return await finish(r.createdSessionId, setSignInActive);
-          toast.error(tr("驗證未完成"));
-        }
+        const r = await signIn.attemptFirstFactor({ strategy: "phone_code", code });
+        if (r.status === "complete") return await finish(r.createdSessionId, setSignInActive);
+        toast.error(tr("驗證未完成"));
       }
     } catch (e) {
       toast.error(apiErr(e, tr("登入失敗，請檢查輸入")));
@@ -217,6 +195,8 @@ function AuthModal({ open, onOpenChange }) {
 
         {view === "forgot" ? (
           <ForgotPassword onBack={() => setView("login")} onClose={close} />
+        ) : view === "register" ? (
+          <Register onBack={() => setView("login")} onClose={close} finishTicket={finishTicket} />
         ) : (
         <div className="px-5 md:px-6 pb-6 pt-5 md:pt-3 w-full min-w-0 max-w-full">
           {/* tabs */}
@@ -225,13 +205,13 @@ function AuthModal({ open, onOpenChange }) {
               <button
                 key={key}
                 data-testid={`auth-tab-${key}`}
-                onClick={() => switchTab(key)}
+                onClick={() => switchTab(key === "email" && tab === "phone" ? "phone" : key)}
                 className={`relative text-lg md:text-lg font-bold pb-1 transition-colors ${
-                  tab === key ? "text-orange-500 md:text-orange-600" : "text-slate-800 md:text-slate-500 hover:text-slate-700"
+                  (key === "account" ? tab === "account" : tab !== "account") ? "text-orange-500 md:text-orange-600" : "text-slate-800 md:text-slate-500 hover:text-slate-700"
                 }`}
               >
                 {label}
-                {tab === key && (
+                {(key === "account" ? tab === "account" : tab !== "account") && (
                   <span className="hidden md:block absolute left-1/2 -translate-x-1/2 -bottom-0.5 h-1 w-7 rounded-full bg-orange-500" />
                 )}
               </button>
@@ -239,7 +219,13 @@ function AuthModal({ open, onOpenChange }) {
           </div>
 
           {codeTabs && (
-            <div className="text-[13px] md:text-sm font-bold text-orange-500 mb-4 pl-0.5">{tr("新用戶首次登入將自動註冊")}</div>
+            <div className="flex items-center gap-2 mb-4" data-testid="auth-code-kind">
+              {[["email", tr("郵箱驗證碼")], ["phone", tr("手機驗證碼")]].map(([k, l]) => (
+                <button key={k} data-testid={`auth-code-kind-${k}`} onClick={() => switchTab(k)}
+                  className={`h-8 px-4 rounded-full text-[13px] font-semibold transition-colors ${tab === k ? "bg-orange-500 text-white" : "bg-orange-50 text-orange-500 hover:bg-orange-100"}`}>{l}</button>
+              ))}
+              <span className="ml-auto text-[11px] text-slate-400">{tr("僅限已註冊帳號")}</span>
+            </div>
           )}
           {tab === "account" && trust && (
             <div className="text-sm font-bold text-orange-500 mb-4" data-testid="auth-trust-hint">{tr("新裝置安全驗證：請輸入發送至")} {trust.safeIdentifier || tr("您信箱")} {tr("的驗證碼")}</div>
@@ -326,14 +312,23 @@ function AuthModal({ open, onOpenChange }) {
           </label>
 
           {/* submit */}
-          <button
-            data-testid="auth-submit"
-            onClick={submit}
-            disabled={loading}
-            className="w-full h-12 md:h-14 mt-4 md:mt-5 rounded-full bg-orange-500 hover:bg-orange-600 text-white text-base md:text-lg font-bold transition-colors disabled:opacity-60"
-          >
-            {loading ? tr("處理中…") : tr("登入")}
-          </button>
+          <div className="flex gap-3 mt-4 md:mt-5">
+            <button
+              data-testid="auth-submit"
+              onClick={submit}
+              disabled={loading}
+              className="flex-1 h-12 md:h-14 rounded-full bg-orange-500 hover:bg-orange-600 text-white text-base md:text-lg font-bold transition-colors disabled:opacity-60"
+            >
+              {loading ? tr("處理中…") : tr("登入")}
+            </button>
+            <button
+              data-testid="auth-register"
+              onClick={() => setView("register")}
+              className="flex-1 h-12 md:h-14 rounded-full bg-orange-100 hover:bg-orange-200 text-orange-600 text-base md:text-lg font-bold transition-colors"
+            >
+              {tr("註冊")}
+            </button>
+          </div>
 
           {/* helper links */}
           <div className="flex items-center justify-between mt-3 md:mt-4 px-3 md:px-0 text-[13px] md:text-sm text-slate-500">

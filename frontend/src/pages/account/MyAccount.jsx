@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
-import { useUser } from "@clerk/react";
+import { useUser, useClerk } from "@clerk/react";
+import { useNavigate } from "react-router-dom";
+import { LogOut } from "lucide-react";
 import { Check, ChevronDown } from "lucide-react";
 import { toast } from "sonner";
 import { useApi } from "@/lib/api";
@@ -13,6 +15,8 @@ const TYPES = [tr("微信"), "Telegram", "WhatsApp", "LINE", "QQ"];
 export default function MyAccount() {
   const callApi = useApi();
   const { user } = useUser();
+  const { signOut } = useClerk();
+  const navigate = useNavigate();
   const [info, setInfo] = useState(null);
   const [form, setForm] = useState({ name: "", gender: "male", contact_type: tr("微信"), contact: "" });
   const [pw, setPw] = useState({ cur: "", n1: "", n2: "", code: "" });
@@ -131,6 +135,12 @@ export default function MyAccount() {
             <div className="text-center pt-2 md:pt-4"><OrangeBtn data-testid="pw-save" onClick={savePassword} className="max-md:h-9 max-md:px-8 max-md:text-[13px]">{tr("儲存")}</OrangeBtn></div>
           </div>
         </Box>
+      </div>
+      <div className="mt-4 md:mt-6 flex justify-center">
+        <button data-testid="account-logout" onClick={() => signOut({ redirectUrl: "/" }).then(() => navigate("/"))}
+          className="h-11 md:h-12 px-10 md:px-14 rounded-full bg-white border-2 border-orange-200 text-orange-500 font-bold text-[14px] md:text-base flex items-center gap-2 hover:bg-orange-50 hover:border-orange-300 transition-colors shadow-[0_6px_18px_-10px_rgba(232,121,42,0.45)]">
+          <LogOut className="h-4 w-4 md:h-5 md:w-5" />{tr("退出帳戶")}
+        </button>
       </div>
     </Panel>
   );
