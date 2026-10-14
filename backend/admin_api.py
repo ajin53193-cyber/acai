@@ -1514,7 +1514,7 @@ ALL_PERMISSIONS = [
     "products", "categories", "reviews",
     "giftcards", "giftcard-new", "giftcard-redeem", "giftcard-orders", "giftcard-api",
     "home-decoration", "banners", "recommendations", "promos", "notifications", "announcements",
-    "activities", "invite-lottery",
+    "activities",
     "orders", "order-settlement", "topups", "payments", "reconciliation", "currencies", "finance-reports",
     "siteconfig", "admins", "roles", "operation-logs", "sms-config", "email-config", "oauth-config", "translations", "paylogos",
 ]

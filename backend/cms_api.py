@@ -25,7 +25,7 @@ DEFAULT_CONFIG = {
     "announcement": {"enabled": True, "text": "gogo589 介面升級公告：全新繁中介面上線，人工極速發貨，祝您購物愉快！", "text_mobile": "gogo589 用戶界面升級公告", "link": "/article"},
     "promo_banners": [
         {"image": "https://customer-assets-39nsmqrw.emergentagent.net/job_crossborder-topup/artifacts/b55a2354a230f99b_image.png", "link": "/sign-up", "alt": "新版上線有禮 5% OFF"},
-        {"image": "https://customer-assets-39nsmqrw.emergentagent.net/job_crossborder-topup/artifacts/3673631df7a58fe1_image.png", "link": "/activities", "alt": "精選活動合集 優惠一站搞定"},
+        {"image": "https://customer-assets-39nsmqrw.emergentagent.net/job_crossborder-topup/artifacts/3673631df7a58fe1_image.png", "link": "/article", "alt": "精選活動合集 優惠一站搞定"},
     ],
     "detail_banners": {
         "mobile": [

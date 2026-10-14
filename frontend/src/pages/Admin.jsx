@@ -14,7 +14,6 @@ import { TopupsAdmin } from "@/pages/admin/TopupsAdmin";
 import { ReportsAdmin } from "@/pages/admin/ReportsAdmin";
 import { TranslationsAdmin } from "@/pages/admin/TranslationsAdmin";
 import { NotificationsAdmin } from "@/pages/admin/NotificationsAdmin";
-import { InviteLotteryAdmin } from "@/pages/admin/InviteLotteryAdmin";
 import { ActivitiesAdmin } from "@/pages/admin/ActivitiesAdmin";
 import { SiteConfigAdmin } from "@/pages/admin/SiteConfigAdmin";
 import { ProductsAdmin } from "@/pages/admin/ProductsAdmin";
@@ -46,7 +45,7 @@ const MENU = [
   { key: "users", g: tr("用戶管理"), icon: Users, defaultOpen: true, items: [["members", tr("用戶列表")], ["user-tags", tr("用戶標籤")], ["member-assets", tr("會員資產")], ["blacklist", tr("黑名單管理")], ["user-logs", tr("用戶日誌")], ["verifications", tr("用戶認證")], ["user-batch", tr("用戶批量操作")], ["feedback", tr("用戶反饋")], ["user-reports", tr("用戶報表統計")]] },
   { key: "products", g: tr("商品管理"), icon: Package, items: [["products", tr("商品列表")], ["categories", tr("商品分類")], ["reviews", tr("商品評論")]] },
   { key: "giftcards", g: tr("禮品卡管理"), icon: Gift, items: [["giftcards", tr("禮品卡列表")], ["giftcard-new", tr("創建禮品卡")], ["giftcard-redeem", tr("卡券核銷記錄")], ["giftcard-orders", tr("禮品卡訂單")], ["giftcard-api", tr("核銷API配置")]] },
-  { key: "ops", g: tr("運營管理"), icon: Megaphone, items: [["home-decoration", tr("首頁裝修")], ["activities", tr("新聞 & 促銷")], ["invite-lottery", tr("邀請抽獎活動")], ["banners", tr("輪播圖管理")], ["recommendations", tr("推薦位管理")], ["promos", tr("優惠券管理")], ["notifications", tr("消息中心")], ["announcements", tr("公告管理")]] },
+  { key: "ops", g: tr("運營管理"), icon: Megaphone, items: [["home-decoration", tr("首頁裝修")], ["activities", tr("新聞 & 促銷")], ["banners", tr("輪播圖管理")], ["recommendations", tr("推薦位管理")], ["promos", tr("優惠券管理")], ["notifications", tr("消息中心")], ["announcements", tr("公告管理")]] },
   { key: "finance", g: tr("財務管理"), icon: DollarSign, items: [["orders", tr("訂單管理")], ["order-settlement", tr("訂單結算")], ["topups", tr("充值審核")], ["payments", tr("支付渠道配置")], ["reconciliation", tr("財務對賬")], ["currencies", tr("匯率配置")], ["finance-reports", tr("財務報表")]] },
   { key: "system", g: tr("系統配置"), icon: Settings, items: [["siteconfig", tr("基礎設置")], ["admins", tr("管理員管理")], ["roles", tr("角色權限管理")], ["operation-logs", tr("操作日誌")], ["sms-config", tr("短信配置")], ["email-config", tr("郵箱配置")], ["oauth-config", tr("授權配置")], ["translations", tr("翻譯管理")], ["paylogos", tr("頁尾支付Logo")]] },
 ];
@@ -96,7 +95,6 @@ const PAGES = {
   promos: (p) => <Promos {...p} />,
   notifications: (p) => <NotificationsAdmin {...p} />,
   activities: (p) => <ActivitiesAdmin {...p} />,
-  "invite-lottery": (p) => <InviteLotteryAdmin {...p} />,
   orders: (p) => <OrdersAdmin {...p} />,
   topups: (p) => <TopupsAdmin {...p} />,
   payments: (p) => <PaymentMethodsAdmin {...p} />,

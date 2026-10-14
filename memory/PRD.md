@@ -397,3 +397,4 @@
 - 後台：運營管理 → 邀請抽獎活動（InviteLotteryAdmin，key invite-lottery）：啟用、每邀請得次數、標題/副標/規則、獎品表（名稱/類型/數值/權重/庫存/顏色）、最近抽獎紀錄；RolesAdmin/ALL_PERMISSIONS 同步。
 - data-testid：ac-hero、ac-winner-ticker、ac-wheel、ac-draws-left、ac-draw-btn、ac-draw-result、ac-login-btn、ac-rules、ac-invite、ac-invited、ac-invite-code、ac-invite-link、ac-copy-btn、ac-share-btn、ac-invite-login、ac-history；il-*。
 - 驗證：iteration_37 後端 5/5 + 前台未登入/登入/後台全通過（test file: backend/tests/test_invite_lottery.py）。
+- Round 28 撤銷（使用者不滿意設計）：刪除 ActivityCenter.jsx、/activities 路由、InviteLotteryAdmin 與菜單/權限、Register 邀請碼橫幅、測試檔；lottery/referral enabled=false；promo banner 2 連結恢復 /article。後端新增的 invite_only/invite_draws 設定欄位與 bind→draws 邏輯保留（功能關閉時無效）。
