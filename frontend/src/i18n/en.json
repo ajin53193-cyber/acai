@@ -840,5 +840,13 @@
  "操作失敗，請稍後再試": "Operation failed, please try again later",
  "綁定信箱": "Bind Email",
  "綁定後可使用信箱登入與找回密碼。": "After binding, you can use your email to log in and recover your password.",
- "請輸入正確的信箱": "Please enter a valid email"
+ "請輸入正確的信箱": "Please enter a valid email",
+ "儲存並繼續": "Save and Continue",
+ "儲存中…": "Saving…",
+ "姓名 / 暱稱": "Name / Nickname",
+ "完善個人聯絡資訊": "Complete Personal Contact Info",
+ "聯絡資訊已儲存": "Contact Info Saved",
+ "請填寫姓名": "Please enter your name",
+ "請填寫聯絡方式": "Please enter contact info",
+ "首次下單需先填寫聯絡資訊，充值遇到問題時客服才能及時聯繫您。": "First order requires contact info to be filled in so customer service can reach you promptly if any top-up issues arise."
 }

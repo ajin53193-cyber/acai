@@ -27,7 +27,7 @@ export default function MyAccount() {
     callApi({ method: "GET", url: "/me/profile" }).then((r) => {
       setInfo(r.data);
       const p = r.data.profile || {};
-      setForm({ name: p.name || (r.data.email && !r.data.email.endsWith("@phone.gogo589.com") ? r.data.email : ""), gender: p.gender || "male", contact_type: p.contact_type || tr("微信"), contact: p.contact || "" });
+      setForm({ name: p.name || "", gender: p.gender || "male", contact_type: p.contact_type || tr("微信"), contact: p.contact || "" });
     }).catch(() => {});
   }, [callApi]);
 
