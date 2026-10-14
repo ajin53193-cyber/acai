@@ -1,0 +1,31 @@
+{
+  "summary": "Batch 1 (系統配置) end-to-end backend + frontend testing. Backend: 20/20 pytest cases pass covering /admin/me, roles CRUD, admins list/promote/revoke, integration-settings get/put with masking, test-send, operation-logs + CSV export, and 401/403 authZ. Frontend: full flow via Clerk sign-in → /admin/login TOTP → admin console. Verified sidebar role label (超級管理員), 系統配置 group expands and all 6 leaves (admins/roles/operation-logs/sms-config/email-config/oauth-config) render. Roles page create/edit/delete working. SMS integration fields: secret fields (DAGOU_KEY, SUBMAIL_APPKEY) are type=password with masked placeholder like '••••••85fa'; non-secrets show real values. Email + OAuth fields render; OAuth has NO test button (correct). Admins table shows self with crown + 2FA 已啟用 + '我', no self-revoke button, bad-email promote shows '找不到該用戶' toast. Operation logs populated with POST/PUT/DELETE entries from our role writes; search by 'roles' filters correctly; CSV export returns 200 text/csv.",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_sysconfig_batch1.py",
+    "/app/test_reports/pytest/sysconfig_batch1.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "admin_api.py is now 1780 lines — approaching maintainability threshold; consider splitting the newly appended 系統配置 section into a submodule (e.g., admin_sysconfig.py) before the next batch grows it further.",
+    "Audit middleware in server.py excludes '/operation-logs' from logging but will still log successful GETs would be noisy — current implementation correctly limits to POST/PUT/DELETE/PATCH, good.",
+    "Integration PUT (admin_integration_put) correctly skips masked placeholders (val.startswith(MASK)) and empty strings — verified via backend test test_put_masked_secret_does_not_overwrite; secret preservation works.",
+    "Backend GET /integration-settings only accepts a 'super' admin — intentional per spec. Non-super admins with the 'sms-config' permission currently cannot view/edit integration settings; if that's the desired model (super-only system-config) it's fine, otherwise consider gating by permission later.",
+    "RolesAdmin modal 'Escape' key does not close the dialog; it has to be closed via the 取消/X button. Not a blocker but may be UX improvement (add Escape listener)."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_sysconfig_batch1.py (new)"
+  ],
+  "success_rate": { "backend": "100% (20/20)", "frontend": "100%" },
+  "test_credentials": "admin+clerk_test@shop.com / Gogo589!Admin#7x2Q; Clerk device code 424242; TOTP secret in Mongo admin_2fa for user_3Kc4MDW67YZmA1ym1sGkaMiLVwK",
+  "seed_data_creation": "Created & deleted ephemeral RBAC role 'QA_客服' during both backend and frontend tests; produced ~5 operation-log entries on /api/admin/roles (POST/PUT/DELETE) which remain in admin_logs. No persistent config changes made (integration test only touched DAGOU_GATEWAY and restored the original value).",
+  "retest_needed": false,
+  "main_agent_can_self_test": false,
+  "context_for_next_testing_agent": "Batch 1 (系統配置) is production-ready. Clerk UI sign-in flow for admin: click [data-testid=\"header-signin-btn\"] → fill auth-identifier/auth-password → auth-submit → if auth-trust-code appears enter 424242 → auth-submit. Then goto /admin/login → admin-login-identifier/password/submit → admin-totp-code (from pyotp.TOTP('DNY74VQQI3454NAKX3XW7INOIG4UCTQA').now()) → admin-totp-submit. Sidebar group admin-group-system must be clicked to expand before clicking leaf nav items. TOTP secret file: /tmp/totp_secret may not exist in fresh env — read from Mongo admin_2fa.",
+  "rca of the issue": "N/A — no issues found."
+}

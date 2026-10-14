@@ -324,3 +324,15 @@
 - **後台頁** ActivityCenterAdmin（運營管理 → 活動中心，Admin.jsx key `activity-center`）：編輯頁首主/副標題；卡片列表可上下移排序、啟用/停用、改標題/描述/類型/連結/角標文字/圖示/顏色、刪除、新增自訂卡；儲存。
 - data-testid：activity-center-admin、ac-header-title/subtitle、ac-cards、ac-card-<i>（title/desc/type/to/badge/icon/color/enabled/del/up/down）、ac-add、ac-save。
 - 驗證：DB 模擬實測 PUT→公開 GET 只回啟用卡且按 sort 排序、custom 角標生效、停用卡排除、admin GET 含停用卡、刪除配置回預設 6 卡；前端編譯通過；/activities 公開頁先前截圖正常。
+
+## 2026-10 後台 Round 19：系統配置批次（RBAC + 管理員 + 操作日誌 + SMS/郵箱/OAuth 配置）
+【完善後台 Batch 1/5：系統配置類】
+- **RBAC 角色權限**：admin_roles{id,name,permissions[],created_at}。權限鍵=後台菜單 section keys（ALL_PERMISSIONS 共 54 項）。角色 CRUD（super-only）：GET/POST/PUT/DELETE /api/admin/roles。
+- **管理員管理**：users.role==admin 為管理員；admin_super(bool)/admin_role_id 區分超管與角色管理員；`_is_super`（legacy 無欄位=超管 bootstrap）。GET /admin/admins、POST /admin/admins/promote（依信箱提升現有用戶）、/admins/{uid}/role（設角色/設超管）、/admins/{uid}/revoke（防撤銷自己、至少留一超管）。全部 super-only。
+- **/admin/me**：回 {is_super, permissions, role_name, all_permissions}。前台 Admin.jsx 以此對菜單做權限門控（超管見全部；非超管僅見角色授權 section；無權限 section 顯示「無此模組權限」）。側欄顯示角色標籤。
+- **操作日誌**：server.py `@app.middleware("http")` audit_admin 記錄所有 /api/admin 的 POST/PUT/DELETE/PATCH（從 X-Admin-Token 解出 uid）→ admin_logs{admin_user_id,admin_email,method,path,status,created_at}。GET /admin/operation-logs（分頁+搜尋）+ /export（CSV）。super-only。
+- **集成配置（可編輯入庫）**：integration_settings{key,value}；啟動時 load_integration_settings() 載入 os.environ（DB 覆蓋 .env），保存時即時寫 os.environ。GET/PUT /admin/integration-settings（group=sms/email/oauth，secret 遮罩回傳 ••••後4位，PUT 遇遮罩佔位/空值則不覆蓋）+ /test（發測試短信/郵件）。對應三頁：短信(DAGOU/SUBMAIL)、郵箱(SMTP)、授權(GOOGLE_CLIENT_ID/SECRET)。
+- 前端新頁：AdminsAdmin / RolesAdmin / OperationLogsAdmin / IntegrationConfigAdmin（通用 group）。data-testid：admins-admin/roles-admin/operation-logs-admin/integration-<group>、role-*/admin-*/oplog-*/int-* 等。
+- 驗證：iteration_36 後端 20/20 + 前端 100% 全通過（/admin/me、roles CRUD、admins promote/revoke、integration 遮罩與不覆蓋、test-send、operation-logs+CSV、401/403 授權）；另 DB 模擬先行驗證過 super 判定/角色權限/遮罩不覆蓋/require_super。無問題。
+- 代碼審查備註（非阻斷）：admin_api.py 已 ~1780 行，後續可拆分；非超管即使有 sms-config 權限也看不到集成配置（目前系統配置為 super-only，符合預期）；RolesAdmin 彈窗 Esc 未關閉（小 UX）。
+- 後台完善剩餘批次（待續）：商品類(規格/庫存/新增商品頁)、財務類(訂單結算/對賬/財報)、儀表盤類(銷售分析/實時監控)、用戶類(批量操作/報表統計)。另：referral「渠道來源分析/流失提醒」與「商品帶貨海報」仍為已起頭待續（後端已記錄 visit source、config 阈值欄位，相容新增）。
