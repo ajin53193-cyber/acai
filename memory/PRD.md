@@ -155,3 +155,11 @@
 - 移除側欄「錢包管理」頁；加款/扣款/退款表單併入「會員管理 → 會員詳情」抽屜（`MembersAdmin.jsx` WalletAdjust，`MemberDetail` 已 export 供其他頁重用）。`WalletAdmin.jsx` 已刪除。
 - 支付管理 `PaymentMethodsAdmin.jsx` 改淺色高對比設計：列只保留 停用/啟用、編輯、排序、刪除；「更換 Logo」與「測試連線」移入編輯對話框。
 - 充值訂單 `TopupsAdmin.jsx` 重做：工具列（日期區間 + 今天/7天/30天/本月 + 查詢 + 清除）、狀態頁籤含數量、欄位僅 日期時間 / 帳戶ID（點擊開會員詳情）/ 付款方式（Logo）/ 付款金額（應付）/ 單號·轉帳碼（可複製）/ 操作（狀態膠囊 + 憑證預覽彈窗 + 審核通過/駁回/手動入帳/重查網關）。後端 `GET /api/admin/topups` 改回 `{rows, counts, total}` 並支援 date_from/date_to、信箱/手機/轉帳碼搜尋。
+
+## 2026-10 帳戶ID統一 + 支付管理精簡 + 會員管理改版（iteration_25 後端 7/7、前端全通）
+- **帳戶ID統一**：後台所有「帳戶ID」改用與前台「我的帳戶」一致的數字帳號 `account_no`（md5(user_id) → 9 位數字，`admin_api.account_no()`，與 `/api/me/profile` 同公式）。充值訂單列、會員列表/詳情均顯示數字帳號；移除舊的 email 副標與長 clerk user_id 行。充值搜尋支援輸入數字帳號。
+- **通道編號**：支付方式/充值訂單新增 `channel_no`（`CH` + 5 位數字，由 method_id 生成，`server.py._channel_no`）。充值訂單「付款方式」欄只顯示 Logo 圖標 + 通道編號（移除名稱文字）。
+- **支付管理 `PaymentMethodsAdmin.jsx`** 改為規整表格：欄位＝通道編號 / 收款方式(圖標) / 狀態 / 操作(停用啟用+配置) / 排序；刪除移入「配置」彈窗底部。表頭+懸停高亮，與充值訂單表風格統一。
+- **會員管理移至側欄第二位**（`Admin.jsx` NAV = [overview, members]；原「會員與數據」群組改名「數據」僅含報表）。
+- **會員管理 `MembersAdmin.jsx` 改版**：頂部 4 統計卡（總用戶/活躍/近30天新增/封禁，`GET /api/admin/members/stats` 回 {total, active, new, banned}）；表格含 帳戶ID / 頭像(漸層首字) / 會員 / 手機 / 等級(依累計消費 普通<300≤白銀<1000≤黃金) / 訂單數·消費 / 餘額 / 註冊時間 / 狀態 / 詳情；右側詳情面板（深色漸層頭像卡 + 已實名/高價值徽章 + 基本信息 + 帳戶數據 + 封禁/重置密碼/餘額調整 + 最近訂單/流水）。`GET /api/admin/members/{uid}` 新增 account_no/verified/order_count/spent_usd 並以聚合計算餘額與消費。
+- data-testid：member-stat-{total|active|new|banned}、members-table、members-search、members-tab-{all|active|banned}、member-view-{uid}、member-detail、pm-table、pm-channel-{id}。

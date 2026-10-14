@@ -13,9 +13,9 @@ const initial = (u) => (u.email || u.profile?.name || u.emails?.[0] || "?").trim
 const AVATAR_TONES = ["from-orange-400 to-rose-400", "from-sky-400 to-indigo-400", "from-emerald-400 to-teal-400", "from-violet-400 to-fuchsia-400", "from-amber-400 to-orange-500"];
 const avatarTone = (seed) => AVATAR_TONES[(seed || "").split("").reduce((a, c) => a + c.charCodeAt(0), 0) % AVATAR_TONES.length];
 
-function StatCard({ icon: Icon, label, value, tone }) {
+function StatCard({ icon: Icon, label, value, tone, tid }) {
   return (
-    <Card className="p-4 flex items-center justify-between overflow-hidden relative" data-testid={`member-stat-${label}`}>
+    <Card className="p-4 flex items-center justify-between overflow-hidden relative" data-testid={`member-stat-${tid}`}>
       <div>
         <div className="text-xs text-slate-500">{label}</div>
         <div className="font-head text-2xl font-bold text-slate-900 mt-1">{value ?? "—"}</div>
@@ -140,10 +140,10 @@ export function MembersAdmin({ callApi }) {
       <Head title={tr("會員管理")} sub={tr("會員等級、餘額、訂單、實名認證、封禁與密碼重置")} right={<Btn kind="ghost" data-testid="members-refresh" onClick={refresh}><RotateCw className="h-3.5 w-3.5" /></Btn>} />
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
-        <StatCard icon={Users} label={tr("總用戶")} value={stats?.total} tone="bg-sky-50 text-sky-600" />
-        <StatCard icon={UserCheck} label={tr("活躍用戶")} value={stats?.active} tone="bg-emerald-50 text-emerald-600" />
-        <StatCard icon={UserPlus} label={tr("近30天新增")} value={stats?.new} tone="bg-violet-50 text-violet-600" />
-        <StatCard icon={ShieldBan} label={tr("封禁用戶")} value={stats?.banned} tone="bg-red-50 text-red-500" />
+        <StatCard icon={Users} label={tr("總用戶")} value={stats?.total} tone="bg-sky-50 text-sky-600" tid="total" />
+        <StatCard icon={UserCheck} label={tr("活躍用戶")} value={stats?.active} tone="bg-emerald-50 text-emerald-600" tid="active" />
+        <StatCard icon={UserPlus} label={tr("近30天新增")} value={stats?.new} tone="bg-violet-50 text-violet-600" tid="new" />
+        <StatCard icon={ShieldBan} label={tr("封禁用戶")} value={stats?.banned} tone="bg-red-50 text-red-500" tid="banned" />
       </div>
 
       <Card className="p-3 sm:p-4 mb-4">
@@ -179,8 +179,8 @@ export function MembersAdmin({ callApi }) {
                   </td>
                   <td className="px-4 py-3 text-slate-600 whitespace-nowrap">{u.phone || "-"}</td>
                   <td className="px-4 py-3"><span className={`inline-block rounded-full border px-2 py-0.5 text-[11px] font-semibold whitespace-nowrap ${tier.cls}`}>{tier.label}</span></td>
-                  <td className="px-4 py-3 text-slate-600 whitespace-nowrap">{u.order_count} / <span className="font-semibold text-slate-800">${u.spent_usd.toFixed(2)}</span></td>
-                  <td className="px-4 py-3 font-head font-bold text-slate-900 whitespace-nowrap">${u.balance_usd.toFixed(2)}</td>
+                  <td className="px-4 py-3 text-slate-600 whitespace-nowrap">{u.order_count} / <span className="font-semibold text-slate-800">${Number(u.spent_usd || 0).toFixed(2)}</span></td>
+                  <td className="px-4 py-3 font-head font-bold text-slate-900 whitespace-nowrap">${Number(u.balance_usd || 0).toFixed(2)}</td>
                   <td className="px-4 py-3 text-slate-500 whitespace-nowrap">{fmt(u.created_at)}</td>
                   <td className="px-4 py-3">{u.banned ? <Pill tone="red">{tr("封禁")}</Pill> : <Pill tone="emerald">{tr("正常")}</Pill>}</td>
                   <td className="px-4 py-3"><Btn kind="ghost" data-testid={`member-view-${u.user_id}`} onClick={() => setSel(u.user_id)}>{tr("詳情")}</Btn></td>

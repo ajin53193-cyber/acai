@@ -240,11 +240,12 @@ async def admin_member_detail(uid: str, admin: dict = Depends(current_admin)):
     order_count = await db.orders.count_documents({"user_id": uid})
     agg = await db.orders.aggregate([{"$match": {"user_id": uid}}, {"$group": {"_id": None, "spent": {"$sum": "$total_usd"}}}]).to_list(1)
     spent = round((agg[0]["spent"] if agg else 0) or 0, 2)
+    bal_agg = await db.wallet_transactions.aggregate([{"$match": {"user_id": uid}}, {"$group": {"_id": None, "bal": {"$sum": "$amount_usd"}}}]).to_list(1)
+    balance = round((bal_agg[0]["bal"] if bal_agg else 0) or 0, 2)
     return {**u, "emails": emails, "account_no": account_no(uid), "verified": verified, "order_count": order_count, "spent_usd": spent, "phone": acct["phone"] if acct else (c.get("public_metadata") or {}).get("phone", ""),
             "google": bool((c.get("public_metadata") or {}).get("google_sub")) or any(a.get("provider") == "oauth_google" for a in c.get("external_accounts", [])),
             "password_enabled": c.get("password_enabled", False), "banned": c.get("banned", False) or u.get("banned", False),
-            "last_sign_in_at": c.get("last_sign_in_at"), "orders": orders, "transactions": txs,
-            "balance_usd": round(sum(t.get("amount_usd", 0) for t in await db.wallet_transactions.find({"user_id": uid}, {"_id": 0, "amount_usd": 1}).to_list(10000)), 2)}
+            "last_sign_in_at": c.get("last_sign_in_at"), "orders": orders, "transactions": txs, "balance_usd": balance}
 
 
 @router.post("/members/{uid}/ban")

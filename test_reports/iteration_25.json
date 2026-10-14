@@ -1,0 +1,43 @@
+{
+  "summary": "Iteration 25 — Admin 會員管理 redesign + nav reordering verified end-to-end. Backend: 7/7 pytest passed in /app/backend/tests/test_members_redesign.py (JUnit at /app/test_reports/pytest/iter25_results.xml). Covered (1) GET /api/admin/members/stats returns {total, active, new, banned} all int, missing X-Admin-Token → 401 admin_2fa_required. (2) GET /api/admin/members rows all carry account_no (9-digit numeric str), order_count(int), spent_usd(float), balance_usd(float), banned(bool); list↔detail account_no agree. (3) GET /api/admin/members/{uid} returns new fields account_no, verified(bool), order_count(int), spent_usd(float) + orders/transactions/banned. Unknown uid → 404. (4) Ban → detail.banned=true + stats.banned increments; unban rollback → false.\n\nFrontend (zh-CN, 1920x1080): logged in via /admin/login (email+password + TOTP via pyotp from /tmp/admin_totp_secret). Sidebar NAV order verified programmatically: [overview, members, payments, currencies, topups, …] — 會員管理 is SECOND ✓. On 會員管理: 4 stat cards (總用戶=9, 活躍用戶=3, 近30天新增=5, 封禁用戶=0) ✓, members-table shows 9 rows with 帳戶ID (bold mono: 106965390, 114141253, 105908808, 111176521, 116482719, …), avatar initial circle (gradient), 會員 email/name, 手機號, 等級 badge (普通會員 / 白銀會員 for tester $827.41), 訂單數/消費, 餘額 (bold), 註冊時間, 狀態 badge 正常/封禁, 詳情 button ✓. Clicking 詳情 opens member-detail drawer with: dark header + gradient avatar, 已實名認證 / 未實名 badge, 高價值用戶 badge (hidden when spend<1000), 基本信息 (帳戶ID 106965390, 手機號, 信箱, 等級 pill, Google, 註冊時間, 最近登入), 帳戶數據 (帳戶餘額, 累計消費, 訂單數), ban (red) + 重置密碼 buttons, 餘額調整 card with wallet-kind-credit/debit/refund tabs + wallet-adjust-amount/note/submit, 最近訂單 + 最近錢包流水 lists ✓. Search 'admin' → 2 rows, members-clear → 9. members-tab-banned → 0 rows (no banned users). Regression: /admin/topups topup-member-<id> link opens the same MemberDetail drawer (24 links present, first click opens drawer) ✓.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "verified_checks": {
+    "backend_pytest": "7/7 passed in 4.33s — /app/test_reports/pytest/iter25_results.xml",
+    "members_stats_shape": "{total:9, active:3, new:5, banned:0} all int≥0; banned≤total",
+    "members_stats_guard": "no X-Admin-Token → 401 admin_2fa_required",
+    "members_list_fields": "account_no 9-digit, order_count int, spent_usd/balance_usd number, banned bool for every row",
+    "member_detail_new_fields": "account_no (9-digit), verified bool, order_count int, spent_usd float, orders[], transactions[], banned bool",
+    "member_detail_404": "unknown uid → 404",
+    "ban_unban_roundtrip": "ban → detail.banned=true + stats.banned+=1; unban → detail.banned=false",
+    "frontend_nav_order": "admin-nav-overview, admin-nav-members, payments, currencies, topups, … (members SECOND ✓)",
+    "frontend_stats_values": "總用戶 9 / 活躍用戶 3 / 近30天新增 5 / 封禁用戶 0 (member-stat-* ×4)",
+    "frontend_table": "9 rows, bold mono account_no (106965390…), gradient avatar initials, 等級 badge (白銀 for tester $827.41), 訂單數/消費, 餘額, 註冊時間, 正常 pill, 詳情 Btn",
+    "frontend_detail_panel": "member-detail opens with dark gradient header, 未實名 (admin), 基本信息 7 rows + 帳戶數據 3 rows, member-ban (red) + member-reset-pw + member-wallet-adjust (kind credit/debit/refund + amount + note + submit)",
+    "frontend_search_and_filter": "members-search 'admin' + members-search-btn → 2 rows; members-clear → 9; members-tab-banned → 0 rows; members-tab-all → 9",
+    "regression_topup_member_drawer": "/admin/topups: 24 topup-member-* links; first click opens the same member-detail drawer (shared export from MembersAdmin.jsx)"
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_members_redesign.py",
+    "/app/test_reports/pytest/iter25_results.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "admin_member_detail at admin_api.py:247 computes balance_usd TWICE: once via wallet_transactions.find({'amount_usd':1}).to_list(10000) for the sum, while the drawer also uses the aggregation in /admin/members list. The inline list-comp materialises every tx into memory. For a heavy user this is O(n). Prefer a single $group aggregation like the /members list already uses ($match user_id → $group sum amount_usd).",
+    "MembersAdmin.jsx:134 — useLoad watches `/admin/members?q=${encodeURIComponent(qq)}` with qq in the URL; this is fine, but there is no debounce — a fast typer who then clicks members-search-btn will race the previous request. Non-blocking.",
+    "MembersAdmin.jsx:182 shows u.spent_usd.toFixed(2) without null-guard — safe because backend always rounds and returns 0.0, but if a future row misses the field the row will throw and crash the table render. Consider `Number(u.spent_usd||0).toFixed(2)` for defensive rendering (same pattern already used in the detail panel at line 101).",
+    "The 封禁用戶 stat card label is dynamic via tr('封禁用戶') — data-testid uses the raw src ('封禁用戶') which means Chinese data-testid values travel to the DOM. Works but non-ASCII selectors can bite CI tools that URL-encode selectors. Prefer stable ascii keys for data-testid (e.g. member-stat-banned)."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_members_redesign.py",
+    "/app/test_reports/pytest/iter25_results.xml",
+    "/app/test_reports/iteration_25.json"
+  ],
+  "success_rate": {"backend": "100% (7/7)", "frontend": "100% (NAV + stats + table + detail + wallet-adjust buttons + ban/reset-pw + search/clear/tabs + regression topup→drawer)"},
+  "test_credentials": "admin+clerk_test@shop.com / Gogo589!Admin#7x2Q + TOTP (pyotp secret cached /tmp/admin_totp_secret). Fresh /tmp/jwt_admin + /tmp/xat minted this run.",
+  "seed_data_creation": "none — read-only verification. The ban/unban round-trip test leaves state unchanged (bans a non-admin candidate then unbans).",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Admin 2FA fully functional. For admin console testing: mint via /app/tests/mint_token.py + POST /api/admin/auth/login then /auth/totp with pyotp(secret from mongo admin_2fa.user_id user_3Kc4MDW67YZmA1ym1sGkaMiLVwK). admin-nav-* order: overview, members, payments, currencies, topups, products, categories, orders, verifications, reviews, feedback, activities, promos, reports, siteconfig, translations, notifications, paylogos. Current DB stats: 9 total members, 3 active (last 30d), 5 new (last 30d), 0 banned. Tester has 40 orders, $827.41 spent → white silver tier.",
+  "rca of the issue": "N/A — redesign spec fully implemented. Only cosmetic suggestions: (a) use ASCII keys for member-stat-* data-testid instead of Chinese label; (b) collapse balance_usd computation in admin_member_detail to a single aggregation."
+}
