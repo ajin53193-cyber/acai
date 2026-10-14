@@ -369,3 +369,9 @@
 - Round 24 補充：移除首頁「活動中心」漸層入口橫幅（Home.jsx lottery_entry 區塊 + cms_api 預設 home_layout 項）；活動中心入口保留為 promo_banners 圖片橫幅。截圖驗證通過。
 - Round 24 補充：活動中心頁橫幅左上加「返回首頁」連結（data-testid=activity-center-back），實測跳回 /。
 - Round 24 補充：活動中心頁移除「最新活動公告」文章區塊（不再請求 /articles），僅保留活動入口卡。截圖驗證通過。
+
+## 2026-10 前台 Round 25：活動中心改版為「活動聚合頁」排版
+- ActivityCenter.jsx 重寫為雙欄：左欄 Hero 橫幅（返回首頁、header_title/subtitle、最近到期活動倒計時）→ 優惠券專區（/promos/public，POST /me/coupons/redeem 領券，/me/coupons 判斷已領，未登入 openAuth）→ 幸運大轉盤預覽（/lottery/config conic-gradient）+ 邀請好友（/me/referral 里程碑進度）；右欄 充值有禮（/recharge-bonus/public）→ 限時秒殺（/flash-sales/public，倒計時/進度）→ 超值套餐（addCombo→/checkout）+ 滿減（/cart-promotions/public）。無資料區塊自動隱藏。
+- 舊 6 卡入口與 ActivityCenterAdmin 的 cards 配置不再被前台使用（header_title/subtitle 仍生效）。
+- data-testid：ac-hero、activity-center-back、ac-hero-countdown、ac-coupon-wall、ac-coupon-<code>、ac-coupon-claim-<code>、ac-wheel、ac-invite、ac-recharge、ac-recharge-<i>、ac-flash、ac-flash-<id>、ac-bundles、ac-combo-<id>、ac-combo-buy-<id>、ac-cartpromo-<i>。
+- 驗證：截圖確認佈局與各區塊渲染；未登入點領券彈出登入框。
