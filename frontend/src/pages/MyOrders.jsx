@@ -78,13 +78,13 @@ function GiftTransferring({ order, onRefresh, callApi }) {
   const pct = end ? Math.min(100, Math.round(((total - left) / total) * 100)) : 60;
   const mm = Math.floor(left / 60000), ss = Math.floor((left % 60000) / 1000);
   return (
-    <div data-testid="order-gift-transferring" className="w-full rounded-2xl bg-gradient-to-b from-violet-50 to-white border border-violet-100 px-4 py-5 text-center">
+    <div data-testid="order-gift-transferring" className="w-full rounded-2xl bg-white border border-orange-100 px-4 py-5 text-center shadow-[0_6px_20px_-12px_rgba(232,121,42,0.35)]">
       <div className="relative mx-auto h-16 w-16">
-        <svg viewBox="0 0 36 36" className="h-16 w-16 -rotate-90"><circle cx="18" cy="18" r="15.5" fill="none" stroke="#ede9fe" strokeWidth="3" /><circle cx="18" cy="18" r="15.5" fill="none" stroke="#7c3aed" strokeWidth="3" strokeLinecap="round" strokeDasharray={`${pct} 100`} pathLength="100" /></svg>
-        <Loader2 className="absolute inset-0 m-auto h-5 w-5 text-violet-500 animate-spin" />
+        <svg viewBox="0 0 36 36" className="h-16 w-16 -rotate-90"><circle cx="18" cy="18" r="15.5" fill="none" stroke="#ffedd5" strokeWidth="3" /><circle cx="18" cy="18" r="15.5" fill="none" stroke="#f97316" strokeWidth="3" strokeLinecap="round" strokeDasharray={`${pct} 100`} pathLength="100" /></svg>
+        <Loader2 className="absolute inset-0 m-auto h-5 w-5 text-orange-500 animate-spin" />
       </div>
-      <div className="mt-3 font-head font-extrabold text-violet-700">{tr("系統轉贈中")}…</div>
-      {end > 0 && left > 0 && <div className="font-head text-3xl font-extrabold text-violet-800 mt-1" data-testid="order-gift-countdown">{mm}:{String(ss).padStart(2, "0")}</div>}
+      <div className="mt-3 font-head font-extrabold text-orange-600">{tr("系統轉贈中")}…</div>
+      {end > 0 && left > 0 && <div className="font-head text-3xl font-extrabold text-orange-500 mt-1" data-testid="order-gift-countdown">{mm}:{String(ss).padStart(2, "0")}</div>}
       <div className="text-xs text-slate-500 mt-2 leading-5">{tr("系統轉贈中，請耐心等候，請勿關閉頁面。完成後將自動顯示交易號。")}</div>
     </div>
   );
@@ -180,12 +180,12 @@ function OrdersInner() {
                   </div>
                 </div>
                 {o.status === "completed" && (o.gift_trade_nos || []).length > 0 && (
-                  <div className="mt-3 rounded-2xl bg-violet-50 border border-violet-100 px-3.5 py-3" data-testid={`order-gift-trade-${o.id}`}>
-                    <div className="text-sm font-bold text-violet-700 flex items-center gap-1.5"><Gift className="h-4 w-4" />{tr("轉贈成功 · 交易號")}</div>
+                  <div className="mt-3 rounded-2xl bg-orange-50 border border-orange-100 px-3.5 py-3" data-testid={`order-gift-trade-${o.id}`}>
+                    <div className="text-sm font-bold text-orange-600 flex items-center gap-1.5"><Gift className="h-4 w-4" />{tr("轉贈成功 · 交易號")}</div>
                     {o.gift_trade_nos.map((g, i) => (
                       <div key={i} className="mt-1.5 flex items-center justify-between gap-2">
                         <span className="font-mono text-base md:text-lg tracking-wider text-slate-800 break-all" data-testid={`order-gift-trade-no-${o.id}-${i}`}>{g.trade_no}</span>
-                        <button onClick={() => copy(g.trade_no)} data-testid={`order-gift-trade-copy-${o.id}-${i}`} className="shrink-0 inline-flex items-center gap-1 text-violet-600 text-sm font-semibold hover:text-violet-800"><Copy className="h-4 w-4" />{tr("複製")}</button>
+                        <button onClick={() => copy(g.trade_no)} data-testid={`order-gift-trade-copy-${o.id}-${i}`} className="shrink-0 inline-flex items-center gap-1 text-orange-500 text-sm font-semibold hover:text-orange-600"><Copy className="h-4 w-4" />{tr("複製")}</button>
                       </div>
                     ))}
                   </div>
@@ -261,13 +261,13 @@ function OrdersInner() {
                 )}
 
                 {detail.status === "completed" && (detail.gift_trade_nos || []).length > 0 && (
-                  <div className="rounded-2xl bg-violet-50 border border-violet-100 p-4" data-testid="order-gift-trade-detail">
-                    <div className="text-sm font-bold text-violet-700 mb-2 flex items-center gap-1.5"><Gift className="h-4 w-4" />{tr("轉贈成功 · 交易號")}</div>
+                  <div className="rounded-2xl bg-orange-50 border border-orange-100 p-4 shadow-[0_6px_20px_-12px_rgba(232,121,42,0.35)]" data-testid="order-gift-trade-detail">
+                    <div className="text-sm font-bold text-orange-600 mb-2 flex items-center gap-1.5"><Gift className="h-4 w-4" />{tr("轉贈成功 · 交易號")}</div>
                     <div className="space-y-2">
                       {detail.gift_trade_nos.map((g, i) => (
                         <div key={i} className="flex items-center justify-between gap-2">
                           <div className="min-w-0"><div className="font-mono text-base tracking-wider text-slate-800 break-all">{g.trade_no}</div><div className="text-[11px] text-slate-500">{g.product_name} {g.spec_label}</div></div>
-                          <button onClick={() => copy(g.trade_no)} className="shrink-0 inline-flex items-center gap-1 text-violet-600 text-sm font-semibold hover:text-violet-800"><Copy className="h-4 w-4" />{tr("複製")}</button>
+                          <button onClick={() => copy(g.trade_no)} className="shrink-0 inline-flex items-center gap-1 text-orange-500 text-sm font-semibold hover:text-orange-600"><Copy className="h-4 w-4" />{tr("複製")}</button>
                         </div>
                       ))}
                     </div>
