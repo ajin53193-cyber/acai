@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { toast } from "sonner";
-import { Plus, Pencil, Trash2, Users, Gift, Trophy, Image as ImageIcon, Save, CheckCircle2, Clock, Target, Repeat, Play, BarChart3, TrendingUp } from "lucide-react";
+import { Plus, Pencil, Trash2, Users, Gift, Trophy, Image as ImageIcon, Save, CheckCircle2, Clock, Target, Repeat, Play, BarChart3, TrendingUp, Filter } from "lucide-react";
 import { tr } from "@/i18n";
 import { Head, Btn, Input, Table, Modal, Field, Pill, Card, useLoad, ImgField, fmt } from "./ui";
 
@@ -46,11 +46,22 @@ function RewardFields({ row, onChange, promos, testPrefix }) {
 function AnalyticsTab({ callApi }) {
   const [days, setDays] = useState(14);
   const [data, setData] = useState(null);
-  useEffect(() => { callApi({ method: "GET", url: `/admin/referral/trend?days=${days}` }).then((r) => setData(r.data)).catch(() => {}); }, [callApi, days]);
+  const [funnel, setFunnel] = useState(null);
+  useEffect(() => {
+    callApi({ method: "GET", url: `/admin/referral/trend?days=${days}` }).then((r) => setData(r.data)).catch(() => {});
+    callApi({ method: "GET", url: `/admin/referral/funnel?days=${days}` }).then((r) => setFunnel(r.data)).catch(() => {});
+  }, [callApi, days]);
   if (!data) return <div className="text-slate-400 text-sm">{tr("載入中…")}</div>;
   const rows = data.rows || [];
   const max = Math.max(1, ...rows.flatMap((d) => [d.bound, d.converted]));
   const series = [{ key: "bound", label: tr("新綁定"), color: "#f97316" }, { key: "converted", label: tr("首充轉化"), color: "#10b981" }];
+  const fp = funnel?.period;
+  const steps = fp ? [
+    { key: "visits", label: tr("訪問"), value: fp.visits, color: "#38bdf8", step: null },
+    { key: "registers", label: tr("註冊"), value: fp.registers, color: "#f97316", step: fp.reg_rate },
+    { key: "topups", label: tr("首充"), value: fp.topups, color: "#10b981", step: fp.topup_rate },
+  ] : [];
+  const fmax = Math.max(1, ...steps.map((s) => s.value));
   return (
     <div className="space-y-4" data-testid="ref-analytics">
       <div className="flex items-center justify-between gap-2">
@@ -67,6 +78,28 @@ function AnalyticsTab({ callApi }) {
         <StatCard label={tr("期間轉化率")} value={`${data.period_rate}%`} tone="sky" />
         <StatCard label={tr("累計轉化率")} value={`${data.total_rate}%`} tone="amber" />
       </div>
+
+      {fp && (
+        <Card className="p-4" data-testid="ref-funnel">
+          <div className="flex items-center justify-between mb-3">
+            <div className="text-sm font-semibold text-slate-700 flex items-center gap-1.5"><Filter className="h-4 w-4 text-orange-500" />{tr("轉化漏斗（訪問 → 註冊 → 首充）")}</div>
+            <div className="text-[11px] text-slate-500">{tr("整體轉化率")} <span className="font-bold text-emerald-600">{fp.overall_rate}%</span></div>
+          </div>
+          <div className="space-y-2.5">
+            {steps.map((s, i) => (
+              <div key={s.key} data-testid={`ref-funnel-${s.key}`} className="flex items-center gap-3">
+                <span className="w-12 text-xs text-slate-500 shrink-0">{s.label}</span>
+                <div className="flex-1 h-9 rounded-lg bg-slate-100 overflow-hidden relative">
+                  <div className="h-full rounded-lg flex items-center px-3 text-white text-xs font-bold transition-all" style={{ width: `${Math.max(8, (s.value / fmax) * 100)}%`, background: s.color }}>{s.value}</div>
+                </div>
+                <span className="w-16 text-right text-[11px] shrink-0">{i === 0 ? <span className="text-slate-400">—</span> : <span className="text-emerald-600 font-semibold">{s.step}%</span>}</span>
+              </div>
+            ))}
+          </div>
+          <div className="text-[11px] text-slate-400 mt-2">{tr("「訪問」為帶邀請碼連結的去重瀏覽；百分比為相對上一步的轉化率")}</div>
+        </Card>
+      )}
+
       <Card className="p-4" data-testid="ref-trend-chart">
         <div className="flex items-center justify-between mb-3">
           <div className="text-sm font-semibold text-slate-700 flex items-center gap-1.5"><TrendingUp className="h-4 w-4 text-orange-500" />{tr("每日新綁定與首充轉化")}</div>

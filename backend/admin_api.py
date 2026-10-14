@@ -1439,6 +1439,27 @@ async def admin_referral_trend(days: int = 14, admin: dict = Depends(current_adm
             "total_rate": round((all_conv / all_bound * 100) if all_bound else 0, 1)}
 
 
+@router.get("/referral/funnel")
+async def admin_referral_funnel(days: int = 14, admin: dict = Depends(current_admin)):
+    days = max(1, min(int(days or 14), 60))
+    start = (datetime.now(timezone.utc) - timedelta(days=days - 1)).strftime("%Y-%m-%d")
+
+    def rate(a, b):
+        return round((a / b * 100) if b else 0, 1)
+
+    p_visits = await db.referral_visits.count_documents({"created_at": {"$gte": start}})
+    p_regs = await db.users.count_documents({"referred_at": {"$gte": start}})
+    p_tops = await db.users.count_documents({"referral_rewarded_at": {"$gte": start}})
+    t_visits = await db.referral_visits.count_documents({})
+    t_regs = await db.users.count_documents({"referred_by": {"$nin": [None, ""]}})
+    t_tops = await db.users.count_documents({"referral_rewarded": True})
+    return {"days": days,
+            "period": {"visits": p_visits, "registers": p_regs, "topups": p_tops,
+                       "reg_rate": rate(p_regs, p_visits), "topup_rate": rate(p_tops, p_regs), "overall_rate": rate(p_tops, p_visits)},
+            "total": {"visits": t_visits, "registers": t_regs, "topups": t_tops,
+                      "reg_rate": rate(t_regs, t_visits), "topup_rate": rate(t_tops, t_regs), "overall_rate": rate(t_tops, t_visits)}}
+
+
 @router.get("/referral/weekly/awards")
 async def admin_referral_weekly_awards(limit: int = 100, admin: dict = Depends(current_admin)):
     rows = await db.referral_weekly_awards.find({}, {"_id": 0}).sort("created_at", -1).to_list(limit)

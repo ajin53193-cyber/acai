@@ -38,7 +38,13 @@ export default function Home() {
 
   useEffect(() => {
     const ref = new URLSearchParams(window.location.search).get("ref");
-    if (ref) localStorage.setItem("ref_code", ref.toUpperCase());
+    if (ref) {
+      const code = ref.toUpperCase();
+      localStorage.setItem("ref_code", code);
+      let vid = localStorage.getItem("rv_id");
+      if (!vid) { vid = (window.crypto?.randomUUID?.() || (Math.random().toString(36).slice(2) + Date.now().toString(36))); localStorage.setItem("rv_id", vid); }
+      publicApi.post("/referral/visit", { code, vid }).catch(() => {});
+    }
     publicApi.get("/categories").then((r) => setCategories(r.data)).catch(() => {});
     publicApi.get("/products/home").then((r) => setHome(r.data)).catch(() => {});
     publicApi.get("/articles", { params: { page: 1, size: 10 } }).then((r) => setNews(r.data.rows)).catch(() => {});

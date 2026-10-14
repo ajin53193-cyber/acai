@@ -304,3 +304,9 @@
 - **後端** `GET /api/admin/referral/trend?days=14`（7/14/30，上限60）：回每日 {date, bound（當日新綁定 referred_at）, converted（當日首充轉化 referral_rewarded_at）} + period_bound/period_converted/period_rate（期間轉化率%）+ total_bound/total_converted/total_rate（累計轉化率%）。
 - **後台** ReferralAdmin 新增「數據看板」分頁（ref-tab-analytics → ref-analytics）：天數切換（ref-trend-days-7/14/30）、4 張統計卡（期間新綁定/期間首充轉化/期間轉化率/累計轉化率）、雙色柱狀趨勢圖（新綁定橙 + 首充轉化綠，每日下方標當日轉化率%）ref-trend-chart / ref-trend-day-<date>。
 - 驗證：DB 模擬實測 trend 每日 bound/converted 計數與轉化率正確（今日 2 綁定/1 轉化、昨日 1 綁定；period_rate 33.3%）；前後端編譯通過。圖表沿用既有 activity-trend 柱狀樣式。
+
+## 2026-10 後台 Round 16：邀請轉化漏斗（訪問 → 註冊 → 首充）
+- **訪問追蹤**：公開 `POST /api/referral/visit`{code,vid}，以 (code,vid) `$setOnInsert` 去重寫 referral_visits（每瀏覽器每碼計一次）。Home 在 `?ref=CODE` 時生成/復用 localStorage `rv_id` 並上報訪問。
+- **漏斗聚合** `GET /api/admin/referral/funnel?days=14`：回 period 與 total 的 {visits（referral_visits）, registers（users.referred_at/referred_by）, topups（referral_rewarded_at/referral_rewarded）} + reg_rate（註冊/訪問）、topup_rate（首充/註冊）、overall_rate（首充/訪問）。
+- **後台看板**：AnalyticsTab 在趨勢圖上方新增漏斗卡（ref-funnel / ref-funnel-visits|registers|topups）：三段橫向條（訪問藍/註冊橙/首充綠，寬度按量），右側標相對上一步轉化率，右上角顯示整體轉化率。
+- 驗證：訪問端點去重 curl 驗（同 vid+code 2 次 →1 筆）；DB 模擬實測漏斗 3→2→1 = reg 66.7%/topup 50%/overall 33.3%；前後端編譯通過。

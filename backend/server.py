@@ -1427,6 +1427,18 @@ async def my_referral(member: dict = Depends(current_member)):
             "milestones_granted": u.get("referral_milestones_granted") or []}
 
 
+@api_router.post("/referral/visit")
+async def referral_visit(body: dict):
+    """Log a referral-link visit (deduped per browser vid + code) to power the conversion funnel."""
+    code = (body or {}).get("code", "").strip().upper()[:16]
+    vid = (body or {}).get("vid", "").strip()[:64]
+    if not code or not vid:
+        return {"ok": True}
+    await db.referral_visits.update_one({"code": code, "vid": vid},
+                                        {"$setOnInsert": {"code": code, "vid": vid, "created_at": now_iso()}}, upsert=True)
+    return {"ok": True}
+
+
 @api_router.post("/me/referral/bind")
 async def bind_referral(body: dict, member: dict = Depends(current_member)):
     uid = member["user_id"]
