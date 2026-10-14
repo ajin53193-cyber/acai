@@ -231,7 +231,6 @@ function AuthModal({ open, onOpenChange }) {
                 <button key={k} data-testid={`auth-code-kind-${k}`} onClick={() => switchTab(k)}
                   className={`h-8 px-4 rounded-full text-[13px] font-semibold transition-colors ${tab === k ? "bg-orange-500 text-white" : "bg-orange-50 text-orange-500 hover:bg-orange-100"}`}>{l}</button>
               ))}
-              <span className="ml-auto text-[11px] text-slate-400">{tr("僅限已註冊帳號")}</span>
             </div>
           )}
           {tab === "account" && trust && (
