@@ -256,6 +256,10 @@ function OrdersInner() {
                   ))}
                 </div>
 
+                {detail.is_giftcard_order && detail.status === "processing" && (
+                  <GiftTransferring order={detail} callApi={callApi} onRefresh={(o) => { setDetail(o); load(); }} />
+                )}
+
                 {detail.status === "completed" && (detail.gift_trade_nos || []).length > 0 && (
                   <div className="rounded-2xl bg-violet-50 border border-violet-100 p-4" data-testid="order-gift-trade-detail">
                     <div className="text-sm font-bold text-violet-700 mb-2 flex items-center gap-1.5"><Gift className="h-4 w-4" />{tr("轉贈成功 · 交易號")}</div>
