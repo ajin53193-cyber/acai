@@ -368,3 +368,4 @@
 - Round 24 補充：首頁 promo_banners 第二張「精選活動合集」預設連結 /article → /activities（cms_api.py 預設值）；Footer「活動中心」連結同步改 /activities。實測點擊進入活動中心。
 - Round 24 補充：移除首頁「活動中心」漸層入口橫幅（Home.jsx lottery_entry 區塊 + cms_api 預設 home_layout 項）；活動中心入口保留為 promo_banners 圖片橫幅。截圖驗證通過。
 - Round 24 補充：活動中心頁橫幅左上加「返回首頁」連結（data-testid=activity-center-back），實測跳回 /。
+- Round 24 補充：活動中心頁移除「最新活動公告」文章區塊（不再請求 /articles），僅保留活動入口卡。截圖驗證通過。

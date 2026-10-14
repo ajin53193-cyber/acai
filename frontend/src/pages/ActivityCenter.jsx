@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { Zap, Gift, Package, Percent, Users, Wallet, Sparkles, ChevronRight, Ticket, Star, Flame, Crown, Coins, ArrowLeft } from "lucide-react";
 import { publicApi } from "@/lib/api";
-import { ArticleCard } from "@/pages/ArticleCenter";
 import { tr } from "@/i18n";
 
 const ICONS = { Zap, Gift, Package, Percent, Users, Wallet, Sparkles, Ticket, Star, Flame, Crown, Coins };
@@ -24,7 +23,6 @@ function Badge({ live, text }) {
 export default function ActivityCenter() {
   const [cfg, setCfg] = useState({ header_title: tr("活動中心"), header_subtitle: "", cards: [] });
   const [data, setData] = useState({ flash: [], combos: [], recharge: [], cartpromo: [], lottery: { enabled: true } });
-  const [articles, setArticles] = useState([]);
 
   useEffect(() => {
     publicApi.get("/activity-center").then((r) => setCfg(r.data)).catch(() => {});
@@ -35,7 +33,6 @@ export default function ActivityCenter() {
       publicApi.get("/cart-promotions/public").then((r) => r.data).catch(() => []),
       publicApi.get("/lottery/config").then((r) => r.data).catch(() => ({ enabled: true })),
     ]).then(([flash, combos, recharge, cartpromo, lottery]) => setData({ flash, combos, recharge, cartpromo, lottery }));
-    publicApi.get("/articles", { params: { page: 1, size: 12, type: "promo" } }).then((r) => setArticles(r.data.rows || [])).catch(() => {});
   }, []);
 
   // live badge for a card based on its type; custom override text wins
@@ -85,17 +82,6 @@ export default function ActivityCenter() {
         })}
       </div>
 
-      {articles.length > 0 && (
-        <div className="mt-8 md:mt-10" data-testid="activity-articles">
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="font-head text-lg md:text-xl font-bold text-slate-900 flex items-center gap-2"><Gift className="h-5 w-5 text-orange-500" />{tr("最新活動公告")}</h2>
-            <Link to="/article" className="text-sm text-orange-500 font-semibold inline-flex items-center gap-0.5" data-testid="activity-more-articles">{tr("更多")}<ChevronRight className="h-4 w-4" /></Link>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4">
-            {articles.map((n) => <ArticleCard key={n.id} n={n} testId={`activity-article-${n.id}`} />)}
-          </div>
-        </div>
-      )}
     </div>
   );
 }
