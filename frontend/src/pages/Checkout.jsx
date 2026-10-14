@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { Show, useUser } from "@clerk/react";
 import { Minus, Plus, Trash2, CheckCircle2, Ticket, Wallet, Crown, Star, Tag } from "lucide-react";
@@ -61,8 +61,10 @@ function CheckoutInner() {
   const [quote, setQuote] = useState(null);
   const [usePoints, setUsePoints] = useState(false);
   const [pointsAmt, setPointsAmt] = useState("");
+  const [cartPromos, setCartPromos] = useState([]);
 
   useEffect(() => { publicApi.get("/promos/public").then((r) => setPromos(r.data)).catch(() => {}); }, []);
+  useEffect(() => { publicApi.get("/cart-promotions/public").then((r) => setCartPromos(r.data)).catch(() => {}); }, []);
   useEffect(() => { callApi({ method: "GET", url: "/me/wallet" }).then((r) => setWallet(r.data.balance_usd)).catch(() => setWallet(0)); }, [callApi]);
   useEffect(() => { callApi({ method: "GET", url: "/me/profile" }).then((r) => setProfile(r.data)).catch(() => {}); }, [callApi]);
   useEffect(() => { if (promo && subtotalUsd < (promo.min_order_usd || 0)) setPromo(null); }, [subtotalUsd, promo]);
@@ -83,6 +85,16 @@ function CheckoutInner() {
   const pointsDiscount = quote?.points_discount_usd || 0;
   const totalUsd = quote ? quote.total_usd : Math.max(0, subtotalUsd - discountUsd);
   const level = quote?.level || profile?.level;
+
+  const promoHint = useMemo(() => {
+    if (!cartPromos.length) return null;
+    const next = cartPromos.filter((c) => (c.threshold_usd || 0) > subtotalUsd + 1e-6).sort((a, b) => a.threshold_usd - b.threshold_usd)[0];
+    if (next) {
+      const benefit = next.promo_type === "reduce" ? tr("立減 {0}", format(next.value)) : tr("享 {0} 折", (10 - next.value / 10).toFixed(1));
+      return { reached: false, gap: next.threshold_usd - subtotalUsd, title: next.title || tr("滿減優惠"), benefit };
+    }
+    return { reached: true };
+  }, [cartPromos, subtotalUsd, format]);
 
   if (items.length === 0) {
     return (
@@ -179,6 +191,16 @@ function CheckoutInner() {
             </div>
           </div>
         </div>
+
+        {/* 滿減進度提示 */}
+        {promoHint && (
+          <div data-testid="checkout-cartpromo-hint" className={`rounded-2xl px-4 py-3 flex items-center gap-2.5 text-sm font-medium ${promoHint.reached ? "bg-emerald-50 text-emerald-700 border border-emerald-100" : "bg-orange-50 text-orange-700 border border-orange-100"}`}>
+            <Tag className={`h-4 w-4 shrink-0 ${promoHint.reached ? "text-emerald-500" : "text-orange-500"}`} />
+            {promoHint.reached
+              ? <span>{tr("已滿足滿減活動，優惠已自動抵扣！")}</span>
+              : <span>{tr("再買 {0} 即可{1}（{2}）", format(promoHint.gap), promoHint.benefit, promoHint.title)}</span>}
+          </div>
+        )}
 
         {/* Coupons */}
         <div className="bg-white rounded-3xl shadow-sm p-4 sm:p-8" data-testid="checkout-coupon-card">

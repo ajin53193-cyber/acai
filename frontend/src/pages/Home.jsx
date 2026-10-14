@@ -4,6 +4,7 @@ import { ChevronRight, ChevronLeft, Zap, Megaphone, ShieldCheck, Rocket, Headpho
 import { useUser } from "@clerk/react";
 import { publicApi } from "@/lib/api";
 import { useAuthModal } from "@/components/auth/AuthModal";
+import { useCurrency } from "@/context/CurrencyContext";
 
 import { ArticleCard } from "@/pages/ArticleCenter";
 import { useSiteConfig } from "@/lib/siteConfig";
@@ -23,6 +24,7 @@ export default function Home() {
   const [categories, setCategories] = useState([]);
   const [home, setHome] = useState({});
   const [news, setNews] = useState([]);
+  const [flash, setFlash] = useState([]);
   const isMobile = useIsMobile();
   const { isSignedIn } = useUser();
   const { openAuth } = useAuthModal();
@@ -33,6 +35,7 @@ export default function Home() {
     publicApi.get("/categories").then((r) => setCategories(r.data)).catch(() => {});
     publicApi.get("/products/home").then((r) => setHome(r.data)).catch(() => {});
     publicApi.get("/articles", { params: { page: 1, size: 10 } }).then((r) => setNews(r.data.rows)).catch(() => {});
+    publicApi.get("/flash-sales/public").then((r) => setFlash(r.data)).catch(() => {});
   }, []);
 
   const hot = home.hot || [];
@@ -100,6 +103,19 @@ export default function Home() {
             ))}
           </Carousel>
         </section>
+
+        {/* Flash sale */}
+        {flash.length > 0 && <FlashSaleSection items={flash} />}
+
+        {/* Lottery entry */}
+        <Link to="/lottery" data-testid="home-lottery-entry" className="mt-5 md:mt-6 flex items-center gap-3 rounded-2xl bg-gradient-to-r from-rose-500 via-orange-500 to-amber-400 px-4 md:px-6 py-3.5 md:py-4 text-white shadow-lg hover:shadow-xl transition-shadow overflow-hidden relative">
+          <Gift className="h-7 w-7 md:h-8 md:w-8 shrink-0 drop-shadow" />
+          <div className="min-w-0 flex-1">
+            <div className="font-head font-extrabold text-base md:text-lg leading-tight">{tr("積分幸運大轉盤")}</div>
+            <div className="text-[12px] md:text-sm text-white/90 truncate">{tr("積分換好禮，100% 有獎，天天可抽")}</div>
+          </div>
+          <span className="shrink-0 h-9 md:h-10 px-4 md:px-5 rounded-full bg-white text-orange-600 text-sm font-bold flex items-center">{tr("去抽獎")}</span>
+        </Link>
 
         {/* Hot products */}
         <section className="mt-6 md:mt-8">
@@ -388,6 +404,62 @@ function SectionTitle({ title, to, icon }) {  return (
 
 function MTitle({ children }) {
   return <h2 className="font-head text-[17px] md:text-lg font-bold text-slate-900 relative inline-block z-0 max-md:after:content-[''] max-md:after:absolute max-md:after:left-0 max-md:after:right-0 max-md:after:bottom-0.5 max-md:after:h-2 max-md:after:bg-orange-200/80 max-md:after:-z-10 max-md:after:rounded-sm">{children}</h2>;
+}
+
+function Countdown({ end }) {
+  const [left, setLeft] = useState(() => Math.max(0, new Date(end).getTime() - Date.now()));
+  useEffect(() => {
+    const t = setInterval(() => setLeft(Math.max(0, new Date(end).getTime() - Date.now())), 1000);
+    return () => clearInterval(t);
+  }, [end]);
+  if (!end) return null;
+  const s = Math.floor(left / 1000);
+  const hh = String(Math.floor(s / 3600)).padStart(2, "0");
+  const mm = String(Math.floor((s % 3600) / 60)).padStart(2, "0");
+  const ss = String(s % 60).padStart(2, "0");
+  const Box = ({ children }) => <span className="inline-flex items-center justify-center min-w-[22px] h-6 rounded bg-slate-900 text-white text-xs font-bold px-1 font-mono">{children}</span>;
+  return (
+    <span className="inline-flex items-center gap-0.5" data-testid="flash-countdown"><Box>{hh}</Box><span className="text-slate-900 font-bold">:</span><Box>{mm}</Box><span className="text-slate-900 font-bold">:</span><Box>{ss}</Box></span>
+  );
+}
+
+function FlashSaleSection({ items }) {
+  const { format } = useCurrency();
+  const earliestEnd = items.map((i) => i.end_at).filter(Boolean).sort()[0];
+  return (
+    <section className="mt-5 md:mt-6" data-testid="flash-sale-section">
+      <div className="rounded-2xl bg-gradient-to-br from-rose-50 to-orange-50 border border-rose-100 p-3 md:p-4">
+        <div className="flex items-center gap-2 mb-3">
+          <span className="flex items-center gap-1 font-head font-extrabold text-rose-600 text-lg"><Zap className="h-5 w-5 fill-rose-500 text-rose-500" />{tr("限時秒殺")}</span>
+          {earliestEnd && <span className="ml-auto flex items-center gap-1.5 text-xs text-slate-500">{tr("距結束")} <Countdown end={earliestEnd} /></span>}
+        </div>
+        <Carousel testid="flash-carousel">
+          {items.map((f) => {
+            const pct = f.stock > 0 ? Math.min(100, Math.round((f.sold / f.stock) * 100)) : 0;
+            return (
+              <Link key={f.id} to={`/product/${f.product_id}`} data-testid={`flash-item-${f.id}`}
+                className="group shrink-0 w-[140px] sm:w-[164px] bg-white rounded-2xl border border-rose-100 shadow-sm p-2 hover:shadow-md transition-all relative">
+                <span className="absolute top-1.5 left-1.5 z-10 text-[10px] font-bold bg-rose-500 text-white rounded px-1.5 py-0.5">{tr("秒殺")}</span>
+                <div className="relative w-full aspect-square rounded-xl overflow-hidden bg-white">
+                  <img src={f.image} alt={f.product_name} className="h-full w-full object-cover group-hover:scale-105 transition-transform" />
+                </div>
+                <h3 className="font-semibold text-[12px] leading-snug text-slate-800 truncate mt-2">{f.product_name}</h3>
+                <div className="text-[11px] text-slate-400 truncate">{f.spec_label}</div>
+                <div className="flex items-baseline gap-1.5 mt-1">
+                  <span className="font-head font-extrabold text-rose-600">{format(f.flash_price_usd)}</span>
+                  <span className="text-[11px] text-slate-400 line-through">{format(f.original_price_usd)}</span>
+                </div>
+                <div className="mt-1.5 h-2.5 rounded-full bg-rose-100 overflow-hidden">
+                  <div className="h-full bg-gradient-to-r from-rose-500 to-orange-400" style={{ width: `${Math.max(8, pct)}%` }} />
+                </div>
+                <div className="text-[10px] text-rose-500 mt-0.5">{tr("已搶 {0}%", pct)}</div>
+              </Link>
+            );
+          })}
+        </Carousel>
+      </div>
+    </section>
+  );
 }
 
 function useIsMobile() {

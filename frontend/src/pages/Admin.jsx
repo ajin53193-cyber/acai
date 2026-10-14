@@ -30,6 +30,8 @@ import { PointsAdmin } from "@/pages/admin/PointsAdmin";
 import { RechargeBonusAdmin } from "@/pages/admin/RechargeBonusAdmin";
 import { GiftCardsAdmin, GiftCardRedemptionsAdmin, GiftCardApiAdmin } from "@/pages/admin/GiftCardsAdmin";
 import { CartPromoAdmin } from "@/pages/admin/CartPromoAdmin";
+import { FlashSaleAdmin } from "@/pages/admin/FlashSaleAdmin";
+import { LotteryAdmin } from "@/pages/admin/LotteryAdmin";
 import { tr } from "@/i18n";
 
 // Full admin IA — collapsible two-level menu. Keys map to real pages in PAGES; everything else renders <Soon/>.
@@ -104,6 +106,8 @@ const PAGES = {
   "giftcard-orders": (p) => <GiftCardRedemptionsAdmin {...p} />,
   "giftcard-api": (p) => <GiftCardApiAdmin {...p} />,
   "discount-activity": (p) => <CartPromoAdmin {...p} />,
+  flashsale: (p) => <FlashSaleAdmin {...p} />,
+  lottery: (p) => <LotteryAdmin {...p} />,
 };
 
 function AdminInner() {

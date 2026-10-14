@@ -11,7 +11,7 @@ import re
 import time
 import uuid
 from datetime import datetime, timezone, timedelta
-from typing import Optional
+from typing import Optional, List
 
 import httpx
 import pyotp
@@ -690,6 +690,134 @@ async def admin_cart_promo_update(cid: str, body: CartPromoIn, admin: dict = Dep
 @router.delete("/cart-promotions/{cid}")
 async def admin_cart_promo_delete(cid: str, admin: dict = Depends(current_admin)):
     await db.cart_promotions.delete_one({"id": cid})
+    return {"ok": True}
+
+
+# ----------------------------- Flash Sales (秒殺) -----------------------------
+class FlashSaleIn(BaseModel):
+    title: str = ""
+    product_id: str
+    spec_id: str
+    flash_price_usd: float
+    stock: int = 0
+    per_user_limit: int = 1
+    start_at: str = ""
+    end_at: str = ""
+    active: bool = True
+
+
+async def _enrich_flash(fs: dict) -> dict:
+    p = await db.products.find_one({"id": fs["product_id"]}, {"_id": 0, "name": 1, "image": 1, "specs": 1})
+    fs["product_name"] = (p or {}).get("name", fs["product_id"])
+    fs["image"] = (p or {}).get("image", "")
+    spec = next((s for s in (p or {}).get("specs", []) if s["id"] == fs["spec_id"]), {})
+    fs["spec_label"] = spec.get("label", "")
+    fs["original_price_usd"] = spec.get("price_usd")
+    fs["remaining"] = max(0, int(fs.get("stock") or 0) - int(fs.get("sold") or 0))
+    return fs
+
+
+@router.get("/flash-sales")
+async def admin_flash_sales(admin: dict = Depends(current_admin)):
+    rows = await db.flash_sales.find({}, {"_id": 0}).sort("created_at", -1).to_list(200)
+    return [await _enrich_flash(fs) for fs in rows]
+
+
+@router.post("/flash-sales")
+async def admin_flash_sale_create(body: FlashSaleIn, admin: dict = Depends(current_admin)):
+    doc = {"id": uuid.uuid4().hex[:12], **body.dict(), "sold": 0, "created_at": datetime.now(timezone.utc).isoformat()}
+    await db.flash_sales.insert_one(dict(doc))
+    doc.pop("_id", None)
+    return doc
+
+
+@router.put("/flash-sales/{fid}")
+async def admin_flash_sale_update(fid: str, body: FlashSaleIn, admin: dict = Depends(current_admin)):
+    await db.flash_sales.update_one({"id": fid}, {"$set": body.dict()})
+    return {"ok": True}
+
+
+@router.delete("/flash-sales/{fid}")
+async def admin_flash_sale_delete(fid: str, admin: dict = Depends(current_admin)):
+    await db.flash_sales.delete_one({"id": fid})
+    return {"ok": True}
+
+
+# ----------------------------- Lottery (積分抽獎) -----------------------------
+DEFAULT_LOTTERY = {
+    "enabled": True,
+    "cost_points": 100,
+    "prizes": [
+        {"id": "p1", "label": "50 積分", "type": "points", "value": 50, "weight": 30, "stock": -1, "color": "#fb923c"},
+        {"id": "p2", "label": "謝謝惠顧", "type": "none", "value": 0, "weight": 35, "stock": -1, "color": "#fed7aa"},
+        {"id": "p3", "label": "USD$0.5 餘額", "type": "balance", "value": 0.5, "weight": 12, "stock": 200, "color": "#f97316"},
+        {"id": "p4", "label": "200 積分", "type": "points", "value": 200, "weight": 10, "stock": -1, "color": "#fbbf24"},
+        {"id": "p5", "label": "USD$2 餘額", "type": "balance", "value": 2, "weight": 7, "stock": 100, "color": "#fb7185"},
+        {"id": "p6", "label": "實物公仔", "type": "physical", "value": 0, "weight": 1, "stock": 10, "color": "#f43f5e"},
+    ],
+}
+
+
+async def get_lottery_cfg() -> dict:
+    doc = await db.settings.find_one({"key": "lottery"}, {"_id": 0})
+    if not doc or not doc.get("value"):
+        val = json.loads(json.dumps(DEFAULT_LOTTERY))
+        await db.settings.update_one({"key": "lottery"}, {"$set": {"key": "lottery", "value": val}}, upsert=True)
+        return val
+    return {**DEFAULT_LOTTERY, **doc["value"]}
+
+
+class LotteryPrizeIn(BaseModel):
+    id: str = ""
+    label: str
+    type: str = "none"  # points | balance | coupon | physical | none
+    value: object = 0
+    weight: int = 1
+    stock: int = -1
+    color: str = "#fb923c"
+
+
+class LotteryConfigIn(BaseModel):
+    enabled: bool = True
+    cost_points: int = 100
+    prizes: List[LotteryPrizeIn] = []
+
+
+@router.get("/lottery")
+async def admin_lottery_get(admin: dict = Depends(current_admin)):
+    return await get_lottery_cfg()
+
+
+@router.put("/lottery")
+async def admin_lottery_put(body: LotteryConfigIn, admin: dict = Depends(current_admin)):
+    prizes = []
+    for p in body.prizes:
+        d = p.dict()
+        if not d.get("id"):
+            d["id"] = uuid.uuid4().hex[:8]
+        prizes.append(d)
+    val = {"enabled": body.enabled, "cost_points": int(body.cost_points), "prizes": prizes}
+    await db.settings.update_one({"key": "lottery"}, {"$set": {"key": "lottery", "value": val}}, upsert=True)
+    return val
+
+
+@router.get("/lottery/draws")
+async def admin_lottery_draws(q: str = "", limit: int = 300, admin: dict = Depends(current_admin)):
+    rows = await db.lottery_draws.find({}, {"_id": 0}).sort("created_at", -1).to_list(limit)
+    uids = list({r["user_id"] for r in rows if r.get("user_id")})
+    users = {u["user_id"]: u async for u in db.users.find({"user_id": {"$in": uids}}, {"_id": 0, "user_id": 1, "email": 1, "phone": 1})}
+    for r in rows:
+        u = users.get(r.get("user_id"), {})
+        r["account_no"] = account_no(r["user_id"]) if r.get("user_id") else "-"
+        r["user_label"] = ("" if u.get("email", "").endswith("@" + email_auth.PHONE_DOMAIN) else u.get("email", "")) or u.get("phone", "") or "-"
+    if q:
+        rows = [r for r in rows if q in (r.get("account_no") or "") or q in (r.get("user_label") or "") or q in (r.get("prize_label") or "")]
+    return rows
+
+
+@router.post("/lottery/draws/{did}/fulfill")
+async def admin_lottery_fulfill(did: str, admin: dict = Depends(current_admin)):
+    await db.lottery_draws.update_one({"id": did}, {"$set": {"fulfilled": True, "fulfilled_at": datetime.now(timezone.utc).isoformat(), "fulfilled_by": admin.get("email", "")}})
     return {"ok": True}
 
 

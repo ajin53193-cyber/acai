@@ -131,6 +131,7 @@ class Spec(BaseModel):
     label: str
     price_usd: float
     sale_price_usd: Optional[float] = None
+    giftcard_value_usd: Optional[float] = None
     badge: str = ""
     in_stock: bool = True
     limit: str = ""
@@ -163,6 +164,7 @@ class Product(BaseModel):
     source_id: str = ""
     specs: List[Spec] = []
     tags: List[str] = []
+    is_giftcard: bool = False
     sales_count: int = 0
     rating: float = 5.0
     sort_order: int = 0
@@ -184,6 +186,7 @@ class ProductIn(BaseModel):
     delivery_fields: List[DeliveryField] = []
     specs: List[Spec] = []
     tags: List[str] = []
+    is_giftcard: bool = False
     sales_count: int = 0
     rating: float = 5.0
     sort_order: int = 0
@@ -477,6 +480,106 @@ async def public_cart_promotions():
     return [c for c in rows if (not c.get("start_at") or c["start_at"] <= nowi) and (not c.get("end_at") or c["end_at"] >= nowi)]
 
 
+@api_router.get("/flash-sales/public")
+async def public_flash_sales():
+    nowi = now_iso()
+    rows = await db.flash_sales.find({"active": True}, {"_id": 0}).sort("end_at", 1).to_list(100)
+    out = []
+    for fs in rows:
+        if fs.get("start_at") and fs["start_at"] > nowi:
+            continue
+        if fs.get("end_at") and fs["end_at"] < nowi:
+            continue
+        stock = int(fs.get("stock") or 0)
+        sold = int(fs.get("sold") or 0)
+        if sold >= stock:
+            continue
+        p = await db.products.find_one({"id": fs["product_id"], "active": True}, {"_id": 0, "name": 1, "image": 1, "specs": 1})
+        if not p:
+            continue
+        spec = next((s for s in p.get("specs", []) if s["id"] == fs["spec_id"]), None)
+        if not spec:
+            continue
+        out.append({
+            "id": fs["id"], "title": fs.get("title") or p["name"], "product_id": fs["product_id"], "spec_id": fs["spec_id"],
+            "product_name": p["name"], "image": p.get("image", ""), "spec_label": spec["label"],
+            "flash_price_usd": round(float(fs["flash_price_usd"]), 2), "original_price_usd": round(float(spec["price_usd"]), 2),
+            "stock": stock, "sold": sold, "remaining": max(0, stock - sold), "end_at": fs.get("end_at", ""), "start_at": fs.get("start_at", ""),
+        })
+    return out
+
+
+@api_router.get("/lottery/config")
+async def lottery_config_public():
+    cfg = await admin_api.get_lottery_cfg()
+    prizes = [{"id": p["id"], "label": p["label"], "color": p.get("color", "#fb923c"), "type": p.get("type", "none")} for p in cfg.get("prizes", [])]
+    return {"enabled": bool(cfg.get("enabled")), "cost_points": int(cfg.get("cost_points") or 0), "prizes": prizes}
+
+
+@api_router.post("/lottery/draw")
+async def lottery_draw(member: dict = Depends(current_member)):
+    import random
+    uid = member["user_id"]
+    cfg = await admin_api.get_lottery_cfg()
+    if not cfg.get("enabled"):
+        raise HTTPException(status_code=400, detail="抽獎活動未開啟")
+    cost = int(cfg.get("cost_points") or 0)
+    pool = [p for p in cfg.get("prizes", []) if int(p.get("weight") or 0) > 0 and int(p.get("stock", -1)) != 0]
+    if not pool:
+        raise HTTPException(status_code=400, detail="暫無可抽獎品，請稍後再試")
+    u = await db.users.find_one({"user_id": uid}, {"_id": 0, "points": 1}) or {}
+    bal = int(u.get("points") or 0)
+    if bal < cost:
+        raise HTTPException(status_code=400, detail=f"積分不足，每次抽獎需 {cost} 積分")
+    new_pts = bal - cost
+    await db.users.update_one({"user_id": uid}, {"$set": {"points": new_pts}})
+    if cost > 0:
+        await db.point_transactions.insert_one({"id": new_id(), "user_id": uid, "delta": -cost, "balance_after": new_pts,
+                                                "source": "lottery", "reason": "抽獎消耗積分", "ref": "", "created_at": now_iso()})
+    total = sum(int(p["weight"]) for p in pool)
+    r = random.uniform(0, total)
+    acc = 0.0
+    win = pool[-1]
+    for p in pool:
+        acc += int(p["weight"])
+        if r <= acc:
+            win = p
+            break
+    # decrement limited stock
+    if int(win.get("stock", -1)) >= 0:
+        await db.settings.update_one({"key": "lottery"}, {"$inc": {"value.prizes.$[e].stock": -1}}, array_filters=[{"e.id": win["id"], "e.stock": {"$gt": 0}}])
+    # grant reward
+    wallet_usd = None
+    ptype = win.get("type", "none")
+    pval = win.get("value")
+    if ptype == "points":
+        add = int(float(pval or 0))
+        if add > 0:
+            new_pts += add
+            await db.users.update_one({"user_id": uid}, {"$set": {"points": new_pts}})
+            await db.point_transactions.insert_one({"id": new_id(), "user_id": uid, "delta": add, "balance_after": new_pts,
+                                                    "source": "lottery_prize", "reason": f"抽獎中獎 {win['label']}", "ref": win["id"], "created_at": now_iso()})
+    elif ptype == "balance":
+        amt = round(float(pval or 0), 2)
+        if amt > 0:
+            wallet_usd = await _wallet_tx(uid, "lottery", amt, f"抽獎中獎 {win['label']}")
+    elif ptype == "coupon":
+        code = str(pval or "").strip().upper()
+        if code and await db.promos.find_one({"code": code, "active": True}, {"_id": 1}):
+            await db.user_coupons.insert_one({"id": new_id(), "user_id": uid, "code": code, "claimed_at": now_iso(), "source": "lottery"})
+    draw = {"id": new_id(), "user_id": uid, "prize_id": win["id"], "prize_label": win["label"], "prize_type": ptype,
+            "prize_value": pval, "cost_points": cost, "fulfilled": False, "created_at": now_iso()}
+    await db.lottery_draws.insert_one(dict(draw))
+    draw.pop("_id", None)
+    await log_user(uid, "lottery", "抽獎", f"中獎：{win['label']}")
+    return {"prize_id": win["id"], "prize_label": win["label"], "prize_type": ptype, "points_balance": new_pts, "balance_usd": wallet_usd}
+
+
+@api_router.get("/lottery/my-draws")
+async def lottery_my_draws(member: dict = Depends(current_member)):
+    return await db.lottery_draws.find({"user_id": member["user_id"]}, {"_id": 0}).sort("created_at", -1).to_list(30)
+
+
 class RedeemGiftCardIn(BaseModel):
     code: str
 
@@ -536,6 +639,53 @@ async def validate_promo(payload: dict):
 
 
 # ----------------------------- Helpers -----------------------------
+async def _flash_for(product_id: str, spec_id: str):
+    nowi = now_iso()
+    fs = await db.flash_sales.find_one({"product_id": product_id, "spec_id": spec_id, "active": True}, {"_id": 0})
+    if not fs:
+        return None
+    if fs.get("start_at") and fs["start_at"] > nowi:
+        return None
+    if fs.get("end_at") and fs["end_at"] < nowi:
+        return None
+    if int(fs.get("sold") or 0) >= int(fs.get("stock") or 0):
+        return None
+    return fs
+
+
+async def _user_flash_bought(user_id: str, flash_id: str) -> int:
+    rows = await db.orders.find({"user_id": user_id, "status": {"$ne": "cancelled"}, "items.flash_id": flash_id}, {"_id": 0, "items": 1}).to_list(200)
+    n = 0
+    for o in rows:
+        for it in o.get("items", []):
+            if it.get("flash_id") == flash_id:
+                n += int(it.get("quantity") or 0)
+    return n
+
+
+async def dispatch_giftcards(order: dict):
+    """On payment of a gift-card product, generate a fresh card code per unit and attach to the order."""
+    if order.get("giftcards_dispatched"):
+        return
+    codes = []
+    for it in order.get("items", []):
+        p = await db.products.find_one({"id": it["product_id"]}, {"_id": 0, "is_giftcard": 1, "specs": 1})
+        if not p or not p.get("is_giftcard"):
+            continue
+        spec = next((s for s in p.get("specs", []) if s["id"] == it["spec_id"]), {})
+        fv = spec.get("giftcard_value_usd") or spec.get("price_usd") or it.get("unit_price_usd") or 0
+        fv = round(float(fv), 2)
+        for _ in range(int(it.get("quantity") or 1)):
+            code = admin_api._gen_card_code()
+            await db.gift_cards.insert_one({"id": uuid.uuid4().hex[:12], "code": code, "face_value_usd": fv, "status": "active",
+                                            "batch_no": "ORDER", "note": f"訂單 {order.get('order_no', '')} 自動發卡", "source_order": order["id"],
+                                            "sold_to": order["user_id"], "created_at": now_iso(), "redeemed_by": None, "redeemed_at": None, "redeemed_via": None})
+            codes.append({"code": code, "face_value_usd": fv, "product_name": it.get("product_name", "")})
+    if codes:
+        await db.orders.update_one({"id": order["id"]}, {"$set": {"giftcards_dispatched": True, "giftcard_codes": codes}})
+    return codes
+
+
 async def _compute_order(order: OrderIn, member_ctx: dict = None):
     items_out = []
     subtotal_usd = 0.0
@@ -547,12 +697,15 @@ async def _compute_order(order: OrderIn, member_ctx: dict = None):
         if not spec:
             raise HTTPException(status_code=404, detail="規格不存在")
         qty = max(1, int(it.quantity))
-        line = spec["price_usd"] * qty
+        flash = await _flash_for(it.product_id, it.spec_id)
+        unit = round(float(flash["flash_price_usd"]), 2) if flash else spec["price_usd"]
+        line = unit * qty
         subtotal_usd += line
         items_out.append({
             "product_id": p["id"], "product_name": p["name"], "image": p.get("image", ""),
             "spec_id": spec["id"], "spec_label": spec["label"],
-            "unit_price_usd": spec["price_usd"], "quantity": qty, "line_usd": round(line, 2),
+            "unit_price_usd": unit, "quantity": qty, "line_usd": round(line, 2),
+            "flash_id": flash["id"] if flash else None, "flash": bool(flash),
         })
     discount_usd = 0.0
     promo_code = None
@@ -1253,6 +1406,7 @@ async def pay_order_wallet(order_id: str, member: dict = Depends(current_member)
     asyncio.create_task(award_points(o["user_id"], float(o["total_usd"]), "order", o["id"]))
     asyncio.create_task(log_user(o["user_id"], "order", "訂單付款", f"{o['order_no']} · USD$ {float(o['total_usd']):.2f}（錢包支付）"))
     asyncio.create_task(check_levelup(o["user_id"]))
+    await dispatch_giftcards({**o, **upd})
     return {**o, **upd}
 
 
@@ -1543,6 +1697,24 @@ async def create_order(order: OrderIn, member: dict = Depends(current_member)):
     ctx = await _member_context(member["user_id"])
     items, subtotal_usd, discount_usd, total_usd, promo_code, extras = await _compute_order(order, ctx)
     await _check_daily_limit(order, member["user_id"])
+    # flash sale: per-user limit + atomic stock reservation
+    flash_qty: Dict[str, int] = {}
+    for it in items:
+        fid = it.get("flash_id")
+        if fid:
+            flash_qty[fid] = flash_qty.get(fid, 0) + int(it["quantity"])
+    for fid, qty in flash_qty.items():
+        fs = await db.flash_sales.find_one({"id": fid}, {"_id": 0})
+        if not fs or not fs.get("active"):
+            raise HTTPException(status_code=409, detail="秒殺活動已結束")
+        lim = int(fs.get("per_user_limit") or 0)
+        if lim > 0 and (await _user_flash_bought(member["user_id"], fid)) + qty > lim:
+            raise HTTPException(status_code=409, detail=f"此秒殺商品每人限購 {lim} 件")
+        r = await db.flash_sales.find_one_and_update(
+            {"id": fid, "$expr": {"$lte": [{"$add": [{"$ifNull": ["$sold", 0]}, qty]}, "$stock"]}},
+            {"$inc": {"sold": qty}})
+        if not r:
+            raise HTTPException(status_code=409, detail="秒殺商品庫存不足，已被搶完")
     cur = await db.currencies.find_one({"code": order.currency, "active": True}, {"_id": 0}) or \
         {"code": "USD", "symbol": "$", "rate_to_usd": 1.0}
     order_no = "GT" + datetime.now(timezone.utc).strftime("%y%m%d") + uuid.uuid4().hex[:6].upper()
@@ -1617,6 +1789,7 @@ async def pay_order(order_id: str, member: dict = Depends(current_member)):
     asyncio.create_task(award_points(o["user_id"], float(o["total_usd"]), "order", o["id"]))
     asyncio.create_task(log_user(o["user_id"], "order", "訂單付款", f"{o['order_no']} · USD$ {float(o['total_usd']):.2f}"))
     asyncio.create_task(check_levelup(o["user_id"]))
+    await dispatch_giftcards(o)
     return o
 
 
@@ -1872,6 +2045,16 @@ async def admin_update_order(order_id: str, body: StatusUpdate, admin: dict = De
         await db.point_transactions.insert_one({"id": new_id(), "user_id": o["user_id"], "delta": int(o["points_used"]), "balance_after": new_pts,
                                                 "source": "redeem_refund", "reason": f"訂單取消退回積分 {o.get('order_no') or o['id']}", "ref": o["id"], "created_at": now_iso()})
     await db.orders.update_one({"id": order_id}, {"$set": update})
+    if body.status == "cancelled" and o.get("status") != "cancelled" and not o.get("flash_released"):
+        fq: Dict[str, int] = {}
+        for it in o.get("items", []):
+            fid = it.get("flash_id")
+            if fid:
+                fq[fid] = fq.get(fid, 0) + int(it.get("quantity") or 0)
+        for fid, qty in fq.items():
+            await db.flash_sales.update_one({"id": fid}, {"$inc": {"sold": -qty}})
+        if fq:
+            await db.orders.update_one({"id": order_id}, {"$set": {"flash_released": True}})
     if body.status == "completed" and o.get("status") != "completed":
         asyncio.create_task(admin_api.notify_user(o["user_id"], "order_completed", admin_api.order_ctx(o)))
     elif body.status == "cancelled" and o.get("status") != "cancelled":

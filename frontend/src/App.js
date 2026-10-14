@@ -26,6 +26,7 @@ import WalletTopUp from "@/pages/account/WalletTopUp";
 import WalletTransactions from "@/pages/account/WalletTransactions";
 import WalletTopups from "@/pages/account/WalletTopups";
 import GoogleCallback from "@/pages/GoogleCallback";
+import Lottery from "@/pages/Lottery";
 import AdminLogin from "@/pages/AdminLogin";
 import Info from "@/pages/Info";
 import ArticleCenter from "@/pages/ArticleCenter";
@@ -75,6 +76,7 @@ function App() {
                   <Route path="/category/:id" element={<Category />} />
                   <Route path="/product/:id" element={<ProductDetail />} />
                   <Route path="/checkout" element={<Checkout />} />
+                  <Route path="/lottery" element={<Lottery />} />
                   <Route path="/info/:slug" element={<Info />} />
                   <Route path="/article" element={<ArticleCenter />} />
                   <Route path="/article/:id" element={<ArticleDetail />} />

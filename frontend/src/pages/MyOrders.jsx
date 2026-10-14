@@ -220,6 +220,25 @@ function OrdersInner() {
                   ))}
                 </div>
 
+                {/* Gift card codes */}
+                {(detail.giftcard_codes || []).length > 0 && (
+                  <div className="bg-white rounded-2xl p-4 shadow-[0_6px_20px_-12px_rgba(232,121,42,0.35)]" data-testid="order-giftcard-codes">
+                    <div className="text-sm font-semibold text-violet-700 mb-2 flex items-center gap-1.5">🎁 {tr("您的禮品卡卡號")}</div>
+                    <div className="space-y-2">
+                      {detail.giftcard_codes.map((g, i) => (
+                        <div key={i} className="flex items-center justify-between gap-2 rounded-xl bg-violet-50 border border-violet-100 px-3 py-2">
+                          <div className="min-w-0">
+                            <div className="font-mono text-sm font-bold text-slate-800 break-all">{g.code}</div>
+                            <div className="text-[11px] text-slate-500">{g.product_name} · {tr("面額")} ${Number(g.face_value_usd).toFixed(2)}</div>
+                          </div>
+                          <button onClick={() => copy(g.code)} className="shrink-0 text-violet-500 hover:text-violet-700" data-testid={`order-giftcard-copy-${i}`}><Copy className="h-4 w-4" /></button>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="text-[11px] text-slate-400 mt-2">{tr("可於「我的錢包 → 禮品卡充值」兌換，或分享給好友使用。")}</div>
+                  </div>
+                )}
+
                 {["paid", "pending_payment"].includes(detail.status) && (
                   <OrderInfoForm order={detail} callApi={callApi} onDone={(o) => { setDetail(o); load(); }} />
                 )}
