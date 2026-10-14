@@ -18,14 +18,31 @@ const TYPE_META = {
 export function ActivityRecordsAdmin({ callApi }) {
   const [type, setType] = useState("all");
   const [rows, setRows] = useState(null);
+  const [stats, setStats] = useState(null);
+  useEffect(() => { callApi({ method: "GET", url: "/admin/activity-stats" }).then((r) => setStats(r.data)).catch(() => {}); }, [callApi]);
   useEffect(() => {
     setRows(null);
     callApi({ method: "GET", url: `/admin/activity-records?type=${type}&limit=300` }).then((r) => setRows(r.data)).catch(() => setRows([]));
   }, [type, callApi]);
 
+  const Stat = ({ icon: Ic, tone, label, value, sub }) => (
+    <div className="flex-1 min-w-[150px] bg-white rounded-2xl border border-slate-100 shadow-sm p-4">
+      <div className={`inline-flex items-center gap-1.5 text-xs font-semibold text-${tone}-600 mb-1.5`}><Ic className="h-4 w-4" />{label}</div>
+      <div className="font-head text-2xl font-extrabold text-slate-900">{value}</div>
+      {sub && <div className="text-[11px] text-slate-400 mt-0.5">{sub}</div>}
+    </div>
+  );
+
   return (
     <div data-testid="activity-records-admin">
       <Head title={tr("活動記錄")} sub={tr("統一查看秒殺搶購、積分抽獎、套餐下單的全部記錄")} />
+      {stats && (
+        <div className="flex flex-wrap gap-3 mb-5" data-testid="activity-stats">
+          <Stat icon={Zap} tone="rose" label={tr("今日秒殺")} value={`${stats.seckill.units} ${tr("件")}`} sub={`$${stats.seckill.revenue_usd.toFixed(2)}`} />
+          <Stat icon={Gift} tone="orange" label={tr("今日抽獎")} value={`${stats.lottery.draws} ${tr("次")}`} sub={tr("中真實獎 {0} 次", stats.lottery.real_wins)} />
+          <Stat icon={Package} tone="violet" label={tr("今日套餐")} value={`${stats.combo.orders} ${tr("單")}`} sub={`$${stats.combo.revenue_usd.toFixed(2)} · ${tr("省")} $${stats.combo.saved_usd.toFixed(2)}`} />
+        </div>
+      )}
       <div className="flex gap-2 mb-4">
         {TABS.map((t) => (
           <button key={t.key} data-testid={`act-tab-${t.key}`} onClick={() => setType(t.key)}

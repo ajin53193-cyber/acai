@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { useUser } from "@clerk/react";
-import { Sparkles, Gift, ArrowLeft, Loader2, Coins } from "lucide-react";
+import { Sparkles, Gift, ArrowLeft, Loader2, Coins, Share2 } from "lucide-react";
 import { toast } from "sonner";
 import { useApi } from "@/lib/api";
 import { useAuthModal } from "@/components/auth/AuthModal";
@@ -31,6 +31,20 @@ export default function Lottery() {
   const seg = 360 / n;
   const grad = prizes.map((p, i) => `${p.color} ${i * seg}deg ${(i + 1) * seg}deg`).join(", ");
   const freeAvail = status?.free_available;
+  const bonus = status?.bonus_draws || 0;
+
+  const share = async () => {
+    if (!isSignedIn) return openAuth();
+    const url = window.location.origin + "/lottery";
+    try { await navigator.clipboard.writeText(url); } catch { /* noop */ }
+    if (navigator.share) { try { await navigator.share({ title: tr("積分幸運大轉盤"), text: tr("來 gogo589 玩積分抽獎，100% 有獎！"), url }); } catch { /* cancelled */ } }
+    try {
+      const r = await callApi({ method: "POST", url: "/lottery/share" });
+      if (r.data.granted) toast.success(r.data.message || tr("分享成功，獲得 1 次免費抽獎！"));
+      else toast.info(r.data.message || tr("今日分享獎勵已領取"));
+      loadStatus();
+    } catch (e) { toast.error(e.response?.data?.detail || tr("失敗")); }
+  };
 
   const draw = async (count = 1) => {
     if (!isSignedIn) return openAuth();
@@ -47,7 +61,7 @@ export default function Lottery() {
         setSpinning(false);
         setResult(r.data);
         setPoints(r.data.points_balance);
-        setStatus((s) => s ? { ...s, free_available: r.data.free_available } : s);
+        setStatus((s) => s ? { ...s, free_available: r.data.free_available, bonus_draws: r.data.bonus_draws ?? s.bonus_draws } : s);
         loadHist();
       }, 4200);
     } catch (e) {
@@ -103,8 +117,15 @@ export default function Lottery() {
               {tr("連抽十次（{0} 積分）", (cfg?.cost_points || 0) * 10)}
             </button>
           )}
+          <button data-testid="lottery-share-btn" onClick={share} disabled={spinning} className="h-12 px-6 rounded-full bg-white/20 backdrop-blur text-white font-bold text-base border border-white/40 hover:bg-white/30 inline-flex items-center gap-1.5">
+            <Share2 className="h-4 w-4" />{tr("分享得抽獎次數")}
+          </button>
         </div>
-        {isSignedIn && freeAvail && <div className="text-center mt-2 text-white/90 text-sm" data-testid="lottery-free-badge">🎁 {tr("今日有 1 次免費抽獎機會！")}</div>}
+        {isSignedIn && (freeAvail || bonus > 0) && (
+          <div className="text-center mt-2 text-white/90 text-sm" data-testid="lottery-free-badge">
+            🎁 {bonus > 0 ? tr("你有 {0} 次分享免費抽獎機會！", bonus) : tr("今日有 1 次免費抽獎機會！")}
+          </div>
+        )}
 
         {/* History */}
         {isSignedIn && (

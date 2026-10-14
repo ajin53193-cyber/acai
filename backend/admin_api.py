@@ -837,6 +837,9 @@ class ComboIn(BaseModel):
     price_usd: float = 0
     active: bool = True
     sort_order: int = 0
+    start_at: str = ""
+    end_at: str = ""
+    stock: int = 0
 
 
 async def _enrich_combo(c: dict) -> dict:
@@ -850,6 +853,7 @@ async def _enrich_combo(c: dict) -> dict:
         out_items.append({**ci, "product_name": (p or {}).get("name", ci["product_id"]), "image": (p or {}).get("image", ""), "spec_label": spec.get("label", "")})
     c["items"] = out_items
     c["original_total_usd"] = round(orig, 2)
+    c["remaining"] = (max(0, int(c.get("stock") or 0) - int(c.get("sold") or 0)) if int(c.get("stock") or 0) > 0 else None)
     return c
 
 
@@ -861,7 +865,7 @@ async def admin_combos(admin: dict = Depends(current_admin)):
 
 @router.post("/combos")
 async def admin_combo_create(body: ComboIn, admin: dict = Depends(current_admin)):
-    doc = {"id": uuid.uuid4().hex[:12], **body.dict(), "created_at": datetime.now(timezone.utc).isoformat()}
+    doc = {"id": uuid.uuid4().hex[:12], **body.dict(), "sold": 0, "created_at": datetime.now(timezone.utc).isoformat()}
     await db.combos.insert_one(dict(doc))
     doc.pop("_id", None)
     return doc
@@ -922,6 +926,32 @@ async def admin_activity_records(type: str = "all", limit: int = 200, admin: dic
         r["account_no"] = lb.get("account_no", "-")
         r["user_label"] = lb.get("label", "-")
     return recs
+
+
+@router.get("/activity-stats")
+async def admin_activity_stats(admin: dict = Depends(current_admin)):
+    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    seckill_units = seckill_rev = 0
+    paid = {"$in": ["paid", "processing", "completed", "shipped"]}
+    async for o in db.orders.find({"created_at": {"$regex": f"^{today}"}, "items.flash_id": {"$ne": None}}, {"_id": 0, "items": 1}):
+        for it in o.get("items", []):
+            if it.get("flash_id"):
+                q = int(it.get("quantity") or 1)
+                seckill_units += q
+                seckill_rev += float(it.get("unit_price_usd") or 0) * q
+    combo_orders = combo_rev = combo_saved = 0
+    async for o in db.orders.find({"created_at": {"$regex": f"^{today}"}, "combo_discount_usd": {"$gt": 0}}, {"_id": 0, "total_usd": 1, "combo_discount_usd": 1}):
+        combo_orders += 1
+        combo_rev += float(o.get("total_usd") or 0)
+        combo_saved += float(o.get("combo_discount_usd") or 0)
+    lottery_draws = await db.lottery_draws.count_documents({"created_at": {"$regex": f"^{today}"}})
+    lottery_real = await db.lottery_draws.count_documents({"created_at": {"$regex": f"^{today}"}, "prize_type": {"$nin": ["none"]}})
+    return {
+        "date": today,
+        "seckill": {"units": seckill_units, "revenue_usd": round(seckill_rev, 2)},
+        "lottery": {"draws": lottery_draws, "real_wins": lottery_real},
+        "combo": {"orders": combo_orders, "revenue_usd": round(combo_rev, 2), "saved_usd": round(combo_saved, 2)},
+    }
 
 
 # ----------------------------- Translations -----------------------------

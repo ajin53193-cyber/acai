@@ -519,16 +519,30 @@ async def lottery_config_public():
 
 async def _free_draw_used_today(uid: str) -> bool:
     today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-    return bool(await db.lottery_draws.find_one({"user_id": uid, "free": True, "created_at": {"$regex": f"^{today}"}}, {"_id": 1}))
+    return bool(await db.lottery_draws.find_one({"user_id": uid, "free_kind": "daily", "created_at": {"$regex": f"^{today}"}}, {"_id": 1}))
 
 
 @api_router.get("/lottery/my-status")
 async def lottery_my_status(member: dict = Depends(current_member)):
     cfg = await admin_api.get_lottery_cfg()
-    u = await db.users.find_one({"user_id": member["user_id"]}, {"_id": 0, "points": 1}) or {}
-    free_available = bool(cfg.get("free_daily")) and not await _free_draw_used_today(member["user_id"])
+    u = await db.users.find_one({"user_id": member["user_id"]}, {"_id": 0, "points": 1, "lottery_bonus_draws": 1}) or {}
+    bonus = int(u.get("lottery_bonus_draws") or 0)
+    daily_free = bool(cfg.get("free_daily")) and not await _free_draw_used_today(member["user_id"])
     return {"points": int(u.get("points") or 0), "cost_points": int(cfg.get("cost_points") or 0),
-            "free_daily": bool(cfg.get("free_daily")), "free_available": free_available, "enabled": bool(cfg.get("enabled"))}
+            "free_daily": bool(cfg.get("free_daily")), "daily_free_available": daily_free, "bonus_draws": bonus,
+            "free_available": daily_free or bonus > 0, "enabled": bool(cfg.get("enabled"))}
+
+
+@api_router.post("/lottery/share")
+async def lottery_share(member: dict = Depends(current_member)):
+    uid = member["user_id"]
+    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    u = await db.users.find_one({"user_id": uid}, {"_id": 0, "lottery_share_date": 1, "lottery_bonus_draws": 1}) or {}
+    if u.get("lottery_share_date") == today:
+        return {"granted": False, "bonus_draws": int(u.get("lottery_bonus_draws") or 0), "message": "今日分享獎勵已領取"}
+    r = await db.users.find_one_and_update({"user_id": uid}, {"$set": {"lottery_share_date": today}, "$inc": {"lottery_bonus_draws": 1}}, return_document=True)
+    await log_user(uid, "lottery", "分享抽獎", "分享獲得 1 次免費抽獎")
+    return {"granted": True, "bonus_draws": int((r or {}).get("lottery_bonus_draws") or 1), "message": "分享成功，獲得 1 次免費抽獎！"}
 
 
 async def _pick_and_grant(uid: str, cfg: dict, points_bal: int, exclude_none: bool = False):
@@ -582,15 +596,20 @@ async def lottery_draw(body: dict = None, member: dict = Depends(current_member)
     count = int((body or {}).get("count") or 1)
     count = 10 if count >= 10 else 1
     cost = int(cfg.get("cost_points") or 0)
-    # free daily draw applies only to a single draw
-    use_free = count == 1 and bool(cfg.get("free_daily")) and not await _free_draw_used_today(uid)
+    u = await db.users.find_one({"user_id": uid}, {"_id": 0, "points": 1, "lottery_bonus_draws": 1}) or {}
+    bonus = int(u.get("lottery_bonus_draws") or 0)
+    daily_free = count == 1 and bool(cfg.get("free_daily")) and not await _free_draw_used_today(uid)
+    use_bonus = count == 1 and not daily_free and bonus > 0
+    use_free = daily_free or use_bonus
+    free_kind = "daily" if daily_free else ("bonus" if use_bonus else "")
     charge = 0 if use_free else cost * count
-    u = await db.users.find_one({"user_id": uid}, {"_id": 0, "points": 1}) or {}
     bal = int(u.get("points") or 0)
     if bal < charge:
         raise HTTPException(status_code=400, detail=f"積分不足，本次抽獎需 {charge} 積分")
     bal -= charge
     await db.users.update_one({"user_id": uid}, {"$set": {"points": bal}})
+    if use_bonus:
+        await db.users.update_one({"user_id": uid}, {"$inc": {"lottery_bonus_draws": -1}})
     if charge > 0:
         await db.point_transactions.insert_one({"id": new_id(), "user_id": uid, "delta": -charge, "balance_after": bal,
                                                 "source": "lottery", "reason": f"抽獎消耗積分 x{count}", "ref": "", "created_at": now_iso()})
@@ -604,15 +623,19 @@ async def lottery_draw(body: dict = None, member: dict = Depends(current_member)
         if w is not None:
             wallet_usd = w
         draw = {"id": new_id(), "user_id": uid, "prize_id": win["id"], "prize_label": win["label"], "prize_type": win.get("type", "none"),
-                "prize_value": win.get("value"), "cost_points": (charge if count == 1 else cost), "free": bool(use_free and k == 0), "fulfilled": False, "created_at": now_iso()}
+                "prize_value": win.get("value"), "cost_points": (charge if count == 1 else cost), "free": bool(use_free and k == 0),
+                "free_kind": (free_kind if k == 0 else ""), "fulfilled": False, "created_at": now_iso()}
         await db.lottery_draws.insert_one(dict(draw))
         results.append({"prize_id": win["id"], "prize_label": win["label"], "prize_type": win.get("type", "none")})
     await log_user(uid, "lottery", "抽獎", f"x{count} 中獎：" + "、".join(r["prize_label"] for r in results))
     first = results[0]
+    ub = await db.users.find_one({"user_id": uid}, {"_id": 0, "lottery_bonus_draws": 1}) or {}
+    bonus_left = int(ub.get("lottery_bonus_draws") or 0)
+    daily_avail = bool(cfg.get("free_daily")) and not await _free_draw_used_today(uid)
     return {"results": results, "count": count, "free_used": use_free,
             "prize_id": first["prize_id"], "prize_label": first["prize_label"], "prize_type": first["prize_type"],
-            "points_balance": bal, "balance_usd": wallet_usd,
-            "free_available": bool(cfg.get("free_daily")) and not await _free_draw_used_today(uid)}
+            "points_balance": bal, "balance_usd": wallet_usd, "bonus_draws": bonus_left,
+            "free_available": daily_avail or bonus_left > 0}
 
 
 @api_router.get("/lottery/my-draws")
@@ -622,9 +645,18 @@ async def lottery_my_draws(member: dict = Depends(current_member)):
 
 @api_router.get("/combos/public")
 async def public_combos():
+    nowi = now_iso()
     rows = await db.combos.find({"active": True}, {"_id": 0}).sort([("sort_order", 1)]).to_list(50)
     out = []
     for c in rows:
+        if c.get("start_at") and c["start_at"] > nowi:
+            continue
+        if c.get("end_at") and c["end_at"] < nowi:
+            continue
+        stock = int(c.get("stock") or 0)
+        sold = int(c.get("sold") or 0)
+        if stock > 0 and sold >= stock:
+            continue
         items = []
         orig = 0.0
         ok = True
@@ -643,7 +675,8 @@ async def public_combos():
         if not ok or not items:
             continue
         out.append({"id": c["id"], "title": c["title"], "image": c.get("image", ""), "price_usd": round(float(c["price_usd"]), 2),
-                    "original_total_usd": round(orig, 2), "items": items})
+                    "original_total_usd": round(orig, 2), "items": items,
+                    "end_at": c.get("end_at", ""), "stock": stock, "remaining": (max(0, stock - sold) if stock > 0 else None)})
     return out
 
 
@@ -1800,6 +1833,16 @@ async def create_order(order: OrderIn, member: dict = Depends(current_member)):
             {"$inc": {"sold": qty}})
         if not r:
             raise HTTPException(status_code=409, detail="秒殺商品庫存不足，已被搶完")
+    # combo (套餐) limited-stock reservation — 1 set per combo_id present
+    for cid in {it.get("combo_id") for it in items if it.get("combo_id")}:
+        combo = await db.combos.find_one({"id": cid, "active": True}, {"_id": 0})
+        if not combo:
+            continue
+        cstock = int(combo.get("stock") or 0)
+        if cstock > 0:
+            r = await db.combos.find_one_and_update({"id": cid, "$expr": {"$lt": [{"$ifNull": ["$sold", 0]}, cstock]}}, {"$inc": {"sold": 1}})
+            if not r:
+                raise HTTPException(status_code=409, detail="套餐已售罄")
     cur = await db.currencies.find_one({"code": order.currency, "active": True}, {"_id": 0}) or \
         {"code": "USD", "symbol": "$", "rate_to_usd": 1.0}
     order_no = "GT" + datetime.now(timezone.utc).strftime("%y%m%d") + uuid.uuid4().hex[:6].upper()
@@ -2140,6 +2183,8 @@ async def admin_update_order(order_id: str, body: StatusUpdate, admin: dict = De
                 fq[fid] = fq.get(fid, 0) + int(it.get("quantity") or 0)
         for fid, qty in fq.items():
             await db.flash_sales.update_one({"id": fid}, {"$inc": {"sold": -qty}})
+        for cid in {it.get("combo_id") for it in o.get("items", []) if it.get("combo_id")}:
+            await db.combos.update_one({"id": cid, "stock": {"$gt": 0}}, {"$inc": {"sold": -1}})
         if fq:
             await db.orders.update_one({"id": order_id}, {"$set": {"flash_released": True}})
     if body.status == "completed" and o.get("status") != "completed":

@@ -33,7 +33,7 @@ export default function Home() {
   const { addCombo } = useCart();
   const navigate = useNavigate();
   const cfg = useSiteConfig();
-  const { hero, announcement, promo_banners: promos, features, register } = cfg;
+  const { hero, hero_slides: heroSlides, announcement, promo_banners: promos, features, register } = cfg;
 
   useEffect(() => {
     publicApi.get("/categories").then((r) => setCategories(r.data)).catch(() => {});
@@ -59,6 +59,9 @@ export default function Home() {
       )}
       {/* Hero banner */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4">
+        {(heroSlides && heroSlides.length > 0) ? (
+          <HeroCarousel slides={heroSlides} />
+        ) : (
         <div className="relative overflow-hidden rounded-2xl sm:rounded-3xl bg-gradient-to-r from-orange-100 via-amber-50 to-orange-50 border border-orange-100">
           <div className="relative z-10 px-4 sm:px-10 py-4 sm:py-12 max-w-[60%]">
             <div className="text-[11px] sm:text-sm font-medium sm:font-semibold text-slate-500 sm:text-orange-500 mb-1 sm:mb-2">{hero.kicker}</div>
@@ -76,6 +79,7 @@ export default function Home() {
           <img src={hero.image}
             alt="hero" className="absolute right-0 top-0 h-full w-[48%] sm:w-[55%] object-cover object-[35%_center] sm:object-left pointer-events-none" />
         </div>
+        )}
       </div>
 
       {/* Announcement */}
@@ -502,7 +506,13 @@ function CombosSection({ combos, onBuy }) {
             </div>
             <div className="min-w-0 flex-1 flex flex-col">
               <div className="font-semibold text-sm text-slate-800 truncate">{c.title}</div>
-              <div className="text-[11px] text-slate-400 line-clamp-2 mt-0.5">{c.items.map((i) => `${i.product_name}×${i.quantity}`).join("、")}</div>
+              <div className="text-[11px] text-slate-400 line-clamp-1 mt-0.5">{c.items.map((i) => `${i.product_name}×${i.quantity}`).join("、")}</div>
+              {(c.end_at || c.remaining != null) && (
+                <div className="flex items-center gap-2 mt-1 text-[10px]">
+                  {c.end_at && <span className="flex items-center gap-0.5 text-amber-600"><Zap className="h-3 w-3" /><Countdown end={c.end_at} /></span>}
+                  {c.remaining != null && <span className="text-rose-500 font-semibold" data-testid={`combo-remaining-${c.id}`}>{tr("僅剩 {0} 份", c.remaining)}</span>}
+                </div>
+              )}
               <div className="mt-auto flex items-end justify-between pt-1.5">
                 <div><span className="font-head font-extrabold text-rose-600">{format(c.price_usd)}</span> <span className="text-[11px] text-slate-400 line-through">{format(c.original_total_usd)}</span></div>
                 <button data-testid={`combo-buy-${c.id}`} onClick={() => onBuy(c)} className="h-8 px-3 rounded-full bg-rose-500 text-white text-xs font-bold hover:bg-rose-600">{tr("立即搶購")}</button>
@@ -512,6 +522,31 @@ function CombosSection({ combos, onBuy }) {
         ))}
       </div>
     </section>
+  );
+}
+
+function HeroCarousel({ slides }) {
+  const [idx, setIdx] = useState(0);
+  useEffect(() => {
+    if (slides.length <= 1) return;
+    const t = setInterval(() => setIdx((i) => (i + 1) % slides.length), 4000);
+    return () => clearInterval(t);
+  }, [slides.length]);
+  return (
+    <div className="relative overflow-hidden rounded-2xl sm:rounded-3xl border border-orange-100" data-testid="hero-carousel">
+      <div className="flex transition-transform duration-500 ease-out" style={{ transform: `translateX(-${idx * 100}%)` }}>
+        {slides.map((s, i) => (
+          <SmartLink key={i} to={s.link || "#"} data-testid={`hero-slide-link-${i}`} className="block w-full shrink-0">
+            <img src={s.image} alt={s.alt || ""} className="w-full h-auto object-cover aspect-[16/6] sm:aspect-[16/5]" />
+          </SmartLink>
+        ))}
+      </div>
+      {slides.length > 1 && (
+        <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1.5">
+          {slides.map((_, i) => <button key={i} onClick={() => setIdx(i)} className={`h-2 rounded-full transition-all ${i === idx ? "w-5 bg-white" : "w-2 bg-white/60"}`} aria-label={`slide ${i + 1}`} />)}
+        </div>
+      )}
+    </div>
   );
 }
 

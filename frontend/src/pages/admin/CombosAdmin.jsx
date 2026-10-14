@@ -4,7 +4,7 @@ import { Plus, Pencil, Trash2, Package, Search, X } from "lucide-react";
 import { tr } from "@/i18n";
 import { Head, Btn, Input, Table, Modal, Field, Pill, useLoad } from "./ui";
 
-const empty = { title: "", image: "", items: [], price_usd: 0, active: true, sort_order: 0 };
+const empty = { title: "", image: "", items: [], price_usd: 0, active: true, sort_order: 0, start_at: "", end_at: "", stock: 0 };
 
 function ItemAdder({ callApi, onAdd }) {
   const [q, setQ] = useState("");
@@ -42,6 +42,7 @@ export function CombosAdmin({ callApi }) {
     if (!edit.items.length) return toast.error(tr("請至少加入一個商品"));
     if (!edit.price_usd || edit.price_usd <= 0) return toast.error(tr("請輸入套餐價"));
     const body = { title: edit.title, image: edit.image, price_usd: +edit.price_usd, active: edit.active, sort_order: +edit.sort_order || 0,
+      start_at: edit.start_at || "", end_at: edit.end_at || "", stock: Math.max(0, +edit.stock || 0),
       items: edit.items.map((i) => ({ product_id: i.product_id, spec_id: i.spec_id, quantity: Math.max(1, +i.quantity || 1) })) };
     try {
       if (edit.id) await callApi({ method: "PUT", url: `/admin/combos/${edit.id}`, data: body });
@@ -59,7 +60,7 @@ export function CombosAdmin({ callApi }) {
         <tr key={c.id} data-testid={`combo-row-${c.id}`} className={`hover:bg-orange-50/30 ${c.active ? "" : "opacity-60"}`}>
           <td className="px-4 py-2"><div className="flex items-center gap-2 max-w-[200px]">{c.image ? <img src={c.image} alt="" className="h-9 w-9 rounded-lg object-cover" /> : <span className="h-9 w-9 rounded-lg bg-rose-100 flex items-center justify-center"><Package className="h-4 w-4 text-rose-500" /></span>}<span className="truncate font-semibold text-slate-800">{c.title}</span></div></td>
           <td className="px-4 py-2 text-xs text-slate-500">{(c.items || []).map((i) => `${i.product_name}×${i.quantity}`).join("、")}</td>
-          <td className="px-4 py-2 font-head font-bold text-rose-600">${Number(c.price_usd).toFixed(2)}</td>
+          <td className="px-4 py-2 font-head font-bold text-rose-600">${Number(c.price_usd).toFixed(2)}{c.stock > 0 && <span className="block text-[10px] font-normal text-slate-400">{tr("餘 {0}/{1}", c.remaining ?? c.stock, c.stock)}</span>}{c.end_at && <span className="block text-[10px] font-normal text-amber-500">⏱ {tr("限時")}</span>}</td>
           <td className="px-4 py-2 text-xs text-slate-400 line-through">${Number(c.original_total_usd || 0).toFixed(2)}</td>
           <td className="px-4 py-2">{c.active ? <Pill tone="emerald">{tr("啟用中")}</Pill> : <Pill tone="slate">{tr("已停用")}</Pill>}</td>
           <td className="px-4 py-2"><div className="flex gap-1.5"><Btn kind="ghost" data-testid={`combo-edit-${c.id}`} onClick={() => setEdit({ ...c })}><Pencil className="h-3.5 w-3.5" /></Btn><Btn kind="danger" data-testid={`combo-del-${c.id}`} onClick={() => del(c)}><Trash2 className="h-3.5 w-3.5" /></Btn></div></td>
@@ -74,6 +75,11 @@ export function CombosAdmin({ callApi }) {
             <Field label={tr("排序（小在前）")}><Input type="number" className="w-full" value={edit.sort_order} onChange={(e) => setEdit({ ...edit, sort_order: e.target.value })} /></Field>
           </div>
           <Field label={tr("套餐封面圖網址（選填）")}><Input className="w-full" value={edit.image} onChange={(e) => setEdit({ ...edit, image: e.target.value })} placeholder="https://..." /></Field>
+          <div className="grid grid-cols-3 gap-3">
+            <Field label={tr("限量庫存（0=不限）")}><Input data-testid="combo-stock" type="number" className="w-full" value={edit.stock} onChange={(e) => setEdit({ ...edit, stock: e.target.value })} /></Field>
+            <Field label={tr("開始時間（選填）")}><Input type="datetime-local" className="w-full" value={(edit.start_at || "").slice(0, 16)} onChange={(e) => setEdit({ ...edit, start_at: e.target.value })} /></Field>
+            <Field label={tr("結束時間（選填）")}><Input type="datetime-local" className="w-full" value={(edit.end_at || "").slice(0, 16)} onChange={(e) => setEdit({ ...edit, end_at: e.target.value })} /></Field>
+          </div>
           <Field label={tr("包含商品")}>
             <div className="space-y-1.5 mb-2">
               {(edit.items || []).map((it, i) => (

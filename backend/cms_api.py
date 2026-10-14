@@ -54,6 +54,7 @@ DEFAULT_CONFIG = {
         "title": "新用戶註冊，最高領 9% 優惠券", "subtitle": "註冊即享首單優惠，海量正版 App 充值等你來！",
         "mobile_image": "/banners/register-mobile.png",
     },
+    "hero_slides": [],
     "home_layout": [
         {"key": "flash_sale", "label": "限時秒殺", "visible": True},
         {"key": "lottery_entry", "label": "積分抽獎入口", "visible": True},
