@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
-import { Copy, Package, Loader2, Check, Gift } from "lucide-react";
+import { Copy, Package, Check, Gift } from "lucide-react";
 import { toast } from "sonner";
 import { useApi } from "@/lib/api";
 import { useCart } from "@/context/CartContext";
@@ -78,14 +78,22 @@ function GiftTransferring({ order, onRefresh, callApi }) {
   const pct = end ? Math.min(100, Math.round(((total - left) / total) * 100)) : 60;
   const mm = Math.floor(left / 60000), ss = Math.floor((left % 60000) / 1000);
   return (
-    <div data-testid="order-gift-transferring" className="w-full rounded-2xl bg-white border border-orange-100 px-4 py-5 text-center shadow-[0_6px_20px_-12px_rgba(232,121,42,0.35)]">
-      <div className="relative mx-auto h-16 w-16">
-        <svg viewBox="0 0 36 36" className="h-16 w-16 -rotate-90"><circle cx="18" cy="18" r="15.5" fill="none" stroke="#ffedd5" strokeWidth="3" /><circle cx="18" cy="18" r="15.5" fill="none" stroke="#f97316" strokeWidth="3" strokeLinecap="round" strokeDasharray={`${pct} 100`} pathLength="100" /></svg>
-        <Loader2 className="absolute inset-0 m-auto h-5 w-5 text-orange-500 animate-spin" />
+    <div data-testid="order-gift-transferring" className="relative w-full overflow-hidden rounded-3xl border border-orange-200/70 bg-gradient-to-b from-[#FFE6CC] via-[#FFF1E2] to-white px-4 py-6 text-center shadow-[0_12px_30px_-14px_rgba(232,121,42,0.55)]">
+      <div className="pointer-events-none absolute inset-0 [background-image:radial-gradient(rgba(255,255,255,0.85)_1.5px,transparent_1.5px)] [background-size:16px_16px]" />
+      <div className="relative">
+        <div className="relative mx-auto h-28 w-28">
+          <svg viewBox="0 0 36 36" className="absolute inset-0 h-28 w-28 -rotate-90">
+            <circle cx="18" cy="18" r="16.5" fill="none" stroke="#ffe0bf" strokeWidth="2.5" />
+            <circle cx="18" cy="18" r="16.5" fill="none" stroke="#f97316" strokeWidth="2.5" strokeLinecap="round" strokeDasharray={`${pct} 100`} pathLength="100" className="transition-all duration-700" />
+          </svg>
+          <div className="absolute inset-[7px] rounded-full overflow-hidden ring-2 ring-white/70 shadow-[0_6px_16px_-6px_rgba(232,121,42,0.6)] animate-gt-float">
+            <img src="/giftbox-disc.png" alt="" className="h-full w-full object-cover scale-[1.08]" />
+          </div>
+        </div>
+        <div className="mt-4 font-cute text-xl text-orange-600 drop-shadow-sm">{tr("系統轉贈中")}…</div>
+        {end > 0 && left > 0 && <div className="font-cute-num text-[2.5rem] leading-none font-bold text-orange-500 mt-1.5 tracking-wide tabular-nums" data-testid="order-gift-countdown">{mm}:{String(ss).padStart(2, "0")}</div>}
+        <div className="font-cute text-[13px] text-orange-900/50 mt-3 leading-6 px-2">{tr("系統轉贈中，請耐心等候，請勿關閉頁面。完成後將自動顯示交易號。")}</div>
       </div>
-      <div className="mt-3 font-head font-extrabold text-orange-600">{tr("系統轉贈中")}…</div>
-      {end > 0 && left > 0 && <div className="font-head text-3xl font-extrabold text-orange-500 mt-1" data-testid="order-gift-countdown">{mm}:{String(ss).padStart(2, "0")}</div>}
-      <div className="text-xs text-slate-500 mt-2 leading-5">{tr("系統轉贈中，請耐心等候，請勿關閉頁面。完成後將自動顯示交易號。")}</div>
     </div>
   );
 }
@@ -180,14 +188,17 @@ function OrdersInner() {
                   </div>
                 </div>
                 {o.status === "completed" && (o.gift_trade_nos || []).length > 0 && (
-                  <div className="mt-3 rounded-2xl bg-orange-50 border border-orange-100 px-3.5 py-3" data-testid={`order-gift-trade-${o.id}`}>
-                    <div className="text-sm font-bold text-orange-600 flex items-center gap-1.5"><Gift className="h-4 w-4" />{tr("轉贈成功 · 交易號")}</div>
-                    {o.gift_trade_nos.map((g, i) => (
-                      <div key={i} className="mt-1.5 flex items-center justify-between gap-2">
-                        <span className="font-mono text-base md:text-lg tracking-wider text-slate-800 break-all" data-testid={`order-gift-trade-no-${o.id}-${i}`}>{g.trade_no}</span>
-                        <button onClick={() => copy(g.trade_no)} data-testid={`order-gift-trade-copy-${o.id}-${i}`} className="shrink-0 inline-flex items-center gap-1 text-orange-500 text-sm font-semibold hover:text-orange-600"><Copy className="h-4 w-4" />{tr("複製")}</button>
-                      </div>
-                    ))}
+                  <div className="relative mt-3 overflow-hidden rounded-2xl border border-orange-200/70 bg-gradient-to-br from-[#FFEAD3] to-[#FFF6EC] px-3.5 py-3 shadow-[0_8px_22px_-14px_rgba(232,121,42,0.5)]" data-testid={`order-gift-trade-${o.id}`}>
+                    <div className="pointer-events-none absolute inset-0 [background-image:radial-gradient(rgba(255,255,255,0.8)_1.5px,transparent_1.5px)] [background-size:15px_15px]" />
+                    <div className="relative">
+                      <div className="font-cute text-base text-orange-600 flex items-center gap-1.5"><span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-orange-500 text-white shadow-sm"><Gift className="h-3.5 w-3.5" /></span>{tr("轉贈成功 · 交易號")}</div>
+                      {o.gift_trade_nos.map((g, i) => (
+                        <div key={i} className="mt-2 flex items-center justify-between gap-2 rounded-xl bg-white/70 px-2.5 py-2">
+                          <span className="font-mono text-base md:text-lg tracking-wider text-slate-800 break-all" data-testid={`order-gift-trade-no-${o.id}-${i}`}>{g.trade_no}</span>
+                          <button onClick={() => copy(g.trade_no)} data-testid={`order-gift-trade-copy-${o.id}-${i}`} className="shrink-0 inline-flex items-center gap-1 text-orange-500 text-sm font-semibold hover:text-orange-600"><Copy className="h-4 w-4" />{tr("複製")}</button>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 )}
                 <div className="mt-3 md:mt-4 pt-3 border-t border-slate-200/70 flex items-center justify-center md:justify-end gap-2.5 md:gap-2">
@@ -261,15 +272,18 @@ function OrdersInner() {
                 )}
 
                 {detail.status === "completed" && (detail.gift_trade_nos || []).length > 0 && (
-                  <div className="rounded-2xl bg-orange-50 border border-orange-100 p-4 shadow-[0_6px_20px_-12px_rgba(232,121,42,0.35)]" data-testid="order-gift-trade-detail">
-                    <div className="text-sm font-bold text-orange-600 mb-2 flex items-center gap-1.5"><Gift className="h-4 w-4" />{tr("轉贈成功 · 交易號")}</div>
-                    <div className="space-y-2">
-                      {detail.gift_trade_nos.map((g, i) => (
-                        <div key={i} className="flex items-center justify-between gap-2">
-                          <div className="min-w-0"><div className="font-mono text-base tracking-wider text-slate-800 break-all">{g.trade_no}</div><div className="text-[11px] text-slate-500">{g.product_name} {g.spec_label}</div></div>
-                          <button onClick={() => copy(g.trade_no)} className="shrink-0 inline-flex items-center gap-1 text-orange-500 text-sm font-semibold hover:text-orange-600"><Copy className="h-4 w-4" />{tr("複製")}</button>
-                        </div>
-                      ))}
+                  <div className="relative overflow-hidden rounded-2xl border border-orange-200/70 bg-gradient-to-br from-[#FFEAD3] to-[#FFF6EC] p-4 shadow-[0_10px_26px_-14px_rgba(232,121,42,0.5)]" data-testid="order-gift-trade-detail">
+                    <div className="pointer-events-none absolute inset-0 [background-image:radial-gradient(rgba(255,255,255,0.8)_1.5px,transparent_1.5px)] [background-size:15px_15px]" />
+                    <div className="relative">
+                      <div className="font-cute text-lg text-orange-600 mb-2.5 flex items-center gap-1.5"><span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-orange-500 text-white shadow-sm"><Gift className="h-3.5 w-3.5" /></span>{tr("轉贈成功 · 交易號")}</div>
+                      <div className="space-y-2">
+                        {detail.gift_trade_nos.map((g, i) => (
+                          <div key={i} className="flex items-center justify-between gap-2 rounded-xl bg-white/70 px-3 py-2.5">
+                            <div className="min-w-0"><div className="font-mono text-base tracking-wider text-slate-800 break-all">{g.trade_no}</div><div className="text-[11px] text-slate-500 mt-0.5">{g.product_name} {g.spec_label}</div></div>
+                            <button onClick={() => copy(g.trade_no)} className="shrink-0 inline-flex items-center gap-1 text-orange-500 text-sm font-semibold hover:text-orange-600"><Copy className="h-4 w-4" />{tr("複製")}</button>
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   </div>
                 )}

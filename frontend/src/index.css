@@ -49,6 +49,20 @@ code, .font-mono {
     font-family: var(--font-head);
 }
 
+.font-cute {
+    font-family: "ZCOOL KuaiLe", "Fredoka", "Noto Sans TC", sans-serif;
+}
+
+.font-cute-num {
+    font-family: "Fredoka", "ZCOOL KuaiLe", sans-serif;
+}
+
+@keyframes gt-float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-5px); }
+}
+.animate-gt-float { animation: gt-float 2.4s ease-in-out infinite; }
+
 @layer base {
     :root {
         --background: 36 40% 99%;
