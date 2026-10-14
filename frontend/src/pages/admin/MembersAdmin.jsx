@@ -1,8 +1,8 @@
 import { useEffect, useState, useCallback } from "react";
 import { toast } from "sonner";
-import { X, Search, Users, UserCheck, UserPlus, ShieldBan, BadgeCheck, Crown, Wallet, ShoppingBag, RotateCw } from "lucide-react";
+import { X, Search, Users, UserCheck, UserPlus, ShieldBan, BadgeCheck, Crown, Wallet, ShoppingBag, RotateCw, Star, Tag as TagIcon } from "lucide-react";
 import { tr } from "@/i18n";
-import { Btn, Card, Input, Pill, Head, fmt, useLoad } from "./ui";
+import { Btn, Card, Input, Pill, Head, fmt, useLoad, toneCls } from "./ui";
 import { STATUS_LABELS } from "@/lib/status";
 
 const KIND_LABEL = { credit: tr("加款"), debit: tr("扣款"), refund: tr("退款") };
@@ -52,6 +52,49 @@ function WalletAdjust({ uid, balance, callApi, onDone }) {
   );
 }
 
+function TagsEditor({ uid, current, callApi, onDone }) {
+  const [all] = useLoad(callApi, "/admin/user-tags");
+  const [sel, setSel] = useState(current);
+  const [saving, setSaving] = useState(false);
+  const toggle = (id) => setSel((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id]));
+  const dirty = JSON.stringify([...sel].sort()) !== JSON.stringify([...current].sort());
+  const save = async () => { setSaving(true); try { await callApi({ method: "POST", url: `/admin/members/${uid}/tags`, data: { tag_ids: sel } }); toast.success(tr("標籤已更新")); onDone(); } catch { toast.error(tr("失敗")); } setSaving(false); };
+  return (
+    <Card className="p-4" data-testid="member-tags">
+      <div className="flex items-center justify-between mb-2"><div className="text-sm font-bold text-slate-800 flex items-center gap-1.5"><TagIcon className="h-4 w-4 text-slate-400" />{tr("用戶標籤")}</div>{dirty && <Btn data-testid="member-tags-save" onClick={save} disabled={saving}>{tr("儲存")}</Btn>}</div>
+      <div className="flex flex-wrap gap-2">
+        {(all || []).length === 0 ? <div className="text-xs text-slate-400">{tr("尚未建立標籤，請先到「用戶標籤」新增")}</div> : (all || []).map((t) => (
+          <button key={t.id} data-testid={`member-tag-${t.id}`} onClick={() => toggle(t.id)} className={`rounded-full px-2.5 py-1 text-xs font-semibold transition-all ${sel.includes(t.id) ? toneCls(t.color) + " ring-2 ring-offset-1 ring-slate-300" : "bg-slate-100 text-slate-400"}`}>{t.name}</button>
+        ))}
+      </div>
+    </Card>
+  );
+}
+
+function PointsAdjust({ uid, callApi, onDone }) {
+  const [delta, setDelta] = useState("");
+  const [reason, setReason] = useState("");
+  const [busy, setBusy] = useState(false);
+  const submit = async (sign) => {
+    const v = parseInt(delta, 10);
+    if (!v || v <= 0) return toast.error(tr("請輸入正整數"));
+    setBusy(true);
+    try { await callApi({ method: "POST", url: `/admin/members/${uid}/points/adjust`, data: { delta: sign * v, reason } }); toast.success(tr("積分已調整")); setDelta(""); setReason(""); onDone(); }
+    catch (e) { toast.error(e.response?.data?.detail || tr("失敗")); }
+    setBusy(false);
+  };
+  return (
+    <Card className="p-4" data-testid="member-points-adjust">
+      <div className="text-sm font-bold text-slate-800 mb-2 flex items-center gap-1.5"><Star className="h-4 w-4 text-amber-400" />{tr("積分調整")}</div>
+      <div className="grid grid-cols-[90px_1fr] gap-2 mb-2">
+        <Input data-testid="points-delta" type="number" min="1" value={delta} onChange={(e) => setDelta(e.target.value)} placeholder={tr("數量")} />
+        <Input data-testid="points-reason" value={reason} onChange={(e) => setReason(e.target.value)} placeholder={tr("備註（可選）")} />
+      </div>
+      <div className="flex gap-2"><Btn kind="ok" data-testid="points-add" onClick={() => submit(1)} disabled={busy}>{tr("增加")}</Btn><Btn kind="danger" data-testid="points-sub" onClick={() => submit(-1)} disabled={busy}>{tr("扣減")}</Btn></div>
+    </Card>
+  );
+}
+
 export function MemberDetail({ uid, callApi, onClose, onChanged }) {
   const [d, load] = useLoad(callApi, `/admin/members/${uid}`);
   useEffect(() => { const h = (e) => e.key === "Escape" && onClose(); window.addEventListener("keydown", h); return () => window.removeEventListener("keydown", h); }, [onClose]);
@@ -61,7 +104,7 @@ export function MemberDetail({ uid, callApi, onClose, onChanged }) {
   };
   const resetPw = () => { const p = window.prompt(tr("輸入新密碼（8~32 位，數字/字母/符號至少兩種）")); if (p) act("reset-password", { new_password: p }, tr("密碼已重設，該會員其他裝置已登出")); };
   if (!d) return null;
-  const tier = tierOf(d.spent_usd || 0);
+  const tier = d.level ? { label: d.level.name, cls: toneCls(d.level.color) } : tierOf(d.spent_usd || 0);
   const name = d.profile?.name || d.emails?.[0] || d.phone || tr("未命名會員");
   const InfoRow = ({ k, v }) => <div className="flex items-center gap-3 py-2 text-sm border-b border-slate-50 last:border-0"><span className="w-20 shrink-0 text-slate-400 text-xs">{k}</span><span className="text-slate-800 break-all font-medium">{v || "-"}</span></div>;
   const DataRow = ({ k, v }) => <div className="flex items-center justify-between py-2 text-sm border-b border-slate-50 last:border-0"><span className="text-slate-500">{k}</span><span className="font-head font-bold text-slate-900">{v}</span></div>;
@@ -88,7 +131,7 @@ export function MemberDetail({ uid, callApi, onClose, onChanged }) {
             <InfoRow k={tr("帳戶ID")} v={<span className="font-mono">{d.account_no}</span>} />
             <InfoRow k={tr("手機號")} v={d.phone} />
             <InfoRow k={tr("信箱")} v={d.emails?.join(", ")} />
-            <InfoRow k={tr("等級")} v={<span className={`inline-block rounded-full border px-2 py-0.5 text-[11px] font-semibold ${tier.cls}`}>{tier.label}</span>} />
+            <InfoRow k={tr("等級")} v={<span className={`inline-block rounded-full px-2 py-0.5 text-[11px] font-semibold ${tier.cls}`}>{tier.label}{d.level?.discount_percent > 0 ? ` · ${d.level.discount_percent}%` : ""}</span>} />
             <InfoRow k="Google" v={d.google ? tr("已綁定") : tr("未綁定")} />
             <InfoRow k={tr("註冊時間")} v={fmt(d.created_at)} />
             <InfoRow k={tr("最近登入")} v={d.last_sign_in_at ? new Date(d.last_sign_in_at).toISOString().slice(0, 16).replace("T", " ") : "-"} />
@@ -99,8 +142,12 @@ export function MemberDetail({ uid, callApi, onClose, onChanged }) {
             <div className="text-sm font-bold text-slate-800 mb-1.5">{tr("帳戶數據")}</div>
             <DataRow k={tr("帳戶餘額")} v={<span className="text-orange-600">USD$ {Number(d.balance_usd).toFixed(2)}</span>} />
             <DataRow k={tr("累計消費")} v={<>USD$ {Number(d.spent_usd || 0).toFixed(2)}</>} />
+            <DataRow k={tr("積分")} v={<span className="text-amber-600">{d.points || 0}</span>} />
             <DataRow k={tr("訂單數")} v={d.order_count || 0} />
           </Card>
+
+          <TagsEditor uid={uid} current={d.tags || []} callApi={callApi} onDone={() => { load(); onChanged(); }} />
+          <PointsAdjust uid={uid} callApi={callApi} onDone={() => { load(); onChanged(); }} />
 
           <div className="grid grid-cols-2 gap-2">
             {d.banned ? <Btn kind="ok" data-testid="member-unban" onClick={() => act("unban", {}, tr("已解除封禁"))}>{tr("解封")}</Btn> : <Btn kind="danger" data-testid="member-ban" onClick={() => window.confirm(tr("確定封禁此會員？其所有登入將被登出")) && act("ban", {}, tr("已封禁"))}>{tr("封禁")}</Btn>}
@@ -167,7 +214,8 @@ export function MembersAdmin({ callApi }) {
           </tr></thead>
           <tbody className="divide-y divide-slate-100">
             {rows.length === 0 ? <tr><td colSpan={9} className="px-4 py-14 text-center text-slate-400">{data === null ? tr("載入中…") : tr("暫無會員")}</td></tr> : rows.map((u) => {
-              const tier = tierOf(u.spent_usd || 0);
+              const lvName = u.level?.name || tierOf(u.spent_usd || 0).label;
+              const lvCls = u.level ? toneCls(u.level.color) + " border border-transparent" : tierOf(u.spent_usd || 0).cls;
               return (
                 <tr key={u.user_id} data-testid={`member-row-${u.user_id}`} className="hover:bg-orange-50/30 transition-colors">
                   <td className="px-4 py-3 whitespace-nowrap"><span className="font-head font-bold text-slate-900">{u.account_no}</span></td>
@@ -178,7 +226,7 @@ export function MembersAdmin({ callApi }) {
                     </div>
                   </td>
                   <td className="px-4 py-3 text-slate-600 whitespace-nowrap">{u.phone || "-"}</td>
-                  <td className="px-4 py-3"><span className={`inline-block rounded-full border px-2 py-0.5 text-[11px] font-semibold whitespace-nowrap ${tier.cls}`}>{tier.label}</span></td>
+                  <td className="px-4 py-3"><span className={`inline-block rounded-full px-2 py-0.5 text-[11px] font-semibold whitespace-nowrap ${lvCls}`}>{lvName}</span></td>
                   <td className="px-4 py-3 text-slate-600 whitespace-nowrap">{u.order_count} / <span className="font-semibold text-slate-800">${Number(u.spent_usd || 0).toFixed(2)}</span></td>
                   <td className="px-4 py-3 font-head font-bold text-slate-900 whitespace-nowrap">${Number(u.balance_usd || 0).toFixed(2)}</td>
                   <td className="px-4 py-3 text-slate-500 whitespace-nowrap">{fmt(u.created_at)}</td>

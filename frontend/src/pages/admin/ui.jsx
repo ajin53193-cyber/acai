@@ -19,7 +19,24 @@ export const Table = ({ cols, rows, render, empty, testId }) => (
   </Card>
 );
 export const Head = ({ title, sub, right }) => <div className="flex flex-wrap items-end justify-between gap-3 mb-5"><div><h1 className="font-head text-xl md:text-2xl font-bold text-slate-900">{title}</h1>{sub && <div className="text-xs text-slate-500 mt-1">{sub}</div>}</div><div className="flex items-center gap-2">{right}</div></div>;
+
+export function Modal({ title, onClose, children, footer, testId }) {
+  return (
+    <div className="fixed inset-0 z-50 bg-slate-900/40 flex items-center justify-center p-4" onClick={onClose}>
+      <div data-testid={testId} className="bg-white rounded-2xl w-full max-w-md max-h-[90vh] overflow-y-auto shadow-2xl" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between px-5 py-3.5 border-b border-slate-100 sticky top-0 bg-white"><h3 className="font-head font-bold text-slate-900">{title}</h3><button onClick={onClose} className="h-8 w-8 rounded-full bg-slate-100 flex items-center justify-center hover:bg-slate-200 text-slate-500 text-lg leading-none">×</button></div>
+        <div className="p-5 space-y-3">{children}</div>
+        {footer && <div className="px-5 py-3.5 border-t border-slate-100 flex justify-end gap-2 sticky bottom-0 bg-white">{footer}</div>}
+      </div>
+    </div>
+  );
+}
+export const Field = ({ label, children }) => <label className="block"><span className="text-xs font-medium text-slate-500">{label}</span><div className="mt-1">{children}</div></label>;
 export const fmt = (s) => (s ? s.slice(0, 16).replace("T", " ") : "-");
+
+export const TONES = ["slate", "sky", "emerald", "amber", "violet", "rose", "red", "orange", "teal", "indigo"];
+export const toneCls = (c) => ({ slate: "bg-slate-100 text-slate-600", sky: "bg-sky-100 text-sky-700", emerald: "bg-emerald-100 text-emerald-700", amber: "bg-amber-100 text-amber-700", violet: "bg-violet-100 text-violet-700", rose: "bg-rose-100 text-rose-700", red: "bg-red-100 text-red-600", orange: "bg-orange-100 text-orange-700", teal: "bg-teal-100 text-teal-700", indigo: "bg-indigo-100 text-indigo-700" }[c] || "bg-slate-100 text-slate-600");
+export const toneSolid = (c) => ({ slate: "bg-slate-500", sky: "bg-sky-500", emerald: "bg-emerald-500", amber: "bg-amber-500", violet: "bg-violet-500", rose: "bg-rose-500", red: "bg-red-500", orange: "bg-orange-500", teal: "bg-teal-500", indigo: "bg-indigo-500" }[c] || "bg-slate-500");
 export const useLoad = (callApi, url, deps = []) => {
   const [data, setData] = useState(null);
   const load = useCallback(() => callApi({ method: "GET", url }).then((r) => setData(r.data)).catch((e) => toast.error(e.response?.data?.detail || tr("載入失敗"))), [callApi, url]); // eslint-disable-line react-hooks/exhaustive-deps

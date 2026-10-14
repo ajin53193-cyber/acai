@@ -851,6 +851,42 @@ async def _wallet_tx(user_id: str, kind: str, amount_usd: float, note: str, ref:
     return new_bal
 
 
+POINTS_DEFAULT = {"earn_enabled": True, "earn_per_usd": 1, "order_enabled": True, "topup_enabled": True, "redeem_enabled": False, "points_per_usd_redeem": 100, "min_redeem": 500}
+
+
+async def get_points_config() -> dict:
+    doc = await db.settings.find_one({"key": "points"}, {"_id": 0}) or {}
+    return {**POINTS_DEFAULT, **(doc.get("value") or {})}
+
+
+async def award_points(user_id: str, usd: float, source: str, ref: str = "", note: str = ""):
+    cfg = await get_points_config()
+    if not cfg.get("earn_enabled"):
+        return
+    if source == "order" and not cfg.get("order_enabled"):
+        return
+    if source == "topup" and not cfg.get("topup_enabled"):
+        return
+    pts = int(float(usd) * float(cfg.get("earn_per_usd") or 0))
+    if pts <= 0:
+        return
+    if ref and await db.point_transactions.find_one({"user_id": user_id, "source": source, "ref": ref}, {"_id": 1}):
+        return  # idempotent
+    u = await db.users.find_one({"user_id": user_id}, {"_id": 0, "points": 1}) or {}
+    new_bal = int(u.get("points") or 0) + pts
+    await db.users.update_one({"user_id": user_id}, {"$set": {"points": new_bal}}, upsert=True)
+    await db.point_transactions.insert_one({"id": new_id(), "user_id": user_id, "delta": pts, "balance_after": new_bal, "source": source,
+                                            "reason": note or ("消費獲得積分" if source == "order" else "充值獲得積分"), "ref": ref, "created_at": now_iso()})
+    return new_bal
+
+
+async def log_user(user_id: str, type_: str, action: str, detail: str = "", ip: str = ""):
+    try:
+        await db.user_logs.insert_one({"id": new_id(), "user_id": user_id, "type": type_, "action": action, "detail": detail, "ip": ip, "created_at": now_iso()})
+    except Exception as e:
+        logger.warning("log_user failed: %s", e)
+
+
 @api_router.get("/me/wallet")
 async def get_wallet(member: dict = Depends(current_member)):
     txs = await db.wallet_transactions.find({"user_id": member["user_id"]}, {"_id": 0}).sort("created_at", -1).to_list(100)
@@ -934,6 +970,8 @@ async def _usdt_settle(topup: dict, gw: dict) -> dict:
         bal = await _wallet_tx(topup["user_id"], "topup", float(topup["amount_usd"]), f"錢包充值（{label}）", ref=topup.get("order_no") or topup.get("out_trade_no", ""))
         await db.users.update_one({"user_id": topup["user_id"]}, {"$set": {"last_payment_method_id": topup.get("method_id", "")}})
         asyncio.create_task(admin_api.notify_user(topup["user_id"], "topup_paid", {"amount": f"USD$ {float(topup['amount_usd']):.2f}", "balance": f"USD$ {bal:.2f}"}))
+        asyncio.create_task(award_points(topup["user_id"], float(topup["amount_usd"]), "topup", topup["id"]))
+        asyncio.create_task(log_user(topup["user_id"], "topup", "錢包充值到賬", f"USD$ {float(topup['amount_usd']):.2f}（{label}）"))
         return r
     return await db.topup_orders.find_one({"id": topup["id"]}, {"_id": 0})
 
@@ -1044,6 +1082,8 @@ async def pay_order_wallet(order_id: str, member: dict = Depends(current_member)
     for it in o["items"]:
         await db.products.update_one({"id": it["product_id"]}, {"$inc": {"sales_count": it["quantity"]}})
     asyncio.create_task(admin_api.notify_user(o["user_id"], "order_paid", admin_api.order_ctx(o)))
+    asyncio.create_task(award_points(o["user_id"], float(o["total_usd"]), "order", o["id"]))
+    asyncio.create_task(log_user(o["user_id"], "order", "訂單付款", f"{o['order_no']} · USD$ {float(o['total_usd']):.2f}（錢包支付）"))
     return {**o, **upd}
 
 
@@ -1359,6 +1399,7 @@ async def create_order(order: OrderIn, member: dict = Depends(current_member)):
     }
     await db.orders.insert_one(doc)
     doc.pop("_id", None)
+    asyncio.create_task(log_user(member["user_id"], "order", "創建訂單", f"{doc['order_no']} · USD$ {float(doc['total_usd']):.2f}"))
     return doc
 
 
@@ -1378,6 +1419,8 @@ async def pay_order(order_id: str, member: dict = Depends(current_member)):
     for it in o["items"]:
         await db.products.update_one({"id": it["product_id"]}, {"$inc": {"sales_count": it["quantity"]}})
     asyncio.create_task(admin_api.notify_user(o["user_id"], "order_paid", admin_api.order_ctx(o)))
+    asyncio.create_task(award_points(o["user_id"], float(o["total_usd"]), "order", o["id"]))
+    asyncio.create_task(log_user(o["user_id"], "order", "訂單付款", f"{o['order_no']} · USD$ {float(o['total_usd']):.2f}"))
     return o
 
 
@@ -1998,6 +2041,9 @@ admin_api._wallet_tx = _wallet_tx
 admin_api._usdt_settle = _usdt_settle
 admin_api._usdt_call = _usdt_call
 admin_api._usdt_creds = _usdt_creds
+admin_api.award_points = award_points
+admin_api.log_user = log_user
+admin_api.get_points_config = get_points_config
 cms_api.db = db
 cms_api.upload_b64 = _upload_b64
 cms_api.new_id = new_id

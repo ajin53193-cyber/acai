@@ -34,12 +34,42 @@ _wallet_tx = None
 _usdt_settle = None
 _usdt_call = None
 _usdt_creds = None
+award_points = None
+log_user = None
+get_points_config = None
 ADMIN_TOKEN_TTL = 12 * 3600
 
 
 def account_no(user_id: str) -> str:
     """Short numeric account id shown to users & admins (same formula as /me/profile)."""
     return str(100000000 + (int(hashlib.md5(user_id.encode()).hexdigest()[:6], 16) % 900000000))
+
+
+DEFAULT_LEVELS = [
+    {"name": "普通會員", "min_spend_usd": 0, "discount_percent": 0, "color": "sky"},
+    {"name": "白銀會員", "min_spend_usd": 300, "discount_percent": 2, "color": "slate"},
+    {"name": "黃金會員", "min_spend_usd": 1000, "discount_percent": 5, "color": "amber"},
+    {"name": "鑽石會員", "min_spend_usd": 3000, "discount_percent": 8, "color": "violet"},
+]
+
+
+async def _levels():
+    rows = await db.member_levels.find({}, {"_id": 0}).sort("min_spend_usd", 1).to_list(100)
+    if not rows:
+        rows = [{**lv, "id": uuid.uuid4().hex[:12], "sort": i} for i, lv in enumerate(DEFAULT_LEVELS)]
+        await db.member_levels.insert_many([dict(r) for r in rows])
+        rows = await db.member_levels.find({}, {"_id": 0}).sort("min_spend_usd", 1).to_list(100)
+    return rows
+
+
+def _level_of(spend: float, levels: list) -> dict:
+    cur = None
+    for lv in levels:
+        if spend + 1e-9 >= (lv.get("min_spend_usd") or 0):
+            cur = lv
+    if not cur and levels:
+        cur = levels[0]
+    return {"name": cur["name"], "color": cur.get("color", "slate"), "discount_percent": cur.get("discount_percent", 0)} if cur else {"name": "普通會員", "color": "slate", "discount_percent": 0}
 
 
 def _sign(payload: dict, ttl: int) -> str:
@@ -205,12 +235,16 @@ async def admin_members(q: str = "", limit: int = 200, admin: dict = Depends(cur
     uids = [u["user_id"] for u in users]
     orders = {o["_id"]: o async for o in db.orders.aggregate([{"$match": {"user_id": {"$in": uids}}}, {"$group": {"_id": "$user_id", "count": {"$sum": 1}, "spent": {"$sum": "$total_usd"}}}])}
     bal = {b["_id"]: b["bal"] async for b in db.wallet_transactions.aggregate([{"$match": {"user_id": {"$in": uids}}}, {"$group": {"_id": "$user_id", "bal": {"$sum": "$amount_usd"}}}])}
+    levels = await _levels()
     out = []
     for u in users:
         o = orders.get(u["user_id"], {})
         email = u.get("email", "")
-        out.append({**u, "banned": bool(u.get("banned")), "account_no": account_no(u["user_id"]), "email": "" if email.endswith("@" + email_auth.PHONE_DOMAIN) else email, "order_count": o.get("count", 0), "spent_usd": round(o.get("spent", 0) or 0, 2),
-                    "balance_usd": round(bal.get(u["user_id"], 0) or 0, 2), "google": bool((u.get("public_metadata") or {}).get("google_sub"))})
+        spent = round(o.get("spent", 0) or 0, 2)
+        lv = _level_of(spent, levels)
+        out.append({**u, "banned": bool(u.get("banned")), "account_no": account_no(u["user_id"]), "email": "" if email.endswith("@" + email_auth.PHONE_DOMAIN) else email, "order_count": o.get("count", 0), "spent_usd": spent,
+                    "balance_usd": round(bal.get(u["user_id"], 0) or 0, 2), "points": int(u.get("points") or 0), "tags": u.get("tags", []), "level": lv,
+                    "google": bool((u.get("public_metadata") or {}).get("google_sub"))})
     return out
 
 
@@ -242,23 +276,34 @@ async def admin_member_detail(uid: str, admin: dict = Depends(current_admin)):
     spent = round((agg[0]["spent"] if agg else 0) or 0, 2)
     bal_agg = await db.wallet_transactions.aggregate([{"$match": {"user_id": uid}}, {"$group": {"_id": None, "bal": {"$sum": "$amount_usd"}}}]).to_list(1)
     balance = round((bal_agg[0]["bal"] if bal_agg else 0) or 0, 2)
+    level = _level_of(spent, await _levels())
+    ptx = await db.point_transactions.find({"user_id": uid}, {"_id": 0}).sort("created_at", -1).to_list(20)
     return {**u, "emails": emails, "account_no": account_no(uid), "verified": verified, "order_count": order_count, "spent_usd": spent, "phone": acct["phone"] if acct else (c.get("public_metadata") or {}).get("phone", ""),
             "google": bool((c.get("public_metadata") or {}).get("google_sub")) or any(a.get("provider") == "oauth_google" for a in c.get("external_accounts", [])),
-            "password_enabled": c.get("password_enabled", False), "banned": c.get("banned", False) or u.get("banned", False),
+            "password_enabled": c.get("password_enabled", False), "banned": c.get("banned", False) or u.get("banned", False), "ban_reason": u.get("ban_reason", ""),
+            "points": int(u.get("points") or 0), "tags": u.get("tags", []), "level": level, "point_transactions": ptx,
             "last_sign_in_at": c.get("last_sign_in_at"), "orders": orders, "transactions": txs, "balance_usd": balance}
 
 
+class BanIn(BaseModel):
+    reason: str = ""
+
+
 @router.post("/members/{uid}/ban")
-async def admin_member_ban(uid: str, admin: dict = Depends(current_admin)):
+async def admin_member_ban(uid: str, body: BanIn = BanIn(), admin: dict = Depends(current_admin)):
     await email_auth._clerk("POST", f"/users/{uid}/ban")
-    await db.users.update_one({"user_id": uid}, {"$set": {"banned": True}})
+    await db.users.update_one({"user_id": uid}, {"$set": {"banned": True, "ban_reason": body.reason, "banned_at": datetime.now(timezone.utc).isoformat()}})
+    if log_user:
+        await log_user(uid, "ban", "加入黑名單", body.reason or f"管理員 {admin.get('email', '')} 操作")
     return {"ok": True, "banned": True}
 
 
 @router.post("/members/{uid}/unban")
 async def admin_member_unban(uid: str, admin: dict = Depends(current_admin)):
     await email_auth._clerk("POST", f"/users/{uid}/unban")
-    await db.users.update_one({"user_id": uid}, {"$set": {"banned": False}})
+    await db.users.update_one({"user_id": uid}, {"$set": {"banned": False}, "$unset": {"ban_reason": "", "banned_at": ""}})
+    if log_user:
+        await log_user(uid, "ban", "解除黑名單", f"管理員 {admin.get('email', '')} 操作")
     return {"ok": True, "banned": False}
 
 
@@ -270,6 +315,217 @@ async def admin_member_reset_pw(uid: str, body: ResetPwIn, admin: dict = Depends
     if r.status_code >= 300:
         raise HTTPException(status_code=400, detail="重設失敗")
     return {"ok": True}
+
+
+# ----------------------------- Member Levels / Tags / Assets / Blacklist / Logs / Points -----------------------------
+class LevelIn(BaseModel):
+    name: str
+    min_spend_usd: float = 0
+    discount_percent: float = 0
+    color: str = "slate"
+
+
+@router.get("/member-levels")
+async def admin_levels_list(admin: dict = Depends(current_admin)):
+    rows = await _levels()
+    counts = {}
+    # attach member counts by spend bucket
+    spends = [s async for s in db.orders.aggregate([{"$group": {"_id": "$user_id", "spent": {"$sum": "$total_usd"}}}])]
+    for lv in rows:
+        counts[lv["id"]] = 0
+    for s in spends:
+        lv = _level_of(s.get("spent", 0) or 0, rows)
+        for r in rows:
+            if r["name"] == lv["name"]:
+                counts[r["id"]] = counts.get(r["id"], 0) + 1
+                break
+    return [{**r, "member_count": counts.get(r["id"], 0)} for r in rows]
+
+
+@router.post("/member-levels")
+async def admin_level_create(body: LevelIn, admin: dict = Depends(current_admin)):
+    await _levels()  # ensure seeded
+    doc = {"id": uuid.uuid4().hex[:12], **body.dict(), "sort": int(body.min_spend_usd)}
+    await db.member_levels.insert_one(dict(doc))
+    doc.pop("_id", None)
+    return doc
+
+
+@router.put("/member-levels/{lid}")
+async def admin_level_update(lid: str, body: LevelIn, admin: dict = Depends(current_admin)):
+    await db.member_levels.update_one({"id": lid}, {"$set": {**body.dict(), "sort": int(body.min_spend_usd)}})
+    return {"ok": True}
+
+
+@router.delete("/member-levels/{lid}")
+async def admin_level_delete(lid: str, admin: dict = Depends(current_admin)):
+    await db.member_levels.delete_one({"id": lid})
+    return {"ok": True}
+
+
+class TagIn(BaseModel):
+    name: str
+    color: str = "slate"
+
+
+class AssignTagsIn(BaseModel):
+    tag_ids: list[str] = []
+
+
+@router.get("/user-tags")
+async def admin_tags_list(admin: dict = Depends(current_admin)):
+    rows = await db.user_tags.find({}, {"_id": 0}).sort("created_at", 1).to_list(200)
+    for t in rows:
+        t["member_count"] = await db.users.count_documents({"tags": t["id"]})
+    return rows
+
+
+@router.post("/user-tags")
+async def admin_tag_create(body: TagIn, admin: dict = Depends(current_admin)):
+    doc = {"id": uuid.uuid4().hex[:12], "name": body.name, "color": body.color, "created_at": datetime.now(timezone.utc).isoformat()}
+    await db.user_tags.insert_one(dict(doc))
+    doc.pop("_id", None)
+    return doc
+
+
+@router.put("/user-tags/{tid}")
+async def admin_tag_update(tid: str, body: TagIn, admin: dict = Depends(current_admin)):
+    await db.user_tags.update_one({"id": tid}, {"$set": {"name": body.name, "color": body.color}})
+    return {"ok": True}
+
+
+@router.delete("/user-tags/{tid}")
+async def admin_tag_delete(tid: str, admin: dict = Depends(current_admin)):
+    await db.user_tags.delete_one({"id": tid})
+    await db.users.update_many({"tags": tid}, {"$pull": {"tags": tid}})
+    return {"ok": True}
+
+
+@router.post("/members/{uid}/tags")
+async def admin_assign_tags(uid: str, body: AssignTagsIn, admin: dict = Depends(current_admin)):
+    await db.users.update_one({"user_id": uid}, {"$set": {"tags": body.tag_ids}}, upsert=True)
+    return {"ok": True, "tags": body.tag_ids}
+
+
+@router.get("/member-assets")
+async def admin_member_assets(q: str = "", limit: int = 200, admin: dict = Depends(current_admin)):
+    query = {}
+    if q:
+        query["$or"] = [{"email": {"$regex": q, "$options": "i"}}, {"phone": {"$regex": q, "$options": "i"}}, {"name": {"$regex": q, "$options": "i"}}]
+    users = await db.users.find(query, {"_id": 0, "user_id": 1, "email": 1, "phone": 1, "name": 1, "profile": 1, "points": 1}).to_list(limit)
+    uids = [u["user_id"] for u in users]
+    bal = {b["_id"]: b["bal"] async for b in db.wallet_transactions.aggregate([{"$match": {"user_id": {"$in": uids}}}, {"$group": {"_id": "$user_id", "bal": {"$sum": "$amount_usd"}}}])}
+    coupons = {}
+    async for c in db.promo_redemptions.aggregate([{"$match": {"user_id": {"$in": uids}}}, {"$group": {"_id": "$user_id", "n": {"$sum": 1}}}]):
+        coupons[c["_id"]] = c["n"]
+    out = []
+    total_balance = total_points = 0
+    for u in users:
+        b = round(bal.get(u["user_id"], 0) or 0, 2)
+        p = int(u.get("points") or 0)
+        total_balance += b
+        total_points += p
+        out.append({"user_id": u["user_id"], "account_no": account_no(u["user_id"]), "email": "" if (u.get("email", "").endswith("@" + email_auth.PHONE_DOMAIN)) else u.get("email", ""),
+                    "phone": u.get("phone", ""), "name": u.get("profile", {}).get("name") if u.get("profile") else u.get("name", ""), "balance_usd": b, "points": p, "coupons": coupons.get(u["user_id"], 0)})
+    out.sort(key=lambda x: x["balance_usd"], reverse=True)
+    return {"rows": out, "summary": {"total_balance": round(total_balance, 2), "total_points": total_points, "members": len(out)}}
+
+
+@router.get("/blacklist")
+async def admin_blacklist(q: str = "", admin: dict = Depends(current_admin)):
+    query = {"banned": True}
+    if q:
+        query["$and"] = [{"$or": [{"email": {"$regex": q, "$options": "i"}}, {"phone": {"$regex": q, "$options": "i"}}, {"name": {"$regex": q, "$options": "i"}}]}]
+    users = await db.users.find(query, {"_id": 0}).sort("banned_at", -1).to_list(500)
+    return [{"user_id": u["user_id"], "account_no": account_no(u["user_id"]), "email": "" if u.get("email", "").endswith("@" + email_auth.PHONE_DOMAIN) else u.get("email", ""),
+             "phone": u.get("phone", ""), "name": u.get("profile", {}).get("name") if u.get("profile") else u.get("name", ""), "ban_reason": u.get("ban_reason", ""), "banned_at": u.get("banned_at", "")} for u in users]
+
+
+@router.get("/user-logs")
+async def admin_user_logs(type: str = "", q: str = "", uid: str = "", date_from: str = "", date_to: str = "", limit: int = 300, admin: dict = Depends(current_admin)):
+    query = {}
+    if type:
+        query["type"] = type
+    if uid:
+        query["user_id"] = uid
+    if date_from or date_to:
+        rng = {}
+        if date_from:
+            rng["$gte"] = date_from
+        if date_to:
+            rng["$lte"] = date_to + "T23:59:59"
+        query["created_at"] = rng
+    if q:
+        query["$or"] = [{"action": {"$regex": q, "$options": "i"}}, {"detail": {"$regex": q, "$options": "i"}}, {"user_id": {"$regex": q, "$options": "i"}}]
+    rows = await db.user_logs.find(query, {"_id": 0}).sort("created_at", -1).to_list(limit)
+    uids = list({r["user_id"] for r in rows})
+    users = {u["user_id"]: u async for u in db.users.find({"user_id": {"$in": uids}}, {"_id": 0, "user_id": 1, "email": 1, "phone": 1})}
+    for r in rows:
+        u = users.get(r["user_id"], {})
+        r["account_no"] = account_no(r["user_id"])
+        r["user_label"] = ("" if u.get("email", "").endswith("@" + email_auth.PHONE_DOMAIN) else u.get("email", "")) or u.get("phone", "") or r["user_id"][-8:]
+    return rows
+
+
+class PointsConfigIn(BaseModel):
+    earn_enabled: bool = True
+    earn_per_usd: float = 1
+    order_enabled: bool = True
+    topup_enabled: bool = True
+    redeem_enabled: bool = False
+    points_per_usd_redeem: float = 100
+    min_redeem: float = 500
+
+
+class PointsAdjustIn(BaseModel):
+    delta: int
+    reason: str = ""
+
+
+@router.get("/points/config")
+async def admin_points_config(admin: dict = Depends(current_admin)):
+    return await get_points_config()
+
+
+@router.put("/points/config")
+async def admin_points_config_put(body: PointsConfigIn, admin: dict = Depends(current_admin)):
+    await db.settings.update_one({"key": "points"}, {"$set": {"key": "points", "value": body.dict()}}, upsert=True)
+    return {"ok": True}
+
+
+@router.get("/points/ledger")
+async def admin_points_ledger(q: str = "", uid: str = "", limit: int = 300, admin: dict = Depends(current_admin)):
+    query = {}
+    if uid:
+        query["user_id"] = uid
+    if q:
+        query["$or"] = [{"reason": {"$regex": q, "$options": "i"}}, {"user_id": {"$regex": q, "$options": "i"}}, {"source": {"$regex": q, "$options": "i"}}]
+    rows = await db.point_transactions.find(query, {"_id": 0}).sort("created_at", -1).to_list(limit)
+    uids = list({r["user_id"] for r in rows})
+    users = {u["user_id"]: u async for u in db.users.find({"user_id": {"$in": uids}}, {"_id": 0, "user_id": 1, "email": 1, "phone": 1})}
+    for r in rows:
+        u = users.get(r["user_id"], {})
+        r["account_no"] = account_no(r["user_id"])
+        r["user_label"] = ("" if u.get("email", "").endswith("@" + email_auth.PHONE_DOMAIN) else u.get("email", "")) or u.get("phone", "") or r["user_id"][-8:]
+    return rows
+
+
+@router.post("/members/{uid}/points/adjust")
+async def admin_points_adjust(uid: str, body: PointsAdjustIn, admin: dict = Depends(current_admin)):
+    if body.delta == 0:
+        raise HTTPException(status_code=400, detail="積分變動不可為 0")
+    u = await db.users.find_one({"user_id": uid}, {"_id": 0, "points": 1})
+    if not u:
+        raise HTTPException(status_code=404, detail="會員不存在")
+    new_bal = int(u.get("points") or 0) + body.delta
+    if new_bal < 0:
+        raise HTTPException(status_code=400, detail="扣減後積分不可為負")
+    await db.users.update_one({"user_id": uid}, {"$set": {"points": new_bal}})
+    await db.point_transactions.insert_one({"id": uuid.uuid4().hex[:12], "user_id": uid, "delta": body.delta, "balance_after": new_bal, "source": "admin",
+                                            "reason": body.reason or f"管理員調整（{admin.get('email', '')}）", "ref": "", "created_at": datetime.now(timezone.utc).isoformat()})
+    if log_user:
+        await log_user(uid, "points", "積分調整", f"{'+' if body.delta > 0 else ''}{body.delta} · {body.reason}")
+    return {"ok": True, "points": new_bal}
 
 
 # ----------------------------- Translations -----------------------------

@@ -21,6 +21,12 @@ import { CategoriesAdmin } from "@/pages/admin/CategoriesAdmin";
 import { OrdersAdmin } from "@/pages/admin/OrdersAdmin";
 import { DashboardAdmin } from "@/pages/admin/DashboardAdmin";
 import { Soon } from "@/pages/admin/Soon";
+import { UserLevelsAdmin } from "@/pages/admin/UserLevelsAdmin";
+import { UserTagsAdmin } from "@/pages/admin/UserTagsAdmin";
+import { MemberAssetsAdmin } from "@/pages/admin/MemberAssetsAdmin";
+import { BlacklistAdmin } from "@/pages/admin/BlacklistAdmin";
+import { UserLogsAdmin } from "@/pages/admin/UserLogsAdmin";
+import { PointsAdmin } from "@/pages/admin/PointsAdmin";
 import { tr } from "@/i18n";
 
 // Full admin IA — collapsible two-level menu. Keys map to real pages in PAGES; everything else renders <Soon/>.
@@ -82,6 +88,12 @@ const PAGES = {
   translations: (p) => <TranslationsAdmin {...p} />,
   paylogos: (p) => <PaymentLogos {...p} />,
   "download-reports": (p) => <ReportsAdmin {...p} />,
+  "user-levels": (p) => <UserLevelsAdmin {...p} />,
+  "user-tags": (p) => <UserTagsAdmin {...p} />,
+  "member-assets": (p) => <MemberAssetsAdmin {...p} />,
+  blacklist: (p) => <BlacklistAdmin {...p} />,
+  "user-logs": (p) => <UserLogsAdmin {...p} />,
+  points: (p) => <PointsAdmin {...p} />,
 };
 
 function AdminInner() {
