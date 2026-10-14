@@ -277,3 +277,15 @@
   - 前台 `/invite`（Invite.jsx）：邀請碼 + 連結複製/分享 + 邀請數/積分統計 + 綁定碼輸入；首頁 `?ref=CODE` 存 localStorage，/invite 自動預填；我的帳戶 `account-invite-btn` 入口。
 - data-testid：combo-dead-*、slide-link-mode/slide-link-cat、activity-trend/trend-day-*、invite-page/invite-code/invite-link/invite-copy-btn/invite-count/invite-points/invite-bind-*、account-invite-btn。
 - 驗證：referral 獎勵腳本實測（A+500/B+200/冪等）、trend/stats/combo status curl 全驗；iteration_33 storefront 套餐售罄態 + ?ref 捕獲通過（登入後 /invite DOM 因 Clerk 無頭機器人攔截未跑，屬環境限制，端點已 curl 驗）。
+
+## 2026-10 後台 Round 13：邀請海報 + 後台邀請返利完整管理
+- **邀請海報（用戶端 /invite）**：Invite.jsx 新增「生成邀請海報」。用 `qrcode.react` v4 `QRCodeCanvas`（離屏隱藏，ref 取 canvas）合成到 `<canvas>`（750×1250）：背景=後台海報模板圖（同源 /api/img，不污染 canvas，覆蓋式繪製）或橙→琥珀漸層兜底；頂部標題/副標題（poster_title/subtitle）+ 底部白卡（我的邀請碼大字 + 邀請人/好友積分 + QR + gogo589.com）。`canvas.toDataURL` → 保存圖片（下載）/分享海報（navigator.share files 兜底下載）。多模板時顯示縮圖切換（invite-poster-tpl-*）。
+- **後台邀請返利管理**（運營管理 > 邀請返利，Admin.jsx key `referral`，ReferralAdmin.jsx）：頂部 4 統計卡（綁定數/已發獎/邀請人數/已發放積分）+ 4 分頁：
+  - 獎勵配置：enabled + referrer_points + referee_points + poster_title + poster_subtitle（`GET/PUT /api/admin/referral/config`，存 settings.referral，含海報文案）。
+  - 海報模板：上傳背景（3:5，≤4M，走 upload_b64→物件儲存）、名稱/排序/啟用，CRUD（`GET/POST/PUT/DELETE /api/admin/referral/posters`，collection referral_posters）。已預置 2 張模板（喜慶橙/福氣紅）。
+  - 邀請記錄：`GET /api/admin/referral/records`（q 搜尋 + rewarded 篩選 yes/no），顯示受邀人/邀請人/綁定時間/發獎狀態/積分/發獎時間。
+  - 邀請排行榜：`GET /api/admin/referral/leaderboard`（按 referral_invited 排序 Top N）。
+  - `GET /api/admin/referral/stats` 回彙總。
+- **後端連動**：`/api/me/referral` 增回 posters[]/poster_title/poster_subtitle；bind 寫 referred_at；apply_referral_reward 寫 referral_rewarded_at。server.py 新增 `admin_api.upload_b64 = _upload_b64` 連線。
+- data-testid：invite-poster-btn/invite-poster-modal/invite-poster-img/invite-poster-tpl-*/invite-poster-save/invite-poster-share、referral-admin/ref-tab-*/ref-cfg-*/ref-poster-*/ref-rec-*/ref-lb-*、admin-nav-referral。
+- 驗證：iteration_34 後端 13/13 PASS（config 持久化、stats、records 含篩選、leaderboard、posters CRUD+上傳、admin_token 守衛、/me/referral）；後台 UI 無頭登入實測 4 卡 4 分頁 + 配置保存 + 2 模板顯示通過。用戶端海報 UI 因 Clerk 無頭機器人攔截未跑（環境限制），其消費的後端資料已驗（同源海報圖→canvas 不污染）。

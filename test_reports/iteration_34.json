@@ -1,0 +1,29 @@
+{
+  "summary": "Tested the new 邀請返利 (referral) backend + admin frontend end-to-end. Added /app/backend/tests/test_referral.py (13 tests, all PASS) covering admin config GET/PUT persistence, stats, records (incl. rewarded=yes/no filter), leaderboard, posters CRUD with image_b64 upload, admin_token guard, and member GET /api/me/referral (code, posters, title, subtitle) + negative /me/referral/bind. Playwright headless flow logged into /admin/login (email+password + TOTP via pyotp on secret DNY74V...), expanded 運營管理 group, opened 邀請返利: 4 stat cards + 4 tabs render; config tab saved (已保存 toast seen); posters tab shows 2 seeded templates in ref-poster-grid (喜慶橙 / 福氣紅); records tab (table + search + filter + 查詢) and leaderboard tab load without errors.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Referral admin → leaderboard", "issues": ["With no data, the table briefly shows '加載中…' instead of switching to '暫無排行數據' empty state in screenshots — likely just the initial null→[] transition latency; not a real bug but worth noting."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_referral.py",
+    "/app/test_reports/pytest/referral_results.xml"
+  ],
+  "action_items": [
+    "USER-side /invite poster generation (invite-poster-btn → invite-poster-modal → canvas → data:image/png) could NOT be exercised headlessly because Clerk sign-in on the preview is bot-protected for the +clerk_test password flow. Backend API that the UI consumes was verified: /api/me/referral returns code + 2 active same-origin /api/img posters + poster_title + poster_subtitle, so the canvas should not be tainted. Main agent can self-verify the data-URL in a real browser session, or expose a test-only Clerk ticket endpoint for the member user so headless tests can log in like /admin/login does."
+  ],
+  "critical_code_review_comments": [
+    "admin_api.py referral endpoints are clean, use Pydantic, exclude _id, and reuse upload_b64 — good.",
+    "LeaderboardTab/RecordsTab initial loading text could be delayed with a small debounce or use the standard empty-state once response arrives (minor UX)."
+  ],
+  "updated_files": ["/app/backend/tests/test_referral.py"],
+  "success_rate": {"backend": "100% (13/13)", "frontend": "admin 100%; user invite page not testable headlessly"},
+  "test_credentials": "admin+clerk_test@shop.com / Gogo589!Admin#7x2Q + TOTP (admin_2fa secret in Mongo). tester+clerk_test@shop.com for member backend bearer via /app/tests/mint_token.py.",
+  "seed_data_creation": "Config was briefly set to referrer=555/referee=222/title=測試標題X during the persistence test (via admin PUT), then reset to defaults (500/200, default zh titles). No new posters remain; TEST_poster was created and deleted inside TestReferralPosters.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "test_referral.py is now the regression suite for referral endpoints. For user-side poster UI you'll need an authenticated Clerk session; option is to mint a Clerk ticket for the tester user (mirroring the admin ticket flow in admin_api.admin_totp) and signIn.create({strategy:'ticket', ticket}) in Playwright, or test via a signed-in real browser."
+}
