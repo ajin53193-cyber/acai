@@ -411,3 +411,4 @@
 - Round 30 續：禮品卡規格支援「計價幣別 + 匯率」自動換算：SpecsEditor（isGiftcard）頂部 fx bar（幣別選單取 /currencies、匯率預設 rate_to_usd 可改），欄位改為 售價/原價/卡面額 {幣別}，輸入即換算 price_usd/sale_price_usd/giftcard_value_usd 並顯示 ≈USD；改匯率重算全部規格。Spec 新增 price_local/sale_price_local/giftcard_value_local，Product/ProductIn 新增 price_currency/price_rate。驗證：200 HKD → USD 25.48。
 - Round 30 續：禮品卡規格新增「折扣」欄（spec.discount_percent，售價 = 原價×折扣%）與 fx bar「全部折扣」（product.price_discount）一鍵套用；改原價自動重算售價、卡面額預設跟隨原價；編輯彈窗加寬至 96vw/1400px、規格名稱欄固定 240px。驗證：1000×85 → 850 (≈USD 108.70)。
 - Round 30 續：商品頁限購規格數量鎖定：qty-inc 在達 limit_count 時 disabled、上限改為 limit_count，切換規格自動夾緊數量。截圖驗證 每日一單 → 1 且 + 置灰。
+- Round 30 續：禮品卡交易號改為「訂單完成時」生成：dispatch_giftcards 自付款流程移除，改在 admin_confirm_topup 與 admin_update_order(status→completed) 呼叫；MyOrders 僅 status==completed 顯示「轉贈成功 · 交易號」。已清理 8 筆未完成訂單的提前交易號。函式直測：完成訂單 → 生成 20261014…(32 位)。

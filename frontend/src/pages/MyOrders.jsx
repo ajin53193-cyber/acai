@@ -154,9 +154,9 @@ function OrdersInner() {
                     <div className="text-orange-500 font-semibold pt-0.5 text-sm md:text-base">{o.currency}$ {(o.total_usd * o.rate_to_usd).toFixed(2)}</div>
                   </div>
                 </div>
-                {(o.gift_trade_nos || []).length > 0 && (
+                {o.status === "completed" && (o.gift_trade_nos || []).length > 0 && (
                   <div className="mt-3 rounded-2xl bg-violet-50 border border-violet-100 px-3.5 py-3" data-testid={`order-gift-trade-${o.id}`}>
-                    <div className="text-sm font-bold text-violet-700 flex items-center gap-1.5"><Gift className="h-4 w-4" />{o.status === "completed" ? tr("轉贈成功 · 交易號") : tr("轉贈處理中 · 交易號")}</div>
+                    <div className="text-sm font-bold text-violet-700 flex items-center gap-1.5"><Gift className="h-4 w-4" />{tr("轉贈成功 · 交易號")}</div>
                     {o.gift_trade_nos.map((g, i) => (
                       <div key={i} className="mt-1.5 flex items-center justify-between gap-2">
                         <span className="font-mono text-base md:text-lg tracking-wider text-slate-800 break-all" data-testid={`order-gift-trade-no-${o.id}-${i}`}>{g.trade_no}</span>
@@ -231,9 +231,9 @@ function OrdersInner() {
                   ))}
                 </div>
 
-                {(detail.gift_trade_nos || []).length > 0 && (
+                {detail.status === "completed" && (detail.gift_trade_nos || []).length > 0 && (
                   <div className="rounded-2xl bg-violet-50 border border-violet-100 p-4" data-testid="order-gift-trade-detail">
-                    <div className="text-sm font-bold text-violet-700 mb-2 flex items-center gap-1.5"><Gift className="h-4 w-4" />{detail.status === "completed" ? tr("轉贈成功 · 交易號") : tr("轉贈處理中 · 交易號")}</div>
+                    <div className="text-sm font-bold text-violet-700 mb-2 flex items-center gap-1.5"><Gift className="h-4 w-4" />{tr("轉贈成功 · 交易號")}</div>
                     <div className="space-y-2">
                       {detail.gift_trade_nos.map((g, i) => (
                         <div key={i} className="flex items-center justify-between gap-2">
