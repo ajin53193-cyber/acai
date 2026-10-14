@@ -59,7 +59,7 @@ export function TopupsAdmin({ callApi }) {
 
   return (
     <div data-testid="topups-admin">
-      <Head title={tr("充值訂單")} sub={tr("USDT / Stripe / PayPal 自動入帳；銀行轉帳需在此審核憑證後入帳")} right={<Btn kind="ghost" data-testid="topups-refresh" onClick={load}><RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} /></Btn>} />
+      <Head title={tr("充值審核")} sub={tr("USDT / Stripe / PayPal 自動入帳；銀行轉帳需在此審核憑證後入帳")} right={<Btn kind="ghost" data-testid="topups-refresh" onClick={load}><RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} /></Btn>} />
 
       <Card className="p-3 sm:p-4 mb-4" data-testid="topups-toolbar">
         <div className="flex flex-wrap items-center gap-2">
