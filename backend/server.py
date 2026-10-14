@@ -1820,20 +1820,26 @@ async def submit_order_info(order_id: str, body: OrderInfoIn, member: dict = Dep
     upd = {"delivery_info": merged, "recharge_account": acct, "info_submitted": True, "info_submitted_at": now_iso(), "info_rejected": False,
            "recharge_note": body.recharge_note or o.get("recharge_note", ""), "contact": body.contact or o.get("contact", "")}
     if await _order_has_giftcard(o) and o.get("status") in ("paid", "processing"):
-        vals = [v for f in merged.values() for v in (f or {}).values()]
-        hit = await giftcard_api.pool_hit(vals)
-        upd.update({"status": "processing", "is_giftcard_order": True, "gift_auto_hit": bool(hit), "gift_manual": not hit,
-                    "timeline": o.get("timeline", []) + [{"status": "processing", "at": now_iso(), "by": "system", "note": "號碼庫命中，排定自動完成" if hit else "未命中號碼庫，待人工處理"}]})
-        if hit:
-            cfg = await giftcard_api.get_settings()
-            lo, hi = int(cfg["auto_delay_min"]) * 60, int(cfg["auto_delay_max"]) * 60
-            delay = lo + (secrets.randbelow(hi - lo + 1) if hi > lo else 0)
-            upd["gift_dispatch_at"] = (datetime.now(timezone.utc) + timedelta(seconds=delay)).isoformat()
-        else:
-            upd.pop("gift_dispatch_at", None)
-            asyncio.create_task(admin_api.record_admin_log("system", "system", "GIFTCARD", f"/orders/{order_id} 禮品卡未命中號碼庫，待人工處理 {o.get('order_no', '')}", 202))
+        upd.update(await _gift_auto_review({**o, "delivery_info": merged}))
     await db.orders.update_one({"id": order_id}, {"$set": upd})
     return {**o, **upd}
+
+
+async def _gift_auto_review(o: dict) -> dict:
+    """Compare submitted values with the number pool; schedule auto-complete on hit, else queue for manual."""
+    cfg = await giftcard_api.get_settings()
+    vals = [v for f in (o.get("delivery_info") or {}).values() for v in (f or {}).values() if str(v or "").strip()]
+    hit = await giftcard_api.pool_hit(vals) if cfg.get("auto_review_enabled", True) else None
+    upd = {"status": "processing", "is_giftcard_order": True, "gift_auto_hit": bool(hit), "gift_manual": not hit,
+           "autoReview": "matched" if hit else ("unmatched" if cfg.get("auto_review_enabled", True) else "disabled"), "needManual": not hit, "matchedKey": (hit or {}).get("key", ""),
+           "timeline": o.get("timeline", []) + [{"status": "processing", "at": now_iso(), "by": "system", "note": f"號碼庫命中 {hit['key']}，排定自動完成" if hit else "未命中號碼庫，待人工處理"}]}
+    if hit:
+        lo, hi = int(cfg["auto_delay_min"]) * 60, int(cfg["auto_delay_max"]) * 60
+        upd["gift_dispatch_at"] = (datetime.now(timezone.utc) + timedelta(seconds=lo + (secrets.randbelow(hi - lo + 1) if hi > lo else 0))).isoformat()
+    else:
+        await db.orders.update_one({"id": o["id"]}, {"$unset": {"gift_dispatch_at": 1}})
+        asyncio.create_task(giftcard_api.op_log("system", f"⚠️ 禮品卡自動審核未匹配，已轉人工 · 訂單 {o.get('order_no', '')}", 202))
+    return upd
 
 
 async def _order_has_giftcard(o: dict) -> bool:
@@ -2323,6 +2329,22 @@ async def admin_giftcard_reject(body: GiftBulkIn, admin: dict = Depends(admin_ap
         upd = {"status": "paid", "info_submitted": False, "info_rejected": True, "info_reject_reason": reason, "info_rejected_at": now_iso(), "timeline": tl}
         await db.orders.update_one({"id": o["id"]}, {"$set": upd, "$unset": {"gift_dispatch_at": 1, "gift_auto_hit": 1, "gift_manual": 1}})
         asyncio.create_task(admin_api.notify_user(o["user_id"], "order_rejected", admin_api.order_ctx(o, reason=reason)))
+        done += 1
+    return {"done": done}
+
+
+@api_router.post("/admin/giftcard/orders/supplement")
+async def admin_giftcard_supplement(body: GiftBulkIn, admin: dict = Depends(admin_api.current_admin)):
+    """補號並重審: add the order's submitted numbers to the pool, then re-run auto review."""
+    done = 0
+    async for o in db.orders.find({"id": {"$in": body.ids}, "status": {"$in": ["paid", "processing"]}}, {"_id": 0}):
+        vals = [str(v) for f in (o.get("delivery_info") or {}).values() for v in (f or {}).values() if str(v or "").strip()]
+        if not vals:
+            continue
+        await giftcard_api.add_numbers("\n".join(vals), f"未命中補號 · 訂單{o.get('order_no', '')}", admin.get("email", ""))
+        upd = await _gift_auto_review(o)
+        await db.orders.update_one({"id": o["id"]}, {"$set": upd})
+        await giftcard_api.op_log(admin.get("email", ""), f"禮品卡補號並重審 · 訂單 {o.get('order_no', '')} → {upd['autoReview']}")
         done += 1
     return {"done": done}
 

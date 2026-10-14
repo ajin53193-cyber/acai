@@ -7,44 +7,52 @@ import { Head, Card, Btn, Input, Field, Table, Pill, fmt } from "./ui";
 
 export function GiftCardPoolAdmin({ callApi }) {
   const [q, setQ] = useState("");
-  const [data, setData] = useState({ rows: [], total: 0 });
+  const [unmatched, setUnmatched] = useState(false);
+  const [data, setData] = useState({ rows: [], total: 0, unmatched: 0 });
   const [lines, setLines] = useState("");
   const [note, setNote] = useState("");
   const [cfg, setCfg] = useState(null);
-  const load = useCallback(() => callApi({ method: "GET", url: "/admin/giftcard/numbers", params: { q, size: 200 } }).then((r) => setData(r.data)).catch(() => toast.error(tr("載入失敗"))), [callApi, q]);
+  const load = useCallback(() => callApi({ method: "GET", url: "/admin/giftcard/numbers", params: { q, unmatched: unmatched ? "1" : "", size: 200 } }).then((r) => setData(r.data)).catch(() => toast.error(tr("載入失敗"))), [callApi, q, unmatched]);
   useEffect(() => { load(); }, [load]);
   useEffect(() => { callApi({ method: "GET", url: "/admin/giftcard/settings" }).then((r) => setCfg(r.data)).catch(() => {}); }, [callApi]);
   const add = async () => {
     if (!lines.trim()) return toast.error(tr("請輸入號碼"));
-    try { const r = await callApi({ method: "POST", url: "/admin/giftcard/numbers", data: { lines, note } }); toast.success(tr("新增 {0} 筆，跳過 {1} 筆", r.data.added, r.data.skipped)); setLines(""); load(); }
+    try { const r = await callApi({ method: "POST", url: "/admin/giftcard/numbers", data: { lines, note } }); toast.success(tr("新增 {0} 筆 · 重複略過 {1} 筆", r.data.added, r.data.skipped)); setLines(""); load(); }
     catch (e) { toast.error(e.response?.data?.detail || tr("新增失敗")); }
   };
-  const saveCfg = async () => { try { const r = await callApi({ method: "PUT", url: "/admin/giftcard/settings", data: { auto_delay_min: +cfg.auto_delay_min, auto_delay_max: +cfg.auto_delay_max } }); setCfg(r.data); toast.success(tr("已儲存")); } catch { toast.error(tr("儲存失敗")); } };
-  const toggle = async (n) => { await callApi({ method: "PATCH", url: `/admin/giftcard/numbers/${n.id}`, data: { active: !n.active } }); load(); };
-  const del = async (n) => { if (!window.confirm(tr("確定刪除號碼 {0}？", n.phone))) return; await callApi({ method: "DELETE", url: `/admin/giftcard/numbers/${n.id}` }); load(); };
+  const saveCfg = async (patch) => { const next = { ...cfg, ...patch }; setCfg(next); try { const r = await callApi({ method: "PUT", url: "/admin/giftcard/settings", data: { auto_review_enabled: !!next.auto_review_enabled, auto_delay_min: +next.auto_delay_min, auto_delay_max: +next.auto_delay_max } }); setCfg(r.data); toast.success(tr("已儲存")); } catch { toast.error(tr("儲存失敗")); } };
+  const del = async (n) => { if (!window.confirm(tr("確定刪除號碼 {0}？", n.raw || n.key))) return; await callApi({ method: "DELETE", url: `/admin/giftcard/numbers/${n.id}` }); load(); };
+  const clearUnmatched = async () => { if (!window.confirm(tr("將刪除所有從未命中（hitCount=0）的號碼，包括剛錄入尚未使用的，確定？"))) return; const r = await callApi({ method: "DELETE", url: "/admin/giftcard/numbers/unmatched" }); toast.success(tr("已清理 {0} 筆", r.data.deleted)); load(); };
   return (
     <div data-testid="giftcard-pool-admin">
-      <Head title={tr("號碼庫")} sub={tr("用戶提交轉贈資料時，系統將手機號/帳號與號碼庫比對；命中則在設定的隨機延遲後自動完成並生成交易號，未命中轉人工處理。")} />
+      <Head title={tr("號碼庫")} sub={tr("允許自動通過的白名單：用戶提交轉贈資料時，系統將填寫的號碼標準化（去空白、轉小寫）後與號碼庫精確比對；命中則排定隨機延遲後自動完成並生成交易號，未命中轉人工。")} />
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-4">
         <Card className="p-4 lg:col-span-2">
-          <Field label={tr("批量新增號碼（每行一個，可用逗號附加姓名：手機號,姓名）")}>
-            <textarea data-testid="gcp-lines" rows={5} className="w-full rounded-lg bg-slate-100 px-3 py-2 text-sm font-mono outline-none focus:ring-2 focus:ring-orange-300" value={lines} onChange={(e) => setLines(e.target.value)} placeholder={"98777777,陳小姐\n+852 61234567"} />
+          <Field label={tr("批量新增號碼（支持空格、換行、逗號、分號分隔；建議錄純數字並與用戶填寫格式一致）")}>
+            <textarea data-testid="gcp-lines" rows={5} className="w-full rounded-lg bg-slate-100 px-3 py-2 text-sm font-mono outline-none focus:ring-2 focus:ring-orange-300" value={lines} onChange={(e) => setLines(e.target.value)} placeholder={"98777777 61234567\n91234567,92345678"} />
           </Field>
-          <div className="flex items-center gap-2 mt-2"><Input data-testid="gcp-note" className="flex-1" placeholder={tr("備註（選填，如：門店A客戶）")} value={note} onChange={(e) => setNote(e.target.value)} /><Btn data-testid="gcp-add" onClick={add}><Upload className="h-4 w-4 inline -mt-0.5 mr-1" />{tr("加入號碼庫")}</Btn></div>
+          <div className="flex items-center gap-2 mt-2"><Input data-testid="gcp-note" className="flex-1" placeholder={tr("備註（選填，如：批次說明）")} value={note} onChange={(e) => setNote(e.target.value)} /><Btn data-testid="gcp-add" onClick={add}><Upload className="h-4 w-4 inline -mt-0.5 mr-1" />{tr("加入號碼庫")}</Btn></div>
         </Card>
         <Card className="p-4">
-          <div className="text-sm font-semibold text-slate-700 mb-2">{tr("自動審核延遲（分鐘）")}</div>
-          {cfg && <div className="flex items-center gap-2 text-sm"><Input data-testid="gcp-delay-min" type="number" min="0" className="w-20" value={cfg.auto_delay_min} onChange={(e) => setCfg({ ...cfg, auto_delay_min: e.target.value })} /> ~ <Input data-testid="gcp-delay-max" type="number" min="0" className="w-20" value={cfg.auto_delay_max} onChange={(e) => setCfg({ ...cfg, auto_delay_max: e.target.value })} /><Btn data-testid="gcp-delay-save" kind="ghost" onClick={saveCfg}>{tr("儲存")}</Btn></div>}
-          <div className="text-[11px] text-slate-400 mt-2">{tr("命中號碼庫的訂單將在此區間內隨機時間自動完成（預設 2–5 分鐘）。")}</div>
+          <div className="flex items-center justify-between mb-3"><span className="text-sm font-semibold text-slate-700">{tr("禮品卡自動審核")}</span>{cfg && <Switch data-testid="gcp-auto-enabled" checked={!!cfg.auto_review_enabled} onCheckedChange={(v) => saveCfg({ auto_review_enabled: v })} />}</div>
+          <div className="text-xs text-slate-500 mb-2">{tr("自動完成延遲區間（分鐘）")}</div>
+          {cfg && <div className="flex items-center gap-2 text-sm"><Input data-testid="gcp-delay-min" type="number" min="0" className="w-20" value={cfg.auto_delay_min} onChange={(e) => setCfg({ ...cfg, auto_delay_min: e.target.value })} /> ~ <Input data-testid="gcp-delay-max" type="number" min="0" className="w-20" value={cfg.auto_delay_max} onChange={(e) => setCfg({ ...cfg, auto_delay_max: e.target.value })} /><Btn data-testid="gcp-delay-save" kind="ghost" onClick={() => saveCfg({})}>{tr("儲存")}</Btn></div>}
+          <div className="text-[11px] text-slate-400 mt-2">{tr("關閉自動審核後不比對號碼庫，所有訂單直接轉人工。")}</div>
         </Card>
       </div>
-      <Card className="p-3 mb-3 flex items-center gap-2"><Search className="h-4 w-4 text-slate-400" /><Input data-testid="gcp-search" className="w-72" placeholder={tr("搜尋手機號 / 姓名 / 備註")} value={q} onChange={(e) => setQ(e.target.value)} /><span className="text-xs text-slate-400 ml-auto">{tr("共 {0} 個號碼", data.total)}</span></Card>
+      <Card className="p-3 mb-3 flex flex-wrap items-center gap-2">
+        <Search className="h-4 w-4 text-slate-400" /><Input data-testid="gcp-search" className="w-64" placeholder={tr("搜尋號碼 / 備註")} value={q} onChange={(e) => setQ(e.target.value)} />
+        <button data-testid="gcp-filter-unmatched" onClick={() => setUnmatched(!unmatched)} className={`h-8 px-3 rounded-lg text-xs font-semibold ${unmatched ? "bg-orange-500 text-white" : "bg-slate-100 text-slate-600"}`}>{tr("只看未命中")} ({data.unmatched})</button>
+        <Btn data-testid="gcp-clear-unmatched" kind="ghost" onClick={clearUnmatched}><Trash2 className="h-4 w-4 inline -mt-0.5 mr-1" />{tr("一鍵清理未命中")}</Btn>
+        <span className="text-xs text-slate-400 ml-auto">{tr("共 {0} 個號碼", data.total)}</span>
+      </Card>
       <Card className="overflow-hidden">
-        <Table testId="gcp-table" cols={[tr("手機號"), tr("姓名"), tr("備註"), tr("加入時間"), tr("啟用"), ""]} rows={data.rows} empty={tr("號碼庫為空")} render={(n) => (
+        <Table testId="gcp-table" cols={[tr("號碼（標準化）"), tr("原文"), tr("備註"), tr("命中次數"), tr("最近命中"), tr("錄入時間 / 錄入人"), ""]} rows={data.rows} empty={tr("號碼庫為空")} render={(n) => (
           <tr key={n.id} data-testid={`gcp-row-${n.id}`} className="hover:bg-slate-50">
-            <td className="px-4 py-2.5 font-mono font-semibold text-slate-800">{n.phone}</td><td className="px-4 py-2.5">{n.name || "-"}</td><td className="px-4 py-2.5 text-slate-500 text-xs">{n.note || "-"}</td>
-            <td className="px-4 py-2.5 text-xs text-slate-400">{fmt(n.created_at)}</td>
-            <td className="px-4 py-2.5"><Switch checked={!!n.active} onCheckedChange={() => toggle(n)} /></td>
+            <td className="px-4 py-2.5 font-mono font-semibold text-slate-800">{n.key}</td><td className="px-4 py-2.5 font-mono text-xs text-slate-500">{n.raw}</td><td className="px-4 py-2.5 text-slate-500 text-xs max-w-[220px] truncate">{n.note || "-"}</td>
+            <td className="px-4 py-2.5"><Pill tone={n.hitCount ? "emerald" : "slate"}>{n.hitCount || 0}</Pill></td>
+            <td className="px-4 py-2.5 text-xs text-slate-400">{n.lastHitAt ? fmt(n.lastHitAt) : "-"}</td>
+            <td className="px-4 py-2.5 text-xs text-slate-400">{fmt(n.createdAt)}<br />{n.addedBy}</td>
             <td className="px-4 py-2.5"><button data-testid={`gcp-del-${n.id}`} onClick={() => del(n)} className="text-slate-400 hover:text-red-500"><Trash2 className="h-4 w-4" /></button></td>
           </tr>
         )} />
@@ -69,6 +77,7 @@ export function GiftCardOrdersAdmin({ callApi }) {
     let reason = "";
     if (kind === "reject") { reason = window.prompt(tr("駁回原因（用戶將看到）"), tr("轉贈帳號有誤，請重新填寫")); if (reason === null) return; }
     if (kind === "cancel" && !window.confirm(tr("確定取消 {0} 筆訂單？將退回餘額並恢復庫存。", ids.length))) return;
+    if (kind === "supplement" && !window.confirm(tr("將把這些訂單填寫的號碼加入號碼庫並重新自動審核，確定？"))) return;
     try { const r = await callApi({ method: "POST", url: `/admin/giftcard/orders/${kind}`, data: { ids, reason } }); toast.success(tr("已處理 {0} 筆", r.data.done)); load(); }
     catch (e) { toast.error(e.response?.data?.detail || tr("操作失敗")); }
   };
@@ -83,6 +92,7 @@ export function GiftCardOrdersAdmin({ callApi }) {
       <Card className="p-3 mb-3 flex items-center gap-2">
         <span className="text-xs text-slate-500">{tr("已選 {0} 筆", sel.length)}</span>
         <Btn data-testid="gco-bulk-complete" onClick={() => act("complete", sel)}>{tr("批量完成")}</Btn>
+        <Btn data-testid="gco-bulk-supplement" kind="ghost" onClick={() => act("supplement", sel)}>{tr("補號並重審")}</Btn>
         <Btn data-testid="gco-bulk-reject" kind="ghost" onClick={() => act("reject", sel)}>{tr("批量駁回")}</Btn>
         <Btn data-testid="gco-bulk-cancel" kind="ghost" onClick={() => act("cancel", sel)}>{tr("取消訂單")}</Btn>
       </Card>
@@ -92,7 +102,7 @@ export function GiftCardOrdersAdmin({ callApi }) {
           return (
             <tr key={o.id} data-testid={`gco-row-${o.id}`} className="hover:bg-slate-50 align-top">
               <td className="px-4 py-3"><input type="checkbox" checked={sel.includes(o.id)} onChange={(e) => setSel(e.target.checked ? [...sel, o.id] : sel.filter((x) => x !== o.id))} className="h-4 w-4 accent-orange-500" /></td>
-              <td className="px-4 py-3 whitespace-nowrap"><div className="font-mono text-xs font-semibold text-slate-800">{o.order_no}</div><div className="text-[11px] text-slate-400">{fmt(o.created_at)}</div>{o.gift_dispatch_at && o.status === "processing" && <div className="text-[10px] text-amber-600">{tr("預計完成")} {fmt(o.gift_dispatch_at)}</div>}</td>
+              <td className="px-4 py-3 whitespace-nowrap"><div className="font-mono text-xs font-semibold text-slate-800">{o.order_no}</div><div className="text-[11px] text-slate-400">{fmt(o.created_at)}</div>{o.gift_dispatch_at && o.status === "processing" && <div className="text-[10px] text-amber-600">{tr("預計完成")} {fmt(o.gift_dispatch_at)}</div>}{o.matchedKey && <div className="text-[10px] text-emerald-600">{tr("命中")} {o.matchedKey}</div>}</td>
               <td className="px-4 py-3 whitespace-nowrap"><div className="font-head font-bold text-xs text-slate-800">{o.account_no}</div><div className="text-[11px] text-slate-400 truncate max-w-[150px]">{o.user_email}</div></td>
               <td className="px-4 py-3 min-w-[170px]">{(o.items || []).map((i, k) => <div key={k} className="text-xs"><span className="text-slate-800">{i.product_name}</span><br /><span className="text-slate-400">{i.spec_label} ×{i.quantity}</span></div>)}</td>
               <td className="px-4 py-3 text-xs text-slate-600 max-w-[200px] break-all">{infoText(o)}{o.info_rejected && o.status === "paid" && <div className="text-[10px] text-red-500 mt-1">{tr("駁回：{0}", o.info_reject_reason)}</div>}</td>
@@ -102,6 +112,7 @@ export function GiftCardOrdersAdmin({ callApi }) {
               <td className="px-4 py-3 whitespace-nowrap">
                 {["paid", "processing"].includes(o.status) && <div className="flex flex-col gap-1">
                   <button data-testid={`gco-complete-${o.id}`} onClick={() => act("complete", [o.id])} className="text-xs font-semibold text-emerald-600 hover:underline text-left">{tr("完成")}</button>
+                  {o.gift_manual && <button data-testid={`gco-supplement-${o.id}`} onClick={() => act("supplement", [o.id])} className="text-xs font-semibold text-violet-600 hover:underline text-left">{tr("補號並重審")}</button>}
                   <button data-testid={`gco-reject-${o.id}`} onClick={() => act("reject", [o.id])} className="text-xs font-semibold text-amber-600 hover:underline text-left">{tr("駁回")}</button>
                   <button data-testid={`gco-cancel-${o.id}`} onClick={() => act("cancel", [o.id])} className="text-xs font-semibold text-red-500 hover:underline text-left">{tr("取消")}</button>
                 </div>}

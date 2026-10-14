@@ -29,10 +29,12 @@ def now_iso() -> str:
 
 
 def norm_phone(v: str) -> str:
-    d = re.sub(r"\D", "", str(v or ""))
-    if d.startswith("00"):
-        d = d[2:]
-    return d
+    return re.sub(r"\D", "", str(v or ""))
+
+
+def norm_key(v: str) -> str:
+    """Pool key: strip all whitespace, lowercase. Exact match only."""
+    return re.sub(r"\s+", "", str(v or "")).lower()
 
 
 def phone_match(a: str, b: str) -> bool:
@@ -40,7 +42,7 @@ def phone_match(a: str, b: str) -> bool:
     return bool(a and b) and (a == b or (len(a) >= 8 and len(b) >= 8 and a[-8:] == b[-8:]))
 
 
-DEFAULT_SETTINGS = {"auto_delay_min": 2, "auto_delay_max": 5, "api_key": ""}
+DEFAULT_SETTINGS = {"auto_review_enabled": True, "auto_delay_min": 2, "auto_delay_max": 5, "api_key": ""}
 
 
 async def get_settings() -> dict:
@@ -53,12 +55,33 @@ async def get_settings() -> dict:
 
 
 async def pool_hit(values: List[str]) -> Optional[dict]:
-    cands = [norm_phone(v) for v in values if norm_phone(v)]
+    cands = list({norm_key(v) for v in values if norm_key(v)})
     if not cands:
         return None
-    tails = list({c[-8:] for c in cands if len(c) >= 8})
-    q = {"active": True, "$or": [{"phone": {"$in": cands}}] + ([{"phone_tail": {"$in": tails}}] if tails else [])}
-    return await db.giftcard_numbers.find_one(q, {"_id": 0})
+    hit = await db.giftcard_numbers.find_one({"key": {"$in": cands}}, {"_id": 0})
+    if hit:
+        await db.giftcard_numbers.update_one({"key": hit["key"]}, {"$inc": {"hitCount": 1}, "$set": {"lastHitAt": now_iso()}})
+    return hit
+
+
+async def add_numbers(lines: str, note: str, by: str):
+    added = skipped = 0
+    for raw in re.split(r"[\s,，;；|]+", lines or ""):
+        raw = raw.strip()
+        key = norm_key(raw)
+        if not key:
+            continue
+        r = await db.giftcard_numbers.update_one({"key": key}, {"$setOnInsert": {"id": uuid.uuid4().hex, "key": key, "raw": raw, "note": note, "hitCount": 0, "lastHitAt": None,
+                                                                                 "createdAt": now_iso(), "addedBy": by}}, upsert=True)
+        if r.upserted_id:
+            added += 1
+        else:
+            skipped += 1
+    return added, skipped
+
+
+async def op_log(email: str, text: str, status: int = 200):
+    await admin_api.record_admin_log("", email or "system", "GIFTCARD", text, status)
 
 
 async def create_txns(order: dict, nos: list):
@@ -84,6 +107,7 @@ def _amount_from_label(label: str) -> float:
 
 # ----------------------------- settings -----------------------------
 class SettingsIn(BaseModel):
+    auto_review_enabled: bool = True
     auto_delay_min: int = 2
     auto_delay_max: int = 5
 
@@ -99,7 +123,7 @@ async def settings_put(body: SettingsIn, admin: dict = Depends(admin_api.current
     lo, hi = max(0, body.auto_delay_min), max(0, body.auto_delay_max)
     if hi < lo:
         lo, hi = hi, lo
-    val = {**cur, "auto_delay_min": lo, "auto_delay_max": hi}
+    val = {**cur, "auto_review_enabled": body.auto_review_enabled, "auto_delay_min": lo, "auto_delay_max": hi}
     await db.settings.update_one({"key": "giftcard"}, {"$set": {"value": val}}, upsert=True)
     return val
 
@@ -119,46 +143,37 @@ class NumbersIn(BaseModel):
 
 
 @router.get("/numbers")
-async def numbers_list(q: str = "", page: int = 1, size: int = 50, admin: dict = Depends(admin_api.current_admin)):
+async def numbers_list(q: str = "", unmatched: str = "", page: int = 1, size: int = 50, admin: dict = Depends(admin_api.current_admin)):
     cond: dict = {}
     if q:
-        cond = {"$or": [{"phone": {"$regex": re.escape(norm_phone(q) or q)}}, {"name": {"$regex": q, "$options": "i"}}, {"note": {"$regex": q, "$options": "i"}}]}
+        cond["$or"] = [{"key": {"$regex": re.escape(norm_key(q))}}, {"note": {"$regex": q, "$options": "i"}}]
+    if unmatched == "1":
+        cond["hitCount"] = {"$in": [0, None]}
     total = await db.giftcard_numbers.count_documents(cond)
-    rows = await db.giftcard_numbers.find(cond, {"_id": 0}).sort("created_at", -1).skip((page - 1) * size).to_list(size)
-    return {"rows": rows, "total": total, "page": page, "size": size}
+    rows = await db.giftcard_numbers.find(cond, {"_id": 0}).sort("createdAt", -1).skip((page - 1) * size).to_list(size)
+    unmatched_n = await db.giftcard_numbers.count_documents({"hitCount": {"$in": [0, None]}})
+    return {"rows": rows, "total": total, "unmatched": unmatched_n}
 
 
 @router.post("/numbers")
 async def numbers_add(body: NumbersIn, admin: dict = Depends(admin_api.current_admin)):
-    added = skipped = 0
-    for raw in body.lines.splitlines():
-        raw = raw.strip()
-        if not raw:
-            continue
-        parts = [p.strip() for p in re.split(r"[,\t，;；|]+", raw)]
-        phone = norm_phone(parts[0])
-        if len(phone) < 6:
-            skipped += 1
-            continue
-        name = parts[1] if len(parts) > 1 else ""
-        r = await db.giftcard_numbers.update_one({"phone": phone}, {"$setOnInsert": {"id": uuid.uuid4().hex, "phone": phone, "phone_tail": phone[-8:], "name": name, "note": body.note,
-                                                                                     "active": True, "created_at": now_iso(), "created_by": admin.get("email", "")}}, upsert=True)
-        if r.upserted_id:
-            added += 1
-        else:
-            skipped += 1
+    added, skipped = await add_numbers(body.lines, body.note, admin.get("email", ""))
+    await op_log(admin.get("email", ""), f"號碼庫批量新增 {added} 筆，重複略過 {skipped} 筆")
     return {"added": added, "skipped": skipped}
 
 
-@router.patch("/numbers/{nid}")
-async def numbers_toggle(nid: str, body: dict, admin: dict = Depends(admin_api.current_admin)):
-    await db.giftcard_numbers.update_one({"id": nid}, {"$set": {k: v for k, v in body.items() if k in ("active", "name", "note")}})
-    return {"ok": True}
+@router.delete("/numbers/unmatched")
+async def numbers_clear_unmatched(admin: dict = Depends(admin_api.current_admin)):
+    r = await db.giftcard_numbers.delete_many({"hitCount": {"$in": [0, None]}})
+    await op_log(admin.get("email", ""), f"號碼庫一鍵清理未命中 {r.deleted_count} 筆")
+    return {"deleted": r.deleted_count}
 
 
 @router.delete("/numbers/{nid}")
 async def numbers_delete(nid: str, admin: dict = Depends(admin_api.current_admin)):
+    n = await db.giftcard_numbers.find_one({"id": nid}, {"_id": 0, "key": 1})
     await db.giftcard_numbers.delete_one({"id": nid})
+    await op_log(admin.get("email", ""), f"號碼庫刪除 {(n or {}).get('key', nid)}")
     return {"ok": True}
 
 

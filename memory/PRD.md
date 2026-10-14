@@ -422,3 +422,4 @@
 - 前台 MyOrders：禮品卡 processing 顯示紫色 GiftTransferring 卡（環形進度、倒計時(有 gift_dispatch_at 時)、每 10s 輪詢，完成後自動刷新顯示交易號）；completed 顯示「轉贈成功 · 交易號」。
 - 後台頁：GiftCardPoolAdmin.jsx（號碼庫 + 自動審核延遲設定；GiftCardOrdersAdmin 訂單管理：分頁籤/搜尋/多選批量完成·駁回·取消）、GiftCardTxnAdmin.jsx（交易號查詢 + 人工核銷 + 歷史 + CSV；GiftCardApiAdmin 核銷接口 API key 顯示/重置 + 文件）。
 - 驗證：Python 直測全流程（命中→自動完成→32 位交易號→核銷 404/422/409/成功→訂單 redeemed；未命中→待人工→駁回回待填資料）；後台 4 頁截圖渲染正常。
+- Round 31 補充（依使用者號碼庫規格）：giftcard_numbers 改為 {key(去空白小寫、唯一索引), raw, note, hitCount, lastHitAt, createdAt, addedBy}，精確比對（不再末 8 位）；批量新增以空白/換行/逗號/分號切分；GET /numbers?unmatched=1、DELETE /numbers/unmatched 一鍵清理、op_log 寫 admin_logs。設定新增 auto_review_enabled 開關（關閉→全部人工，autoReview=disabled）。server._gift_auto_review() 寫 autoReview/needManual/matchedKey；POST /admin/giftcard/orders/supplement 補號並重審。前端 GiftCardPoolAdmin 重寫（開關、未命中篩選、清理、命中次數欄）；訂單管理加「補號並重審」。直測全部通過。
