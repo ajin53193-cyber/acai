@@ -1,0 +1,35 @@
+{
+  "summary": "Round 11 storefront E2E PASS. Verified (1) 套餐限时+库存 on Home: combo card shows 立省/countdown/仅剩 N 份, 立即抢购 adds to cart and renders checkout-combo-discount; (2) 抽奖分享得次数 on /lottery: POST /api/lottery/share grants bonus draw, 2nd click same day returns '今日分享奖励已领取' toast, free badge switches from 今日有 1 次免费 → 你有 1 次分享免费; (3) lottery single+batch buttons still present (points=5000, free daily available). Admin pages (活动数据看板, 首页装修) SKIPPED per request (admin 2FA).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "feature_test_results": {
+    "combo_card_remaining_label": "PASS — [data-testid=combo-remaining-7f7eb86527ad] = '仅剩 20 份'.",
+    "combo_card_save_badge": "PASS — [data-testid=combo-save-7f7eb86527ad] = '立省 $7.39（43%）'.",
+    "combo_card_countdown": "PASS — countdown '02:58:49' present inside combo-card (end time active).",
+    "combo_buy_to_checkout": "PASS — [data-testid=combo-buy-7f7eb86527ad] (text=立即抢购) adds 2 cart items (cart-item-combo_7f7eb86527ad__15680__15680-218590 for 火兔直播 50万金币, cart-item-combo_7f7eb86527ad__15707__15707-218884 for 天狗直播 5000狗钻) and navigates to /checkout.",
+    "checkout_combo_discount_row": "PASS — [data-testid=checkout-combo-discount] = '超值双人组: -$7.39'. [data-testid=checkout-total] = '$9.79' (= $17.38 − $7.39 combo discount). Did NOT pay the order per instruction.",
+    "lottery_points": "PASS — [data-testid=lottery-points] = '我的积分：5000'.",
+    "lottery_free_badge_pre_share": "PASS — [data-testid=lottery-free-badge] = '🎁 今日有 1 次免费抽奖机会！' (daily_free_available=true).",
+    "lottery_share_grant_first_click": "PASS — POST /api/lottery/share returned 200, bonus_draw granted (observed in follow-up: free-badge switched to '🎁 你有 1 次分享免费抽奖机会！', and /api/lottery/my-status shows bonus_draws=1).",
+    "lottery_share_second_click_same_day": "PASS — POST /api/lottery/share returned 200 with body {granted: false, bonus_draws: 1, message: '今日分享奖励已领取'}, and the sonner toast '今日分享奖励已领取' is visible on screen (captured via [data-sonner-toast] selector).",
+    "lottery_single_and_batch_buttons": "PASS — [data-testid=lottery-draw-btn-2]='免费抽 1 次' (because daily free is available), [data-testid=lottery-draw-btn-10]='连抽十次（1000 积分）'. Not executed draws this run (previous iteration already confirmed modal + results)."
+  },
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Minor: toast rendered via sonner uses [data-sonner-toast] (not role=status/alert). Not a bug, just an observation for future testing agents using generic toast selectors.",
+    "AuthModal: inputs do not have data-testid; relied on placeholders ('信箱 / 手机号 / 帐号', '密码'). Adding data-testid=auth-email-input / auth-password-input / auth-submit-btn would make the login flow more robust for automated tests.",
+    "AuthModal: the agree checkbox is sr-only and clicking the visible span '条款与条件' opens a terms modal (expected) but the whole 已阅读并同意 label is not a label-for element — Playwright had to toggle it via JS click(). Not a bug, works for real users clicking the visible pill."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A (skipped per request)", "frontend": "100% (11/11 feature assertions on 3 requested features)"},
+  "test_credentials": "Member: tester+clerk_test@shop.com / Gogo589!Tester#4m9Z — logged in cleanly, no 2FA email code prompted this session (Clerk device-trust not triggered).",
+  "seed_data_creation": "None. Used seeded combo id 7f7eb86527ad (超值双人组 = 火兔直播 50万金币 + 天狗直播 5000狗钻, pkg $9.99 vs $17.38 = $7.39 off, stock=20, ~2h58m remaining on end_time). The lottery share grant WAS consumed during this run (first click granted bonus_draws 0→1; subsequent clicks today return '今日分享奖励已领取'). bonus_draws=1 remains on the member — next tester should reset lottery_share state again if re-testing the grant path.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Round 11 three storefront items fully verified. Admin console tests were skipped (活动数据看板 + 首页装修 require Google-Authenticator TOTP). Checkout was intentionally NOT paid (stopped at the discount display). Member tester+clerk_test@shop.com remains at points=5000, bonus_draws=1, daily_free_available=true, and has 2 combo items left in cart (combo_7f7eb86527ad). If retesting share-grant, run the backend reset for lottery_share_state before next run. Login requires toggling the sr-only agree checkbox via JS (document.querySelectorAll('input[type=checkbox]').forEach(c=>c.click())). Password field placeholder is exactly '密码'; email field placeholder is '信箱 / 手机号 / 帐号'. The homepage HeroCarousel from /api/site-config hero_slides was not populated (admin uploader skipped), so default hero image is rendered."
+}

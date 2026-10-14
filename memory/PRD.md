@@ -259,3 +259,11 @@
 - **套餐省額角標**：首頁套餐卡右上角 `combo-save-<id>`「立省 $X（N%）」紅色角標（已上線實測顯示「立省 $50.68（84%）」）。
 - data-testid：activity-records-admin/act-tab-*/act-table、combo-save-*。
 - 驗證：activity-records curl 回 26 筆（25 抽獎+1 秒殺）；連抽保底 3 輪通過；首頁角標截圖確認。
+
+## 2026-10 後台 Round 11：套餐限時+庫存 + 首頁輪播裝修 + 活動數據看板 + 抽獎分享得次數
+- **套餐限時+庫存**：ComboIn 新增 start_at/end_at/stock（sold 自動）；`/combos/public` 依時間窗 + 剩餘過濾並回 remaining/end_at；create_order 對每個 combo_id 原子預扣 1 份（stock>0 時），售罄回 409「套餐已售罄」，取消訂單回補。CombosAdmin 加限量/起訖時間欄 + 列表顯示餘量/限時；首頁套餐卡顯示倒計時 + 「僅剩 N 份」（combo-remaining-*）。驗證：2→1→0→售罄。
+- **首頁輪播裝修**：cms DEFAULT_CONFIG 新增 `hero_slides:[]`；HomeLayoutAdmin 加輪播圖管理（上傳 base64→`_process` 自動傳物件儲存、連結/替代文字、上下排序、刪除），與板塊排序一起存。Home 當 hero_slides 有值時渲染 `HeroCarousel`（4s 自動輪播 + 指示點），否則用預設富文本 hero。config PUT/讀回已驗證。
+- **活動數據看板**：`GET /admin/activity-stats` 回今日秒殺件數/營收、抽獎次數/真實中獎、套餐單數/營收/省額；ActivityRecordsAdmin 頂部三張統計卡（activity-stats）。
+- **抽獎分享得次數**：user 新增 lottery_bonus_draws / lottery_share_date；`POST /api/lottery/share` 每日首次分享 +1 次免費抽獎（當日重複不給）；my-status 回 daily_free_available + bonus_draws + free_available；draw 免費優先用每日免費（free_kind=daily），否則用 bonus（free_kind=bonus 並扣減），`_free_draw_used_today` 只認 daily。Lottery 頁加「分享得抽獎次數」按鈕（lottery-share-btn）+ 免費/分享次數徽章。
+- data-testid：combo-remaining-*/combo-stock、hero-slides-list/hero-slide-*/hero-slide-add/hero-carousel、activity-stats、lottery-share-btn。
+- 驗證：iteration_32 storefront 11/11 通過（套餐限時庫存卡+結算、分享得次數、連抽）；套餐庫存/活動看板/輪播 config 後端 curl 全驗。
