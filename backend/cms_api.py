@@ -54,6 +54,15 @@ DEFAULT_CONFIG = {
         "title": "新用戶註冊，最高領 9% 優惠券", "subtitle": "註冊即享首單優惠，海量正版 App 充值等你來！",
         "mobile_image": "/banners/register-mobile.png",
     },
+    "home_layout": [
+        {"key": "flash_sale", "label": "限時秒殺", "visible": True},
+        {"key": "lottery_entry", "label": "積分抽獎入口", "visible": True},
+        {"key": "combos", "label": "超值套餐", "visible": True},
+        {"key": "quick_order", "label": "快捷下單", "visible": True},
+        {"key": "hot_products", "label": "熱門產品", "visible": True},
+        {"key": "promo_banners", "label": "促銷橫幅", "visible": True},
+        {"key": "hot_categories", "label": "熱門分類", "visible": True},
+    ],
 }
 IMG_KEYS = ("image", "mobile_image", "cover")
 TEXT_SKIP_KEYS = ("link", "image", "mobile_image", "action", "cover", "id")

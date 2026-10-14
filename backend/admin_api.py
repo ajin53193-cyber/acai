@@ -747,6 +747,7 @@ async def admin_flash_sale_delete(fid: str, admin: dict = Depends(current_admin)
 DEFAULT_LOTTERY = {
     "enabled": True,
     "cost_points": 100,
+    "free_daily": True,
     "prizes": [
         {"id": "p1", "label": "50 積分", "type": "points", "value": 50, "weight": 30, "stock": -1, "color": "#fb923c"},
         {"id": "p2", "label": "謝謝惠顧", "type": "none", "value": 0, "weight": 35, "stock": -1, "color": "#fed7aa"},
@@ -780,6 +781,7 @@ class LotteryPrizeIn(BaseModel):
 class LotteryConfigIn(BaseModel):
     enabled: bool = True
     cost_points: int = 100
+    free_daily: bool = True
     prizes: List[LotteryPrizeIn] = []
 
 
@@ -796,7 +798,7 @@ async def admin_lottery_put(body: LotteryConfigIn, admin: dict = Depends(current
         if not d.get("id"):
             d["id"] = uuid.uuid4().hex[:8]
         prizes.append(d)
-    val = {"enabled": body.enabled, "cost_points": int(body.cost_points), "prizes": prizes}
+    val = {"enabled": body.enabled, "cost_points": int(body.cost_points), "free_daily": bool(body.free_daily), "prizes": prizes}
     await db.settings.update_one({"key": "lottery"}, {"$set": {"key": "lottery", "value": val}}, upsert=True)
     return val
 
@@ -818,6 +820,62 @@ async def admin_lottery_draws(q: str = "", limit: int = 300, admin: dict = Depen
 @router.post("/lottery/draws/{did}/fulfill")
 async def admin_lottery_fulfill(did: str, admin: dict = Depends(current_admin)):
     await db.lottery_draws.update_one({"id": did}, {"$set": {"fulfilled": True, "fulfilled_at": datetime.now(timezone.utc).isoformat(), "fulfilled_by": admin.get("email", "")}})
+    return {"ok": True}
+
+
+# ----------------------------- Combos (組合套餐) -----------------------------
+class ComboItemIn(BaseModel):
+    product_id: str
+    spec_id: str
+    quantity: int = 1
+
+
+class ComboIn(BaseModel):
+    title: str
+    image: str = ""
+    items: List[ComboItemIn] = []
+    price_usd: float = 0
+    active: bool = True
+    sort_order: int = 0
+
+
+async def _enrich_combo(c: dict) -> dict:
+    orig = 0.0
+    out_items = []
+    for ci in c.get("items", []):
+        p = await db.products.find_one({"id": ci["product_id"]}, {"_id": 0, "name": 1, "image": 1, "specs": 1})
+        spec = next((s for s in (p or {}).get("specs", []) if s["id"] == ci["spec_id"]), {}) if p else {}
+        qty = int(ci.get("quantity") or 1)
+        orig += float(spec.get("price_usd") or 0) * qty
+        out_items.append({**ci, "product_name": (p or {}).get("name", ci["product_id"]), "image": (p or {}).get("image", ""), "spec_label": spec.get("label", "")})
+    c["items"] = out_items
+    c["original_total_usd"] = round(orig, 2)
+    return c
+
+
+@router.get("/combos")
+async def admin_combos(admin: dict = Depends(current_admin)):
+    rows = await db.combos.find({}, {"_id": 0}).sort([("sort_order", 1)]).to_list(100)
+    return [await _enrich_combo(c) for c in rows]
+
+
+@router.post("/combos")
+async def admin_combo_create(body: ComboIn, admin: dict = Depends(current_admin)):
+    doc = {"id": uuid.uuid4().hex[:12], **body.dict(), "created_at": datetime.now(timezone.utc).isoformat()}
+    await db.combos.insert_one(dict(doc))
+    doc.pop("_id", None)
+    return doc
+
+
+@router.put("/combos/{cid}")
+async def admin_combo_update(cid: str, body: ComboIn, admin: dict = Depends(current_admin)):
+    await db.combos.update_one({"id": cid}, {"$set": body.dict()})
+    return {"ok": True}
+
+
+@router.delete("/combos/{cid}")
+async def admin_combo_delete(cid: str, admin: dict = Depends(current_admin)):
+    await db.combos.delete_one({"id": cid})
     return {"ok": True}
 
 

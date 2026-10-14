@@ -75,7 +75,7 @@ function CheckoutInner() {
   useEffect(() => {
     if (items.length === 0) return;
     const up = usePoints ? (parseInt(pointsAmt, 10) || 0) : 0;
-    callApi({ method: "POST", url: "/orders/quote", data: { items: items.map((i) => ({ product_id: i.product_id, spec_id: i.spec_id, quantity: i.quantity })), currency: code, recharge_account: "", promo_code: promo?.code || null, use_points: up } })
+    callApi({ method: "POST", url: "/orders/quote", data: { items: items.map((i) => ({ product_id: i.product_id, spec_id: i.spec_id, quantity: i.quantity, combo_id: i.combo_id || null })), currency: code, recharge_account: "", promo_code: promo?.code || null, use_points: up } })
       .then((r) => setQuote(r.data)).catch(() => setQuote(null));
   }, [callApi, itemsKey, promo, usePoints, pointsAmt, code]); // eslint-disable-line
 
@@ -136,7 +136,7 @@ function CheckoutInner() {
         method: "POST",
         url: "/orders",
         data: {
-          items: items.map((i) => ({ product_id: i.product_id, spec_id: i.spec_id, quantity: i.quantity })),
+          items: items.map((i) => ({ product_id: i.product_id, spec_id: i.spec_id, quantity: i.quantity, combo_id: i.combo_id || null })),
           currency: code,
           recharge_account: "",
           delivery_info: {},
@@ -274,6 +274,9 @@ function CheckoutInner() {
               <div className="flex items-center justify-between"><span className="text-slate-600">{tr("優惠金額:")}</span><span className="text-orange-500" data-testid="checkout-discount">-{format(discountUsd)}</span></div>
               {(quote?.cart_discount_usd || 0) > 0 && (
                 <div className="flex items-center justify-between" data-testid="checkout-cart-discount"><span className="text-slate-600 flex items-center gap-1"><Tag className="h-3.5 w-3.5 text-emerald-500" />{tr(quote.cart_promo_title || "滿減優惠")}:</span><span className="text-orange-500">-{format(quote.cart_discount_usd)}</span></div>
+              )}
+              {(quote?.combo_discount_usd || 0) > 0 && (
+                <div className="flex items-center justify-between" data-testid="checkout-combo-discount"><span className="text-slate-600 flex items-center gap-1"><Tag className="h-3.5 w-3.5 text-rose-500" />{tr(quote.combo_title || "套餐優惠")}:</span><span className="text-orange-500">-{format(quote.combo_discount_usd)}</span></div>
               )}
               {level && (level.discount_percent || 0) > 0 && (
                 <div className="flex items-center justify-between" data-testid="checkout-level-discount"><span className="text-slate-600 flex items-center gap-1"><Crown className="h-3.5 w-3.5 text-amber-500" />{tr("{0} 專屬 {1}% 折扣:", tr(level.name), level.discount_percent)}</span><span className="text-orange-500">-{format(levelDiscount)}</span></div>

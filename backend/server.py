@@ -257,6 +257,7 @@ class OrderItemIn(BaseModel):
     product_id: str
     spec_id: str
     quantity: int = 1
+    combo_id: Optional[str] = None
 
 
 class OrderIn(BaseModel):
@@ -513,29 +514,29 @@ async def public_flash_sales():
 async def lottery_config_public():
     cfg = await admin_api.get_lottery_cfg()
     prizes = [{"id": p["id"], "label": p["label"], "color": p.get("color", "#fb923c"), "type": p.get("type", "none")} for p in cfg.get("prizes", [])]
-    return {"enabled": bool(cfg.get("enabled")), "cost_points": int(cfg.get("cost_points") or 0), "prizes": prizes}
+    return {"enabled": bool(cfg.get("enabled")), "cost_points": int(cfg.get("cost_points") or 0), "free_daily": bool(cfg.get("free_daily")), "prizes": prizes}
 
 
-@api_router.post("/lottery/draw")
-async def lottery_draw(member: dict = Depends(current_member)):
-    import random
-    uid = member["user_id"]
+async def _free_draw_used_today(uid: str) -> bool:
+    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    return bool(await db.lottery_draws.find_one({"user_id": uid, "free": True, "created_at": {"$regex": f"^{today}"}}, {"_id": 1}))
+
+
+@api_router.get("/lottery/my-status")
+async def lottery_my_status(member: dict = Depends(current_member)):
     cfg = await admin_api.get_lottery_cfg()
-    if not cfg.get("enabled"):
-        raise HTTPException(status_code=400, detail="抽獎活動未開啟")
-    cost = int(cfg.get("cost_points") or 0)
+    u = await db.users.find_one({"user_id": member["user_id"]}, {"_id": 0, "points": 1}) or {}
+    free_available = bool(cfg.get("free_daily")) and not await _free_draw_used_today(member["user_id"])
+    return {"points": int(u.get("points") or 0), "cost_points": int(cfg.get("cost_points") or 0),
+            "free_daily": bool(cfg.get("free_daily")), "free_available": free_available, "enabled": bool(cfg.get("enabled"))}
+
+
+async def _pick_and_grant(uid: str, cfg: dict, points_bal: int):
+    """Weighted pick from current config + apply reward. Returns (win, new_points, wallet_usd)."""
+    import random
     pool = [p for p in cfg.get("prizes", []) if int(p.get("weight") or 0) > 0 and int(p.get("stock", -1)) != 0]
     if not pool:
         raise HTTPException(status_code=400, detail="暫無可抽獎品，請稍後再試")
-    u = await db.users.find_one({"user_id": uid}, {"_id": 0, "points": 1}) or {}
-    bal = int(u.get("points") or 0)
-    if bal < cost:
-        raise HTTPException(status_code=400, detail=f"積分不足，每次抽獎需 {cost} 積分")
-    new_pts = bal - cost
-    await db.users.update_one({"user_id": uid}, {"$set": {"points": new_pts}})
-    if cost > 0:
-        await db.point_transactions.insert_one({"id": new_id(), "user_id": uid, "delta": -cost, "balance_after": new_pts,
-                                                "source": "lottery", "reason": "抽獎消耗積分", "ref": "", "created_at": now_iso()})
     total = sum(int(p["weight"]) for p in pool)
     r = random.uniform(0, total)
     acc = 0.0
@@ -545,19 +546,17 @@ async def lottery_draw(member: dict = Depends(current_member)):
         if r <= acc:
             win = p
             break
-    # decrement limited stock
     if int(win.get("stock", -1)) >= 0:
         await db.settings.update_one({"key": "lottery"}, {"$inc": {"value.prizes.$[e].stock": -1}}, array_filters=[{"e.id": win["id"], "e.stock": {"$gt": 0}}])
-    # grant reward
     wallet_usd = None
     ptype = win.get("type", "none")
     pval = win.get("value")
     if ptype == "points":
         add = int(float(pval or 0))
         if add > 0:
-            new_pts += add
-            await db.users.update_one({"user_id": uid}, {"$set": {"points": new_pts}})
-            await db.point_transactions.insert_one({"id": new_id(), "user_id": uid, "delta": add, "balance_after": new_pts,
+            points_bal += add
+            await db.users.update_one({"user_id": uid}, {"$set": {"points": points_bal}})
+            await db.point_transactions.insert_one({"id": new_id(), "user_id": uid, "delta": add, "balance_after": points_bal,
                                                     "source": "lottery_prize", "reason": f"抽獎中獎 {win['label']}", "ref": win["id"], "created_at": now_iso()})
     elif ptype == "balance":
         amt = round(float(pval or 0), 2)
@@ -567,17 +566,78 @@ async def lottery_draw(member: dict = Depends(current_member)):
         code = str(pval or "").strip().upper()
         if code and await db.promos.find_one({"code": code, "active": True}, {"_id": 1}):
             await db.user_coupons.insert_one({"id": new_id(), "user_id": uid, "code": code, "claimed_at": now_iso(), "source": "lottery"})
-    draw = {"id": new_id(), "user_id": uid, "prize_id": win["id"], "prize_label": win["label"], "prize_type": ptype,
-            "prize_value": pval, "cost_points": cost, "fulfilled": False, "created_at": now_iso()}
-    await db.lottery_draws.insert_one(dict(draw))
-    draw.pop("_id", None)
-    await log_user(uid, "lottery", "抽獎", f"中獎：{win['label']}")
-    return {"prize_id": win["id"], "prize_label": win["label"], "prize_type": ptype, "points_balance": new_pts, "balance_usd": wallet_usd}
+    return win, points_bal, wallet_usd
+
+
+@api_router.post("/lottery/draw")
+async def lottery_draw(body: dict = None, member: dict = Depends(current_member)):
+    uid = member["user_id"]
+    cfg = await admin_api.get_lottery_cfg()
+    if not cfg.get("enabled"):
+        raise HTTPException(status_code=400, detail="抽獎活動未開啟")
+    count = int((body or {}).get("count") or 1)
+    count = 10 if count >= 10 else 1
+    cost = int(cfg.get("cost_points") or 0)
+    # free daily draw applies only to a single draw
+    use_free = count == 1 and bool(cfg.get("free_daily")) and not await _free_draw_used_today(uid)
+    charge = 0 if use_free else cost * count
+    u = await db.users.find_one({"user_id": uid}, {"_id": 0, "points": 1}) or {}
+    bal = int(u.get("points") or 0)
+    if bal < charge:
+        raise HTTPException(status_code=400, detail=f"積分不足，本次抽獎需 {charge} 積分")
+    bal -= charge
+    await db.users.update_one({"user_id": uid}, {"$set": {"points": bal}})
+    if charge > 0:
+        await db.point_transactions.insert_one({"id": new_id(), "user_id": uid, "delta": -charge, "balance_after": bal,
+                                                "source": "lottery", "reason": f"抽獎消耗積分 x{count}", "ref": "", "created_at": now_iso()})
+    results = []
+    wallet_usd = None
+    for k in range(count):
+        win, bal, w = await _pick_and_grant(uid, cfg, bal)
+        if w is not None:
+            wallet_usd = w
+        draw = {"id": new_id(), "user_id": uid, "prize_id": win["id"], "prize_label": win["label"], "prize_type": win.get("type", "none"),
+                "prize_value": win.get("value"), "cost_points": (charge if count == 1 else cost), "free": bool(use_free and k == 0), "fulfilled": False, "created_at": now_iso()}
+        await db.lottery_draws.insert_one(dict(draw))
+        results.append({"prize_id": win["id"], "prize_label": win["label"], "prize_type": win.get("type", "none")})
+    await log_user(uid, "lottery", "抽獎", f"x{count} 中獎：" + "、".join(r["prize_label"] for r in results))
+    first = results[0]
+    return {"results": results, "count": count, "free_used": use_free,
+            "prize_id": first["prize_id"], "prize_label": first["prize_label"], "prize_type": first["prize_type"],
+            "points_balance": bal, "balance_usd": wallet_usd,
+            "free_available": bool(cfg.get("free_daily")) and not await _free_draw_used_today(uid)}
 
 
 @api_router.get("/lottery/my-draws")
 async def lottery_my_draws(member: dict = Depends(current_member)):
     return await db.lottery_draws.find({"user_id": member["user_id"]}, {"_id": 0}).sort("created_at", -1).to_list(30)
+
+
+@api_router.get("/combos/public")
+async def public_combos():
+    rows = await db.combos.find({"active": True}, {"_id": 0}).sort([("sort_order", 1)]).to_list(50)
+    out = []
+    for c in rows:
+        items = []
+        orig = 0.0
+        ok = True
+        for ci in c.get("items", []):
+            p = await db.products.find_one({"id": ci["product_id"], "active": True}, {"_id": 0, "name": 1, "image": 1, "specs": 1})
+            if not p:
+                ok = False
+                break
+            spec = next((s for s in p.get("specs", []) if s["id"] == ci["spec_id"]), None)
+            if not spec:
+                ok = False
+                break
+            qty = int(ci.get("quantity") or 1)
+            orig += float(spec["price_usd"]) * qty
+            items.append({"product_id": ci["product_id"], "spec_id": ci["spec_id"], "product_name": p["name"], "image": p.get("image", ""), "spec_label": spec["label"], "quantity": qty, "price_usd": round(float(spec["price_usd"]), 2)})
+        if not ok or not items:
+            continue
+        out.append({"id": c["id"], "title": c["title"], "image": c.get("image", ""), "price_usd": round(float(c["price_usd"]), 2),
+                    "original_total_usd": round(orig, 2), "items": items})
+    return out
 
 
 class RedeemGiftCardIn(BaseModel):
@@ -706,14 +766,31 @@ async def _compute_order(order: OrderIn, member_ctx: dict = None):
             "spec_id": spec["id"], "spec_label": spec["label"],
             "unit_price_usd": unit, "quantity": qty, "line_usd": round(line, 2),
             "flash_id": flash["id"] if flash else None, "flash": bool(flash),
+            "combo_id": it.combo_id,
         })
+    # combo (套餐) bundle pricing — collapse grouped items to the package price
+    combo_discount_usd = 0.0
+    combo_titles = []
+    groups = {}
+    for x in items_out:
+        if x.get("combo_id"):
+            groups.setdefault(x["combo_id"], []).append(x)
+    for cid, its in groups.items():
+        combo = await db.combos.find_one({"id": cid, "active": True}, {"_id": 0})
+        if not combo:
+            continue
+        gtotal = sum(v["line_usd"] for v in its)
+        disc = round(max(0.0, gtotal - float(combo["price_usd"])), 2)
+        if disc > 0:
+            combo_discount_usd += disc
+            combo_titles.append(combo["title"])
     discount_usd = 0.0
     promo_code = None
     if order.promo_code:
         res = await validate_promo({"code": order.promo_code, "subtotal_usd": subtotal_usd})
         discount_usd = res["discount_usd"]
         promo_code = res["code"]
-    remaining = max(0.0, subtotal_usd - discount_usd)
+    remaining = max(0.0, subtotal_usd - combo_discount_usd - discount_usd)
     # cart-level promotion (滿減/滿折) — auto-apply best eligible tier
     cart_discount_usd = 0.0
     cart_promo_title = None
@@ -753,6 +830,7 @@ async def _compute_order(order: OrderIn, member_ctx: dict = None):
     total_usd = round(remaining, 2)
     extras = {"level_discount_usd": round(level_discount_usd, 2), "level_name": level_name, "level_discount_percent": level_pct,
               "cart_discount_usd": cart_discount_usd, "cart_promo_title": cart_promo_title,
+              "combo_discount_usd": round(combo_discount_usd, 2), "combo_title": "、".join(combo_titles),
               "points_used": points_used, "points_discount_usd": round(points_discount_usd, 2)}
     return items_out, round(subtotal_usd, 2), round(discount_usd, 2), total_usd, promo_code, extras
 
@@ -1734,6 +1812,8 @@ async def create_order(order: OrderIn, member: dict = Depends(current_member)):
         "level_discount_percent": extras["level_discount_percent"],
         "cart_discount_usd": extras["cart_discount_usd"],
         "cart_promo_title": extras["cart_promo_title"],
+        "combo_discount_usd": extras["combo_discount_usd"],
+        "combo_title": extras["combo_title"],
         "points_used": extras["points_used"],
         "points_discount_usd": extras["points_discount_usd"],
         "total_usd": total_usd,

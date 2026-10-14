@@ -1,10 +1,11 @@
 import React, { useEffect, useState, useRef } from "react";
-import { Link } from "react-router-dom";
-import { ChevronRight, ChevronLeft, Zap, Megaphone, ShieldCheck, Rocket, Headphones, Tag, Globe, Star, Users, Gift, Percent, Volume2 } from "lucide-react";
+import { Link, useNavigate } from "react-router-dom";
+import { ChevronRight, ChevronLeft, Zap, Megaphone, ShieldCheck, Rocket, Headphones, Tag, Globe, Star, Users, Gift, Percent, Volume2, Package } from "lucide-react";
 import { useUser } from "@clerk/react";
 import { publicApi } from "@/lib/api";
 import { useAuthModal } from "@/components/auth/AuthModal";
 import { useCurrency } from "@/context/CurrencyContext";
+import { useCart } from "@/context/CartContext";
 
 import { ArticleCard } from "@/pages/ArticleCenter";
 import { useSiteConfig } from "@/lib/siteConfig";
@@ -25,9 +26,12 @@ export default function Home() {
   const [home, setHome] = useState({});
   const [news, setNews] = useState([]);
   const [flash, setFlash] = useState([]);
+  const [combos, setCombos] = useState([]);
   const isMobile = useIsMobile();
   const { isSignedIn } = useUser();
   const { openAuth } = useAuthModal();
+  const { addCombo } = useCart();
+  const navigate = useNavigate();
   const cfg = useSiteConfig();
   const { hero, announcement, promo_banners: promos, features, register } = cfg;
 
@@ -36,7 +40,9 @@ export default function Home() {
     publicApi.get("/products/home").then((r) => setHome(r.data)).catch(() => {});
     publicApi.get("/articles", { params: { page: 1, size: 10 } }).then((r) => setNews(r.data.rows)).catch(() => {});
     publicApi.get("/flash-sales/public").then((r) => setFlash(r.data)).catch(() => {});
+    publicApi.get("/combos/public").then((r) => setCombos(r.data)).catch(() => {});
   }, []);
+  const refetchFlash = () => publicApi.get("/flash-sales/public").then((r) => setFlash(r.data)).catch(() => {});
 
   const hot = home.hot || [];
   const quick = (home.quick || []).slice(0, 6);
@@ -84,94 +90,100 @@ export default function Home() {
       )}
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Quick order */}
-        <section className="mt-4 md:mt-5">
-          <div className="flex items-center gap-2 mb-2.5 md:mb-3">
-            <Zap className="hidden md:block h-5 w-5 text-secondary" />
-            <MTitle>{tr("快捷下單")}</MTitle>
-          </div>
-          <Carousel testid="quick-carousel">
-            {quick.map((p) => (
-              <Link key={p.id} to={`/product/${p.id}`} data-testid={`quick-order-${p.id}`}
-                className="group shrink-0 bg-white rounded-2xl border border-slate-100 shadow-sm px-1.5 py-3 md:p-3 flex flex-col items-center text-center hover:shadow-md transition-all">
-                <div className="relative w-[52%] md:w-[64%] aspect-square rounded-2xl overflow-hidden bg-white">
-                  <img src={p.image} alt={p.name} className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-300" />
+        {(() => {
+          const BLOCKS = {
+            quick_order: (
+              <section key="quick_order" className="mt-4 md:mt-5">
+                <div className="flex items-center gap-2 mb-2.5 md:mb-3">
+                  <Zap className="hidden md:block h-5 w-5 text-secondary" />
+                  <MTitle>{tr("快捷下單")}</MTitle>
                 </div>
-                <h3 className="font-semibold text-[12px] md:text-[13px] leading-normal text-slate-800 truncate mt-2 md:mt-3 w-full group-hover:text-orange-600">{p.name}</h3>
-                <span className="mt-2 md:mt-3 text-xs font-bold text-orange-500 md:text-orange-600 bg-orange-100/80 md:bg-orange-100 group-hover:bg-orange-500 group-hover:text-white rounded-full px-4 md:px-5 py-1 md:py-1.5 whitespace-nowrap transition-colors">{tr("立即購買")}</span>
+                <Carousel testid="quick-carousel">
+                  {quick.map((p) => (
+                    <Link key={p.id} to={`/product/${p.id}`} data-testid={`quick-order-${p.id}`}
+                      className="group shrink-0 bg-white rounded-2xl border border-slate-100 shadow-sm px-1.5 py-3 md:p-3 flex flex-col items-center text-center hover:shadow-md transition-all">
+                      <div className="relative w-[52%] md:w-[64%] aspect-square rounded-2xl overflow-hidden bg-white">
+                        <img src={p.image} alt={p.name} className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                      </div>
+                      <h3 className="font-semibold text-[12px] md:text-[13px] leading-normal text-slate-800 truncate mt-2 md:mt-3 w-full group-hover:text-orange-600">{p.name}</h3>
+                      <span className="mt-2 md:mt-3 text-xs font-bold text-orange-500 md:text-orange-600 bg-orange-100/80 md:bg-orange-100 group-hover:bg-orange-500 group-hover:text-white rounded-full px-4 md:px-5 py-1 md:py-1.5 whitespace-nowrap transition-colors">{tr("立即購買")}</span>
+                    </Link>
+                  ))}
+                </Carousel>
+              </section>
+            ),
+            flash_sale: flash.length > 0 ? <FlashSaleSection key="flash_sale" items={flash} onExpire={refetchFlash} /> : null,
+            lottery_entry: (
+              <Link key="lottery_entry" to="/lottery" data-testid="home-lottery-entry" className="mt-5 md:mt-6 flex items-center gap-3 rounded-2xl bg-gradient-to-r from-rose-500 via-orange-500 to-amber-400 px-4 md:px-6 py-3.5 md:py-4 text-white shadow-lg hover:shadow-xl transition-shadow overflow-hidden relative">
+                <Gift className="h-7 w-7 md:h-8 md:w-8 shrink-0 drop-shadow" />
+                <div className="min-w-0 flex-1">
+                  <div className="font-head font-extrabold text-base md:text-lg leading-tight">{tr("積分幸運大轉盤")}</div>
+                  <div className="text-[12px] md:text-sm text-white/90 truncate">{tr("積分換好禮，100% 有獎，天天可抽")}</div>
+                </div>
+                <span className="shrink-0 h-9 md:h-10 px-4 md:px-5 rounded-full bg-white text-orange-600 text-sm font-bold flex items-center">{tr("去抽獎")}</span>
               </Link>
-            ))}
-          </Carousel>
-        </section>
-
-        {/* Flash sale */}
-        {flash.length > 0 && <FlashSaleSection items={flash} />}
-
-        {/* Lottery entry */}
-        <Link to="/lottery" data-testid="home-lottery-entry" className="mt-5 md:mt-6 flex items-center gap-3 rounded-2xl bg-gradient-to-r from-rose-500 via-orange-500 to-amber-400 px-4 md:px-6 py-3.5 md:py-4 text-white shadow-lg hover:shadow-xl transition-shadow overflow-hidden relative">
-          <Gift className="h-7 w-7 md:h-8 md:w-8 shrink-0 drop-shadow" />
-          <div className="min-w-0 flex-1">
-            <div className="font-head font-extrabold text-base md:text-lg leading-tight">{tr("積分幸運大轉盤")}</div>
-            <div className="text-[12px] md:text-sm text-white/90 truncate">{tr("積分換好禮，100% 有獎，天天可抽")}</div>
-          </div>
-          <span className="shrink-0 h-9 md:h-10 px-4 md:px-5 rounded-full bg-white text-orange-600 text-sm font-bold flex items-center">{tr("去抽獎")}</span>
-        </Link>
-
-        {/* Hot products */}
-        <section className="mt-6 md:mt-8">
-          <SectionTitle title={tr("熱門產品")} to="/category/livestream" />
-          <Carousel testid="hot-carousel">
-            {hot.slice(0, 16).map((p) => (
-              <Link key={p.id} to={`/product/${p.id}`} data-testid={`product-card-${p.id}`}
-                className="group relative shrink-0 w-[150px] sm:w-[180px] bg-white rounded-2xl border border-slate-100 shadow-sm p-2 md:p-3 hover:shadow-md hover:-translate-y-0.5 transition-all">
-                {p.tags?.includes(tr("熱銷")) && <span className="absolute -top-1 -right-0.5 md:top-0 md:right-3 text-[10px] font-bold rounded-tr-xl rounded-bl-xl md:rounded-none md:rounded-b-md px-2.5 md:px-2 py-0.5 bg-orange-400 text-white whitespace-nowrap">{tr("折扣")}</span>}
-                <div className="relative w-[52%] md:w-[64%] mx-auto aspect-square rounded-2xl overflow-hidden bg-white mt-1.5 md:mt-0">
-                  <img src={p.image} alt={p.name} className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-300" />
+            ),
+            combos: combos.length > 0 ? <CombosSection key="combos" combos={combos} onBuy={(c) => { addCombo(c); navigate("/checkout"); }} /> : null,
+            hot_products: (
+              <section key="hot_products" className="mt-6 md:mt-8">
+                <SectionTitle title={tr("熱門產品")} to="/category/livestream" />
+                <Carousel testid="hot-carousel">
+                  {hot.slice(0, 16).map((p) => (
+                    <Link key={p.id} to={`/product/${p.id}`} data-testid={`product-card-${p.id}`}
+                      className="group relative shrink-0 w-[150px] sm:w-[180px] bg-white rounded-2xl border border-slate-100 shadow-sm p-2 md:p-3 hover:shadow-md hover:-translate-y-0.5 transition-all">
+                      {p.tags?.includes(tr("熱銷")) && <span className="absolute -top-1 -right-0.5 md:top-0 md:right-3 text-[10px] font-bold rounded-tr-xl rounded-bl-xl md:rounded-none md:rounded-b-md px-2.5 md:px-2 py-0.5 bg-orange-400 text-white whitespace-nowrap">{tr("折扣")}</span>}
+                      <div className="relative w-[52%] md:w-[64%] mx-auto aspect-square rounded-2xl overflow-hidden bg-white mt-1.5 md:mt-0">
+                        <img src={p.image} alt={p.name} className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                      </div>
+                      <h3 className="font-semibold text-[12px] md:text-[13px] leading-normal text-slate-800 truncate mt-2 md:mt-2.5 text-center w-full group-hover:text-orange-600">{p.name}</h3>
+                      <div className="flex items-center justify-between mt-2 pt-2 md:pt-0 border-t md:border-0 border-slate-100 text-[11px]">
+                        <span className="flex items-center gap-0.5 text-slate-600 md:text-slate-400 text-[10px] md:text-[11px]"><span className="text-orange-400 text-[10px]">🔥</span>{salesText(p.sales_count)}</span>
+                        <span className="flex items-center gap-0.5 text-orange-500 md:text-amber-500 font-semibold">{Math.round(p.rating)}<Star className="h-3 w-3 fill-orange-400 md:fill-amber-400 text-orange-400 md:text-amber-400" /></span>
+                      </div>
+                    </Link>
+                  ))}
+                </Carousel>
+              </section>
+            ),
+            promo_banners: (
+              <section key="promo_banners" className="mt-6 md:mt-8 grid grid-cols-2 gap-3 md:gap-4">
+                {(promos || []).filter((b) => b.image).map((b, i) => (
+                  <SmartLink key={i} to={b.link} data-testid={`promo-banner-${i + 1}`} className="block overflow-hidden rounded-2xl hover:shadow-lg transition-shadow">
+                    <img src={b.image} alt={b.alt || ""} className="w-full h-auto object-cover" />
+                  </SmartLink>
+                ))}
+              </section>
+            ),
+            hot_categories: (
+              <section key="hot_categories" className="mt-8 md:mt-10">
+                <div className="flex items-center justify-between mb-4">
+                  <MTitle>{tr("熱門分類")}</MTitle>
+                  <Link to="/category/livestream" data-testid="all-categories-link" className="text-xs font-medium md:font-semibold text-orange-500 md:text-orange-600 bg-orange-100/70 md:bg-orange-50 md:border md:border-orange-100 rounded-full px-3 py-1 hover:bg-orange-100">{tr("全部分類")}</Link>
                 </div>
-                <h3 className="font-semibold text-[12px] md:text-[13px] leading-normal text-slate-800 truncate mt-2 md:mt-2.5 text-center w-full group-hover:text-orange-600">{p.name}</h3>
-                <div className="flex items-center justify-between mt-2 pt-2 md:pt-0 border-t md:border-0 border-slate-100 text-[11px]">
-                  <span className="flex items-center gap-0.5 text-slate-600 md:text-slate-400 text-[10px] md:text-[11px]"><span className="text-orange-400 text-[10px]">🔥</span>{salesText(p.sales_count)}</span>
-                  <span className="flex items-center gap-0.5 text-orange-500 md:text-amber-500 font-semibold">{Math.round(p.rating)}<Star className="h-3 w-3 fill-orange-400 md:fill-amber-400 text-orange-400 md:text-amber-400" /></span>
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+                  {categories.slice(0, 6).map((c) => {
+                    const items = byCat(c.id).slice(0, isMobile ? 16 : 20);
+                    if (items.length === 0) return null;
+                    return (
+                      <div key={c.id} data-testid={`cat-panel-${c.id}`} className="bg-white rounded-2xl md:border md:border-orange-100 shadow-sm p-4 sm:p-5">
+                        <div className="flex items-center justify-between mb-4 md:mb-5">
+                          <div className="flex items-center gap-2">
+                            <span className="h-5 w-1.5 rounded-full bg-gradient-to-b from-orange-400 to-amber-500" />
+                            <h3 className="font-bold text-lg text-slate-900">{c.name}</h3>
+                          </div>
+                          <Link to={`/category/${c.id}`} className="flex items-center gap-0.5 text-sm md:text-xs text-orange-500 md:text-slate-400 hover:text-orange-500">{tr("查看更多")} <ChevronRight className="h-4 w-4 md:h-3.5 md:w-3.5" /></Link>
+                        </div>
+                        <PagedGrid items={items} perPage={isMobile ? 8 : 10} testid={`cat-paged-${c.id}`} />
+                      </div>
+                    );
+                  })}
                 </div>
-              </Link>
-            ))}
-          </Carousel>
-        </section>
-
-        {/* Promo banners */}
-        <section className="mt-6 md:mt-8 grid grid-cols-2 gap-3 md:gap-4">
-          {(promos || []).filter((b) => b.image).map((b, i) => (
-            <SmartLink key={i} to={b.link} data-testid={`promo-banner-${i + 1}`} className="block overflow-hidden rounded-2xl hover:shadow-lg transition-shadow">
-              <img src={b.image} alt={b.alt || ""} className="w-full h-auto object-cover" />
-            </SmartLink>
-          ))}
-        </section>
-
-        {/* Hot categories: 6 categories, each a 2-page swipeable 5x2 grid */}
-        <section className="mt-8 md:mt-10">
-          <div className="flex items-center justify-between mb-4">
-            <MTitle>{tr("熱門分類")}</MTitle>
-            <Link to="/category/livestream" data-testid="all-categories-link" className="text-xs font-medium md:font-semibold text-orange-500 md:text-orange-600 bg-orange-100/70 md:bg-orange-50 md:border md:border-orange-100 rounded-full px-3 py-1 hover:bg-orange-100">{tr("全部分類")}</Link>
-          </div>
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-            {categories.slice(0, 6).map((c) => {
-              const items = byCat(c.id).slice(0, isMobile ? 16 : 20);
-              if (items.length === 0) return null;
-              return (
-                <div key={c.id} data-testid={`cat-panel-${c.id}`} className="bg-white rounded-2xl md:border md:border-orange-100 shadow-sm p-4 sm:p-5">
-                  <div className="flex items-center justify-between mb-4 md:mb-5">
-                    <div className="flex items-center gap-2">
-                      <span className="h-5 w-1.5 rounded-full bg-gradient-to-b from-orange-400 to-amber-500" />
-                      <h3 className="font-bold text-lg text-slate-900">{c.name}</h3>
-                    </div>
-                    <Link to={`/category/${c.id}`} className="flex items-center gap-0.5 text-sm md:text-xs text-orange-500 md:text-slate-400 hover:text-orange-500">{tr("查看更多")} <ChevronRight className="h-4 w-4 md:h-3.5 md:w-3.5" /></Link>
-                  </div>
-                  <PagedGrid items={items} perPage={isMobile ? 8 : 10} testid={`cat-paged-${c.id}`} />
-                </div>
-              );
-            })}
-          </div>
-        </section>
+              </section>
+            ),
+          };
+          const order = (cfg.home_layout && cfg.home_layout.length) ? cfg.home_layout : Object.keys(BLOCKS).map((k) => ({ key: k, visible: true }));
+          return order.filter((b) => b.visible !== false).map((b) => BLOCKS[b.key]).filter(Boolean);
+        })()}
 
         {/* News & promo */}
         <section className="mt-10">
@@ -406,13 +418,18 @@ function MTitle({ children }) {
   return <h2 className="font-head text-[17px] md:text-lg font-bold text-slate-900 relative inline-block z-0 max-md:after:content-[''] max-md:after:absolute max-md:after:left-0 max-md:after:right-0 max-md:after:bottom-0.5 max-md:after:h-2 max-md:after:bg-orange-200/80 max-md:after:-z-10 max-md:after:rounded-sm">{children}</h2>;
 }
 
-function Countdown({ end }) {
+function Countdown({ end, onEnd }) {
   const [left, setLeft] = useState(() => Math.max(0, new Date(end).getTime() - Date.now()));
   useEffect(() => {
-    const t = setInterval(() => setLeft(Math.max(0, new Date(end).getTime() - Date.now())), 1000);
+    const t = setInterval(() => {
+      const ms = Math.max(0, new Date(end).getTime() - Date.now());
+      setLeft(ms);
+      if (ms <= 0) { clearInterval(t); if (onEnd) onEnd(); }
+    }, 1000);
     return () => clearInterval(t);
-  }, [end]);
+  }, [end, onEnd]);
   if (!end) return null;
+  if (left <= 0) return <span className="text-rose-600 font-bold" data-testid="flash-ended">{tr("已結束")}</span>;
   const s = Math.floor(left / 1000);
   const hh = String(Math.floor(s / 3600)).padStart(2, "0");
   const mm = String(Math.floor((s % 3600) / 60)).padStart(2, "0");
@@ -423,7 +440,7 @@ function Countdown({ end }) {
   );
 }
 
-function FlashSaleSection({ items }) {
+function FlashSaleSection({ items, onExpire }) {
   const { format } = useCurrency();
   const earliestEnd = items.map((i) => i.end_at).filter(Boolean).sort()[0];
   return (
@@ -431,17 +448,19 @@ function FlashSaleSection({ items }) {
       <div className="rounded-2xl bg-gradient-to-br from-rose-50 to-orange-50 border border-rose-100 p-3 md:p-4">
         <div className="flex items-center gap-2 mb-3">
           <span className="flex items-center gap-1 font-head font-extrabold text-rose-600 text-lg"><Zap className="h-5 w-5 fill-rose-500 text-rose-500" />{tr("限時秒殺")}</span>
-          {earliestEnd && <span className="ml-auto flex items-center gap-1.5 text-xs text-slate-500">{tr("距結束")} <Countdown end={earliestEnd} /></span>}
+          {earliestEnd && <span className="ml-auto flex items-center gap-1.5 text-xs text-slate-500">{tr("距結束")} <Countdown end={earliestEnd} onEnd={onExpire} /></span>}
         </div>
         <Carousel testid="flash-carousel">
           {items.map((f) => {
             const pct = f.stock > 0 ? Math.min(100, Math.round((f.sold / f.stock) * 100)) : 0;
+            const soldout = f.remaining <= 0;
             return (
               <Link key={f.id} to={`/product/${f.product_id}`} data-testid={`flash-item-${f.id}`}
                 className="group shrink-0 w-[140px] sm:w-[164px] bg-white rounded-2xl border border-rose-100 shadow-sm p-2 hover:shadow-md transition-all relative">
                 <span className="absolute top-1.5 left-1.5 z-10 text-[10px] font-bold bg-rose-500 text-white rounded px-1.5 py-0.5">{tr("秒殺")}</span>
                 <div className="relative w-full aspect-square rounded-xl overflow-hidden bg-white">
                   <img src={f.image} alt={f.product_name} className="h-full w-full object-cover group-hover:scale-105 transition-transform" />
+                  {soldout && <span className="absolute inset-0 bg-slate-900/55 flex items-center justify-center text-white font-head font-extrabold text-sm" data-testid={`flash-soldout-${f.id}`}>{tr("已搶光")}</span>}
                 </div>
                 <h3 className="font-semibold text-[12px] leading-snug text-slate-800 truncate mt-2">{f.product_name}</h3>
                 <div className="text-[11px] text-slate-400 truncate">{f.spec_label}</div>
@@ -452,11 +471,40 @@ function FlashSaleSection({ items }) {
                 <div className="mt-1.5 h-2.5 rounded-full bg-rose-100 overflow-hidden">
                   <div className="h-full bg-gradient-to-r from-rose-500 to-orange-400" style={{ width: `${Math.max(8, pct)}%` }} />
                 </div>
-                <div className="text-[10px] text-rose-500 mt-0.5">{tr("已搶 {0}%", pct)}</div>
+                <div className="text-[10px] text-rose-500 mt-0.5">{soldout ? tr("已搶光") : tr("已搶 {0}%", pct)}</div>
               </Link>
             );
           })}
         </Carousel>
+      </div>
+    </section>
+  );
+}
+
+function CombosSection({ combos, onBuy }) {
+  const { format } = useCurrency();
+  return (
+    <section className="mt-6 md:mt-8" data-testid="combos-section">
+      <div className="flex items-center gap-2 mb-3">
+        <Package className="hidden md:block h-5 w-5 text-rose-500" />
+        <MTitle>{tr("超值套餐")}</MTitle>
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4">
+        {combos.map((c) => (
+          <div key={c.id} data-testid={`combo-card-${c.id}`} className="bg-white rounded-2xl border border-rose-100 shadow-sm p-3 flex gap-3">
+            <div className="h-20 w-20 rounded-xl bg-rose-50 overflow-hidden shrink-0 flex items-center justify-center">
+              {c.image ? <img src={c.image} alt={c.title} className="h-full w-full object-cover" /> : <Package className="h-8 w-8 text-rose-300" />}
+            </div>
+            <div className="min-w-0 flex-1 flex flex-col">
+              <div className="font-semibold text-sm text-slate-800 truncate">{c.title}</div>
+              <div className="text-[11px] text-slate-400 line-clamp-2 mt-0.5">{c.items.map((i) => `${i.product_name}×${i.quantity}`).join("、")}</div>
+              <div className="mt-auto flex items-end justify-between pt-1.5">
+                <div><span className="font-head font-extrabold text-rose-600">{format(c.price_usd)}</span> <span className="text-[11px] text-slate-400 line-through">{format(c.original_total_usd)}</span></div>
+                <button data-testid={`combo-buy-${c.id}`} onClick={() => onBuy(c)} className="h-8 px-3 rounded-full bg-rose-500 text-white text-xs font-bold hover:bg-rose-600">{tr("立即搶購")}</button>
+              </div>
+            </div>
+          </div>
+        ))}
       </div>
     </section>
   );

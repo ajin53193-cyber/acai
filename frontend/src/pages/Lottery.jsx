@@ -17,25 +17,28 @@ export default function Lottery() {
   const [rotation, setRotation] = useState(0);
   const [result, setResult] = useState(null);
   const [history, setHistory] = useState([]);
+  const [status, setStatus] = useState(null);
   const wheelRef = useRef(null);
 
   useEffect(() => { callApi({ method: "GET", url: "/lottery/config" }).then((r) => setCfg(r.data)).catch(() => {}); }, [callApi]);
   const loadMe = () => { callApi({ method: "GET", url: "/me/profile" }).then((r) => setPoints(r.data.points ?? 0)).catch(() => {}); };
+  const loadStatus = () => { callApi({ method: "GET", url: "/lottery/my-status" }).then((r) => { setStatus(r.data); setPoints(r.data.points); }).catch(() => {}); };
   const loadHist = () => { callApi({ method: "GET", url: "/lottery/my-draws" }).then((r) => setHistory(r.data)).catch(() => {}); };
-  useEffect(() => { if (isSignedIn) { loadMe(); loadHist(); } }, [isSignedIn]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (isSignedIn) { loadStatus(); loadHist(); } }, [isSignedIn]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const prizes = cfg?.prizes || [];
   const n = prizes.length || 1;
   const seg = 360 / n;
   const grad = prizes.map((p, i) => `${p.color} ${i * seg}deg ${(i + 1) * seg}deg`).join(", ");
+  const freeAvail = status?.free_available;
 
-  const draw = async () => {
+  const draw = async (count = 1) => {
     if (!isSignedIn) return openAuth();
     if (spinning) return;
     setResult(null);
     setSpinning(true);
     try {
-      const r = await callApi({ method: "POST", url: "/lottery/draw" });
+      const r = await callApi({ method: "POST", url: "/lottery/draw", data: { count } });
       const idx = Math.max(0, prizes.findIndex((p) => p.id === r.data.prize_id));
       const target = 360 * 6 - (idx * seg + seg / 2);
       const base = rotation - (rotation % 360);
@@ -44,13 +47,13 @@ export default function Lottery() {
         setSpinning(false);
         setResult(r.data);
         setPoints(r.data.points_balance);
+        setStatus((s) => s ? { ...s, free_available: r.data.free_available } : s);
         loadHist();
-        if (r.data.prize_type !== "none") toast.success(tr("恭喜中獎：{0}", r.data.prize_label));
       }, 4200);
     } catch (e) {
       setSpinning(false);
       toast.error(e.response?.data?.detail || tr("抽獎失敗"));
-      loadMe();
+      loadStatus();
     }
   };
 
@@ -85,17 +88,23 @@ export default function Lottery() {
             ))}
           </div>
           {/* center button */}
-          <button data-testid="lottery-draw-btn" onClick={draw} disabled={spinning}
+          <button data-testid="lottery-draw-btn" onClick={() => draw(1)} disabled={spinning}
             className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-10 h-[86px] w-[86px] rounded-full bg-white text-orange-600 font-head font-extrabold text-lg shadow-[0_6px_0_rgba(0,0,0,0.12)] active:translate-y-[-48%] disabled:opacity-80 flex flex-col items-center justify-center border-4 border-amber-200">
-            {spinning ? <Loader2 className="h-6 w-6 animate-spin" /> : <>{tr("抽獎")}<span className="text-[10px] font-semibold text-slate-400">{cfg?.cost_points}{tr("積分")}</span></>}
+            {spinning ? <Loader2 className="h-6 w-6 animate-spin" /> : <>{tr("抽獎")}<span className="text-[10px] font-semibold text-slate-400">{freeAvail ? tr("今日免費") : `${cfg?.cost_points}${tr("積分")}`}</span></>}
           </button>
         </div>
 
-        <div className="text-center mt-6">
-          <button data-testid="lottery-draw-btn-2" onClick={draw} disabled={spinning} className="h-12 px-12 rounded-full bg-white text-orange-600 font-bold text-base shadow-lg hover:bg-orange-50 disabled:opacity-70">
-            {spinning ? tr("抽獎中…") : (isSignedIn ? tr("立即抽獎") : tr("登入後抽獎"))}
+        <div className="text-center mt-6 flex flex-wrap items-center justify-center gap-3">
+          <button data-testid="lottery-draw-btn-2" onClick={() => draw(1)} disabled={spinning} className="h-12 px-8 rounded-full bg-white text-orange-600 font-bold text-base shadow-lg hover:bg-orange-50 disabled:opacity-70">
+            {spinning ? tr("抽獎中…") : (!isSignedIn ? tr("登入後抽獎") : freeAvail ? tr("免費抽 1 次") : tr("抽 1 次（{0} 積分）", cfg?.cost_points))}
           </button>
+          {isSignedIn && (
+            <button data-testid="lottery-draw-btn-10" onClick={() => draw(10)} disabled={spinning} className="h-12 px-8 rounded-full bg-amber-900/90 text-white font-bold text-base shadow-lg hover:bg-amber-900 disabled:opacity-70">
+              {tr("連抽十次（{0} 積分）", (cfg?.cost_points || 0) * 10)}
+            </button>
+          )}
         </div>
+        {isSignedIn && freeAvail && <div className="text-center mt-2 text-white/90 text-sm" data-testid="lottery-free-badge">🎁 {tr("今日有 1 次免費抽獎機會！")}</div>}
 
         {/* History */}
         {isSignedIn && (
@@ -119,12 +128,26 @@ export default function Lottery() {
       {result && (
         <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-6" onClick={() => setResult(null)} data-testid="lottery-result">
           <div className="bg-white rounded-3xl p-7 max-w-xs w-full text-center shadow-2xl" onClick={(e) => e.stopPropagation()}>
-            <div className="text-5xl mb-2">{result.prize_type === "none" ? "🙏" : "🎉"}</div>
-            <div className="font-head text-xl font-extrabold text-slate-900">{result.prize_type === "none" ? tr("謝謝惠顧") : tr("恭喜中獎！")}</div>
-            <div className="mt-2 text-lg font-bold text-orange-600">{result.prize_label}</div>
-            {result.prize_type === "physical" && <div className="text-xs text-slate-500 mt-2">{tr("實物獎品將由客服聯繫您發放")}</div>}
-            {result.prize_type === "coupon" && <div className="text-xs text-slate-500 mt-2">{tr("優惠券已發放至「我的優惠券」")}</div>}
-            {(result.prize_type === "points" || result.prize_type === "balance") && <div className="text-xs text-slate-500 mt-2">{tr("獎勵已自動到帳")}</div>}
+            {result.count > 1 ? (
+              <>
+                <div className="text-5xl mb-2">🎉</div>
+                <div className="font-head text-xl font-extrabold text-slate-900">{tr("連抽 {0} 次結果", result.count)}</div>
+                <div className="mt-3 max-h-56 overflow-y-auto divide-y divide-slate-100 text-left">
+                  {result.results.map((r, i) => (
+                    <div key={i} className="flex items-center justify-between py-1.5 text-sm"><span className="text-slate-500">{i + 1}</span><span className={`font-semibold ${r.prize_type === "none" ? "text-slate-400" : "text-orange-600"}`}>{r.prize_label}</span></div>
+                  ))}
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="text-5xl mb-2">{result.prize_type === "none" ? "🙏" : "🎉"}</div>
+                <div className="font-head text-xl font-extrabold text-slate-900">{result.prize_type === "none" ? tr("謝謝惠顧") : tr("恭喜中獎！")}</div>
+                <div className="mt-2 text-lg font-bold text-orange-600">{result.prize_label}</div>
+                {result.prize_type === "physical" && <div className="text-xs text-slate-500 mt-2">{tr("實物獎品將由客服聯繫您發放")}</div>}
+                {result.prize_type === "coupon" && <div className="text-xs text-slate-500 mt-2">{tr("優惠券已發放至「我的優惠券」")}</div>}
+                {(result.prize_type === "points" || result.prize_type === "balance") && <div className="text-xs text-slate-500 mt-2">{tr("獎勵已自動到帳")}</div>}
+              </>
+            )}
             <button data-testid="lottery-result-close" onClick={() => setResult(null)} className="mt-5 h-11 w-full rounded-full bg-orange-500 text-white font-semibold hover:bg-orange-600">{tr("知道了")}</button>
           </div>
         </div>
