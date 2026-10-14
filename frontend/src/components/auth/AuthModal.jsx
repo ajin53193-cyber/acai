@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useCallback } from "react";
+import { createContext, useContext, useState, useCallback, useEffect } from "react";
 import { useSignIn, useSignUp } from "@clerk/react/legacy";
 import { Link } from "react-router-dom";
 import { X, Apple, Home, Gift } from "lucide-react";
@@ -63,6 +63,22 @@ function AuthModal({ open, onOpenChange }) {
   };
 
   const close = () => { onOpenChange(false); setView("login"); };
+
+  // iOS PWA: keyboard open/close shifts fixed sheets; snap the window back and re-sync the sheet height.
+  useEffect(() => {
+    if (!open) return;
+    const sync = () => {
+      window.scrollTo(0, 0);
+      const el = document.querySelector('[data-testid="auth-modal"]');
+      if (el && window.innerWidth < 768) el.style.height = `${window.innerHeight}px`;
+    };
+    const onFocusOut = () => setTimeout(sync, 80);
+    const vv = window.visualViewport;
+    vv?.addEventListener("resize", sync);
+    document.addEventListener("focusout", onFocusOut);
+    sync();
+    return () => { vv?.removeEventListener("resize", sync); document.removeEventListener("focusout", onFocusOut); };
+  }, [open, view]);
 
   const finish = async (sessionId, setter) => {
     await setter({ session: sessionId });
