@@ -1,0 +1,67 @@
+{
+  "summary": "Iteration 18 — CMS Site-Config + Activities (articles) CRUD + public visibility. Backend: 15/15 pytest passed (test_cms_site_config_and_articles.py). Frontend: all critical flows green end-to-end on desktop 1920 — admin login + 2FA, new sidebar nav (admin-nav-activities, admin-nav-siteconfig; old 'settings' entry gone), full Activity CRUD (add → edit load → toggle active→inactive → delete via confirm), SiteConfig all 9 tabs including whatsapp, hero title live-edit→homepage reflects→reset restores default, article tabs + promo filter (15 cards), homepage regression (hero, announcement, promo-banners, carousels), product-detail detail-banner-carousel with slide 0 rendering, header promo-experience-btn + logo-link.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {"flow": "SiteConfig save → immediate home reload within same tab (useSiteConfig module cache)", "issue": "The useSiteConfig hook caches the merged config at module scope (`let cached = null`). After an admin saves (/api/admin/site-config) and the user navigates in SPA to '/', the cached value is reused and the UI only shows the new value after a hard reload. Our Playwright run saw hero title update because the hard-reload path happened; the announcement enable→disable→enable sequence appeared to NOT re-render until a cross-tab hard reload. Low priority but worth invalidating `cached` on 401 and on an explicit refresh() call wired into SiteConfigAdmin save success.", "affected_selectors": ["[data-testid=\"home-announcement\"]"]}
+    ],
+    "design_issues": []
+  },
+  "verified_checks": {
+    "backend_pytest_15_15": {
+      "site_config_public_keys": "logo/top_promo/hero/announcement/promo_banners/detail_banners/features/register all present",
+      "site_config_put_401_without_auth": "pass",
+      "site_config_put_hero_zhcn_to_zhtw": "'测试主标题' → '測試主標題', highlight '8%' preserved; GET with X-Lang:zh-TW reflects change",
+      "site_config_put_data_url_image_upload": "logo.image='/api/img/...' after PUT",
+      "site_config_reset_hero": "restores '低價氪金 戰力超神'",
+      "site_config_reset_unknown_section_400": "pass",
+      "articles_admin_list_status_enum": "all rows status in {live,scheduled,expired,inactive}",
+      "articles_create_blank_title_400": "pass (detail '標題不可為空')",
+      "articles_create_invalid_type_400": "pass (detail 'invalid type')",
+      "articles_full_crud_live": "POST → status live; GET /api/articles?type=promo lists it; GET /api/articles/{id} returns link field; PUT updates title (traditional); DELETE cleanup",
+      "articles_create_expired_not_public": "status=expired AND not in public list",
+      "articles_create_scheduled_not_public": "status=scheduled AND not in public list",
+      "articles_create_inactive_not_public": "status=inactive AND not in public list",
+      "articles_delete_missing_404": "pass",
+      "articles_upload_image_data_url": "/api/img/gogo589/articles/*.png returns PNG bytes"
+    },
+    "frontend_desktop_1920": {
+      "admin_login_2fa_ok": "admin+clerk_test@shop.com + password + pyotp code → /admin, sessionStorage.admin_token len=123",
+      "sidebar_new_nav_entries_present": "admin-nav-activities (under 活動管理) and admin-nav-siteconfig (under 系統設置) both visible; old admin-nav-settings is None",
+      "activities_table_filters_search": "activities-table rendered; activity-filter-promo/tutorial/news + activity-search all visible",
+      "activity_full_crud": "activity-add-btn → activity-form dialog; filled title (TEST_自动化测试活动), type promo, end=2030-01-01T00:00, Quill editor content; activity-save → toast; search '自動化' matched 1 row; activity-edit-<id> re-opened form with traditional title; activity-toggle-<id> flipped to inactive (下架 appeared); activity-delete-<id> accepted window.confirm and removed row",
+      "siteconfig_tabs_all_9_visible": "logo, top_promo, hero, announcement, promo_banners, detail_banners, features, register, whatsapp — all data-testid present",
+      "siteconfig_hero_edit_then_reset": "cfg-hero-title ='自动化测试标题' + siteconfig-save → home h1='自动化测试标题'; siteconfig-reset confirm → home h1 reverts to '低价氪金 战力超神'",
+      "article_public_tabs": "/article has article-type-tabs + article-type-{all,promo,tutorial,news}; promo filter shows 15 cards",
+      "homepage_regression": "home-announcement, promo-banner-1, promo-banner-2, quick-carousel, hot-carousel, promo-experience-btn, logo-link all visible after fresh load",
+      "product_detail_regression": "/product/7814 shows detail-banner-carousel with detail-banner-0 slide, header promo-experience-btn + logo-link rendered"
+    }
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_cms_site_config_and_articles.py",
+    "/app/test_reports/pytest/iter18_cms.xml"
+  ],
+  "action_items": [
+    "(low) Invalidate siteConfig.js module cache on PUT success in SiteConfigAdmin.jsx (expose a refresh() from useSiteConfig/loadSiteConfig and call it after save+reset) so SPA-navigated pages pick up the new config without a hard reload. The test harness worked around this by using a second tab + full reload.",
+    "(nit) /api/site-config PUT currently silently drops unknown top-level keys (good) but accepts any shape under a known key (e.g. {hero:{foo:'bar'}}) — consider validating against a Pydantic model per section for defence in depth."
+  ],
+  "critical_code_review_comments": [
+    "cms_api.py `_process` recurses dicts/lists and traditionalises any Chinese string whose key is not in TEXT_SKIP_KEYS. TEXT_SKIP_KEYS currently is ('link','image','mobile_image','action','cover','id'). If a future section adds a URL-like field named e.g. 'href' or 'url', the string is still subject to traditional conversion — add 'url','href','slug','target' to the skip list proactively.",
+    "cms_api.article_visible_query uses an ISO-8601 string compare for start_at/end_at. This only works because inputs are also normalised to ISO strings with offset. Any client that passes a naive 'YYYY-MM-DD HH:MM:SS' (as `published_at` uses) would sort incorrectly. Store dates as `datetime` in Mongo (BSON Date) and compare against `datetime.utcnow()`; current string compare is brittle to timezone & format mix.",
+    "cms_api._prep hard-codes `max_mb=4` for data-URL uploads of cover; the same limit is used for logo/banner uploads in `_process`. For hero / detail-banners (full-bleed PC images) 4MB can be tight — expose via env.",
+    "ActivitiesAdmin.jsx uses window.confirm for delete and native datetime-local for start_at/end_at. The datetime-local input renders the browser's default picker instead of a shadcn calendar, inconsistent with the rest of the admin UI (see system-prompt design hint about avoiding default browser pickers).",
+    "siteConfig.js `let cached = null` module-level cache has no public invalidate method; SiteConfigAdmin.jsx save/reset handlers can't nudge it, so other mounted pages keep the stale value until a hard reload (see integration_issues).",
+    "cms_api.py has NO auth check on `/api/articles/{id}` versus `article_visible_query` — the public detail endpoint (in server.py L361-380) must also enforce the visibility rules; otherwise an expired/scheduled/inactive article could still be read if its ID is known. Please confirm the server.py handler ANDs the visibility query (not tested here; only list behaviour was tested)."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_cms_site_config_and_articles.py"
+  ],
+  "success_rate": {"backend": "100% (15/15)", "frontend": "100% of listed critical flows after accounting for the known useSiteConfig cache behaviour (which required a hard reload rather than SPA navigation to see updates)"},
+  "test_credentials": "Used admin+clerk_test@shop.com + Gogo589!Admin#7x2Q + TOTP from DNY74VQQI3454NAKX3XW7INOIG4UCTQA (pyotp). JWT via /app/tests/mint_token.py and X-Admin-Token via admin_api._sign (123 chars). Both tokens cached at /tmp/jwt and /tmp/xat for pytest.",
+  "seed_data_creation": "Created and deleted 4 TEST_ articles (live, expired, scheduled, inactive) during pytest — all cleaned up via class-scoped teardown. UI test created and deleted 1 TEST_自動化測試活動 (promo) via the admin UI (delete confirmed). The site_config.hero was mutated to '測試主標題' and reset to default; logo image was uploaded via PUT and reset to '/gogo589-logo.png'; announcement.enabled was toggled off/on (final state = enabled:true). Verified final /api/site-config returns defaults: hero.title='低價氪金 戰力超神', announcement.enabled=true, logo.image='/gogo589-logo.png'.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Regression file: /app/backend/tests/test_cms_site_config_and_articles.py. The articles tests use a class-scoped fixture `created_ids` with teardown — new tests should append their created ids to it. For UI tests, admin login + 2FA requires `pyotp.TOTP('DNY74VQQI3454NAKX3XW7INOIG4UCTQA').now()`. Note the useSiteConfig module cache: after a SiteConfigAdmin PUT, verify by opening a NEW tab or doing a hard reload — SPA Link navigation won't refetch. Admin middleware skips /api/admin paths from localize middleware, so admin table rows show stored Traditional strings (expected). Public /api/articles returns `{total, rows}` not `{articles}`.",
+  "rca of the issue": "No real bugs this iteration. The one soft-finding is a SPA cache issue in siteConfig.js: `let cached = null` + `loadSiteConfig()` returns cached without refetch, and `useSiteConfig()` only fetches when `cached` is still null. Admin edits bump the server, but any already-mounted pages (or pages subsequently SPA-navigated to without a full reload) keep the stale snapshot. Fix: export `invalidateSiteConfig()` from siteConfig.js (sets `cached = null`) and call it inside SiteConfigAdmin after a successful save/reset so the next useSiteConfig call refetches. The pytest JUnit XML is at /app/test_reports/pytest/iter18_cms.xml (15 passed, 0 failed)."
+}

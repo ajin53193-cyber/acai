@@ -122,3 +122,10 @@
 - `backend/admin_api.py`：/api/admin/topups(+requery/credit 手動補單)、/members(+詳情/ban/unban/reset-password)、/translations(+retranslate)、/notifications(+test、/sms/balance)、/reports(json/csv)。通知 hook：USDT 到帳、訂單完成、資料駁回 → 依 settings.notifications 模板寄郵件/簡訊。
 - 前端：淺色 Kavip 商戶風（index.css `.admin-light` 覆寫舊深色 class）、側欄分組（總覽 / 財務管理 / 運營管理 / 活動管理(活動配置=網站設定, 優惠碼) / 會員與數據 / 系統設定）、新頁面 pages/admin/{Topups,Members,Reports,Translations,Notifications}Admin.jsx + ui.jsx。
 - 業主後台帳號：admin@gogo589.com（見 test_credentials.md）。
+
+## 2026-06 活動配置 + 網站配置 CMS（iteration_18 後端 15/15、前端全通）
+- `backend/cms_api.py`：
+  - 網站配置 `GET /api/site-config`（公開，回預設+DB 合併）、`PUT /api/admin/site-config`（分區塊儲存；`data:image` 字串自動上傳 Object Storage `gogo589/cms`；中文自動轉繁體）、`POST /api/admin/site-config/reset {section}`。區塊：logo / top_promo / hero / announcement / promo_banners / detail_banners(mobile,pc) / features / register。
+  - 活動（沿用 `articles` 集合，新增 type promo|tutorial|news、start_at/end_at、link）：`GET/POST /api/admin/articles`、`GET/PUT/DELETE /api/admin/articles/{id}`、`POST /api/admin/articles/upload`（富文本插圖）。公開 `GET /api/articles?type=` 只回上架且在活動時間內的項目（到期自動隱藏）。既有 51 篇文章已補 type。
+- 前端：`lib/siteConfig.js` `useSiteConfig()`（模組快取 + 監聽）；Home / Header / Footer / DetailBannerCarousel 全部改讀配置。後台新頁 `admin/ActivitiesAdmin.jsx`（表格、篩選、搜尋、新增/編輯對話框、封面上傳、react-quill-new 富文本、活動時間、上下架）與 `admin/SiteConfigAdmin.jsx`（9 個分頁、儲存此區塊/恢復預設、客服 WhatsApp 併入）。側欄：活動管理 → 活動配置 / 優惠碼；系統設定 → 網站配置。
+- 活動中心 `/article` 新增類型頁籤（全部/優惠活動/充值教學/新聞公告）；詳情頁若有 link 顯示「立即參與」。

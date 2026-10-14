@@ -63,13 +63,13 @@ export function SiteConfigAdmin({ callApi }) {
   const setSec = (sec, patch) => setCfg((c) => ({ ...c, [sec]: typeof patch === "function" ? patch(c[sec]) : { ...c[sec], ...patch } }));
   const save = async () => {
     setSaving(true);
-    try { const r = await callApi({ method: "PUT", url: "/admin/site-config", data: { [tab]: cfg[tab] } }); setCfg(r.data); loadSiteConfig(true).catch(() => {}); toast.success(tr("已儲存，前台已更新")); }
+    try { const r = await callApi({ method: "PUT", url: "/admin/site-config", data: { [tab]: cfg[tab] } }); setCfg(r.data); await loadSiteConfig(true).catch(() => {}); toast.success(tr("已儲存，前台已更新")); }
     catch (e) { toast.error(e.response?.data?.detail || tr("儲存失敗")); }
     setSaving(false);
   };
   const reset = async () => {
     if (!window.confirm(tr("確定恢復此區塊為系統預設？"))) return;
-    const r = await callApi({ method: "POST", url: "/admin/site-config/reset", data: { section: tab } }); setCfg(r.data); loadSiteConfig(true).catch(() => {}); toast.success(tr("已恢復預設"));
+    const r = await callApi({ method: "POST", url: "/admin/site-config/reset", data: { section: tab } }); setCfg(r.data); await loadSiteConfig(true).catch(() => {}); toast.success(tr("已恢復預設"));
   };
 
   if (!cfg) return <div className="text-slate-400 text-sm">{tr("載入中…")}</div>;
