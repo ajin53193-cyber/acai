@@ -6,12 +6,13 @@ import { Switch } from "@/components/ui/switch";
 import { RichEditor } from "@/components/admin/RichEditor";
 import { Card, Btn, Input, Pill, Table, Head, ImgField } from "@/pages/admin/ui";
 import { tr } from "@/i18n";
+import { publicApi } from "@/lib/api";
 
 const lbl = "block text-xs font-semibold text-slate-500 mb-1";
 const selBase = "h-9 rounded-lg bg-slate-100 px-3 text-sm outline-none focus:ring-2 focus:ring-orange-300";
 const sel = selBase + " w-full";
 const ta = "w-full rounded-lg bg-slate-100 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-orange-300";
-export const EMPTY_PRODUCT = { name: "", category: "", brand: "", subtitle: "", image: "", description: "", content_html: "", tutorial: "", delivery_fields: [{ code: "account", name: "充值帳號", required: true, placeholder: "", tips: "", type: "text", options: [] }], specs: [], tags: [], is_giftcard: false, sales_count: 0, rating: 5, sort_order: 0, active: true, related_ids: [], related: [] };
+export const EMPTY_PRODUCT = { name: "", category: "", brand: "", subtitle: "", image: "", description: "", content_html: "", tutorial: "", delivery_fields: [{ code: "account", name: "充值帳號", required: true, placeholder: "", tips: "", type: "text", options: [] }], specs: [], tags: [], is_giftcard: false, price_currency: "", price_rate: 0, sales_count: 0, rating: 5, sort_order: 0, active: true, related_ids: [], related: [] };
 const LIMIT_KINDS = { "": tr("依角標自動"), none: tr("不限購"), daily: tr("每日限購"), weekly: tr("每週限購"), monthly: tr("每月限購"), lifetime: tr("終生限購"), newcomer: tr("新用戶專享") };
 const inferLimit = (b = "") => (/每月一單|每月一单/.test(b) ? "monthly" : /每日一單|每日一单/.test(b) ? "daily" : /新客|新用戶|新用户|新使用者/.test(b) ? "newcomer" : "");
 const FIELD_TYPES = { text: tr("文字"), select: tr("下拉選擇"), password: tr("密碼"), textarea: tr("多行文字") };
@@ -154,8 +155,8 @@ export function ProductForm({ item, cats, callApi, onClose, onSaved, inline, tit
       const body = {
         name: f.name, category: f.category, brand: f.brand, subtitle: f.subtitle, image: f.image, description: f.description, content_html: f.content_html, tutorial: f.tutorial,
         delivery_fields: f.delivery_fields.map((d) => ({ ...d, options: Array.isArray(d.options) ? d.options : String(d.options || "").split(/[,，\n]/).map((o) => o.trim()).filter(Boolean) })),
-        specs: f.specs.map((s) => ({ ...s, price_usd: +s.price_usd || 0, sale_price_usd: s.sale_price_usd ? +s.sale_price_usd : null, giftcard_value_usd: s.giftcard_value_usd ? +s.giftcard_value_usd : null, limit: s.limit || "", limit_count: Math.max(1, +s.limit_count || 1) })),
-        tags: f.tags.split(/[,，]/).map((t) => t.trim()).filter(Boolean), is_giftcard: !!f.is_giftcard, sales_count: +f.sales_count || 0, rating: +f.rating || 5, sort_order: +f.sort_order || 0, active: !!f.active,
+        specs: f.specs.map((s) => ({ ...s, price_usd: +s.price_usd || 0, sale_price_usd: s.sale_price_usd ? +s.sale_price_usd : null, giftcard_value_usd: s.giftcard_value_usd ? +s.giftcard_value_usd : null, price_local: s.price_local ? +s.price_local : null, sale_price_local: s.sale_price_local ? +s.sale_price_local : null, giftcard_value_local: s.giftcard_value_local ? +s.giftcard_value_local : null, limit: s.limit || "", limit_count: Math.max(1, +s.limit_count || 1) })),
+        tags: f.tags.split(/[,，]/).map((t) => t.trim()).filter(Boolean), is_giftcard: !!f.is_giftcard, price_currency: f.is_giftcard ? (f.price_currency || "") : "", price_rate: f.is_giftcard ? (+f.price_rate || 0) : 0, sales_count: +f.sales_count || 0, rating: +f.rating || 5, sort_order: +f.sort_order || 0, active: !!f.active,
         related_ids: (f.related || []).map((r) => r.id),
       };
       if (f.id) await callApi({ method: "PUT", url: `/admin/products/${f.id}`, data: body });
@@ -194,7 +195,7 @@ export function ProductForm({ item, cats, callApi, onClose, onSaved, inline, tit
           </div>
         )}
 
-        {tab === "specs" && <SpecsEditor specs={f.specs} badges={badges} isGiftcard={f.is_giftcard} callApi={callApi} onChange={(v) => set("specs", v)} />}
+        {tab === "specs" && <SpecsEditor specs={f.specs} badges={badges} isGiftcard={f.is_giftcard} callApi={callApi} onChange={(v) => set("specs", v)} fx={{ currency: f.price_currency, rate: f.price_rate }} onFx={(c, r) => setF((p) => ({ ...p, price_currency: c, price_rate: r }))} />}
         {tab === "delivery" && <DeliveryEditor fields={f.delivery_fields} onChange={(v) => set("delivery_fields", v)} />}
 
         {tab === "content" && (
@@ -224,22 +225,49 @@ export function ProductForm({ item, cats, callApi, onClose, onSaved, inline, tit
   );
 }
 
-function SpecsEditor({ specs, badges, isGiftcard, callApi, onChange }) {
+function SpecsEditor({ specs, badges, isGiftcard, callApi, onChange, fx, onFx }) {
+  const [currencies, setCurrencies] = useState([]);
+  useEffect(() => { if (isGiftcard) publicApi.get("/currencies").then((r) => setCurrencies(r.data.filter((c) => c.code !== "USD"))).catch(() => {}); }, [isGiftcard]);
+  useEffect(() => { if (isGiftcard && !fx?.currency && currencies.length) { const hk = currencies.find((c) => c.code === "HKD") || currencies[0]; onFx(hk.code, +(+hk.rate_to_usd).toFixed(4)); } }, [isGiftcard, currencies]); // eslint-disable-line react-hooks/exhaustive-deps
+  const rate = +fx?.rate || 0;
+  const toUsd = (v) => (rate > 0 && v !== "" && v != null ? +((+v) / rate).toFixed(2) : null);
+  const setLocal = (i, k, v) => { const usdKey = { price_local: "price_usd", sale_price_local: "sale_price_usd", giftcard_value_local: "giftcard_value_usd" }[k]; onChange(specs.map((s, idx) => (idx === i ? { ...s, [k]: v, [usdKey]: v === "" ? (usdKey === "price_usd" ? 0 : null) : toUsd(v) } : s))); };
+  const changeRate = (r) => { onFx(fx?.currency, r); const rr = +r || 0; if (rr > 0) onChange(specs.map((s) => ({ ...s, price_usd: s.price_local ? +((+s.price_local) / rr).toFixed(2) : s.price_usd, sale_price_usd: s.sale_price_local ? +((+s.sale_price_local) / rr).toFixed(2) : s.sale_price_usd, giftcard_value_usd: s.giftcard_value_local ? +((+s.giftcard_value_local) / rr).toFixed(2) : s.giftcard_value_usd }))); };
+  const changeCurrency = (code) => { const c = currencies.find((x) => x.code === code); onFx(code, c ? +(+c.rate_to_usd).toFixed(4) : rate); if (c) changeRate(+(+c.rate_to_usd).toFixed(4)); };
+  const cur = fx?.currency || "HKD";
   const set = (i, k, v) => onChange(specs.map((s, idx) => (idx === i ? { ...s, [k]: v } : s)));
   const move = (i, d) => { const j = i + d; if (j < 0 || j >= specs.length) return; const a = [...specs]; [a[i], a[j]] = [a[j], a[i]]; onChange(a); };
   return (
     <div>
-      <div className="text-[11px] text-slate-400 mb-2">{tr("售價為實際結帳價格；「原價」填寫後商品頁顯示刪除線。限購：「依角標自動」會依角標文字（每日一單 / 每月一單 / 新客專享）判斷；也可明確指定每日 / 每週 / 每月 / 終生限購份數或新用戶專享。")}{isGiftcard && tr(" 本商品為禮品卡：「卡面額」為付款後自動發放的禮品卡金額（留空則用售價）。")}</div>
+      <div className="text-[11px] text-slate-400 mb-2">{tr("售價為實際結帳價格；「原價」填寫後商品頁顯示刪除線。限購：「依角標自動」會依角標文字（每日一單 / 每月一單 / 新客專享）判斷；也可明確指定每日 / 每週 / 每月 / 終生限購份數或新用戶專享。")}{isGiftcard && tr(" 本商品為禮品卡：請以計價幣別填寫金額，系統依匯率自動換算 USD；「卡面額」留空則同售價。")}</div>
+      {isGiftcard && (
+        <div className="mb-3 flex flex-wrap items-center gap-3 rounded-xl bg-violet-50 border border-violet-100 px-3 py-2.5" data-testid="pf-fx-bar">
+          <span className="text-xs font-semibold text-violet-700">{tr("計價幣別")}</span>
+          <select data-testid="pf-fx-currency" className={selBase + " w-28"} value={cur} onChange={(e) => changeCurrency(e.target.value)}>{(currencies.length ? currencies : [{ code: "HKD" }]).map((c) => <option key={c.code} value={c.code}>{c.code}</option>)}</select>
+          <span className="text-xs font-semibold text-violet-700">{tr("匯率")}</span>
+          <div className="flex items-center gap-1 text-xs text-slate-600">1 USD = <Input data-testid="pf-fx-rate" type="number" step="0.0001" className="w-28" value={fx?.rate ?? ""} onChange={(e) => changeRate(e.target.value)} /> {cur}</div>
+          <span className="text-[11px] text-slate-500">{tr("填寫 {0} 金額後自動換算為 USD 售價；修改匯率會重新換算所有規格。", cur)}</span>
+        </div>
+      )}
       <Card className="overflow-x-auto">
         <table className="w-full text-sm" data-testid="pf-specs-table">
-          <thead><tr className="text-left text-xs text-slate-500 bg-slate-50/70 border-b border-slate-200"><th className="px-3 py-2">{tr("規格名稱")}</th><th className="px-3 py-2 w-28">{tr("售價 USD")}</th><th className="px-3 py-2 w-28">{tr("原價 USD")}</th>{isGiftcard && <th className="px-3 py-2 w-28">{tr("卡面額 USD")}</th>}<th className="px-3 py-2 w-44">{tr("角標")}</th><th className="px-3 py-2 w-48">{tr("限購")}</th><th className="px-3 py-2 w-16">{tr("有貨")}</th><th className="px-3 py-2 w-24"></th></tr></thead>
+          <thead><tr className="text-left text-xs text-slate-500 bg-slate-50/70 border-b border-slate-200"><th className="px-3 py-2 min-w-[160px]">{tr("規格名稱")}</th><th className="px-3 py-2 w-32">{isGiftcard ? tr("售價 {0}", cur) : tr("售價 USD")}</th><th className="px-3 py-2 w-32">{isGiftcard ? tr("原價 {0}", cur) : tr("原價 USD")}</th>{isGiftcard && <th className="px-3 py-2 w-32">{tr("卡面額 {0}", cur)}</th>}<th className="px-3 py-2 w-44">{tr("角標")}</th><th className="px-3 py-2 w-48">{tr("限購")}</th><th className="px-3 py-2 w-16">{tr("有貨")}</th><th className="px-3 py-2 w-24"></th></tr></thead>
           <tbody className="divide-y divide-slate-100">
             {specs.map((s, i) => (
               <tr key={s.id || i} data-testid={`pf-spec-row-${i}`}>
-                <td className="px-3 py-1.5"><Input data-testid={`pf-spec-label-${i}`} className="w-full" value={s.label} onChange={(e) => set(i, "label", e.target.value)} placeholder={tr("如 1000 鑽石")} /></td>
-                <td className="px-3 py-1.5"><Input data-testid={`pf-spec-price-${i}`} type="number" step="0.01" className="w-full" value={s.price_usd} onChange={(e) => set(i, "price_usd", e.target.value)} /></td>
-                <td className="px-3 py-1.5"><Input type="number" step="0.01" className="w-full" value={s.sale_price_usd ?? ""} onChange={(e) => set(i, "sale_price_usd", e.target.value)} placeholder={tr("選填")} /></td>
-                {isGiftcard && <td className="px-3 py-1.5"><Input data-testid={`pf-spec-giftcard-${i}`} type="number" step="0.01" className="w-full" value={s.giftcard_value_usd ?? ""} onChange={(e) => set(i, "giftcard_value_usd", e.target.value)} placeholder={tr("同售價")} /></td>}
+                <td className="px-3 py-1.5"><Input data-testid={`pf-spec-label-${i}`} className="w-full min-w-[140px]" value={s.label} onChange={(e) => set(i, "label", e.target.value)} placeholder={tr("如 1000 鑽石")} /></td>
+                {isGiftcard ? (
+                  <>
+                    <td className="px-3 py-1.5"><Input data-testid={`pf-spec-price-${i}`} type="number" step="0.01" className="w-full" value={s.price_local ?? ""} onChange={(e) => setLocal(i, "price_local", e.target.value)} placeholder={cur} /><div className="text-[10px] text-emerald-600 mt-0.5 pl-1" data-testid={`pf-spec-price-usd-${i}`}>≈ USD {(+s.price_usd || 0).toFixed(2)}</div></td>
+                    <td className="px-3 py-1.5"><Input type="number" step="0.01" className="w-full" value={s.sale_price_local ?? ""} onChange={(e) => setLocal(i, "sale_price_local", e.target.value)} placeholder={tr("選填")} />{s.sale_price_usd ? <div className="text-[10px] text-slate-400 mt-0.5 pl-1">≈ USD {(+s.sale_price_usd).toFixed(2)}</div> : null}</td>
+                    <td className="px-3 py-1.5"><Input data-testid={`pf-spec-giftcard-${i}`} type="number" step="0.01" className="w-full" value={s.giftcard_value_local ?? ""} onChange={(e) => setLocal(i, "giftcard_value_local", e.target.value)} placeholder={tr("同售價")} />{s.giftcard_value_usd ? <div className="text-[10px] text-slate-400 mt-0.5 pl-1">≈ USD {(+s.giftcard_value_usd).toFixed(2)}</div> : null}</td>
+                  </>
+                ) : (
+                  <>
+                    <td className="px-3 py-1.5"><Input data-testid={`pf-spec-price-${i}`} type="number" step="0.01" className="w-full" value={s.price_usd} onChange={(e) => set(i, "price_usd", e.target.value)} /></td>
+                    <td className="px-3 py-1.5"><Input type="number" step="0.01" className="w-full" value={s.sale_price_usd ?? ""} onChange={(e) => set(i, "sale_price_usd", e.target.value)} placeholder={tr("選填")} /></td>
+                  </>
+                )}
                 <td className="px-3 py-1.5"><Input list="badge-list" data-testid={`pf-spec-badge-${i}`} className="w-full" value={s.badge || ""} onChange={(e) => set(i, "badge", e.target.value)} placeholder={tr("如 每日一單")} /></td>
                 <td className="px-3 py-1.5">
                   <div className="flex items-center gap-1">

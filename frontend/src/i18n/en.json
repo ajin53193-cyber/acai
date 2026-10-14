@@ -1743,5 +1743,11 @@
  "交易號查詢": "Trade No. Lookup",
  "核銷接口API": "Redeem API",
  "此模組待配置": "Module not configured yet",
- "共 {0} 張禮品卡商品；點擊編輯可修改規格、面額與下單需填寫資料。": "{0} gift card products; click edit to change specs, face value and checkout fields."
+ "共 {0} 張禮品卡商品；點擊編輯可修改規格、面額與下單需填寫資料。": "{0} gift card products; click edit to change specs, face value and checkout fields.",
+ "售價 {0}": "Price {0}",
+ "原價 {0}": "Original {0}",
+ "卡面額 {0}": "Face value {0}",
+ "計價幣別": "Pricing currency",
+ "填寫 {0} 金額後自動換算為 USD 售價；修改匯率會重新換算所有規格。": "Enter {0} amounts; USD prices are converted automatically. Changing the rate recalculates all specs.",
+ "本商品為禮品卡：請以計價幣別填寫金額，系統依匯率自動換算 USD；「卡面額」留空則同售價。": "Gift card: enter amounts in the pricing currency; USD is converted by rate. Leave face value empty to use the price."
 }

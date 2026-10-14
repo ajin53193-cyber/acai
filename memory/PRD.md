@@ -408,3 +408,4 @@
 - Round 30 續：「添加禮品卡」= ProductsAdmin autoCreate + giftcard prop（表單預設 is_giftcard=true），與普通商品新增完全相同。截圖驗證。
 - Round 30 續：「添加禮品卡」改為獨立頁 GiftCardNewAdmin.jsx（ProductForm 新增 inline/title prop 並 export，EMPTY 改名 export EMPTY_PRODUCT），頁內直接渲染完整商品表單、is_giftcard 預設開、儲存後重置。截圖驗證。
 - Round 30 續：新增「禮品卡 → 禮品卡列表」（ProductsAdmin giftcardOnly prop → GET /admin/products?giftcard=1 僅列 is_giftcard 商品）；刪除先前誤建的示範商品 giftcard-shkp-hkd。使用者已自行新增「新地商場禮品卡 (HKD)」。
+- Round 30 續：禮品卡規格支援「計價幣別 + 匯率」自動換算：SpecsEditor（isGiftcard）頂部 fx bar（幣別選單取 /currencies、匯率預設 rate_to_usd 可改），欄位改為 售價/原價/卡面額 {幣別}，輸入即換算 price_usd/sale_price_usd/giftcard_value_usd 並顯示 ≈USD；改匯率重算全部規格。Spec 新增 price_local/sale_price_local/giftcard_value_local，Product/ProductIn 新增 price_currency/price_rate。驗證：200 HKD → USD 25.48。
