@@ -185,6 +185,16 @@ class ProductIn(BaseModel):
     rating: float = 5.0
     sort_order: int = 0
     active: bool = True
+    related_ids: List[str] = []
+
+
+class CategoryIn(BaseModel):
+    id: str = ""
+    name: str
+    image: str = ""
+    icon: str = ""
+    sort_order: int = 0
+    active: bool = True
 
 
 class Currency(BaseModel):
@@ -278,7 +288,61 @@ async def get_currencies():
 
 @api_router.get("/categories")
 async def get_categories():
-    return await db.categories.find({}, {"_id": 0}).sort("sort_order", 1).to_list(100)
+    return await db.categories.find({"active": {"$ne": False}}, {"_id": 0}).sort("sort_order", 1).to_list(100)
+
+
+@api_router.get("/admin/categories")
+async def admin_list_categories(admin: dict = Depends(require_role("admin"))):
+    cats = await db.categories.find({}, {"_id": 0}).sort("sort_order", 1).to_list(100)
+    counts = {r["_id"]: r["n"] for r in await db.products.aggregate([{"$group": {"_id": "$category", "n": {"$sum": 1}}}]).to_list(200)}
+    for c in cats:
+        c["product_count"] = counts.get(c["id"], 0)
+        c.setdefault("active", True)
+    return cats
+
+
+async def _prep_category(body: CategoryIn) -> dict:
+    d = body.model_dump()
+    d["name"] = to_traditional(d["name"].strip())
+    if not d["name"]:
+        raise HTTPException(status_code=400, detail="分類名稱不可為空")
+    if d["image"].startswith("data:image"):
+        d["image"] = await _upload_b64("gogo589/categories", d["image"], "cat.png", max_mb=2)
+    return d
+
+
+@api_router.post("/admin/categories")
+async def admin_create_category(body: CategoryIn, admin: dict = Depends(require_role("admin"))):
+    d = await _prep_category(body)
+    cid = re.sub(r"[^a-z0-9-]", "", (d["id"] or "").lower().replace(" ", "-")) or re.sub(r"[^a-z0-9]", "", uuid.uuid4().hex[:8])
+    if await db.categories.find_one({"id": cid}):
+        raise HTTPException(status_code=409, detail="分類 ID 已存在")
+    d["id"] = cid
+    await db.categories.insert_one({**d})
+    d["product_count"] = 0
+    return d
+
+
+@api_router.put("/admin/categories/{cid}")
+async def admin_update_category(cid: str, body: CategoryIn, admin: dict = Depends(require_role("admin"))):
+    d = await _prep_category(body)
+    d.pop("id", None)
+    r = await db.categories.find_one_and_update({"id": cid}, {"$set": d}, projection={"_id": 0}, return_document=ReturnDocument.AFTER)
+    if not r:
+        raise HTTPException(status_code=404, detail="Not found")
+    r["product_count"] = await db.products.count_documents({"category": cid})
+    return r
+
+
+@api_router.delete("/admin/categories/{cid}")
+async def admin_delete_category(cid: str, admin: dict = Depends(require_role("admin"))):
+    n = await db.products.count_documents({"category": cid})
+    if n:
+        raise HTTPException(status_code=409, detail=f"此分類下仍有 {n} 件商品，請先移動或刪除商品")
+    r = await db.categories.delete_one({"id": cid})
+    if r.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Not found")
+    return {"ok": True}
 
 
 @api_router.get("/products")
@@ -330,7 +394,7 @@ async def get_home_products():
     proj = {"_id": 0, "content_html": 0, "delivery_fields": 0, "description": 0, "tutorial": 0}
     quick = await db.products.find({"active": True, "tags": "快速下單"}, proj).sort("sort_order", 1).to_list(12)
     hot = await db.products.find({"active": True, "tags": "熱銷"}, proj).sort("sort_order", 1).to_list(16)
-    cats = await db.categories.find({}, {"_id": 0}).sort("sort_order", 1).to_list(50)
+    cats = await db.categories.find({"active": {"$ne": False}}, {"_id": 0}).sort("sort_order", 1).to_list(50)
     by_category = {}
     for c in cats:
         by_category[c["id"]] = await db.products.find({"active": True, "category": c["id"]}, proj).sort([("sort_order", 1), ("sales_count", -1)]).to_list(20)
@@ -1313,23 +1377,95 @@ async def admin_stats(admin: dict = Depends(require_role("admin"))):
     }
 
 
+PRODUCT_TEXT_KEYS = ("name", "brand", "subtitle", "description", "content_html", "tutorial", "account_field_label", "account_field_hint")
+
+
+async def _prep_product(body: "ProductIn") -> dict:
+    d = body.model_dump()
+    if d["image"].startswith("data:image"):
+        d["image"] = await _upload_b64("gogo589/products", d["image"], "product.png", max_mb=4)
+    for k in PRODUCT_TEXT_KEYS:
+        if d.get(k):
+            d[k] = to_traditional(d[k])
+    d["tags"] = [to_traditional(t.strip()) for t in d["tags"] if t.strip()]
+    for s in d["specs"]:
+        s["label"] = to_traditional(s["label"])
+        s["badge"] = to_traditional(s["badge"] or "").strip()
+        if not s.get("id") or s["id"].startswith("new-"):
+            s["id"] = new_id()
+    for f in d["delivery_fields"]:
+        for k in ("name", "placeholder", "tips"):
+            f[k] = to_traditional(f[k] or "")
+        f["options"] = [to_traditional(o) for o in f["options"] if o.strip()]
+    if d["delivery_fields"]:
+        d["account_field_label"] = d["delivery_fields"][0]["name"]
+        d["account_field_hint"] = d["delivery_fields"][0]["tips"]
+    return d
+
+
 @api_router.get("/admin/products")
-async def admin_list_products(admin: dict = Depends(require_role("admin"))):
-    return await db.products.find({}, {"_id": 0}).sort("sort_order", 1).to_list(1000)
+async def admin_list_products(q: str = "", category: str = "", active: str = "", ids: str = "", page: int = 1, size: int = 30, admin: dict = Depends(require_role("admin"))):
+    cond: dict = {}
+    if ids:
+        cond["id"] = {"$in": [i for i in ids.split(",") if i]}
+    if category:
+        cond["category"] = category
+    if active in ("true", "false"):
+        cond["active"] = active == "true"
+    if q:
+        pats = [{"name": {"$regex": re.escape(v), "$options": "i"}} for v in {q, to_simplified(q), to_traditional(q)}]
+        cond["$or"] = pats + [{"brand": {"$regex": re.escape(q), "$options": "i"}}, {"id": q}]
+    total = await db.products.count_documents(cond)
+    proj = {"_id": 0, "content_html": 0, "description": 0, "tutorial": 0, "delivery_fields": 0, "group": 0, "related_ids": 0}
+    rows = await db.products.find(cond, proj).sort([("sort_order", 1), ("sales_count", -1)]).skip((page - 1) * size).to_list(size)
+    return {"total": total, "rows": rows}
+
+
+@api_router.get("/admin/products/badges")
+async def admin_product_badges(admin: dict = Depends(require_role("admin"))):
+    agg = db.products.aggregate([{"$unwind": "$specs"}, {"$match": {"specs.badge": {"$nin": ["", " ", None]}}}, {"$group": {"_id": "$specs.badge", "n": {"$sum": 1}}}, {"$sort": {"n": -1}}, {"$limit": 40}])
+    return [r["_id"].strip() for r in await agg.to_list(40)]
+
+
+@api_router.get("/admin/products/{product_id}")
+async def admin_get_product(product_id: str, admin: dict = Depends(require_role("admin"))):
+    p = await db.products.find_one({"id": product_id}, {"_id": 0})
+    if not p:
+        raise HTTPException(status_code=404, detail="Not found")
+    rel = p.get("related_ids") or []
+    if rel:
+        docs = await db.products.find({"id": {"$in": rel}}, {"_id": 0, "id": 1, "name": 1, "image": 1}).to_list(50)
+        order = {i: n for n, i in enumerate(rel)}
+        p["related"] = sorted(docs, key=lambda d: order.get(d["id"], 99))
+    return p
 
 
 @api_router.post("/admin/products")
 async def admin_create_product(body: ProductIn, admin: dict = Depends(require_role("admin"))):
-    p = Product(**body.model_dump())
-    await db.products.insert_one(p.model_dump())
-    return p.model_dump()
+    d = await _prep_product(body)
+    p = Product(**{k: v for k, v in d.items() if k != "related_ids"}).model_dump()
+    p["related_ids"] = d["related_ids"]
+    await db.products.insert_one({**p})
+    return p
 
 
 @api_router.put("/admin/products/{product_id}")
 async def admin_update_product(product_id: str, body: ProductIn, admin: dict = Depends(require_role("admin"))):
+    d = await _prep_product(body)
     r = await db.products.find_one_and_update(
-        {"id": product_id}, {"$set": body.model_dump()},
+        {"id": product_id}, {"$set": d},
         projection={"_id": 0}, return_document=ReturnDocument.AFTER)
+    if not r:
+        raise HTTPException(status_code=404, detail="Not found")
+    return r
+
+
+@api_router.patch("/admin/products/{product_id}")
+async def admin_patch_product(product_id: str, body: Dict[str, object], admin: dict = Depends(require_role("admin"))):
+    allowed = {k: v for k, v in body.items() if k in ("active", "sort_order", "sales_count", "tags")}
+    if not allowed:
+        raise HTTPException(status_code=400, detail="nothing to update")
+    r = await db.products.find_one_and_update({"id": product_id}, {"$set": allowed}, projection={"_id": 0, "content_html": 0}, return_document=ReturnDocument.AFTER)
     if not r:
         raise HTTPException(status_code=404, detail="Not found")
     return r

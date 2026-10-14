@@ -1,0 +1,253 @@
+import { useCallback, useEffect, useState } from "react";
+import { Plus, Pencil, Trash2, Search, X, ArrowUp, ArrowDown } from "lucide-react";
+import { toast } from "sonner";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Switch } from "@/components/ui/switch";
+import { RichEditor } from "@/components/admin/RichEditor";
+import { Card, Btn, Input, Pill, Table, Head, ImgField } from "@/pages/admin/ui";
+import { tr } from "@/i18n";
+
+const lbl = "block text-xs font-semibold text-slate-500 mb-1";
+const selBase = "h-9 rounded-lg bg-slate-100 px-3 text-sm outline-none focus:ring-2 focus:ring-orange-300";
+const sel = selBase + " w-full";
+const ta = "w-full rounded-lg bg-slate-100 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-orange-300";
+const EMPTY = { name: "", category: "", brand: "", subtitle: "", image: "", description: "", content_html: "", tutorial: "", delivery_fields: [{ code: "account", name: "充值帳號", required: true, placeholder: "", tips: "", type: "text", options: [] }], specs: [], tags: [], sales_count: 0, rating: 5, sort_order: 0, active: true, related_ids: [], related: [] };
+const FIELD_TYPES = { text: tr("文字"), select: tr("下拉選擇"), password: tr("密碼"), textarea: tr("多行文字") };
+const priceRange = (specs) => { const ps = (specs || []).map((s) => s.price_usd).filter((n) => n > 0); if (!ps.length) return "-"; const a = Math.min(...ps), b = Math.max(...ps); return a === b ? `$${a}` : `$${a} ~ $${b}`; };
+
+export function ProductsAdmin({ callApi }) {
+  const [data, setData] = useState({ total: 0, rows: [] });
+  const [cats, setCats] = useState([]);
+  const [q, setQ] = useState("");
+  const [qd, setQd] = useState("");
+  const [cat, setCat] = useState("");
+  const [status, setStatus] = useState("");
+  const [page, setPage] = useState(1);
+  const [editing, setEditing] = useState(null);
+  const size = 30;
+
+  useEffect(() => { const t = setTimeout(() => { setQd(q); setPage(1); }, 350); return () => clearTimeout(t); }, [q]);
+  const load = useCallback(() => callApi({ method: "GET", url: `/admin/products?q=${encodeURIComponent(qd)}&category=${cat}&active=${status}&page=${page}&size=${size}` }).then((r) => setData(r.data)).catch(() => toast.error(tr("載入失敗"))), [callApi, qd, cat, status, page]);
+  useEffect(() => { load(); }, [load]);
+  useEffect(() => { callApi({ method: "GET", url: "/admin/categories" }).then((r) => setCats(r.data)).catch(() => {}); }, [callApi]);
+
+  const openEdit = async (row) => { const r = await callApi({ method: "GET", url: `/admin/products/${row.id}` }); setEditing({ ...EMPTY, ...r.data, related: r.data.related || [] }); };
+  const patch = async (row, body) => { try { await callApi({ method: "PATCH", url: `/admin/products/${row.id}`, data: body }); load(); } catch (e) { toast.error(e.response?.data?.detail || tr("更新失敗")); } };
+  const del = async (row) => {
+    if (!window.confirm(tr("確定刪除商品「{0}」？此操作無法復原", row.name))) return;
+    await callApi({ method: "DELETE", url: `/admin/products/${row.id}` }); toast.success(tr("已刪除")); load();
+  };
+  const pages = Math.max(1, Math.ceil(data.total / size));
+  const catName = (id) => cats.find((c) => c.id === id)?.name || id;
+
+  return (
+    <div data-testid="products-admin">
+      <Head title={tr("商品管理")} sub={tr("共 {0} 件商品，可搜尋、按分類/狀態篩選；點擊編輯可修改規格、價格、角標與下單需填寫資料。", data.total)}
+        right={<Btn data-testid="product-add-btn" onClick={() => setEditing({ ...EMPTY, category: cats[0]?.id || "" })}><Plus className="h-4 w-4 inline -mt-0.5 mr-1" />{tr("新增商品")}</Btn>} />
+      <div className="flex flex-wrap items-center gap-2 mb-4">
+        <div className="relative"><Search className="h-4 w-4 absolute left-2.5 top-2.5 text-slate-400" /><Input data-testid="product-search" value={q} onChange={(e) => setQ(e.target.value)} placeholder={tr("搜尋名稱 / 品牌 / ID")} className="pl-8 w-64" /></div>
+        <select data-testid="product-filter-category" className={selBase + " w-44"} value={cat} onChange={(e) => { setCat(e.target.value); setPage(1); }}><option value="">{tr("全部分類")}</option>{cats.map((c) => <option key={c.id} value={c.id}>{c.name}（{c.product_count}）</option>)}</select>
+        <select data-testid="product-filter-status" className={selBase + " w-32"} value={status} onChange={(e) => { setStatus(e.target.value); setPage(1); }}><option value="">{tr("全部狀態")}</option><option value="true">{tr("上架中")}</option><option value="false">{tr("已下架")}</option></select>
+        <span className="text-xs text-slate-400 ml-auto">{tr("第 {0} / {1} 頁", page, pages)}</span>
+      </div>
+      <Table testId="products-table" cols={[tr("商品"), tr("分類"), tr("規格 / 價格"), tr("已售"), tr("評分"), tr("排序"), tr("上架"), tr("操作")]} rows={data.rows} render={(p) => (
+        <tr key={p.id} data-testid={`product-row-${p.id}`} className="hover:bg-orange-50/40">
+          <td className="px-4 py-2 max-w-[360px]">
+            <div className="flex items-center gap-3">
+              <img src={p.image} alt="" className="h-11 w-11 rounded-lg object-cover bg-slate-100 shrink-0" />
+              <div className="min-w-0">
+                <div className="font-medium text-slate-800 truncate">{p.name}</div>
+                <div className="text-[11px] text-slate-400 truncate">{p.brand}{p.subtitle ? ` · ${p.subtitle}` : ""}</div>
+                <div className="flex gap-1 mt-0.5">{(p.tags || []).map((t) => <Pill key={t} tone="orange">{t}</Pill>)}</div>
+              </div>
+            </div>
+          </td>
+          <td className="px-4 py-2 text-xs text-slate-600 whitespace-nowrap">{catName(p.category)}</td>
+          <td className="px-4 py-2 text-xs text-slate-600 whitespace-nowrap">{(p.specs || []).length} {tr("個規格")}<div className="text-slate-400">{priceRange(p.specs)}</div></td>
+          <td className="px-4 py-2 text-xs text-slate-600">{p.sales_count}</td>
+          <td className="px-4 py-2 text-xs text-slate-600">{p.rating}</td>
+          <td className="px-4 py-2"><input type="number" defaultValue={p.sort_order} key={p.sort_order} data-testid={`product-sort-${p.id}`} onBlur={(e) => +e.target.value !== p.sort_order && patch(p, { sort_order: +e.target.value })} className="h-8 w-16 rounded-md bg-slate-100 px-2 text-xs" /></td>
+          <td className="px-4 py-2"><Switch checked={!!p.active} onCheckedChange={(v) => patch(p, { active: v })} data-testid={`product-toggle-${p.id}`} /></td>
+          <td className="px-4 py-2 whitespace-nowrap">
+            <button data-testid={`product-edit-${p.id}`} onClick={() => openEdit(p)} className="p-1.5 text-slate-400 hover:text-orange-500"><Pencil className="h-4 w-4" /></button>
+            <button data-testid={`product-delete-${p.id}`} onClick={() => del(p)} className="p-1.5 text-slate-400 hover:text-red-500"><Trash2 className="h-4 w-4" /></button>
+          </td>
+        </tr>
+      )} />
+      {pages > 1 && <Pager page={page} pages={pages} onChange={setPage} />}
+      {editing && <ProductForm item={editing} cats={cats} callApi={callApi} onClose={() => setEditing(null)} onSaved={() => { setEditing(null); load(); }} />}
+    </div>
+  );
+}
+
+function Pager({ page, pages, onChange }) {
+  const items = [];
+  for (let i = 1; i <= pages; i++) if (i <= 2 || i > pages - 2 || Math.abs(i - page) <= 2) items.push(i); else if (items[items.length - 1] !== "…") items.push("…");
+  return (
+    <div className="flex items-center justify-center gap-1.5 mt-4" data-testid="products-pager">
+      <button disabled={page <= 1} onClick={() => onChange(page - 1)} className="h-8 px-3 rounded-full text-xs bg-white border border-slate-200 disabled:opacity-40">‹</button>
+      {items.map((it, i) => it === "…" ? <span key={`e${i}`} className="px-1 text-slate-400">…</span> : <button key={it} onClick={() => onChange(it)} className={`h-8 min-w-8 px-2 rounded-full text-xs ${it === page ? "bg-orange-500 text-white" : "bg-white border border-slate-200 text-slate-600"}`}>{it}</button>)}
+      <button disabled={page >= pages} onClick={() => onChange(page + 1)} className="h-8 px-3 rounded-full text-xs bg-white border border-slate-200 disabled:opacity-40">›</button>
+    </div>
+  );
+}
+
+const TABS = [["basic", tr("基本資訊")], ["specs", tr("規格與價格")], ["delivery", tr("下單需填寫")], ["content", tr("商品說明")], ["related", tr("相關推薦")]];
+
+function ProductForm({ item, cats, callApi, onClose, onSaved }) {
+  const [f, setF] = useState({ ...item, tags: (item.tags || []).join(", ") });
+  const [tab, setTab] = useState("basic");
+  const [busy, setBusy] = useState(false);
+  const [badges, setBadges] = useState([]);
+  useEffect(() => { callApi({ method: "GET", url: "/admin/products/badges" }).then((r) => setBadges(r.data)).catch(() => {}); }, [callApi]);
+  const set = (k, v) => setF((p) => ({ ...p, [k]: v }));
+  const upload = useCallback(async (img) => { try { return (await callApi({ method: "POST", url: "/admin/articles/upload", data: img })).data.url; } catch { toast.error(tr("圖片上傳失敗")); return null; } }, [callApi]);
+
+  const save = async () => {
+    if (!f.name.trim()) return toast.error(tr("請輸入商品名稱"));
+    if (!f.category) return toast.error(tr("請選擇分類"));
+    if (!f.specs.length) return toast.error(tr("請至少新增一個規格"));
+    if (f.specs.some((s) => !s.label.trim())) return toast.error(tr("規格名稱不可為空"));
+    setBusy(true);
+    try {
+      const body = {
+        name: f.name, category: f.category, brand: f.brand, subtitle: f.subtitle, image: f.image, description: f.description, content_html: f.content_html, tutorial: f.tutorial,
+        delivery_fields: f.delivery_fields.map((d) => ({ ...d, options: Array.isArray(d.options) ? d.options : String(d.options || "").split(/[,，\n]/).map((o) => o.trim()).filter(Boolean) })),
+        specs: f.specs.map((s) => ({ ...s, price_usd: +s.price_usd || 0, sale_price_usd: s.sale_price_usd ? +s.sale_price_usd : null })),
+        tags: f.tags.split(/[,，]/).map((t) => t.trim()).filter(Boolean), sales_count: +f.sales_count || 0, rating: +f.rating || 5, sort_order: +f.sort_order || 0, active: !!f.active,
+        related_ids: (f.related || []).map((r) => r.id),
+      };
+      if (f.id) await callApi({ method: "PUT", url: `/admin/products/${f.id}`, data: body });
+      else await callApi({ method: "POST", url: "/admin/products", data: body });
+      toast.success(tr("已儲存")); onSaved();
+    } catch (e) { toast.error(e.response?.data?.detail || tr("儲存失敗")); }
+    setBusy(false);
+  };
+
+  return (
+    <Dialog open onOpenChange={onClose}>
+      <DialogContent className="max-w-5xl max-h-[92vh] overflow-y-auto bg-white" data-testid="product-form">
+        <DialogHeader><DialogTitle>{f.id ? tr("編輯商品") : tr("新增商品")}{f.id && <span className="ml-2 text-xs font-normal text-slate-400">ID {f.id}</span>}</DialogTitle></DialogHeader>
+        <div className="flex gap-2 border-b border-slate-200 -mt-1">
+          {TABS.map(([k, label]) => <button key={k} data-testid={`pf-tab-${k}`} onClick={() => setTab(k)} className={`h-9 px-3 text-sm font-semibold border-b-2 -mb-px ${tab === k ? "border-orange-500 text-orange-600" : "border-transparent text-slate-500 hover:text-slate-800"}`}>{label}</button>)}
+        </div>
+
+        {tab === "basic" && (
+          <div className="grid md:grid-cols-3 gap-4">
+            <div className="md:col-span-2 space-y-3">
+              <div className="grid grid-cols-2 gap-3">
+                <div><label className={lbl}>{tr("商品名稱")} *</label><Input data-testid="pf-name" className="w-full" value={f.name} onChange={(e) => set("name", e.target.value)} /></div>
+                <div><label className={lbl}>{tr("品牌 / 分組名稱")}</label><Input data-testid="pf-brand" className="w-full" value={f.brand} onChange={(e) => set("brand", e.target.value)} /></div>
+                <div><label className={lbl}>{tr("分類")} *</label><select data-testid="pf-category" className={sel} value={f.category} onChange={(e) => set("category", e.target.value)}><option value="">{tr("請選擇")}</option>{cats.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></div>
+                <div><label className={lbl}>{tr("標籤（逗號分隔；「快速下單」「熱銷」會顯示在首頁）")}</label><Input data-testid="pf-tags" className="w-full" value={f.tags} onChange={(e) => set("tags", e.target.value)} placeholder="快速下單, 熱銷" /></div>
+              </div>
+              <div><label className={lbl}>{tr("副標題（商品頁名稱下方提示）")}</label><Input data-testid="pf-subtitle" className="w-full" value={f.subtitle} onChange={(e) => set("subtitle", e.target.value)} /></div>
+              <div className="grid grid-cols-4 gap-3">
+                <div><label className={lbl}>{tr("已售數")}</label><Input type="number" className="w-full" value={f.sales_count} onChange={(e) => set("sales_count", e.target.value)} /></div>
+                <div><label className={lbl}>{tr("評分 1-5")}</label><Input type="number" step="0.1" min="1" max="5" className="w-full" value={f.rating} onChange={(e) => set("rating", e.target.value)} /></div>
+                <div><label className={lbl}>{tr("排序（小在前）")}</label><Input type="number" className="w-full" value={f.sort_order} onChange={(e) => set("sort_order", e.target.value)} /></div>
+                <div className="flex items-end pb-1"><label className="flex items-center gap-2 text-sm text-slate-700"><Switch data-testid="pf-active" checked={!!f.active} onCheckedChange={(v) => set("active", v)} /> {tr("上架")}</label></div>
+              </div>
+            </div>
+            <div><label className={lbl}>{tr("商品圖片（方形，≤4M）")}</label><ImgField value={f.image} onChange={(v) => set("image", v)} testId="pf-image" ratio="aspect-square" /></div>
+          </div>
+        )}
+
+        {tab === "specs" && <SpecsEditor specs={f.specs} badges={badges} onChange={(v) => set("specs", v)} />}
+        {tab === "delivery" && <DeliveryEditor fields={f.delivery_fields} onChange={(v) => set("delivery_fields", v)} />}
+
+        {tab === "content" && (
+          <div className="space-y-3">
+            <div><label className={lbl}>{tr("簡短說明（列表 / 摘要）")}</label><textarea data-testid="pf-description" className={ta + " h-16"} value={f.description} onChange={(e) => set("description", e.target.value)} /></div>
+            <div><label className={lbl}>{tr("商品詳細說明（商品頁「產品說明」分頁）")}</label><RichEditor testId="pf-content" value={f.content_html} onChange={(v) => set("content_html", v)} onUpload={upload} placeholder={tr("輸入商品說明，可插入圖片…")} /></div>
+            <div><label className={lbl}>{tr("充值教學（選填）")}</label><textarea className={ta + " h-20"} value={f.tutorial} onChange={(e) => set("tutorial", e.target.value)} /></div>
+          </div>
+        )}
+
+        {tab === "related" && <RelatedEditor related={f.related || []} selfId={f.id} callApi={callApi} onChange={(v) => set("related", v)} />}
+
+        <DialogFooter>
+          <Btn kind="ghost" onClick={onClose}>{tr("取消")}</Btn>
+          <Btn data-testid="pf-save" onClick={save} disabled={busy}>{busy ? tr("儲存中…") : tr("儲存")}</Btn>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function SpecsEditor({ specs, badges, onChange }) {
+  const set = (i, k, v) => onChange(specs.map((s, idx) => (idx === i ? { ...s, [k]: v } : s)));
+  const move = (i, d) => { const j = i + d; if (j < 0 || j >= specs.length) return; const a = [...specs]; [a[i], a[j]] = [a[j], a[i]]; onChange(a); };
+  return (
+    <div>
+      <div className="text-[11px] text-slate-400 mb-2">{tr("售價為實際結帳價格；「原價」填寫後商品頁顯示刪除線；角標如「每日一單」「每月一單」「新客專享」會自動啟用對應限購規則。")}</div>
+      <Card className="overflow-x-auto">
+        <table className="w-full text-sm" data-testid="pf-specs-table">
+          <thead><tr className="text-left text-xs text-slate-500 bg-slate-50/70 border-b border-slate-200"><th className="px-3 py-2">{tr("規格名稱")}</th><th className="px-3 py-2 w-28">{tr("售價 USD")}</th><th className="px-3 py-2 w-28">{tr("原價 USD")}</th><th className="px-3 py-2 w-48">{tr("角標")}</th><th className="px-3 py-2 w-16">{tr("有貨")}</th><th className="px-3 py-2 w-24"></th></tr></thead>
+          <tbody className="divide-y divide-slate-100">
+            {specs.map((s, i) => (
+              <tr key={s.id || i} data-testid={`pf-spec-row-${i}`}>
+                <td className="px-3 py-1.5"><Input data-testid={`pf-spec-label-${i}`} className="w-full" value={s.label} onChange={(e) => set(i, "label", e.target.value)} placeholder={tr("如 1000 鑽石")} /></td>
+                <td className="px-3 py-1.5"><Input data-testid={`pf-spec-price-${i}`} type="number" step="0.01" className="w-full" value={s.price_usd} onChange={(e) => set(i, "price_usd", e.target.value)} /></td>
+                <td className="px-3 py-1.5"><Input type="number" step="0.01" className="w-full" value={s.sale_price_usd ?? ""} onChange={(e) => set(i, "sale_price_usd", e.target.value)} placeholder={tr("選填")} /></td>
+                <td className="px-3 py-1.5"><Input list="badge-list" data-testid={`pf-spec-badge-${i}`} className="w-full" value={s.badge || ""} onChange={(e) => set(i, "badge", e.target.value)} placeholder={tr("如 每日一單")} /></td>
+                <td className="px-3 py-1.5"><Switch checked={s.in_stock !== false} onCheckedChange={(v) => set(i, "in_stock", v)} /></td>
+                <td className="px-3 py-1.5 whitespace-nowrap">
+                  <button onClick={() => move(i, -1)} className="p-1 text-slate-400 hover:text-slate-700"><ArrowUp className="h-4 w-4" /></button>
+                  <button onClick={() => move(i, 1)} className="p-1 text-slate-400 hover:text-slate-700"><ArrowDown className="h-4 w-4" /></button>
+                  <button data-testid={`pf-spec-remove-${i}`} onClick={() => onChange(specs.filter((_, idx) => idx !== i))} className="p-1 text-slate-400 hover:text-red-500"><X className="h-4 w-4" /></button>
+                </td>
+              </tr>
+            ))}
+            {specs.length === 0 && <tr><td colSpan={6} className="px-3 py-8 text-center text-slate-400 text-xs">{tr("尚無規格，請新增")}</td></tr>}
+          </tbody>
+        </table>
+      </Card>
+      <datalist id="badge-list">{badges.map((b) => <option key={b} value={b} />)}</datalist>
+      <Btn kind="ghost" className="mt-3" data-testid="pf-add-spec" onClick={() => onChange([...specs, { id: `new-${Date.now()}`, label: "", price_usd: 0, sale_price_usd: null, badge: "", in_stock: true }])}><Plus className="h-4 w-4 inline -mt-0.5 mr-1" />{tr("新增規格")}</Btn>
+    </div>
+  );
+}
+
+function DeliveryEditor({ fields, onChange }) {
+  const set = (i, k, v) => onChange(fields.map((f, idx) => (idx === i ? { ...f, [k]: v } : f)));
+  return (
+    <div className="space-y-3">
+      <div className="text-[11px] text-slate-400">{tr("用戶下單時需填寫的資料（如充值帳號、區服、密碼）。第一個欄位作為主要充值帳號。")}</div>
+      {fields.map((d, i) => (
+        <Card key={i} className="p-4 grid md:grid-cols-4 gap-3 relative" data-testid={`pf-field-${i}`}>
+          <div><label className={lbl}>{tr("欄位名稱")} *</label><Input data-testid={`pf-field-name-${i}`} className="w-full" value={d.name} onChange={(e) => set(i, "name", e.target.value)} placeholder={tr("如 抖音帳號")} /></div>
+          <div><label className={lbl}>{tr("類型")}</label><select className={sel} value={d.type} onChange={(e) => set(i, "type", e.target.value)}>{Object.entries(FIELD_TYPES).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select></div>
+          <div><label className={lbl}>{tr("欄位代碼")}</label><Input className="w-full" value={d.code} onChange={(e) => set(i, "code", e.target.value)} placeholder="account" /></div>
+          <div className="flex items-end gap-3 pb-1"><label className="flex items-center gap-2 text-sm text-slate-700"><Switch checked={d.required !== false} onCheckedChange={(v) => set(i, "required", v)} /> {tr("必填")}</label>
+            <button data-testid={`pf-field-remove-${i}`} onClick={() => onChange(fields.filter((_, idx) => idx !== i))} className="ml-auto text-xs text-red-500 flex items-center gap-1"><Trash2 className="h-3.5 w-3.5" />{tr("移除")}</button></div>
+          <div className="md:col-span-2"><label className={lbl}>{tr("輸入提示（placeholder）")}</label><Input className="w-full" value={d.placeholder || ""} onChange={(e) => set(i, "placeholder", e.target.value)} /></div>
+          <div className="md:col-span-2"><label className={lbl}>{tr("說明文字（顯示在欄位下方）")}</label><Input className="w-full" value={d.tips || ""} onChange={(e) => set(i, "tips", e.target.value)} /></div>
+          {d.type === "select" && <div className="md:col-span-4"><label className={lbl}>{tr("下拉選項（逗號分隔）")}</label><Input className="w-full" value={Array.isArray(d.options) ? d.options.join(", ") : d.options || ""} onChange={(e) => set(i, "options", e.target.value)} placeholder={tr("手機號登入, 郵箱登入")} /></div>}
+        </Card>
+      ))}
+      <Btn kind="ghost" data-testid="pf-add-field" onClick={() => onChange([...fields, { code: `field${fields.length + 1}`, name: "", required: true, placeholder: "", tips: "", type: "text", options: [] }])}><Plus className="h-4 w-4 inline -mt-0.5 mr-1" />{tr("新增欄位")}</Btn>
+    </div>
+  );
+}
+
+function RelatedEditor({ related, selfId, callApi, onChange }) {
+  const [q, setQ] = useState("");
+  const [res, setRes] = useState([]);
+  useEffect(() => {
+    if (!q.trim()) return setRes([]);
+    const t = setTimeout(() => callApi({ method: "GET", url: `/admin/products?q=${encodeURIComponent(q)}&size=8` }).then((r) => setRes(r.data.rows.filter((p) => p.id !== selfId && !related.some((x) => x.id === p.id)))).catch(() => {}), 300);
+    return () => clearTimeout(t);
+  }, [q, callApi, selfId, related]);
+  return (
+    <div className="space-y-3">
+      <div className="text-[11px] text-slate-400">{tr("商品頁底部「相關推薦」，最多 8 個；未設定時自動顯示同分類熱銷商品。")}</div>
+      <div className="flex flex-wrap gap-2">
+        {related.map((r) => <span key={r.id} data-testid={`pf-related-${r.id}`} className="flex items-center gap-2 bg-orange-50 border border-orange-100 rounded-full pl-1 pr-2 py-1 text-xs"><img src={r.image} alt="" className="h-6 w-6 rounded-full object-cover" />{r.name}<button onClick={() => onChange(related.filter((x) => x.id !== r.id))} className="text-slate-400 hover:text-red-500"><X className="h-3.5 w-3.5" /></button></span>)}
+        {related.length === 0 && <span className="text-xs text-slate-400">{tr("尚未選擇")}</span>}
+      </div>
+      <div className="relative max-w-md"><Search className="h-4 w-4 absolute left-2.5 top-2.5 text-slate-400" /><Input data-testid="pf-related-search" className="pl-8 w-full" value={q} onChange={(e) => setQ(e.target.value)} placeholder={tr("搜尋商品名稱加入推薦")} disabled={related.length >= 8} /></div>
+      {res.length > 0 && <Card className="divide-y divide-slate-100 max-w-md">{res.map((p) => <button key={p.id} data-testid={`pf-related-add-${p.id}`} onClick={() => { onChange([...related, { id: p.id, name: p.name, image: p.image }]); setQ(""); }} className="w-full flex items-center gap-3 px-3 py-2 text-left text-sm hover:bg-orange-50"><img src={p.image} alt="" className="h-8 w-8 rounded-lg object-cover" /><span className="truncate">{p.name}</span><Plus className="h-4 w-4 ml-auto text-orange-500" /></button>)}</Card>}
+    </div>
+  );
+}

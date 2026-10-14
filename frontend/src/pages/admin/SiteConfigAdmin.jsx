@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
-import { ImagePlus, Plus, Trash2, RotateCcw, Save } from "lucide-react";
+import { Plus, Trash2, RotateCcw, Save } from "lucide-react";
 import { toast } from "sonner";
 import { QRCodeSVG } from "qrcode.react";
 import { Switch } from "@/components/ui/switch";
-import { Card, Btn, Input, Head } from "@/pages/admin/ui";
+import { Card, Btn, Input, Head, ImgField as Img } from "@/pages/admin/ui";
 import { loadSiteConfig } from "@/lib/siteConfig";
 import { tr } from "@/i18n";
 
@@ -17,22 +17,6 @@ const lbl = "block text-xs font-semibold text-slate-500 mb-1";
 const Field = ({ label, hint, children }) => <div><label className={lbl}>{label}</label>{children}{hint && <div className="text-[11px] text-slate-400 mt-1">{hint}</div>}</div>;
 const Txt = ({ value, onChange, ...p }) => <Input className="w-full" value={value || ""} onChange={(e) => onChange(e.target.value)} {...p} />;
 const Toggle = ({ label, value, onChange, testId }) => <label className="flex items-center gap-2 text-sm text-slate-700"><Switch checked={value !== false} onCheckedChange={onChange} data-testid={testId} /> {label}</label>;
-
-function Img({ value, onChange, hint, testId, ratio = "aspect-[3/1]" }) {
-  return (
-    <div>
-      <label className={`block ${ratio} max-h-40 rounded-xl border-2 border-dashed border-slate-200 bg-slate-50 overflow-hidden cursor-pointer hover:border-orange-300 relative`}>
-        {value ? <img src={value} alt="" className="h-full w-full object-contain" /> : <span className="absolute inset-0 flex flex-col items-center justify-center text-slate-400 text-xs gap-1"><ImagePlus className="h-6 w-6" />{tr("點擊上傳圖片")}</span>}
-        <input data-testid={testId} type="file" accept="image/*" className="hidden" onChange={async (e) => { const f = e.target.files?.[0]; if (f) onChange(await readFile(f)); }} />
-      </label>
-      <div className="flex items-center gap-2 mt-1.5">
-        <Input className="flex-1 text-xs" placeholder={tr("或貼上圖片網址")} value={value?.startsWith("data:") ? "" : value || ""} onChange={(e) => onChange(e.target.value)} />
-        {value && <button onClick={() => onChange("")} className="text-[11px] text-red-500 whitespace-nowrap">{tr("清除")}</button>}
-      </div>
-      {hint && <div className="text-[11px] text-slate-400 mt-1">{hint}</div>}
-    </div>
-  );
-}
 
 function BannerList({ items, onChange, withAction, max, ratio }) {
   const set = (i, k, v) => onChange(items.map((it, idx) => (idx === i ? { ...it, [k]: v } : it)));

@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Show, useUser } from "@clerk/react";
-import { LayoutDashboard, Package, ShoppingBag, Star, DollarSign, Tag, Users, Plus, Pencil, Trash2, X, Loader2, ArrowLeft, TrendingUp, Clock, ShieldAlert, Settings, CreditCard, ArrowUp, ArrowDown, ImagePlus, Wallet, BadgeCheck, MessageSquare, Globe, Bell, Megaphone } from "lucide-react";
+import { LayoutDashboard, Package, ShoppingBag, Star, DollarSign, Tag, Users, Plus, Pencil, Trash2, X, Loader2, ArrowLeft, TrendingUp, Clock, ShieldAlert, Settings, CreditCard, ArrowUp, ArrowDown, ImagePlus, Wallet, BadgeCheck, MessageSquare, Globe, Bell, Megaphone, LayoutGrid } from "lucide-react";
 import { toast } from "sonner";
 import { useApi, publicApi } from "@/lib/api";
 import { STATUS_LABELS, STATUS_ORDER, StatusBadge } from "@/lib/status";
@@ -17,6 +17,8 @@ import { TranslationsAdmin } from "@/pages/admin/TranslationsAdmin";
 import { NotificationsAdmin } from "@/pages/admin/NotificationsAdmin";
 import { ActivitiesAdmin } from "@/pages/admin/ActivitiesAdmin";
 import { SiteConfigAdmin } from "@/pages/admin/SiteConfigAdmin";
+import { ProductsAdmin } from "@/pages/admin/ProductsAdmin";
+import { CategoriesAdmin } from "@/pages/admin/CategoriesAdmin";
 import { tr } from "@/i18n";
 
 const NAV = [
@@ -24,7 +26,7 @@ const NAV = [
 ];
 const NAV_GROUPS = [
   [tr("財務管理"), [["wallets", tr("錢包管理"), Wallet], ["payments", tr("支付管理"), CreditCard], ["currencies", tr("匯率管理"), DollarSign], ["topups", tr("充值訂單"), Wallet]]],
-  [tr("運營管理"), [["products", tr("商品管理"), Package], ["orders", tr("訂單管理"), ShoppingBag], ["verifications", tr("認證審核"), BadgeCheck], ["reviews", tr("評價管理"), Star], ["feedback", tr("用戶反饋"), MessageSquare]]],
+  [tr("運營管理"), [["products", tr("商品管理"), Package], ["categories", tr("分類管理"), LayoutGrid], ["orders", tr("訂單管理"), ShoppingBag], ["verifications", tr("認證審核"), BadgeCheck], ["reviews", tr("評價管理"), Star], ["feedback", tr("用戶反饋"), MessageSquare]]],
   [tr("活動管理"), [["activities", tr("活動配置"), Megaphone], ["promos", tr("優惠碼"), Tag]]],
   [tr("會員與數據"), [["members", tr("會員管理"), Users], ["reports", tr("數據報表"), TrendingUp]]],
   [tr("系統設定"), [["siteconfig", tr("網站配置"), Settings], ["translations", tr("翻譯管理"), Globe], ["notifications", tr("通知設定"), Bell], ["paylogos", tr("頁尾支付Logo"), ImagePlus]]],
@@ -69,7 +71,8 @@ function AdminInner() {
 
       <main className="flex-1 min-w-0 p-4 md:p-8 overflow-x-hidden">
         {section === "overview" && <Overview callApi={callApi} />}
-        {section === "products" && <Products callApi={callApi} />}
+        {section === "products" && <ProductsAdmin callApi={callApi} />}
+        {section === "categories" && <CategoriesAdmin callApi={callApi} />}
         {section === "orders" && <Orders callApi={callApi} />}
         {section === "wallets" && <WalletAdmin callApi={callApi} />}
         {section === "payments" && <PaymentMethodsAdmin callApi={callApi} />}
@@ -135,125 +138,6 @@ function SectionHeader({ title, action }) {
       <h1 className="font-head text-2xl font-bold text-white">{title}</h1>
       {action}
     </div>
-  );
-}
-
-const emptyProduct = {
-  name: "", category: "douyin", brand: "", image: "", description: "", tutorial: "",
-  account_field_label: tr("充值帳號"), account_field_hint: "", specs: [], tags: [],
-  sales_count: 0, rating: 5, sort_order: 0, active: true,
-};
-
-function Products({ callApi }) {
-  const [list, setList] = useState([]);
-  const [cats, setCats] = useState([]);
-  const [editing, setEditing] = useState(null);
-  const load = useCallback(() => {
-    callApi({ method: "GET", url: "/admin/products" }).then((r) => setList(r.data)).catch(() => {});
-  }, [callApi]);
-  useEffect(() => { load(); publicApi.get("/categories").then((r) => setCats(r.data)); }, [load]);
-
-  const save = async (data) => {
-    const payload = { ...data, tags: typeof data.tags === "string" ? data.tags.split(",").map((t) => t.trim()).filter(Boolean) : data.tags };
-    try {
-      if (data.id) await callApi({ method: "PUT", url: `/admin/products/${data.id}`, data: payload });
-      else await callApi({ method: "POST", url: "/admin/products", data: payload });
-      toast.success(tr("已儲存"));
-      setEditing(null);
-      load();
-    } catch { toast.error(tr("儲存失敗")); }
-  };
-  const del = async (id) => {
-    if (!window.confirm(tr("確定刪除此商品？"))) return;
-    await callApi({ method: "DELETE", url: `/admin/products/${id}` });
-    toast.success(tr("已刪除"));
-    load();
-  };
-
-  return (
-    <div>
-      <SectionHeader title={tr("商品管理")} action={
-        <button data-testid="admin-add-product-btn" onClick={() => setEditing({ ...emptyProduct, tags: "", specs: [{ id: `new-${Date.now()}`, label: "", price_usd: 0, in_stock: true }] })}
-          className="flex items-center gap-1.5 h-10 px-4 rounded-lg bg-primary text-white text-sm font-semibold"><Plus className="h-4 w-4" /> {tr("新增商品")}</button>
-      } />
-      <div className="space-y-2">
-        {list.map((p) => (
-          <div key={p.id} data-testid={`admin-product-${p.id}`} className="bg-slate-900 rounded-xl border border-slate-800 p-3 flex items-center gap-3">
-            <img src={p.image} alt="" className="h-12 w-12 rounded-lg object-cover" />
-            <div className="flex-1 min-w-0">
-              <div className="text-sm font-semibold text-white truncate">{p.name}</div>
-              <div className="text-xs text-slate-500">{p.brand} · {p.specs.length} {tr("規格 · 已售")} {p.sales_count}</div>
-            </div>
-            {!p.active && <span className="text-xs text-red-400">{tr("已下架")}</span>}
-            <button data-testid={`admin-edit-product-${p.id}`} onClick={() => setEditing({ ...p, tags: p.tags.join(", ") })} className="p-2 text-slate-400 hover:text-primary"><Pencil className="h-4 w-4" /></button>
-            <button onClick={() => del(p.id)} className="p-2 text-slate-400 hover:text-red-400"><Trash2 className="h-4 w-4" /></button>
-          </div>
-        ))}
-      </div>
-
-      {editing && <ProductForm product={editing} cats={cats} onClose={() => setEditing(null)} onSave={save} />}
-    </div>
-  );
-}
-
-function ProductForm({ product, cats, onClose, onSave }) {
-  const [f, setF] = useState(product);
-  const set = (k, v) => setF((p) => ({ ...p, [k]: v }));
-  const setSpec = (i, k, v) => setF((p) => ({ ...p, specs: p.specs.map((s, idx) => (idx === i ? { ...s, [k]: v } : s)) }));
-  const addSpec = () => setF((p) => ({ ...p, specs: [...p.specs, { id: `new-${Date.now()}`, label: "", price_usd: 0, in_stock: true }] }));
-  const rmSpec = (i) => setF((p) => ({ ...p, specs: p.specs.filter((_, idx) => idx !== i) }));
-
-  return (
-    <Dialog open onOpenChange={onClose}>
-      <DialogContent className="bg-slate-900 border-slate-800 text-slate-200 max-w-2xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader><DialogTitle className="text-white">{f.id ? tr("編輯商品") : tr("新增商品")}</DialogTitle></DialogHeader>
-        <div className="space-y-3">
-          <div className="grid grid-cols-2 gap-3">
-            <div><label className="text-xs text-slate-400">{tr("名稱")}</label><input data-testid="pf-name" className={inputCls} value={f.name} onChange={(e) => set("name", e.target.value)} /></div>
-            <div><label className="text-xs text-slate-400">{tr("品牌")}</label><input className={inputCls} value={f.brand} onChange={(e) => set("brand", e.target.value)} /></div>
-            <div><label className="text-xs text-slate-400">{tr("分類")}</label>
-              <select className={inputCls} value={f.category} onChange={(e) => set("category", e.target.value)}>
-                {cats.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-              </select>
-            </div>
-            <div><label className="text-xs text-slate-400">{tr("排序")}</label><input type="number" className={inputCls} value={f.sort_order} onChange={(e) => set("sort_order", +e.target.value)} /></div>
-          </div>
-          <div><label className="text-xs text-slate-400">{tr("圖片 URL")}</label><input className={inputCls} value={f.image} onChange={(e) => set("image", e.target.value)} /></div>
-          <div><label className="text-xs text-slate-400">{tr("標籤（逗號分隔）")}</label><input className={inputCls} value={f.tags} onChange={(e) => set("tags", e.target.value)} /></div>
-          <div className="grid grid-cols-2 gap-3">
-            <div><label className="text-xs text-slate-400">{tr("帳號欄位名稱")}</label><input className={inputCls} value={f.account_field_label} onChange={(e) => set("account_field_label", e.target.value)} /></div>
-            <div><label className="text-xs text-slate-400">{tr("帳號提示")}</label><input className={inputCls} value={f.account_field_hint} onChange={(e) => set("account_field_hint", e.target.value)} /></div>
-          </div>
-          <div><label className="text-xs text-slate-400">{tr("商品說明")}</label><textarea className={inputCls + " h-20 py-2"} value={f.description} onChange={(e) => set("description", e.target.value)} /></div>
-          <div><label className="text-xs text-slate-400">{tr("充值教學")}</label><textarea className={inputCls + " h-20 py-2"} value={f.tutorial} onChange={(e) => set("tutorial", e.target.value)} /></div>
-
-          <div>
-            <div className="flex items-center justify-between mb-2"><label className="text-xs text-slate-400">{tr("規格 / 價格 (USD)")}</label>
-              <button data-testid="pf-add-spec" onClick={addSpec} className="text-xs text-primary flex items-center gap-1"><Plus className="h-3 w-3" /> {tr("新增規格")}</button></div>
-            <div className="space-y-2">
-              {f.specs.map((s, i) => (
-                <div key={i} className="flex items-center gap-2">
-                  <input placeholder={tr("規格名 如 1000 幣")} className={inputCls + " flex-1"} value={s.label} onChange={(e) => setSpec(i, "label", e.target.value)} />
-                  <input type="number" step="0.01" placeholder="USD" className={inputCls + " w-24"} value={s.price_usd} onChange={(e) => setSpec(i, "price_usd", +e.target.value)} />
-                  <label className="flex items-center gap-1 text-xs text-slate-400"><Switch checked={s.in_stock} onCheckedChange={(v) => setSpec(i, "in_stock", v)} /> {tr("有貨")}</label>
-                  <button onClick={() => rmSpec(i)} className="text-slate-500 hover:text-red-400"><X className="h-4 w-4" /></button>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="grid grid-cols-3 gap-3">
-            <div><label className="text-xs text-slate-400">{tr("已售數")}</label><input type="number" className={inputCls} value={f.sales_count} onChange={(e) => set("sales_count", +e.target.value)} /></div>
-            <div><label className="text-xs text-slate-400">{tr("評分")}</label><input type="number" step="0.1" className={inputCls} value={f.rating} onChange={(e) => set("rating", +e.target.value)} /></div>
-            <div className="flex items-end"><label className="flex items-center gap-2 text-sm text-slate-300 h-10"><Switch checked={f.active} onCheckedChange={(v) => set("active", v)} /> {tr("上架")}</label></div>
-          </div>
-        </div>
-        <DialogFooter>
-          <button onClick={onClose} className="h-10 px-4 rounded-lg border border-slate-700 text-slate-300 text-sm">{tr("取消")}</button>
-          <button data-testid="pf-save" onClick={() => onSave(f)} className="h-10 px-5 rounded-lg bg-primary text-white text-sm font-semibold">{tr("儲存")}</button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
   );
 }
 

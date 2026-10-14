@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
+import { ImagePlus } from "lucide-react";
 import { tr } from "@/i18n";
 
 export const Card = ({ children, className = "", ...rest }) => <div {...rest} className={`bg-white rounded-2xl border border-slate-200 ${className}`}>{children}</div>;
@@ -25,3 +26,21 @@ export const useLoad = (callApi, url, deps = []) => {
   useEffect(() => { load(); }, [load, ...deps]); // eslint-disable-line react-hooks/exhaustive-deps
   return [data, load, setData];
 };
+
+export const readFileB64 = (f) => new Promise((res) => { const r = new FileReader(); r.onload = () => res(r.result); r.readAsDataURL(f); });
+export function ImgField({ value, onChange, hint, testId, ratio = "aspect-[3/1]" }) {
+  return (
+    <div>
+      <label className={`block ${ratio} max-h-40 rounded-xl border-2 border-dashed border-slate-200 bg-slate-50 overflow-hidden cursor-pointer hover:border-orange-300 relative`}>
+        {value ? <img src={value} alt="" className="h-full w-full object-contain" /> : <span className="absolute inset-0 flex flex-col items-center justify-center text-slate-400 text-xs gap-1"><ImagePlus className="h-6 w-6" />{tr("點擊上傳圖片")}</span>}
+        <input data-testid={testId} type="file" accept="image/*" className="hidden" onChange={async (e) => { const f = e.target.files?.[0]; if (f) onChange(await readFileB64(f)); }} />
+      </label>
+      <div className="flex items-center gap-2 mt-1.5">
+        <Input className="flex-1 text-xs" placeholder={tr("或貼上圖片網址")} value={value?.startsWith("data:") ? "" : value || ""} onChange={(e) => onChange(e.target.value)} />
+        {value && <button onClick={() => onChange("")} className="text-[11px] text-red-500 whitespace-nowrap">{tr("清除")}</button>}
+      </div>
+      {hint && <div className="text-[11px] text-slate-400 mt-1">{hint}</div>}
+    </div>
+  );
+}
+
