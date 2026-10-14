@@ -264,6 +264,7 @@ class OrderIn(BaseModel):
     contact: str = ""
     delivery_info: Dict[str, Dict[str, str]] = {}
     promo_code: Optional[str] = None
+    use_points: int = 0
 
 
 class StatusUpdate(BaseModel):
@@ -485,7 +486,7 @@ async def validate_promo(payload: dict):
 
 
 # ----------------------------- Helpers -----------------------------
-async def _compute_order(order: OrderIn):
+async def _compute_order(order: OrderIn, member_ctx: dict = None):
     items_out = []
     subtotal_usd = 0.0
     for it in order.items:
@@ -509,8 +510,43 @@ async def _compute_order(order: OrderIn):
         res = await validate_promo({"code": order.promo_code, "subtotal_usd": subtotal_usd})
         discount_usd = res["discount_usd"]
         promo_code = res["code"]
-    total_usd = max(0.0, subtotal_usd - discount_usd)
-    return items_out, round(subtotal_usd, 2), round(discount_usd, 2), round(total_usd, 2), promo_code
+    remaining = max(0.0, subtotal_usd - discount_usd)
+    level_discount_usd = 0.0
+    level_name = None
+    level_pct = 0
+    points_used = 0
+    points_discount_usd = 0.0
+    if member_ctx:
+        lv = member_ctx.get("level") or {}
+        level_name = lv.get("name")
+        level_pct = lv.get("discount_percent", 0) or 0
+        level_discount_usd = round(remaining * level_pct / 100, 2)
+        remaining = max(0.0, round(remaining - level_discount_usd, 2))
+        if order.use_points and int(order.use_points) > 0:
+            cfg = await get_points_config()
+            if cfg.get("redeem_enabled"):
+                per = float(cfg.get("points_per_usd_redeem") or 100) or 100
+                min_r = float(cfg.get("min_redeem") or 0)
+                avail = int(member_ctx.get("points") or 0)
+                want = min(int(order.use_points), avail)
+                if want >= min_r and want > 0:
+                    usd = min(round(want / per, 2), remaining)
+                    points_used = int(round(usd * per))
+                    points_discount_usd = round(points_used / per, 2)
+                    remaining = max(0.0, round(remaining - points_discount_usd, 2))
+    total_usd = round(remaining, 2)
+    extras = {"level_discount_usd": round(level_discount_usd, 2), "level_name": level_name, "level_discount_percent": level_pct,
+              "points_used": points_used, "points_discount_usd": round(points_discount_usd, 2)}
+    return items_out, round(subtotal_usd, 2), round(discount_usd, 2), total_usd, promo_code, extras
+
+
+async def _member_context(user_id: str) -> dict:
+    agg = await db.orders.aggregate([{"$match": {"user_id": user_id}}, {"$group": {"_id": None, "spent": {"$sum": "$total_usd"}}}]).to_list(1)
+    spent = round((agg[0]["spent"] if agg else 0) or 0, 2)
+    levels = await admin_api._levels()
+    lv = admin_api._level_of(spent, levels)
+    u = await db.users.find_one({"user_id": user_id}, {"_id": 0, "points": 1}) or {}
+    return {"spent": spent, "level": lv, "points": int(u.get("points") or 0)}
 
 
 LIMIT_KINDS = ("daily", "weekly", "monthly", "lifetime", "newcomer")
@@ -1167,7 +1203,9 @@ class FeedbackIn(BaseModel):
 @api_router.get("/me/profile")
 async def get_profile(member: dict = Depends(current_member)):
     u = await db.users.find_one({"user_id": member["user_id"]}, {"_id": 0}) or {}
+    ctx = await _member_context(member["user_id"])
     return {"user_id": member["user_id"], "email": member.get("email", ""), "role": member["role"], "profile": u.get("profile") or {},
+            "points": ctx["points"], "level": ctx["level"], "spent_usd": ctx["spent"],
             "account_no": str(100000000 + (int(hashlib.md5(member["user_id"].encode()).hexdigest()[:6], 16) % 900000000))}
 
 
@@ -1369,7 +1407,8 @@ async def get_me(member: dict = Depends(current_member)):
 async def create_order(order: OrderIn, member: dict = Depends(current_member)):
     if not order.items:
         raise HTTPException(status_code=400, detail="購物車為空")
-    items, subtotal_usd, discount_usd, total_usd, promo_code = await _compute_order(order)
+    ctx = await _member_context(member["user_id"])
+    items, subtotal_usd, discount_usd, total_usd, promo_code, extras = await _compute_order(order, ctx)
     await _check_daily_limit(order, member["user_id"])
     cur = await db.currencies.find_one({"code": order.currency, "active": True}, {"_id": 0}) or \
         {"code": "USD", "symbol": "$", "rate_to_usd": 1.0}
@@ -1385,6 +1424,11 @@ async def create_order(order: OrderIn, member: dict = Depends(current_member)):
         "rate_to_usd": cur["rate_to_usd"],
         "subtotal_usd": subtotal_usd,
         "discount_usd": discount_usd,
+        "level_discount_usd": extras["level_discount_usd"],
+        "level_name": extras["level_name"],
+        "level_discount_percent": extras["level_discount_percent"],
+        "points_used": extras["points_used"],
+        "points_discount_usd": extras["points_discount_usd"],
         "total_usd": total_usd,
         "promo_code": promo_code,
         "recharge_account": order.recharge_account,
@@ -1399,8 +1443,24 @@ async def create_order(order: OrderIn, member: dict = Depends(current_member)):
     }
     await db.orders.insert_one(doc)
     doc.pop("_id", None)
+    if extras["points_used"] > 0:
+        u = await db.users.find_one({"user_id": member["user_id"]}, {"_id": 0, "points": 1}) or {}
+        new_pts = max(0, int(u.get("points") or 0) - extras["points_used"])
+        await db.users.update_one({"user_id": member["user_id"]}, {"$set": {"points": new_pts}})
+        await db.point_transactions.insert_one({"id": new_id(), "user_id": member["user_id"], "delta": -extras["points_used"], "balance_after": new_pts,
+                                                "source": "redeem", "reason": f"下單抵現 {order_no}", "ref": doc["id"], "created_at": now_iso()})
     asyncio.create_task(log_user(member["user_id"], "order", "創建訂單", f"{doc['order_no']} · USD$ {float(doc['total_usd']):.2f}"))
     return doc
+
+
+@api_router.post("/orders/quote")
+async def order_quote(order: OrderIn, member: dict = Depends(current_member)):
+    ctx = await _member_context(member["user_id"])
+    items, subtotal_usd, discount_usd, total_usd, promo_code, extras = await _compute_order(order, ctx)
+    cfg = await get_points_config()
+    return {"subtotal_usd": subtotal_usd, "discount_usd": discount_usd, "total_usd": total_usd, "promo_code": promo_code, **extras,
+            "points_available": ctx["points"], "level": ctx["level"], "redeem_enabled": bool(cfg.get("redeem_enabled")),
+            "points_per_usd_redeem": cfg.get("points_per_usd_redeem"), "min_redeem": cfg.get("min_redeem")}
 
 
 @api_router.post("/orders/{order_id}/pay")
@@ -1669,6 +1729,12 @@ async def admin_update_order(order_id: str, body: StatusUpdate, admin: dict = De
         await _wallet_tx(o["user_id"], "refund", float(o.get("total_usd") or 0), f"訂單取消退款 {o.get('order_no') or o['id']}", o["id"])
         update["refunded_at"] = now_iso()
         update["refund_usd"] = float(o.get("total_usd") or 0)
+    if body.status == "cancelled" and o.get("status") != "cancelled" and int(o.get("points_used") or 0) > 0 and not await db.point_transactions.find_one({"source": "redeem_refund", "ref": o["id"]}, {"_id": 1}):
+        u = await db.users.find_one({"user_id": o["user_id"]}, {"_id": 0, "points": 1}) or {}
+        new_pts = int(u.get("points") or 0) + int(o["points_used"])
+        await db.users.update_one({"user_id": o["user_id"]}, {"$set": {"points": new_pts}})
+        await db.point_transactions.insert_one({"id": new_id(), "user_id": o["user_id"], "delta": int(o["points_used"]), "balance_after": new_pts,
+                                                "source": "redeem_refund", "reason": f"訂單取消退回積分 {o.get('order_no') or o['id']}", "ref": o["id"], "created_at": now_iso()})
     await db.orders.update_one({"id": order_id}, {"$set": update})
     if body.status == "completed" and o.get("status") != "completed":
         asyncio.create_task(admin_api.notify_user(o["user_id"], "order_completed", admin_api.order_ctx(o)))

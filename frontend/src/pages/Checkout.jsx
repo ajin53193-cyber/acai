@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Show, useUser } from "@clerk/react";
-import { Minus, Plus, Trash2, CheckCircle2, Ticket, Wallet } from "lucide-react";
+import { Minus, Plus, Trash2, CheckCircle2, Ticket, Wallet, Crown, Star } from "lucide-react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import { publicApi, useApi } from "@/lib/api";
@@ -57,13 +57,27 @@ function CheckoutInner() {
   const [agree, setAgree] = useState(false);
   const [wallet, setWallet] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [profile, setProfile] = useState(null);
+  const [quote, setQuote] = useState(null);
+  const [usePoints, setUsePoints] = useState(false);
 
   useEffect(() => { publicApi.get("/promos/public").then((r) => setPromos(r.data)).catch(() => {}); }, []);
   useEffect(() => { callApi({ method: "GET", url: "/me/wallet" }).then((r) => setWallet(r.data.balance_usd)).catch(() => setWallet(0)); }, [callApi]);
+  useEffect(() => { callApi({ method: "GET", url: "/me/profile" }).then((r) => setProfile(r.data)).catch(() => {}); }, [callApi]);
   useEffect(() => { if (promo && subtotalUsd < (promo.min_order_usd || 0)) setPromo(null); }, [subtotalUsd, promo]);
 
-  const discountUsd = promo?.discount_usd || 0;
-  const totalUsd = Math.max(0, subtotalUsd - discountUsd);
+  const itemsKey = JSON.stringify(items.map((i) => [i.product_id, i.spec_id, i.quantity]));
+  useEffect(() => {
+    if (items.length === 0) return;
+    callApi({ method: "POST", url: "/orders/quote", data: { items: items.map((i) => ({ product_id: i.product_id, spec_id: i.spec_id, quantity: i.quantity })), currency: code, recharge_account: "", promo_code: promo?.code || null, use_points: usePoints ? (profile?.points || 0) : 0 } })
+      .then((r) => setQuote(r.data)).catch(() => setQuote(null));
+  }, [callApi, itemsKey, promo, usePoints, profile, code]); // eslint-disable-line
+
+  const discountUsd = quote ? quote.discount_usd : (promo?.discount_usd || 0);
+  const levelDiscount = quote?.level_discount_usd || 0;
+  const pointsDiscount = quote?.points_discount_usd || 0;
+  const totalUsd = quote ? quote.total_usd : Math.max(0, subtotalUsd - discountUsd);
+  const level = quote?.level || profile?.level;
 
   if (items.length === 0) {
     return (
@@ -106,6 +120,7 @@ function CheckoutInner() {
           recharge_note: "",
           contact: userLabel(user),
           promo_code: promo?.code || null,
+          use_points: usePoints ? (profile?.points || 0) : 0,
         },
       });
       const order = orderRes.data;
@@ -190,6 +205,18 @@ function CheckoutInner() {
               <Link to="/account/wallet" data-testid="checkout-topup-link" className="h-9 md:h-10 px-4 md:px-5 rounded-full bg-orange-500 text-white text-sm font-semibold flex items-center hover:bg-orange-600 shrink-0 whitespace-nowrap">{tr("前往充值")}</Link>
             </div>
             <div className="mt-3 text-xs text-slate-500 leading-5">{tr("付款完成後，請至「我的訂單」填寫充值資料（帳號 / ID 等），提交後開始人工充值。")}</div>
+
+            {quote?.redeem_enabled && (quote?.points_available || 0) > 0 && (
+              <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50/60 p-3.5 flex items-center gap-3" data-testid="checkout-points-card">
+                <span className="h-10 w-10 rounded-full bg-amber-400 text-white flex items-center justify-center shrink-0"><Star className="h-5 w-5" /></span>
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm font-semibold text-slate-900">{tr("使用積分抵現")}</div>
+                  <div className="text-xs text-slate-600 mt-0.5">{tr("可用 {0} 積分", quote.points_available)}{usePoints && pointsDiscount > 0 ? tr("，本單抵扣 {0}", format(pointsDiscount)) : ""}</div>
+                </div>
+                <button data-testid="checkout-points-toggle" onClick={() => setUsePoints((v) => !v)} className={`relative h-6 w-11 rounded-full transition-colors shrink-0 ${usePoints ? "bg-amber-500" : "bg-slate-300"}`}><span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white transition-all ${usePoints ? "left-[22px]" : "left-0.5"}`} /></button>
+              </div>
+            )}
+
             <label className="mt-4 md:mt-5 flex items-start gap-2 text-[13px] md:text-sm text-slate-600 cursor-pointer leading-6">
               <input type="checkbox" data-testid="checkout-agree-checkbox" checked={agree} onChange={(e) => setAgree(e.target.checked)} className="mt-0.5 h-4 w-4 accent-orange-500" />
               <span>{tr("我已閱讀並同意：虛擬商品人工充值，完成後")} <span className="text-orange-500 font-semibold">{tr("恕不退款")}</span>{tr("，並確認充值帳號正確。")}</span>
@@ -198,6 +225,12 @@ function CheckoutInner() {
             <div className="mt-5 md:mt-6 space-y-2.5 md:space-y-3 text-[13px] md:text-sm">
               <div className="flex items-center justify-between"><span className="text-slate-600">{tr("商品總額:")}</span><span className="text-orange-500">{format(subtotalUsd)}</span></div>
               <div className="flex items-center justify-between"><span className="text-slate-600">{tr("優惠金額:")}</span><span className="text-orange-500" data-testid="checkout-discount">-{format(discountUsd)}</span></div>
+              {level && (level.discount_percent || 0) > 0 && (
+                <div className="flex items-center justify-between" data-testid="checkout-level-discount"><span className="text-slate-600 flex items-center gap-1"><Crown className="h-3.5 w-3.5 text-amber-500" />{tr("{0} 專屬 {1}% 折扣:", level.name, level.discount_percent)}</span><span className="text-orange-500">-{format(levelDiscount)}</span></div>
+              )}
+              {pointsDiscount > 0 && (
+                <div className="flex items-center justify-between" data-testid="checkout-points-discount"><span className="text-slate-600 flex items-center gap-1"><Star className="h-3.5 w-3.5 text-amber-500" />{tr("積分抵現 ({0} 分):", quote.points_used)}</span><span className="text-orange-500">-{format(pointsDiscount)}</span></div>
+              )}
               <div className="flex items-center justify-between"><span className="text-slate-600">{tr("支付手續費:")}</span><span className="text-slate-500"><span className="line-through mr-2">{format(subtotalUsd * 0.03)}</span><span className="text-orange-500">{format(0)}</span></span></div>
             </div>
           </div>

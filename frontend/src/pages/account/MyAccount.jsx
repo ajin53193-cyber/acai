@@ -64,6 +64,14 @@ export default function MyAccount() {
             <Row label={tr("帳戶ID：")}>
               <span className="text-slate-800 font-medium" data-testid="account-no">{info?.account_no || "—"}</span>
             </Row>
+            <Row label={tr("會員等級：")}>
+              <span data-testid="account-level" className="inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-amber-400 to-orange-400 text-white text-xs font-bold px-3 py-1">👑 {info?.level?.name || tr("普通會員")}</span>
+              {info?.level?.discount_percent > 0 && <span className="text-orange-500 text-xs font-semibold">{tr("下單享 {0}% 專屬折扣", info.level.discount_percent)}</span>}
+            </Row>
+            <Row label={tr("我的積分：")}>
+              <span className="text-amber-600 font-head font-bold text-base" data-testid="account-points">{info?.points ?? 0}</span>
+              <Hint>{tr("（下單、充值可賺積分，結算可抵現）")}</Hint>
+            </Row>
             <Row label={tr("信箱：")}>
               <span className="text-slate-800 truncate">{email || tr("未綁定")}</span>
               <button data-testid="bind-email-btn" className="rounded-full bg-orange-50 text-orange-500 text-xs px-3 py-1 hover:bg-orange-100" onClick={() => setBinding("email")}>{email ? tr("更換") : tr("綁定信箱")}</button>
