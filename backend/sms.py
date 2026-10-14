@@ -31,6 +31,20 @@ async def _send_dagou(phone: str, code: str):
     return res
 
 
+async def send_sms_text(phone: str, content: str):
+    """Free-form notification SMS via SUBMAIL send.json (+86 not supported by the OTP-only Dagou gateway)."""
+    if phone.startswith("+86"):
+        raise RuntimeError("中國大陸號碼暫不支援通知簡訊")
+    data = {"appid": os.environ["SUBMAIL_APPID"], "to": phone, "content": content, "signature": os.environ["SUBMAIL_APPKEY"]}
+    async with httpx.AsyncClient(timeout=20) as c:
+        r = await c.post("https://api-v4.mysubmail.com/internationalsms/send.json", data=data)
+    res = r.json()
+    if res.get("status") != "success":
+        logger.error("submail send failed: %s", res)
+        raise RuntimeError(res.get("msg") or "sms failed")
+    return res
+
+
 async def send_sms_code(phone: str, code: str, minutes: int = 10):
     if phone.startswith("+86"):
         return await _send_dagou(phone, code)

@@ -5,6 +5,7 @@ export const STATUS_LABELS = {
   shipped: tr("已發貨"),
   completed: tr("已完成"),
   exception: tr("異常"),
+  cancelled: tr("已取消"),
 };
 
 export const STATUS_COLORS = {
@@ -14,6 +15,7 @@ export const STATUS_COLORS = {
   shipped: "bg-orange-50 text-orange-500 border-orange-200",
   completed: "bg-emerald-100 text-emerald-700 border-emerald-200",
   exception: "bg-red-100 text-red-700 border-red-200",
+  cancelled: "bg-slate-100 text-slate-500 border-slate-200",
 };
 
 export const orderLabel = (o) => (o.status === "paid" && o.info_submitted === false ? tr("等待填寫資料") : STATUS_LABELS[o.status]);

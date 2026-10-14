@@ -38,6 +38,7 @@ export function OrdersAdmin({ callApi }) {
   const confirmTopup = (o) => window.confirm(tr("確認已完成人工充值？訂單 {0} 將標記為「已完成」", o.order_no)) && act(() => callApi({ method: "POST", url: `/admin/orders/${o.id}/confirm` }), tr("已確認充值，訂單完成"));
   const changeStatus = (o, s) => act(() => callApi({ method: "PATCH", url: `/admin/orders/${o.id}`, data: { status: s } }), tr("已更新為「{0}」", STATUS_LABELS[s]));
   const rejectInfo = (o) => { const reason = window.prompt(tr("駁回原因（將顯示給用戶）"), tr("充值帳號有誤，請重新填寫")); if (reason !== null) act(() => callApi({ method: "POST", url: `/admin/orders/${o.id}/reject-info`, data: { reason } }), tr("已駁回，用戶可重新填寫充值資料")); };
+  const cancelOrder = (o) => { const reason = window.prompt(tr("取消原因（將通知用戶；已用錢包付款的訂單會自動退回餘額）"), o.admin_note || ""); if (reason !== null) act(() => callApi({ method: "PATCH", url: `/admin/orders/${o.id}`, data: { status: "cancelled", admin_note: reason } }), tr("訂單已取消")); };
   const addNote = (o) => { const note = window.prompt(tr("客服備註"), o.admin_note || ""); if (note !== null) act(() => callApi({ method: "PATCH", url: `/admin/orders/${o.id}`, data: { status: o.status, admin_note: note } }), tr("備註已更新")); };
 
   const exportCsv = async () => {
@@ -116,7 +117,9 @@ export function OrdersAdmin({ callApi }) {
                       {o.status === "paid" && <button data-testid={`admin-order-start-${o.id}`} onClick={() => changeStatus(o, "processing")} className="text-xs h-8 px-3 rounded-lg bg-violet-600 text-white">{tr("開始充值")}</button>}
                       {o.status === "processing" && <button data-testid={`admin-order-ship-${o.id}`} onClick={() => changeStatus(o, "shipped")} className="text-xs h-8 px-3 rounded-lg bg-cyan-600 text-white">{tr("確認人工發貨")}</button>}
                       {o.status === "shipped" && <button onClick={() => changeStatus(o, "completed")} className="text-xs h-8 px-3 rounded-lg bg-emerald-600 text-white">{tr("標記已完成")}</button>}
-                      {!["completed", "exception"].includes(o.status) && <button onClick={() => changeStatus(o, "exception")} className="text-xs h-8 px-3 rounded-lg bg-red-500 text-white flex items-center gap-1"><ShieldAlert className="h-3 w-3" /> {tr("標記異常")}</button>}
+                      {!["completed", "exception", "cancelled"].includes(o.status) && <button onClick={() => changeStatus(o, "exception")} className="text-xs h-8 px-3 rounded-lg bg-red-500 text-white flex items-center gap-1"><ShieldAlert className="h-3 w-3" /> {tr("標記異常")}</button>}
+                      {!["completed", "cancelled"].includes(o.status) && <button data-testid={`admin-order-cancel-${o.id}`} onClick={() => cancelOrder(o)} className="text-xs h-8 px-3 rounded-lg border border-red-300 text-red-600 bg-white">{tr("取消訂單")}</button>}
+                      {o.refunded_at && <span className="text-[11px] text-emerald-600" data-testid={`admin-order-refunded-${o.id}`}>{tr("已退回錢包 USD$ {0}", Number(o.refund_usd || 0).toFixed(2))}</span>}
                       <select data-testid={`admin-order-status-${o.id}`} value={o.status} onChange={(e) => changeStatus(o, e.target.value)} className={selBase + " h-8 text-xs"}>{ALL_STATUSES.map((s) => <option key={s} value={s}>{STATUS_LABELS[s]}</option>)}</select>
                       <button data-testid={`admin-order-note-${o.id}`} onClick={() => addNote(o)} className="text-xs h-8 px-3 rounded-lg border border-slate-300 text-slate-600 bg-white">{tr("備註")}</button>
                     </div>

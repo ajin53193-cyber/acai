@@ -36,6 +36,21 @@ async def send_mail(to: str, subject: str, html: str, text: str):
     await asyncio.to_thread(_send_sync, to, subject, html, text)
 
 
+def notify_email(title: str, body: str, rows: list, link: str = "") -> str:
+    tr_rows = "".join(f'<tr><td style="padding:6px 0;color:#64748b;font-size:13px;width:90px">{k}</td><td style="padding:6px 0;color:#0f172a;font-size:13px;font-weight:600">{v}</td></tr>' for k, v in rows if v)
+    btn = f'<tr><td style="padding:6px 28px 22px;"><a href="{link}" style="display:inline-block;background:#f97316;color:#fff;text-decoration:none;font-weight:700;font-size:14px;padding:12px 28px;border-radius:999px;">查看订单</a></td></tr>' if link else ""
+    return f"""<!doctype html><html><body style="margin:0;padding:0;background:#f6f7f9;font-family:-apple-system,BlinkMacSystemFont,'PingFang SC','Microsoft YaHei',Helvetica,Arial,sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#f6f7f9;padding:32px 12px;"><tr><td align="center">
+<table width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;background:#ffffff;border-radius:20px;overflow:hidden;box-shadow:0 6px 24px rgba(249,115,22,.10);">
+<tr><td style="background:#f97316;padding:22px 28px;color:#fff;font-size:22px;font-weight:800;letter-spacing:.5px;">gogo589</td></tr>
+<tr><td style="padding:28px 28px 8px;color:#0f172a;font-size:18px;font-weight:700;">{title}</td></tr>
+<tr><td style="padding:0 28px 14px;color:#475569;font-size:14px;line-height:1.7;">{body}</td></tr>
+<tr><td style="padding:0 28px 18px;"><table cellpadding="0" cellspacing="0" style="width:100%;background:#fff7ed;border-radius:14px;padding:10px 16px;">{tr_rows}</table></td></tr>
+{btn}
+<tr><td style="padding:22px 28px 28px;color:#94a3b8;font-size:12px;border-top:1px solid #f1f5f9;">此邮件由系统自动发送，请勿直接回复。<br>GOGO589 跨境充值商城 · www.gogo589.com</td></tr>
+</table></td></tr></table></body></html>"""
+
+
 def otp_email(code: str, purpose: str, minutes: int = 10) -> tuple:
     title = PURPOSE_TITLES.get(purpose, "验证码")
     subject = f"【GOGO589】{title}：{code}"

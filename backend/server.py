@@ -271,7 +271,7 @@ class StatusUpdate(BaseModel):
     admin_note: Optional[str] = None
 
 
-ORDER_STATUSES = ["pending_payment", "paid", "processing", "shipped", "completed", "exception"]
+ORDER_STATUSES = ["pending_payment", "paid", "processing", "shipped", "completed", "exception", "cancelled"]
 STATUS_LABELS = {
     "pending_payment": "待支付", "paid": "已支付", "processing": "充值中",
     "shipped": "已發貨", "completed": "已完成", "exception": "異常",
@@ -1039,6 +1039,7 @@ async def pay_order_wallet(order_id: str, member: dict = Depends(current_member)
     await db.orders.update_one({"id": order_id}, {"$set": upd})
     for it in o["items"]:
         await db.products.update_one({"id": it["product_id"]}, {"$inc": {"sales_count": it["quantity"]}})
+    asyncio.create_task(admin_api.notify_user(o["user_id"], "order_paid", admin_api.order_ctx(o)))
     return {**o, **upd}
 
 
@@ -1078,7 +1079,7 @@ async def admin_reject_info(order_id: str, body: RejectInfoIn, admin: dict = Dep
     tl = o.get("timeline", []) + [{"status": "info_rejected", "at": now_iso(), "by": admin.get("email", "admin"), "note": body.reason}]
     upd = {"status": "paid", "info_submitted": False, "info_rejected": True, "info_reject_reason": body.reason.strip() or "充值帳號有誤，請重新填寫", "info_rejected_at": now_iso(), "timeline": tl}
     await db.orders.update_one({"id": order_id}, {"$set": upd})
-    asyncio.create_task(admin_api.notify_user(o["user_id"], "order_rejected", {"order_id": o.get("order_no") or o["id"], "reason": upd["info_reject_reason"], "amount": f"USD$ {float(o.get('total_usd') or 0):.2f}"}))
+    asyncio.create_task(admin_api.notify_user(o["user_id"], "order_rejected", admin_api.order_ctx(o, reason=upd["info_reject_reason"])))
     return {**o, **upd}
 
 
@@ -1092,6 +1093,7 @@ async def admin_confirm_topup(order_id: str, admin: dict = Depends(require_role(
     tl = o.get("timeline", []) + [{"status": "completed", "at": now_iso(), "by": admin.get("email", "admin")}]
     upd = {"status": "completed", "completed_at": now_iso(), "timeline": tl, "confirmed_by": admin.get("email", "")}
     await db.orders.update_one({"id": order_id}, {"$set": upd})
+    asyncio.create_task(admin_api.notify_user(o["user_id"], "order_completed", admin_api.order_ctx(o)))
     return {**o, **upd}
 
 
@@ -1371,6 +1373,7 @@ async def pay_order(order_id: str, member: dict = Depends(current_member)):
     o["timeline"] = tl
     for it in o["items"]:
         await db.products.update_one({"id": it["product_id"]}, {"$inc": {"sales_count": it["quantity"]}})
+    asyncio.create_task(admin_api.notify_user(o["user_id"], "order_paid", admin_api.order_ctx(o)))
     return o
 
 
@@ -1615,9 +1618,16 @@ async def admin_update_order(order_id: str, body: StatusUpdate, admin: dict = De
     update = {"status": body.status, "timeline": tl}
     if body.admin_note is not None:
         update["admin_note"] = body.admin_note
+    if body.status == "cancelled" and o.get("status") in ("paid", "processing", "shipped", "exception") and o.get("payment_method") == "wallet" and not o.get("refunded_at"):
+        await _wallet_tx(o["user_id"], "refund", float(o.get("total_usd") or 0), f"訂單取消退款 {o.get('order_no') or o['id']}", o["id"])
+        update["refunded_at"] = now_iso()
+        update["refund_usd"] = float(o.get("total_usd") or 0)
     await db.orders.update_one({"id": order_id}, {"$set": update})
     if body.status == "completed" and o.get("status") != "completed":
-        asyncio.create_task(admin_api.notify_user(o["user_id"], "order_completed", {"order_id": o.get("order_no") or o["id"], "amount": f"USD$ {float(o.get('total_usd') or 0):.2f}"}))
+        asyncio.create_task(admin_api.notify_user(o["user_id"], "order_completed", admin_api.order_ctx(o)))
+    elif body.status == "cancelled" and o.get("status") != "cancelled":
+        reason = f"取消原因：{body.admin_note}。" if body.admin_note else ""
+        asyncio.create_task(admin_api.notify_user(o["user_id"], "order_cancelled", admin_api.order_ctx(o, reason=reason, refunded="是" if update.get("refunded_at") else "否")))
     return {**o, **update}
 
 

@@ -7,7 +7,9 @@ import io
 import json
 import logging
 import os
+import re
 import time
+import uuid
 from datetime import datetime, timezone, timedelta
 from typing import Optional
 
@@ -19,8 +21,8 @@ from pydantic import BaseModel
 
 import email_auth
 from clerk_auth import require_user
-from mailer import send_mail
-from sms import send_sms_code, _dagou_sign
+from mailer import send_mail, notify_email
+from sms import send_sms_text, _dagou_sign
 from translate import translate_batch
 
 logger = logging.getLogger("admin")
@@ -263,14 +265,16 @@ async def admin_retranslate(body: RetranslateIn, admin: dict = Depends(current_a
 
 
 # ----------------------------- Notifications -----------------------------
+EVENT_TITLES = {"order_paid": "订单已支付", "order_completed": "订单已完成", "order_cancelled": "订单已取消", "order_rejected": "充值资料被驳回", "topup_paid": "钱包充值到账"}
 DEFAULT_NOTIFY = {
     "email_enabled": True, "sms_enabled": False,
-    "events": {"order_paid": True, "order_completed": True, "order_rejected": True, "topup_paid": True},
+    "events": {"order_paid": True, "order_completed": True, "order_cancelled": True, "order_rejected": True, "topup_paid": True},
     "templates": {
-        "order_paid": {"subject": "【GOGO589】订单已支付 {order_id}", "body": "您好，您的订单 {order_id}（{amount}）已支付成功，我们将尽快为您处理。"},
-        "order_completed": {"subject": "【GOGO589】订单已完成 {order_id}", "body": "您好，您的订单 {order_id}（{amount}）已充值完成，感谢您的购买！"},
+        "order_paid": {"subject": "【GOGO589】订单已支付 {order_id}", "body": "您好，您的订单 {order_id}（{product}，{amount}）已支付成功，我们将尽快为您处理。"},
+        "order_completed": {"subject": "【GOGO589】订单已完成 {order_id}", "body": "您好，您的订单 {order_id}（{product}，{amount}）已充值完成，感谢您的购买！"},
+        "order_cancelled": {"subject": "【GOGO589】订单已取消 {order_id}", "body": "您好，您的订单 {order_id}（{product}，{amount}）已取消。{reason}如已付款，款项已退回您的钱包余额。"},
         "order_rejected": {"subject": "【GOGO589】订单资料被驳回 {order_id}", "body": "您好，您的订单 {order_id} 充值资料被驳回：{reason}。请登录后重新填写。"},
-        "topup_paid": {"subject": "【GOGO589】钱包充值到账 {amount}", "body": "您好，您的 USDT 充值 {amount} 已到账，当前余额 {balance}。"},
+        "topup_paid": {"subject": "【GOGO589】钱包充值到账 {amount}", "body": "您好，您的充值 {amount} 已到账，当前余额 {balance}。"},
     },
 }
 
@@ -286,21 +290,50 @@ async def get_notify_settings() -> dict:
     return cfg
 
 
+class _Ctx(dict):
+    def __missing__(self, key):
+        return ""
+
+
+def order_ctx(o: dict, **extra) -> dict:
+    items = o.get("items") or []
+    product = items[0].get("product_name") or items[0].get("name", "") if items else ""
+    if len(items) > 1:
+        product += f" 等 {len(items)} 件"
+    return {"order_id": o.get("order_no") or o.get("id", ""), "amount": f"USD$ {float(o.get('total_usd') or 0):.2f}", "product": product, **extra}
+
+
+async def _log(user_id: str, event: str, channel: str, to: str, subject: str, body: str, ok: bool, error: str = ""):
+    await db.notification_logs.insert_one({"id": uuid.uuid4().hex, "user_id": user_id, "event": event, "channel": channel, "to": to, "subject": subject, "body": body,
+                                           "status": "sent" if ok else "failed", "error": error, "created_at": datetime.now(timezone.utc).isoformat()})
+
+
 async def notify_user(user_id: str, event: str, ctx: dict):
     try:
         cfg = await get_notify_settings()
         if not cfg["events"].get(event):
             return
+        ctx = _Ctx(ctx)
         tpl = cfg["templates"].get(event) or {}
-        subject = tpl.get("subject", "").format(**ctx)
-        body = tpl.get("body", "").format(**ctx)
+        subject = tpl.get("subject", "").format_map(ctx)
+        body = tpl.get("body", "").format_map(ctx)
         u = await db.users.find_one({"user_id": user_id}, {"_id": 0, "email": 1, "phone": 1}) or {}
         email = u.get("email", "")
         if cfg.get("email_enabled") and email and not email.endswith("@" + email_auth.PHONE_DOMAIN):
-            html = f'<div style="font-family:sans-serif;font-size:14px;color:#0f172a;line-height:1.7"><div style="color:#f97316;font-weight:800;font-size:20px">gogo589</div><p>{body}</p><p style="color:#94a3b8;font-size:12px">此邮件由系统自动发送，请勿回复。</p></div>'
-            await send_mail(email, subject, html, body)
+            rows = [("订单编号", ctx.get("order_id")), ("商品", ctx.get("product")), ("金额", ctx.get("amount")), ("余额", ctx.get("balance")), ("原因", ctx.get("reason"))]
+            link = f"{os.environ.get('APP_PUBLIC_URL', '').rstrip('/')}/orders" if ctx.get("order_id") and os.environ.get("APP_PUBLIC_URL") else ""
+            html = notify_email(EVENT_TITLES.get(event, subject), body, rows, link)
+            try:
+                await send_mail(email, subject, html, body)
+                await _log(user_id, event, "email", email, subject, body, True)
+            except Exception as e:
+                await _log(user_id, event, "email", email, subject, body, False, str(e))
         if cfg.get("sms_enabled") and u.get("phone"):
-            await send_sms_code(u["phone"], body[:60])
+            try:
+                await send_sms_text(u["phone"], body)
+                await _log(user_id, event, "sms", u["phone"], subject, body, True)
+            except Exception as e:
+                await _log(user_id, event, "sms", u["phone"], subject, body, False, str(e))
     except Exception as e:
         logger.warning("notify %s failed: %s", event, e)
 
@@ -312,6 +345,36 @@ class NotifyIn(BaseModel):
 @router.get("/notifications")
 async def admin_notifications(admin: dict = Depends(current_admin)):
     return await get_notify_settings()
+
+
+@router.get("/notifications/logs")
+async def admin_notification_logs(event: str = "", status: str = "", q: str = "", limit: int = 100, admin: dict = Depends(current_admin)):
+    flt = {}
+    if event:
+        flt["event"] = event
+    if status:
+        flt["status"] = status
+    if q:
+        flt["$or"] = [{"to": {"$regex": re.escape(q), "$options": "i"}}, {"subject": {"$regex": re.escape(q), "$options": "i"}}, {"user_id": q}]
+    rows = await db.notification_logs.find(flt, {"_id": 0}).sort("created_at", -1).to_list(min(max(limit, 1), 500))
+    return {"rows": rows, "total": await db.notification_logs.count_documents(flt)}
+
+
+@router.post("/notifications/logs/{lid}/resend")
+async def admin_notification_resend(lid: str, admin: dict = Depends(current_admin)):
+    log = await db.notification_logs.find_one({"id": lid}, {"_id": 0})
+    if not log:
+        raise HTTPException(status_code=404, detail="紀錄不存在")
+    try:
+        if log["channel"] == "email":
+            await send_mail(log["to"], log["subject"], notify_email(EVENT_TITLES.get(log["event"], log["subject"]), log["body"], []), log["body"])
+        else:
+            await send_sms_text(log["to"], log["body"])
+        await _log(log["user_id"], log["event"], log["channel"], log["to"], log["subject"], log["body"], True)
+        return {"ok": True}
+    except Exception as e:
+        await _log(log["user_id"], log["event"], log["channel"], log["to"], log["subject"], log["body"], False, str(e))
+        raise HTTPException(status_code=502, detail=f"重發失敗：{e}")
 
 
 @router.put("/notifications")
