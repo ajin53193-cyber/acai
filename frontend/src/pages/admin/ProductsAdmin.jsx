@@ -217,7 +217,7 @@ export function ProductForm({ item, cats, callApi, onClose, onSaved, inline, tit
   if (inline) return <div className="rounded-2xl bg-white border border-slate-200 shadow-sm p-5 space-y-4" data-testid="product-form">{body}</div>;
   return (
     <Dialog open onOpenChange={onClose}>
-      <DialogContent className="max-w-5xl max-h-[92vh] overflow-y-auto bg-white" data-testid="product-form">
+      <DialogContent className="max-w-[1400px] w-[96vw] max-h-[94vh] overflow-y-auto bg-white" data-testid="product-form">
         <DialogHeader><DialogTitle>{heading}{f.id && <span className="ml-2 text-xs font-normal text-slate-400">ID {f.id}</span>}</DialogTitle></DialogHeader>
         {body}
       </DialogContent>
@@ -250,12 +250,12 @@ function SpecsEditor({ specs, badges, isGiftcard, callApi, onChange, fx, onFx })
         </div>
       )}
       <Card className="overflow-x-auto">
-        <table className="w-full text-sm" data-testid="pf-specs-table">
-          <thead><tr className="text-left text-xs text-slate-500 bg-slate-50/70 border-b border-slate-200"><th className="px-3 py-2 min-w-[160px]">{tr("規格名稱")}</th><th className="px-3 py-2 w-32">{isGiftcard ? tr("售價 {0}", cur) : tr("售價 USD")}</th><th className="px-3 py-2 w-32">{isGiftcard ? tr("原價 {0}", cur) : tr("原價 USD")}</th>{isGiftcard && <th className="px-3 py-2 w-32">{tr("卡面額 {0}", cur)}</th>}<th className="px-3 py-2 w-44">{tr("角標")}</th><th className="px-3 py-2 w-48">{tr("限購")}</th><th className="px-3 py-2 w-16">{tr("有貨")}</th><th className="px-3 py-2 w-24"></th></tr></thead>
+        <table className="w-full min-w-[1180px] text-sm" data-testid="pf-specs-table">
+          <thead><tr className="text-left text-xs text-slate-500 bg-slate-50/70 border-b border-slate-200"><th className="px-3 py-2 w-[240px] whitespace-nowrap">{tr("規格名稱")}</th><th className="px-3 py-2 w-32">{isGiftcard ? tr("售價 {0}", cur) : tr("售價 USD")}</th><th className="px-3 py-2 w-32">{isGiftcard ? tr("原價 {0}", cur) : tr("原價 USD")}</th>{isGiftcard && <th className="px-3 py-2 w-32">{tr("卡面額 {0}", cur)}</th>}<th className="px-3 py-2 w-44">{tr("角標")}</th><th className="px-3 py-2 w-48">{tr("限購")}</th><th className="px-3 py-2 w-16">{tr("有貨")}</th><th className="px-3 py-2 w-24"></th></tr></thead>
           <tbody className="divide-y divide-slate-100">
             {specs.map((s, i) => (
               <tr key={s.id || i} data-testid={`pf-spec-row-${i}`}>
-                <td className="px-3 py-1.5"><Input data-testid={`pf-spec-label-${i}`} className="w-full min-w-[140px]" value={s.label} onChange={(e) => set(i, "label", e.target.value)} placeholder={tr("如 1000 鑽石")} /></td>
+                <td className="px-3 py-1.5"><Input data-testid={`pf-spec-label-${i}`} className="w-full" value={s.label} onChange={(e) => set(i, "label", e.target.value)} placeholder={tr("如 1000 鑽石")} /></td>
                 {isGiftcard ? (
                   <>
                     <td className="px-3 py-1.5"><Input data-testid={`pf-spec-price-${i}`} type="number" step="0.01" className="w-full" value={s.price_local ?? ""} onChange={(e) => setLocal(i, "price_local", e.target.value)} placeholder={cur} /><div className="text-[10px] text-emerald-600 mt-0.5 pl-1" data-testid={`pf-spec-price-usd-${i}`}>≈ USD {(+s.price_usd || 0).toFixed(2)}</div></td>
