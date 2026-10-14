@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from "react";
-import { Plus, Pencil, Trash2, ArrowUp, ArrowDown, ImagePlus, Loader2 } from "lucide-react";
+import { Plus, Pencil, Trash2, ArrowUp, ArrowDown, ImagePlus, Loader2, Plug } from "lucide-react";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Switch } from "@/components/ui/switch";
@@ -11,7 +11,7 @@ const PROVIDERS = { manual: tr("人工核對（無對接）"), stripe: "Stripe",
 const CONFIG_FIELDS = {
   manual: [["bank_name", tr("銀行名稱")], ["account_name", tr("收款戶名")], ["account_no", tr("收款帳號")], ["swift", tr("SWIFT / 分行代碼（選填）")], ["bank_note", tr("轉帳說明（顯示給用戶，如：請備註轉帳碼）")]],
   stripe: [],
-  paypal: [["client_id", "Client ID"], ["api_secret", "Client Secret"], ["env", tr("環境")]],
+  paypal: [["client_id", "Client ID"], ["api_secret", "Client Secret"], ["env", tr("環境")], ["webhook_id", tr("Webhook ID（選填，用於驗簽）")]],
   alipay: [["account_info", tr("收款帳戶資訊（顯示給用戶）")]],
   wechat: [["account_info", tr("收款帳戶資訊（顯示給用戶）")]],
   crypto: [["base_url", tr("網關 API 網址（留空用系統預設）")], ["api_key", tr("網關 API Key")], ["api_secret", tr("網關 API Secret")], ["merchant_id", tr("網路（TRC20）")]],
@@ -19,7 +19,7 @@ const CONFIG_FIELDS = {
 };
 const PROVIDER_HINT = {
   stripe: tr("Stripe 密鑰由系統 Secrets（STRIPE_API_KEY）統一管理，無需在此填寫；收銀台自動支援信用卡、Apple Pay、Google Pay，付款成功後自動入帳。"),
-  paypal: tr("請至 developer.paypal.com 建立應用取得 Client ID / Secret；沙盒用於測試，正式環境請切換為 live。用戶付款返回後自動入帳。"),
+  paypal: tr("請至 developer.paypal.com 建立應用取得 Client ID / Secret；此處留空則使用系統 Secrets（PAYPAL_CLIENT_ID / PAYPAL_CLIENT_SECRET / PAYPAL_ENV）。沙盒用於測試，正式環境請切換為 live。用戶付款返回後自動入帳；亦可在 PayPal 後台設定 Webhook（網址：/api/webhook/paypal，事件 CHECKOUT.ORDER.APPROVED、PAYMENT.CAPTURE.COMPLETED）並填入 Webhook ID。"),
   manual: tr("用戶會看到以上收款資訊與專屬轉帳碼，上傳轉帳憑證後由後台「充值訂單」審核入帳。"),
 };
 const readFile = (f) => new Promise((res) => { const r = new FileReader(); r.onload = () => res({ image_b64: r.result, image_name: f.name }); r.readAsDataURL(f); });
@@ -28,6 +28,13 @@ const empty = { name: "", category: "card", provider: "manual", description: "",
 export default function PaymentMethodsAdmin({ callApi }) {
   const [list, setList] = useState(null);
   const [editing, setEditing] = useState(null);
+  const testConn = async (m) => {
+    try {
+      const r = await callApi({ method: "POST", url: `/admin/payment-methods/${m.id}/test` });
+      const src = r.data.source === "db" ? tr("後台配置") : tr("系統 Secrets");
+      toast.success(r.data.provider === "paypal" ? tr("PayPal 連線成功（{0} · {1}）", r.data.env, src) : tr("Stripe 連線成功"), { description: tr("Webhook 網址：{0}", r.data.webhook_url), duration: 8000 });
+    } catch (e) { toast.error(e.response?.data?.detail || tr("連線失敗")); }
+  };
   const load = useCallback(() => callApi({ method: "GET", url: "/admin/payment-methods" }).then((r) => setList(r.data)).catch(() => setList([])), [callApi]);
   useEffect(() => { load(); }, [load]);
 
@@ -65,6 +72,7 @@ export default function PaymentMethodsAdmin({ callApi }) {
                 {m.description && <div className="text-xs text-slate-400 mt-1 line-clamp-1">{m.description}</div>}
               </div>
               <label className="h-9 px-3 rounded-full bg-slate-800 text-xs text-slate-200 flex items-center gap-1 cursor-pointer hover:bg-slate-700"><ImagePlus className="h-3.5 w-3.5" />{m.image ? tr("更換 Logo") : tr("上傳 Logo")}<input type="file" accept="image/*" className="hidden" onChange={async (e) => { const f = e.target.files?.[0]; if (f) { await update(m.id, await readFile(f)); toast.success(tr("Logo 已更新")); } }} /></label>
+              {["paypal", "stripe"].includes(m.provider) && <button data-testid={`pm-test-${m.id}`} onClick={() => testConn(m)} className="h-9 px-3 rounded-full bg-sky-500/20 text-sky-300 text-xs flex items-center gap-1 hover:bg-sky-500/30"><Plug className="h-3.5 w-3.5" />{tr("測試連線")}</button>}
               <button data-testid={`pm-toggle-${m.id}`} onClick={() => update(m.id, { active: !m.active })} className={`h-9 px-3 rounded-full text-xs ${m.active ? "bg-emerald-500/20 text-emerald-300" : "bg-slate-700 text-slate-300"}`}>{m.active ? tr("啟用中") : tr("已停用")}</button>
               <div className="flex items-center gap-1">
                 <button onClick={() => move(i, -1)} className="h-8 w-8 rounded-lg bg-slate-800 flex items-center justify-center text-slate-300 hover:text-white"><ArrowUp className="h-4 w-4" /></button>

@@ -1262,5 +1262,16 @@
  "訂單營收": "Order Revenue",
  "請上傳轉帳憑證截圖": "Please upload transfer proof screenshot",
  "請至 developer.paypal.com 建立應用取得 Client ID / Secret；沙盒用於測試，正式環境請切換為 live。用戶付款返回後自動入帳。": "Please create an app at developer.paypal.com to get Client ID / Secret; use sandbox for testing and switch to live for production. Payments auto-credited on return.",
- "請轉帳 USD$ {0} 至以下帳戶，並在備註填寫轉帳碼": "Please transfer USD$ {0} to the following account and include the transfer code in the remarks"
+ "請轉帳 USD$ {0} 至以下帳戶，並在備註填寫轉帳碼": "Please transfer USD$ {0} to the following account and include the transfer code in the remarks",
+ "PayPal 連線成功（{0} · {1}）": "PayPal connected successfully ({0} · {1})",
+ "Stripe 連線成功": "Stripe connected successfully",
+ "Webhook ID（選填，用於驗簽）": "Webhook ID (optional, for signature verification)",
+ "Webhook 網址：{0}": "Webhook URL: {0}",
+ "將跳轉至安全收銀台，付款完成後自動入帳": "You will be redirected to a secure checkout; payment will post automatically upon completion",
+ "後台配置": "Backend Configuration",
+ "測試連線": "Test Connection",
+ "系統 Secrets": "System Secrets",
+ "請至 developer.paypal.com 建立應用取得 Client ID / Secret；此處留空則使用系統 Secrets（PAYPAL_CLIENT_ID / PAYPAL_CLIENT_SECRET / PAYPAL_ENV）。沙盒用於測試，正式環境請切換為 live。用戶付款返回後自動入帳；亦可在 PayPal 後台設定 Webhook（網址：/api/webhook/paypal，事件 CHECKOUT.ORDER.APPROVED、PAYMENT.CAPTURE.COMPLETED）並填入 Webhook ID。": "Please create an app at developer.paypal.com to get Client ID / Secret; leave blank here to use system secrets (PAYPAL_CLIENT_ID / PAYPAL_CLIENT_SECRET / PAYPAL_ENV). Sandbox is for testing, switch to live for production. Payments auto-post after user completes checkout; you can also set up a PayPal webhook (URL: /api/webhook/paypal, events CHECKOUT.ORDER.APPROVED, PAYMENT.CAPTURE.COMPLETED) and enter the Webhook ID.",
+ "轉帳後請於充值記錄上傳憑證，人工核對後入帳": "After transfer, please upload proof in top-up records for manual verification and posting",
+ "連線失敗": "Connection failed"
 }

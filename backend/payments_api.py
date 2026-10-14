@@ -56,12 +56,22 @@ def _stripe(request: Request) -> StripeCheckout:
     return StripeCheckout(api_key=key, webhook_url=f"{str(request.base_url).rstrip('/')}/api/webhook/stripe")
 
 
+def _paypal_cfg(cfg: dict) -> dict:
+    """DB config wins; blank fields fall back to PAYPAL_* env."""
+    cfg = cfg or {}
+    return {"client_id": cfg.get("client_id") or cfg.get("merchant_id") or os.environ.get("PAYPAL_CLIENT_ID", ""),
+            "api_secret": cfg.get("api_secret") or os.environ.get("PAYPAL_CLIENT_SECRET", ""),
+            "env": cfg.get("env") or os.environ.get("PAYPAL_ENV") or "sandbox",
+            "webhook_id": cfg.get("webhook_id") or os.environ.get("PAYPAL_WEBHOOK_ID", "")}
+
+
 def _paypal_base(cfg: dict) -> str:
     return "https://api-m.paypal.com" if (cfg.get("env") or "sandbox") == "live" else "https://api-m.sandbox.paypal.com"
 
 
 async def _paypal_token(cfg: dict) -> str:
-    cid, sec = cfg.get("client_id") or cfg.get("merchant_id"), cfg.get("api_secret")
+    cfg = _paypal_cfg(cfg)
+    cid, sec = cfg["client_id"], cfg["api_secret"]
     if not (cid and sec):
         raise HTTPException(status_code=503, detail="PayPal 尚未設定 Client ID / Secret")
     auth = base64.b64encode(f"{cid}:{sec}".encode()).decode()
@@ -69,11 +79,12 @@ async def _paypal_token(cfg: dict) -> str:
         r = await c.post(f"{_paypal_base(cfg)}/v1/oauth2/token", data={"grant_type": "client_credentials"}, headers={"Authorization": f"Basic {auth}"})
     if r.status_code != 200:
         logger.warning("paypal token error %s %s", r.status_code, r.text[:200])
-        raise HTTPException(status_code=502, detail="PayPal 憑證無效或無法連線")
+        raise HTTPException(status_code=502, detail="PayPal 憑證無效（Client ID / Secret 錯誤或環境不符）")
     return r.json()["access_token"]
 
 
 async def _paypal(cfg: dict, method: str, path: str, body: Optional[dict] = None) -> dict:
+    cfg = _paypal_cfg(cfg)
     token = await _paypal_token(cfg)
     async with httpx.AsyncClient(timeout=25) as c:
         r = await c.request(method, f"{_paypal_base(cfg)}{path}", json=body, headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json", "Prefer": "return=representation"})
@@ -81,6 +92,24 @@ async def _paypal(cfg: dict, method: str, path: str, body: Optional[dict] = None
         logger.warning("paypal %s %s -> %s %s", method, path, r.status_code, r.text[:300])
         raise HTTPException(status_code=502, detail="PayPal 請求失敗，請稍後再試")
     return r.json() if r.content else {}
+
+
+async def _paypal_method_cfg(t: dict) -> dict:
+    pm = await db.payment_methods.find_one({"id": t.get("method_id")}, {"_id": 0}) or {}
+    return pm.get("config") or {}
+
+
+async def _paypal_capture_and_settle(t: dict, cfg: dict) -> dict:
+    o = await _paypal(cfg, "GET", f"/v2/checkout/orders/{t['paypal_order_id']}")
+    if o.get("status") == "APPROVED":
+        o = await _paypal(cfg, "POST", f"/v2/checkout/orders/{t['paypal_order_id']}/capture", {})
+    if o.get("status") == "COMPLETED":
+        cap = (((o.get("purchase_units") or [{}])[0].get("payments") or {}).get("captures") or [{}])[0]
+        return await settle(t, {"paid_at": now_iso(), "tx_id": cap.get("id", "")})
+    if o.get("status") in ("VOIDED",):
+        await db.topup_orders.update_one({"id": t["id"], "status": "pending"}, {"$set": {"status": "cancelled"}})
+        t["status"] = "cancelled"
+    return t
 
 
 @router.post("/me/wallet/topup/checkout")
@@ -148,20 +177,34 @@ async def refresh_status(t: dict, request: Optional[Request] = None) -> dict:
                 await db.topup_orders.update_one({"id": t["id"], "status": "pending"}, {"$set": {"status": "expired"}})
                 t["status"] = "expired"
         elif t.get("provider") == "paypal" and t.get("paypal_order_id"):
-            pm = await db.payment_methods.find_one({"id": t.get("method_id")}, {"_id": 0}) or {}
-            cfg = pm.get("config") or {}
-            o = await _paypal(cfg, "GET", f"/v2/checkout/orders/{t['paypal_order_id']}")
-            if o.get("status") == "APPROVED":
-                o = await _paypal(cfg, "POST", f"/v2/checkout/orders/{t['paypal_order_id']}/capture", {})
-            if o.get("status") == "COMPLETED":
-                cap = (((o.get("purchase_units") or [{}])[0].get("payments") or {}).get("captures") or [{}])[0]
-                return await settle(t, {"paid_at": now_iso(), "tx_id": cap.get("id", "")})
-            if o.get("status") in ("VOIDED",):
-                await db.topup_orders.update_one({"id": t["id"], "status": "pending"}, {"$set": {"status": "cancelled"}})
-                t["status"] = "cancelled"
+            return await _paypal_capture_and_settle(t, await _paypal_method_cfg(t))
     except HTTPException as e:
         logger.info("refresh_status skipped: %s", e.detail)
     return t
+
+
+@router.post("/webhook/paypal")
+async def paypal_webhook(request: Request):
+    ev = await request.json()
+    res = ev.get("resource") or {}
+    tid = res.get("custom_id") or ((res.get("purchase_units") or [{}])[0].get("custom_id")) or ""
+    order_id = res.get("id") if ev.get("event_type") == "CHECKOUT.ORDER.APPROVED" else ((res.get("supplementary_data") or {}).get("related_ids") or {}).get("order_id")
+    q = {"provider": "paypal", "$or": [{"id": tid}, {"paypal_order_id": order_id or "-"}]}
+    t = await db.topup_orders.find_one(q, {"_id": 0})
+    if not t:
+        return {"status": "ignored"}
+    cfg = _paypal_cfg(await _paypal_method_cfg(t))
+    if cfg["webhook_id"]:
+        h = request.headers
+        body = {"auth_algo": h.get("paypal-auth-algo"), "cert_url": h.get("paypal-cert-url"), "transmission_id": h.get("paypal-transmission-id"), "transmission_sig": h.get("paypal-transmission-sig"),
+                "transmission_time": h.get("paypal-transmission-time"), "webhook_id": cfg["webhook_id"], "webhook_event": ev}
+        v = await _paypal(cfg, "POST", "/v1/notifications/verify-webhook-signature", body)
+        if v.get("verification_status") != "SUCCESS":
+            logger.warning("paypal webhook signature failed for %s", t["id"])
+            raise HTTPException(status_code=400, detail="invalid webhook signature")
+    if t["status"] == "pending":
+        await _paypal_capture_and_settle(t, cfg)
+    return {"status": "ok"}
 
 
 @router.post("/webhook/stripe")
@@ -180,6 +223,22 @@ async def stripe_webhook(request: Request):
 
 
 # ----------------------------- Admin review (bank transfer) -----------------------------
+@router.post("/admin/payment-methods/{mid}/test")
+async def admin_payment_method_test(mid: str, request: Request, admin: dict = Depends(current_admin)):
+    pm = await db.payment_methods.find_one({"id": mid}, {"_id": 0})
+    if not pm:
+        raise HTTPException(status_code=404, detail="不存在")
+    if pm.get("provider") == "paypal":
+        cfg = _paypal_cfg(pm.get("config") or {})
+        source = "db" if (pm.get("config") or {}).get("client_id") else ("env" if os.environ.get("PAYPAL_CLIENT_ID") else "none")
+        await _paypal_token(cfg)
+        return {"ok": True, "provider": "paypal", "env": cfg["env"], "source": source, "webhook_url": f"{str(request.base_url).rstrip('/')}/api/webhook/paypal", "webhook_verified": bool(cfg["webhook_id"])}
+    if pm.get("provider") == "stripe":
+        _stripe(request)
+        return {"ok": True, "provider": "stripe", "source": "env", "webhook_url": f"{str(request.base_url).rstrip('/')}/api/webhook/stripe"}
+    raise HTTPException(status_code=400, detail="此支付方式無需連線測試")
+
+
 @router.post("/admin/topups/{tid}/approve")
 async def admin_topup_approve(tid: str, admin: dict = Depends(current_admin)):
     t = await db.topup_orders.find_one({"id": tid}, {"_id": 0})
