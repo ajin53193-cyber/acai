@@ -49,6 +49,7 @@ export function MemberDetail({ uid, callApi, onClose, onChanged }) {
       <div className="w-full max-w-xl h-full bg-white overflow-y-auto p-6" onClick={(e) => e.stopPropagation()} data-testid="member-detail">
         <div className="flex items-center justify-between mb-4"><h2 className="font-head text-lg font-bold text-slate-900">{tr("會員詳情")}</h2><button onClick={onClose} className="h-8 w-8 rounded-full bg-slate-100 flex items-center justify-center"><X className="h-4 w-4" /></button></div>
         <Card className="p-4">
+          <Row k={tr("帳戶ID")} v={<span className="font-head font-bold text-slate-900 text-base">{d.account_no}</span>} />
           <Row k={tr("用戶ID")} v={<span className="font-mono text-xs">{d.user_id}</span>} />
           <Row k={tr("信箱")} v={d.emails?.join(", ")} />
           <Row k={tr("手機")} v={d.phone} />
@@ -85,7 +86,7 @@ export function MembersAdmin({ callApi }) {
       <Head title={tr("會員管理")} sub={tr("綁定資訊、餘額、訂單、封禁與密碼重置")} right={<><Input data-testid="members-search" value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={(e) => e.key === "Enter" && setQq(q)} placeholder={tr("信箱 / 手機 / 姓名 / ID")} className="w-56" /><Btn kind="ghost" onClick={() => setQq(q)}>{tr("搜尋")}</Btn></>} />
       <Table testId="members-table" cols={[tr("會員"), tr("手機"), tr("Google"), tr("角色"), tr("餘額"), tr("訂單數 / 消費"), tr("註冊時間"), tr("狀態"), ""]} rows={data || []} render={(u) => (
         <tr key={u.user_id} data-testid={`member-row-${u.user_id}`} className="hover:bg-slate-50/60">
-          <td className="px-4 py-3"><div className="text-slate-800">{u.email || u.profile?.name || "-"}</div><div className="text-[10px] text-slate-400 font-mono">{u.user_id.slice(-10)}</div></td>
+          <td className="px-4 py-3"><div className="text-slate-800">{u.email || u.profile?.name || "-"}</div><div className="text-[10px] text-slate-400 font-mono">{tr("帳戶ID")} {u.account_no}</div></td>
           <td className="px-4 py-3 text-slate-600">{u.phone || "-"}</td>
           <td className="px-4 py-3">{u.google ? <Pill tone="emerald">{tr("已綁定")}</Pill> : <span className="text-slate-300">-</span>}</td>
           <td className="px-4 py-3"><Pill tone={u.role === "admin" ? "orange" : "slate"}>{u.role}</Pill></td>

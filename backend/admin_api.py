@@ -37,6 +37,11 @@ _usdt_creds = None
 ADMIN_TOKEN_TTL = 12 * 3600
 
 
+def account_no(user_id: str) -> str:
+    """Short numeric account id shown to users & admins (same formula as /me/profile)."""
+    return str(100000000 + (int(hashlib.md5(user_id.encode()).hexdigest()[:6], 16) % 900000000))
+
+
 def _sign(payload: dict, ttl: int) -> str:
     body = json.dumps({**payload, "exp": int(time.time()) + ttl}, separators=(",", ":")).encode()
     sig = hmac.new(os.environ["CLERK_SECRET_KEY"].encode(), body, hashlib.sha256).digest()
@@ -139,6 +144,8 @@ async def admin_topups(status: str = "", q: str = "", date_from: str = "", date_
     if q:
         rx = {"$regex": re.escape(q), "$options": "i"}
         uids = [u["user_id"] async for u in db.users.find({"$or": [{"email": rx}, {"phone": rx}, {"name": rx}]}, {"_id": 0, "user_id": 1})]
+        if q.strip().isdigit():  # allow searching by the short numeric account id
+            uids += [u["user_id"] async for u in db.users.find({}, {"_id": 0, "user_id": 1}) if account_no(u["user_id"]) == q.strip()]
         query["$or"] = [{"out_trade_no": rx}, {"order_no": rx}, {"reference_code": rx}, {"user_id": rx}, {"tx_id": rx}, {"user_id": {"$in": uids}}]
     items = await db.topup_orders.find(query, {"_id": 0}).sort("created_at", -1).to_list(limit)
     uids = list({t["user_id"] for t in items})
@@ -147,6 +154,7 @@ async def admin_topups(status: str = "", q: str = "", date_from: str = "", date_
         u = users.get(t["user_id"], {})
         t["user_email"] = u.get("email", "")
         t["user_phone"] = u.get("phone", "")
+        t["account_no"] = account_no(t["user_id"])
     base = {k: v for k, v in query.items() if k != "status"}
     counts = {c["_id"]: c["n"] async for c in db.topup_orders.aggregate([{"$match": base}, {"$group": {"_id": "$status", "n": {"$sum": 1}}}])}
     return {"rows": items, "counts": counts, "total": sum(counts.values())}
@@ -199,7 +207,7 @@ async def admin_members(q: str = "", limit: int = 200, admin: dict = Depends(cur
     for u in users:
         o = orders.get(u["user_id"], {})
         email = u.get("email", "")
-        out.append({**u, "banned": bool(u.get("banned")), "email": "" if email.endswith("@" + email_auth.PHONE_DOMAIN) else email, "order_count": o.get("count", 0), "spent_usd": round(o.get("spent", 0) or 0, 2),
+        out.append({**u, "banned": bool(u.get("banned")), "account_no": account_no(u["user_id"]), "email": "" if email.endswith("@" + email_auth.PHONE_DOMAIN) else email, "order_count": o.get("count", 0), "spent_usd": round(o.get("spent", 0) or 0, 2),
                     "balance_usd": round(bal.get(u["user_id"], 0) or 0, 2), "google": bool((u.get("public_metadata") or {}).get("google_sub"))})
     return out
 
@@ -215,7 +223,7 @@ async def admin_member_detail(uid: str, admin: dict = Depends(current_admin)):
     acct = await db.phone_accounts.find_one({"user_id": uid}, {"_id": 0})
     orders = await db.orders.find({"user_id": uid}, {"_id": 0, "id": 1, "status": 1, "total_usd": 1, "created_at": 1, "items": 1}).sort("created_at", -1).to_list(20)
     txs = await db.wallet_transactions.find({"user_id": uid}, {"_id": 0}).sort("created_at", -1).to_list(20)
-    return {**u, "emails": emails, "phone": acct["phone"] if acct else (c.get("public_metadata") or {}).get("phone", ""),
+    return {**u, "emails": emails, "account_no": account_no(uid), "phone": acct["phone"] if acct else (c.get("public_metadata") or {}).get("phone", ""),
             "google": bool((c.get("public_metadata") or {}).get("google_sub")) or any(a.get("provider") == "oauth_google" for a in c.get("external_accounts", [])),
             "password_enabled": c.get("password_enabled", False), "banned": c.get("banned", False) or u.get("banned", False),
             "last_sign_in_at": c.get("last_sign_in_at"), "orders": orders, "transactions": txs,
