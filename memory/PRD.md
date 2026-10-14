@@ -336,3 +336,18 @@
 - 驗證：iteration_36 後端 20/20 + 前端 100% 全通過（/admin/me、roles CRUD、admins promote/revoke、integration 遮罩與不覆蓋、test-send、operation-logs+CSV、401/403 授權）；另 DB 模擬先行驗證過 super 判定/角色權限/遮罩不覆蓋/require_super。無問題。
 - 代碼審查備註（非阻斷）：admin_api.py 已 ~1780 行，後續可拆分；非超管即使有 sms-config 權限也看不到集成配置（目前系統配置為 super-only，符合預期）；RolesAdmin 彈窗 Esc 未關閉（小 UX）。
 - 後台完善剩餘批次（待續）：商品類(規格/庫存/新增商品頁)、財務類(訂單結算/對賬/財報)、儀表盤類(銷售分析/實時監控)、用戶類(批量操作/報表統計)。另：referral「渠道來源分析/流失提醒」與「商品帶貨海報」仍為已起頭待續（後端已記錄 visit source、config 阈值欄位，相容新增）。
+
+## 2026-10 後台 Round 20：商品類批次（庫存管理 + 規格模板 + 獨立新增商品頁）【Batch 2/5】
+- Spec 模型加 `stock: Optional[int]=None`（留空=不限量）。
+- 庫存管理：GET/PUT /api/admin/inventory（跨商品攤平所有規格，支持 q 搜尋、only_low≤5 篩選；PUT 改 in_stock/stock，array_filters）。前端 InventoryAdmin：售罄開關 + 庫存數量內聯編輯 + 低庫存角標。
+- 規格模板：spec_templates CRUD /api/admin/spec-templates。前端 SpecTemplatesAdmin（模板=名稱+規格行）。ProductsAdmin 的 SpecsEditor 新增「套用規格模板」下拉，一鍵追加模板規格。
+- 獨立新增商品頁：product-new → <ProductsAdmin autoCreate/>，進入即自動彈出新增表單。
+- data-testid：inventory-admin/inv-*、spec-templates-admin/spectpl-*、pf-apply-tpl、product-add 等。
+- 驗證：DB 模擬實測 inventory 攤平/改 stock/售罄/低庫存篩選/清空回不限量、spec-templates 增改刪，皆通過；前端編譯通過（因使用者催促，未另跑 testing_agent 瀏覽器 E2E，後端已驗）。
+
+## 2026-10 後台 Round 21-22：財務批次 + 儀表盤批次 + 用戶批次【Batch 3-5/5 完成】
+- 財務(Batch3)：訂單結算 GET /admin/finance/settlement + POST /finance/settle（勾選標記/取消結算，待結算金額彙總）；財務對賬 GET /finance/reconciliation（按渠道×狀態彙總充值+訂單，待確認高亮）；財務報表 FinanceReportsAdmin 復用 /admin/reports（recharts 柱狀圖+CSV 匯出）。
+- 儀表盤(Batch4)：銷售分析 GET /admin/analytics/sales（熱銷商品 Top15 + 充值渠道佔比）；實時監控 GET /admin/analytics/realtime（今日訂單/營收/充值/新會員/待確認 + 最新訂單，前端 15s 自動刷新）。
+- 用戶(Batch5)：用戶批量 POST /admin/users/batch（封禁/解封/打標籤/發積分）；用戶報表 GET /admin/user-reports（總數/新增/封禁 + 等級分佈 + 消費排行 Top15）。
+- 前端新頁：OrderSettlementAdmin/ReconciliationAdmin/FinanceReportsAdmin/SalesAnalysisAdmin/RealtimeAdmin/UserBatchAdmin/UserReportsAdmin，均註冊進 Admin.jsx PAGES。至此 Batch 1-5 將原「即將上線」占位的 16 個模組全部替換為可用模組。
+- 驗證：DB 模擬實測 settlement/settle、reconciliation、analytics sales/realtime、user-reports、users/batch(加積分+標籤) 全通過；前端全部編譯成功。因使用者催促，批次 2-5 未跑 testing_agent 瀏覽器 E2E（批次1已跑並 100%），後端均已模擬驗證。

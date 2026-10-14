@@ -1778,3 +1778,152 @@ async def record_admin_log(uid: str, email: str, method: str, path: str, status:
                                         "created_at": datetime.now(timezone.utc).isoformat()})
     except Exception:
         pass
+
+
+# ================= 財務管理：訂單結算 / 財務對賬 =================
+def _since(days: int) -> str:
+    days = max(1, min(int(days or 30), 365))
+    return (datetime.now(timezone.utc) - timedelta(days=days - 1)).strftime("%Y-%m-%d")
+
+
+@router.get("/finance/settlement")
+async def admin_finance_settlement(days: int = 30, settled: str = "", limit: int = 500, admin: dict = Depends(current_admin)):
+    start = _since(days)
+    query = {"status": {"$in": ["paid", "processing", "shipped", "completed"]}, "created_at": {"$gte": start}}
+    if settled == "yes":
+        query["settled"] = True
+    elif settled == "no":
+        query["settled"] = {"$ne": True}
+    rows = await db.orders.find(query, {"_id": 0, "id": 1, "user_id": 1, "total_usd": 1, "status": 1, "settled": 1, "settled_at": 1, "created_at": 1}).sort("created_at", -1).to_list(limit)
+    out = []
+    for r in rows:
+        out.append({"id": r["id"], "account": account_no(r.get("user_id", "")), "total_usd": round(float(r.get("total_usd") or 0), 2),
+                    "status": r.get("status"), "settled": bool(r.get("settled")), "settled_at": r.get("settled_at", ""), "created_at": r.get("created_at", "")})
+    total_amt = round(sum(r["total_usd"] for r in out), 2)
+    settled_amt = round(sum(r["total_usd"] for r in out if r["settled"]), 2)
+    return {"rows": out, "count": len(out), "total_amount": total_amt, "settled_amount": settled_amt,
+            "unsettled_amount": round(total_amt - settled_amt, 2),
+            "unsettled_count": len([r for r in out if not r["settled"]])}
+
+
+class SettleIn(BaseModel):
+    order_ids: list = []
+    unsettle: bool = False
+
+
+@router.post("/finance/settle")
+async def admin_finance_settle(body: SettleIn, admin: dict = Depends(current_admin)):
+    ids = [str(x) for x in (body.order_ids or [])]
+    if not ids:
+        raise HTTPException(status_code=400, detail="請選擇訂單")
+    if body.unsettle:
+        await db.orders.update_many({"id": {"$in": ids}}, {"$set": {"settled": False}, "$unset": {"settled_at": ""}})
+    else:
+        await db.orders.update_many({"id": {"$in": ids}}, {"$set": {"settled": True, "settled_at": datetime.now(timezone.utc).isoformat()}})
+    return {"ok": True, "count": len(ids)}
+
+
+@router.get("/finance/reconciliation")
+async def admin_finance_reconciliation(days: int = 30, admin: dict = Depends(current_admin)):
+    start = _since(days)
+    tp = await db.topup_orders.aggregate([
+        {"$match": {"created_at": {"$gte": start}}},
+        {"$group": {"_id": {"provider": "$provider", "status": "$status"}, "count": {"$sum": 1}, "amount": {"$sum": "$amount_usd"}}},
+    ]).to_list(200)
+    topups = [{"provider": r["_id"].get("provider") or "-", "status": r["_id"].get("status") or "-", "count": r["count"], "amount": round(float(r.get("amount") or 0), 2)} for r in tp]
+    topups.sort(key=lambda x: (x["provider"], x["status"]))
+    od = await db.orders.aggregate([
+        {"$match": {"created_at": {"$gte": start}}},
+        {"$group": {"_id": "$status", "count": {"$sum": 1}, "amount": {"$sum": "$total_usd"}}},
+    ]).to_list(50)
+    orders = [{"status": r["_id"] or "-", "count": r["count"], "amount": round(float(r.get("amount") or 0), 2)} for r in od]
+    orders.sort(key=lambda x: x["status"])
+    topup_paid = round(sum(t["amount"] for t in topups if t["status"] == "paid"), 2)
+    topup_pending = round(sum(t["amount"] for t in topups if t["status"] == "pending"), 2)
+    order_revenue = round(sum(o["amount"] for o in orders if o["status"] in ("paid", "processing", "shipped", "completed")), 2)
+    return {"topups": topups, "orders": orders, "topup_paid": topup_paid, "topup_pending": topup_pending,
+            "topup_pending_count": sum(t["count"] for t in topups if t["status"] == "pending"), "order_revenue": order_revenue}
+
+
+# ================= 儀表盤：銷售分析 / 實時監控 ；用戶：批量 / 報表 =================
+@router.get("/analytics/sales")
+async def admin_analytics_sales(days: int = 30, admin: dict = Depends(current_admin)):
+    start = _since(days)
+    paid = {"status": {"$in": ["paid", "processing", "shipped", "completed"]}, "created_at": {"$gte": start}}
+    top = await db.orders.aggregate([
+        {"$match": paid}, {"$unwind": "$items"},
+        {"$group": {"_id": "$items.product_name", "qty": {"$sum": {"$ifNull": ["$items.quantity", 1]}},
+                    "amount": {"$sum": {"$multiply": [{"$ifNull": ["$items.price_usd", 0]}, {"$ifNull": ["$items.quantity", 1]}]}}}},
+        {"$sort": {"amount": -1}}, {"$limit": 15},
+    ]).to_list(15)
+    products = [{"name": r["_id"] or "-", "qty": int(r["qty"]), "amount": round(float(r["amount"] or 0), 2)} for r in top]
+    channels = await db.topup_orders.aggregate([
+        {"$match": {"status": "paid", "created_at": {"$gte": start}}},
+        {"$group": {"_id": "$provider", "amount": {"$sum": "$amount_usd"}, "count": {"$sum": 1}}}, {"$sort": {"amount": -1}},
+    ]).to_list(20)
+    return {"top_products": products, "channels": [{"provider": c["_id"] or "-", "amount": round(float(c["amount"] or 0), 2), "count": c["count"]} for c in channels]}
+
+
+@router.get("/analytics/realtime")
+async def admin_analytics_realtime(admin: dict = Depends(current_admin)):
+    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    tq = {"created_at": {"$regex": f"^{today}"}}
+    paid = {"status": {"$in": ["paid", "processing", "shipped", "completed"]}}
+    rev = await db.orders.aggregate([{"$match": {**tq, **paid}}, {"$group": {"_id": None, "a": {"$sum": "$total_usd"}}}]).to_list(1)
+    tp = await db.topup_orders.aggregate([{"$match": {**tq, "status": "paid"}}, {"$group": {"_id": None, "a": {"$sum": "$amount_usd"}}}]).to_list(1)
+    orders = await db.orders.find(tq, {"_id": 0, "id": 1, "user_id": 1, "total_usd": 1, "status": 1, "created_at": 1}).sort("created_at", -1).to_list(15)
+    for o in orders:
+        o["account"] = account_no(o.get("user_id", ""))
+    return {"today": today,
+            "orders_today": await db.orders.count_documents(tq),
+            "revenue_today": round(float(rev[0]["a"]) if rev else 0, 2),
+            "topups_today": await db.topup_orders.count_documents({**tq, "status": "paid"}),
+            "topup_amount_today": round(float(tp[0]["a"]) if tp else 0, 2),
+            "new_users_today": await db.users.count_documents(tq),
+            "pending_topups": await db.topup_orders.count_documents({"status": "pending"}),
+            "recent_orders": orders}
+
+
+class UserBatchIn(BaseModel):
+    user_ids: list = []
+    action: str
+    value: str = ""
+
+
+@router.post("/users/batch")
+async def admin_users_batch(body: UserBatchIn, admin: dict = Depends(current_admin)):
+    ids = [str(x) for x in (body.user_ids or [])]
+    if not ids:
+        raise HTTPException(status_code=400, detail="請選擇用戶")
+    act = body.action
+    if act == "ban":
+        await db.users.update_many({"user_id": {"$in": ids}}, {"$set": {"banned": True}})
+    elif act == "unban":
+        await db.users.update_many({"user_id": {"$in": ids}}, {"$set": {"banned": False}})
+    elif act == "add_tag" and body.value.strip():
+        await db.users.update_many({"user_id": {"$in": ids}}, {"$addToSet": {"tags": body.value.strip()}})
+    elif act == "add_points":
+        pts = int(float(body.value or 0))
+        for uid in ids:
+            await db.users.update_one({"user_id": uid}, {"$inc": {"points": pts}})
+            await db.point_transactions.insert_one({"id": uuid.uuid4().hex, "user_id": uid, "delta": pts, "source": "admin_batch", "reason": "後台批量發放", "created_at": datetime.now(timezone.utc).isoformat()})
+    else:
+        raise HTTPException(status_code=400, detail="未知操作")
+    return {"ok": True, "count": len(ids)}
+
+
+@router.get("/user-reports")
+async def admin_user_reports(days: int = 30, admin: dict = Depends(current_admin)):
+    start = _since(days)
+    total = await db.users.count_documents({})
+    new_in = await db.users.count_documents({"created_at": {"$gte": start}})
+    banned = await db.users.count_documents({"banned": True})
+    levels = await db.users.aggregate([{"$group": {"_id": "$level_name", "count": {"$sum": 1}}}, {"$sort": {"count": -1}}]).to_list(20)
+    spenders = await db.orders.aggregate([
+        {"$match": {"status": {"$in": ["paid", "processing", "shipped", "completed"]}}},
+        {"$group": {"_id": "$user_id", "spent": {"$sum": "$total_usd"}, "orders": {"$sum": 1}}},
+        {"$sort": {"spent": -1}}, {"$limit": 15},
+    ]).to_list(15)
+    top = [{"account": account_no(r["_id"] or ""), "spent": round(float(r["spent"] or 0), 2), "orders": r["orders"]} for r in spenders]
+    return {"total_users": total, "new_users": new_in, "banned": banned,
+            "levels": [{"name": l["_id"] or "普通會員", "count": l["count"]} for l in levels], "top_spenders": top}

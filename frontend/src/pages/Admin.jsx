@@ -43,6 +43,13 @@ import { RolesAdmin } from "@/pages/admin/RolesAdmin";
 import { OperationLogsAdmin } from "@/pages/admin/OperationLogsAdmin";
 import { InventoryAdmin } from "@/pages/admin/InventoryAdmin";
 import { SpecTemplatesAdmin } from "@/pages/admin/SpecTemplatesAdmin";
+import { OrderSettlementAdmin } from "@/pages/admin/OrderSettlementAdmin";
+import { ReconciliationAdmin } from "@/pages/admin/ReconciliationAdmin";
+import { FinanceReportsAdmin } from "@/pages/admin/FinanceReportsAdmin";
+import { SalesAnalysisAdmin } from "@/pages/admin/SalesAnalysisAdmin";
+import { RealtimeAdmin } from "@/pages/admin/RealtimeAdmin";
+import { UserBatchAdmin } from "@/pages/admin/UserBatchAdmin";
+import { UserReportsAdmin } from "@/pages/admin/UserReportsAdmin";
 import { tr } from "@/i18n";
 
 // Full admin IA — collapsible two-level menu. Keys map to real pages in PAGES; everything else renders <Soon/>.
@@ -94,6 +101,13 @@ const PAGES = {
   "product-new": (p) => <ProductsAdmin autoCreate {...p} />,
   inventory: (p) => <InventoryAdmin {...p} />,
   specs: (p) => <SpecTemplatesAdmin {...p} />,
+  "order-settlement": (p) => <OrderSettlementAdmin {...p} />,
+  reconciliation: (p) => <ReconciliationAdmin {...p} />,
+  "finance-reports": (p) => <FinanceReportsAdmin {...p} />,
+  "sales-analysis": (p) => <SalesAnalysisAdmin {...p} />,
+  realtime: (p) => <RealtimeAdmin {...p} />,
+  "user-batch": (p) => <UserBatchAdmin {...p} />,
+  "user-reports": (p) => <UserReportsAdmin {...p} />,
   categories: (p) => <CategoriesAdmin {...p} />,
   reviews: (p) => <Reviews {...p} />,
   promos: (p) => <Promos {...p} />,
