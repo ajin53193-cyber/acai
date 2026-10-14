@@ -1,0 +1,27 @@
+{
+  "summary": "Narrow retest of the previously-failed HIGH bug from iteration_29: flash-sale price display on /checkout for product 15640 spec 15640-218076 (5万果豆). Logged in as member tester+clerk_test@shop.com (no 2FA prompted), added spec to cart from /product/15640, navigated to /checkout. All six assertions PASS.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "retest_results": {
+    "cart_line_price_shows_4.34_not_8.69": "PASS — line shows 'USD$ 4.34' with struck-through '$8.69'",
+    "flash_badge_and_strike_through": "PASS — data-testid='cart-flash-badge-15640__15640-218076' present with text '秒杀价' and strike-through 8.69",
+    "cart-subtotal_eq_$4.34": "PASS — cart-subtotal innerText = '$4.34'",
+    "summary_商品总额_row_eq_$4.34": "PASS — summary row shows $4.34",
+    "checkout-cartpromo-hint_text": "PASS — innerText = '再买 $45.66 即可立减 $5.00（全场满减）'",
+    "checkout-total_reflects_flash_with_2pct_silver": "PASS — checkout-total = '$4.25' (4.34 - 0.09 silver 2% - 0 coupon + 0.00 fee = 4.25)"
+  },
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A (skipped)", "frontend": "100% (6/6)"},
+  "test_credentials": "Member: tester+clerk_test@shop.com / Gogo589!Tester#4m9Z (no 2FA email code required this session)",
+  "seed_data_creation": "None — only used seeded flash sale (product 15640 spec 15640-218076, flash 4.34 vs original 8.69) and seeded cart promo 全场满减 (满50减5).",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "The flash-sale price override on Checkout.jsx (effUnit/effSubtotal reading GET /api/flash-sales/public into flashMap) is working correctly. All six retest assertions pass. No new issues observed. No real order was placed and lottery was not drawn, per instructions."
+}

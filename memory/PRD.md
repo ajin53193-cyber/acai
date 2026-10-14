@@ -225,3 +225,19 @@
 - 驗證：subtotal 104.28 → 命中「滿100減15」(-15) → 白銀2%(-1.79) → total 87.49，正確取最優檔並疊加。已播種 2 條示例（滿50減5 / 滿100減15）。
 - data-testid：cartpromo-admin/cp-table/cp-add/cp-row-*/cp-modal/cp-type/cp-threshold/cp-value/cp-save、checkout-cart-discount。
 - **後續**：秒殺活動、抽獎活動（積分抽獎）、禮品卡當商品賣（下單自動發卡）。
+
+## 2026-10 後台 Round 8：秒殺 + 積分抽獎轉盤 + 禮品卡當商品賣 + 滿減進度提示（iteration_29/30，前端 E2E 6/6 通過；後端 curl 全驗）
+- **秒殺活動（限時特價+限量+每人限購）**（`FlashSaleAdmin.jsx` → 活動管理「秒殺活動」flashsale slot；admin_api `/admin/flash-sales` CRUD）：規則 {title, product_id, spec_id, flash_price_usd, stock, per_user_limit, start_at, end_at, active, sold}。後台可搜尋商品→選規格、設秒殺價/庫存/每人限購/時間。
+  - `_flash_for(product_id, spec_id)`（server.py）回傳在時間窗內、未售罄的秒殺；`_compute_order` 以秒殺價替代規格原價（在滿減之前生效），items_out 帶 `flash_id/flash`。
+  - `create_order`：原子預扣庫存 `find_one_and_update($expr sold+qty<=stock, $inc sold)`；per_user_limit 以 `_user_flash_bought`（跨未取消訂單累計）校驗，超限回 409。訂單取消（admin PATCH cancelled）時以 `flash_released` 旗標冪等回補 sold。
+  - 公開 `GET /api/flash-sales/public`（join 商品名/圖/原價、remaining、end_at）。首頁 `FlashSaleSection`（秒殺卡 + 原價刪除線 + 搶購進度條 + `Countdown` 倒計時）。
+  - **結算頁秒殺價顯示修復**（iteration_29 發現 HIGH bug）：Checkout 原本用 CartContext 原價算小計 → 顯示原價。改為 fetch `/flash-sales/public` 建 flashMap，`effUnit/effSubtotal` 覆蓋購物車行價、小計、滿減提示與優惠券門檻；購物車行加「秒殺價」角標 + 原價刪除線。總額仍以 `/orders/quote`（後端已套秒殺）為準。
+- **積分抽獎轉盤**（`LotteryAdmin.jsx` → 活動管理「抽獎活動」lottery slot；admin_api `/admin/lottery` GET/PUT、`/admin/lottery/draws`、`/draws/{id}/fulfill`）：設定存 settings key=lottery，含 {enabled, cost_points, prizes:[{id,label,type,value,weight,stock,color}]}。獎品類型 points/balance/coupon/physical/none；後台配置權重（即時顯示概率%）、庫存、顏色；中獎記錄表可標記實物已發放。`get_lottery_cfg()` 首次自動播種 6 檔預設。
+  - 會員 `GET /api/lottery/config`（公開，隱藏權重）、`POST /api/lottery/draw`（扣 cost 積分→加權隨機→發放：積分/餘額`_wallet_tx(lottery)`/優惠券(user_coupons)/實物記錄/空獎；限量獎品原子扣庫存；寫 lottery_draws + user_log）、`GET /api/lottery/my-draws`。
+  - 前台 `Lottery.jsx`（/lottery 路由）：conic-gradient 大轉盤 + 中心抽獎鈕 + ~4s 旋轉動畫 + 結果彈窗 + 我的中獎記錄；未登入點抽獎開 AuthModal。首頁 `home-lottery-entry` 入口卡 + 我的帳戶積分列 `account-lottery-btn` 入口。
+- **禮品卡當商品賣**（下單自動發卡，c2 付款時即時生成新卡號）：Product/ProductIn 新增 `is_giftcard`，Spec 新增 `giftcard_value_usd`。ProductsAdmin 基本資訊加「禮品卡商品」開關，規格表（開啟時）加「卡面額 USD」欄。
+  - `dispatch_giftcards(order)`（server.py）在 pay-wallet 與 mock /pay 付款成功後，對 is_giftcard 商品每份生成一張 `gift_cards`（status active, batch_no=ORDER, source_order, sold_to, 面額=giftcard_value_usd||售價），冪等旗標 `giftcards_dispatched`，卡號寫入 `order.giftcard_codes`。MyOrders 訂單詳情 `order-giftcard-codes` 區顯示卡號 + 複製鈕，引導至「我的錢包→禮品卡充值」兌換。
+- **滿減進度提示**：Checkout `promoHint`（讀 `/cart-promotions/public`）：未達門檻顯示 `checkout-cartpromo-hint`「再買 USD$ X 即可立減/享N折（活動名）」，已達顯示「已滿足滿減」。
+- data-testid：flashsale-admin/fs-*、lottery-admin/lottery-*、flash-sale-section/flash-item-*/flash-countdown、home-lottery-entry、lottery-page/lottery-wheel/lottery-draw-btn/lottery-points/lottery-result、cart-flash-badge-*、checkout-cartpromo-hint、order-giftcard-codes/order-giftcard-copy-*、pf-giftcard/pf-spec-giftcard-*、account-lottery-btn。
+- 驗證：秒殺 quote 8.68（=4.34×2）、per-user limit 2 超限 409、sold 原子預扣；抽獎扣 100 積分並發 50 積分/$0.5 餘額；禮品卡付款生成 2 張 $10 卡掛單；admin flash/lottery CRUD 全通；結算秒殺價 6/6 E2E 通過。
+- **後續（未做）**：活動管理剩餘 slot（組合套餐 combo、活動記錄 activity-records）；秒殺倒計時歸零自動刷新/下架；首頁裝修/輪播圖/推薦位等運營 slot。
