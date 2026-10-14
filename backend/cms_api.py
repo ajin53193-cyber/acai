@@ -57,7 +57,6 @@ DEFAULT_CONFIG = {
     "hero_slides": [],
     "home_layout": [
         {"key": "flash_sale", "label": "限時秒殺", "visible": True},
-        {"key": "lottery_entry", "label": "積分抽獎入口", "visible": True},
         {"key": "combos", "label": "超值套餐", "visible": True},
         {"key": "quick_order", "label": "快捷下單", "visible": True},
         {"key": "hot_products", "label": "熱門產品", "visible": True},

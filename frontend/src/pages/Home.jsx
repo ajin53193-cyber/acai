@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { ChevronRight, ChevronLeft, Zap, Megaphone, ShieldCheck, Rocket, Headphones, Tag, Globe, Star, Users, Gift, Percent, Volume2, Package, Sparkles } from "lucide-react";
+import { ChevronRight, ChevronLeft, Zap, Megaphone, ShieldCheck, Rocket, Headphones, Tag, Globe, Star, Users, Gift, Percent, Volume2, Package } from "lucide-react";
 import { useUser } from "@clerk/react";
 import { publicApi, useApi } from "@/lib/api";
 import { useAuthModal } from "@/components/auth/AuthModal";
@@ -143,16 +143,6 @@ export default function Home() {
               </section>
             ),
             flash_sale: flash.length > 0 ? <FlashSaleSection key="flash_sale" items={flash} onExpire={refetchFlash} /> : null,
-            lottery_entry: (
-              <Link key="lottery_entry" to="/activities" data-testid="home-activity-center-entry" className="mt-5 md:mt-6 flex items-center gap-3 rounded-2xl bg-gradient-to-r from-rose-500 via-orange-500 to-amber-400 px-4 md:px-6 py-3.5 md:py-4 text-white shadow-lg hover:shadow-xl transition-shadow overflow-hidden relative">
-                <Sparkles className="h-7 w-7 md:h-8 md:w-8 shrink-0 drop-shadow" />
-                <div className="min-w-0 flex-1">
-                  <div className="font-head font-extrabold text-base md:text-lg leading-tight">{tr("活動中心")}</div>
-                  <div className="text-[12px] md:text-sm text-white/90 truncate">{tr("秒殺、抽獎、套餐、充值、滿減、邀請，好康一次逛")}</div>
-                </div>
-                <span className="shrink-0 h-9 md:h-10 px-4 md:px-5 rounded-full bg-white text-orange-600 text-sm font-bold flex items-center">{tr("進入活動")}</span>
-              </Link>
-            ),
             combos: combos.length > 0 ? <CombosSection key="combos" combos={combos} onBuy={(c) => { addCombo(c); navigate("/checkout"); }} /> : null,
             hot_products: (
               <section key="hot_products" className="mt-6 md:mt-8">

@@ -366,3 +366,4 @@
 - 驗證：函式直測今日(小時桶)與 30 天(日桶)資料正確；截圖確認今日/本月切換、圖表與指標卡渲染正常。
 - Round 24 補充：文章管理（ActivitiesAdmin, key=activities）自「活動管理 → 活動列表」移至「運營管理 → 新聞 & 促銷」；頁面標題/按鈕/彈窗/刪除提示改為「文章」措辭、類型 promo 標籤改「促銷活動」、「活動時間」欄改「有效期」；RolesAdmin 與 i18n 同步。截圖驗證通過。
 - Round 24 補充：首頁 promo_banners 第二張「精選活動合集」預設連結 /article → /activities（cms_api.py 預設值）；Footer「活動中心」連結同步改 /activities。實測點擊進入活動中心。
+- Round 24 補充：移除首頁「活動中心」漸層入口橫幅（Home.jsx lottery_entry 區塊 + cms_api 預設 home_layout 項）；活動中心入口保留為 promo_banners 圖片橫幅。截圖驗證通過。
