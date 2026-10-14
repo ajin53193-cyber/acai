@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { useUser } from "@clerk/react";
 import { QRCodeCanvas } from "qrcode.react";
-import { Users, Copy, Gift, ArrowLeft, Check, Image as ImageIcon, Download, Share2, X, Loader2 } from "lucide-react";
+import { Users, Copy, Gift, ArrowLeft, Check, Image as ImageIcon, Download, Share2, X, Loader2, Target, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
 import { useApi } from "@/lib/api";
 import { useAuthModal } from "@/components/auth/AuthModal";
@@ -11,6 +11,7 @@ import { tr } from "@/i18n";
 const loadImg = (src) => new Promise((res, rej) => { const im = new Image(); im.crossOrigin = "anonymous"; im.onload = () => res(im); im.onerror = rej; im.src = src; });
 const roundRect = (ctx, x, y, w, h, r) => { ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath(); };
 const wrap = (ctx, text, x, y, maxW, lh) => { const chars = [...(text || "")]; let line = ""; let yy = y; for (const ch of chars) { if (ctx.measureText(line + ch).width > maxW && line) { ctx.fillText(line, x, yy); line = ch; yy += lh; } else line += ch; } if (line) ctx.fillText(line, x, yy); return yy; };
+const DEFAULT_STYLE = { title_color: "#ffffff", subtitle_color: "#ffffff", code_color: "#ea580c", title_x: 0.5, title_y: 0.08, title_align: "center", card_x: 0.5, card_y: 0.64 };
 
 export default function Invite() {
   const callApi = useApi();
@@ -43,34 +44,37 @@ export default function Invite() {
     setBuilding(true);
     try {
       const W = 750, H = 1250;
+      const st = { ...DEFAULT_STYLE, ...(info.posters?.[sel]?.style || {}) };
       const cv = document.createElement("canvas"); cv.width = W; cv.height = H;
       const ctx = cv.getContext("2d");
       const bg = info.posters?.[sel]?.image;
+      const gradFill = () => { const g = ctx.createLinearGradient(0, 0, 0, H); g.addColorStop(0, "#f97316"); g.addColorStop(1, "#fbbf24"); ctx.fillStyle = g; ctx.fillRect(0, 0, W, H); };
       if (bg) {
         try { const img = await loadImg(bg); const s = Math.max(W / img.width, H / img.height); const dw = img.width * s, dh = img.height * s; ctx.drawImage(img, (W - dw) / 2, (H - dh) / 2, dw, dh); }
-        catch { const g = ctx.createLinearGradient(0, 0, 0, H); g.addColorStop(0, "#f97316"); g.addColorStop(1, "#fbbf24"); ctx.fillStyle = g; ctx.fillRect(0, 0, W, H); }
-      } else { const g = ctx.createLinearGradient(0, 0, 0, H); g.addColorStop(0, "#f97316"); g.addColorStop(1, "#fbbf24"); ctx.fillStyle = g; ctx.fillRect(0, 0, W, H); }
-      // top scrim for text legibility
-      const scrim = ctx.createLinearGradient(0, 0, 0, 340); scrim.addColorStop(0, "rgba(0,0,0,0.38)"); scrim.addColorStop(1, "rgba(0,0,0,0)"); ctx.fillStyle = scrim; ctx.fillRect(0, 0, W, 340);
-      // title / subtitle
-      ctx.textAlign = "center"; ctx.fillStyle = "#ffffff"; ctx.shadowColor = "rgba(0,0,0,0.3)"; ctx.shadowBlur = 8;
-      ctx.font = "800 54px sans-serif"; wrap(ctx, info.poster_title || tr("邀請好友 · 一起賺積分"), W / 2, 110, W - 100, 66);
-      ctx.shadowBlur = 4; ctx.font = "500 28px sans-serif"; ctx.fillStyle = "rgba(255,255,255,0.95)";
-      wrap(ctx, info.poster_subtitle || tr("掃碼註冊並完成首充，雙方立得積分獎勵"), W / 2, 210, W - 140, 40);
+        catch { gradFill(); }
+      } else gradFill();
+      // title / subtitle at configured position
+      const tx = st.title_x * W, ty = st.title_y * H;
+      const align = st.title_align === "left" ? "left" : "center";
+      ctx.textAlign = align; ctx.shadowColor = "rgba(0,0,0,0.35)"; ctx.shadowBlur = 10;
+      ctx.fillStyle = st.title_color; ctx.font = "800 54px sans-serif";
+      const ay = wrap(ctx, info.poster_title || tr("邀請好友 · 一起賺積分"), tx, ty + 54, W - 100, 66);
+      ctx.shadowBlur = 5; ctx.fillStyle = st.subtitle_color; ctx.font = "500 28px sans-serif";
+      wrap(ctx, info.poster_subtitle || tr("掃碼註冊並完成首充，雙方立得積分獎勵"), tx, ay + 48, W - 140, 40);
       ctx.shadowBlur = 0;
-      // bottom white card
-      const cx = 50, cy = 800, cw = W - 100, ch = 400;
+      // bottom white card at configured position
+      const cw = W - 100, ch = 400;
+      const cx = Math.min(Math.max(st.card_x * W - cw / 2, 24), W - cw - 24);
+      const cy = Math.min(Math.max(st.card_y * H, 60), H - ch - 24);
       ctx.fillStyle = "#ffffff"; roundRect(ctx, cx, cy, cw, ch, 32); ctx.fill();
-      // QR right
       const qr = qrRef.current; const qs = 220, qx = cx + cw - qs - 40, qy = cy + 70;
       if (qr) ctx.drawImage(qr, qx, qy, qs, qs);
       ctx.textAlign = "center"; ctx.fillStyle = "#94a3b8"; ctx.font = "500 22px sans-serif"; ctx.fillText(tr("長按/掃碼註冊"), qx + qs / 2, qy + qs + 34);
-      // left text
       ctx.textAlign = "left"; const lx = cx + 44;
       ctx.fillStyle = "#94a3b8"; ctx.font = "500 24px sans-serif"; ctx.fillText(tr("我的邀請碼"), lx, cy + 78);
-      ctx.fillStyle = "#ea580c"; ctx.font = "800 64px sans-serif"; ctx.fillText(info.code, lx, cy + 150);
+      ctx.fillStyle = st.code_color; ctx.font = "800 64px sans-serif"; ctx.fillText(info.code, lx, cy + 150);
       ctx.fillStyle = "#334155"; ctx.font = "600 26px sans-serif"; ctx.fillText(tr("邀請人 +{0} 積分", info.referrer_points), lx, cy + 232);
-      ctx.fillStyle = "#334155"; ctx.fillText(tr("好友 +{0} 積分", info.referee_points), lx, cy + 272);
+      ctx.fillText(tr("好友 +{0} 積分", info.referee_points), lx, cy + 272);
       ctx.fillStyle = "#f97316"; ctx.font = "700 24px sans-serif"; ctx.fillText("gogo589.com", lx, cy + ch - 34);
       setPosterUrl(cv.toDataURL("image/png"));
     } catch (e) { toast.error(tr("海報生成失敗")); }
@@ -131,6 +135,40 @@ export default function Invite() {
                 <div className="bg-amber-50 rounded-xl py-3"><div className="font-head text-xl font-extrabold text-amber-600" data-testid="invite-points">{info.points_earned}</div><div className="text-[11px] text-slate-400">{tr("累計獲得積分")}</div></div>
               </div>
             </div>
+
+            {info.milestones_enabled && (info.milestones?.length > 0) && (
+              <div className="bg-white rounded-2xl p-5 mt-4 shadow-lg" data-testid="invite-milestones-card">
+                <div className="flex items-center gap-1.5 text-sm font-semibold text-slate-700 mb-1"><Target className="h-4 w-4 text-orange-500" />{tr("邀請任務 · 達標自動發獎")}</div>
+                <div className="text-[11px] text-slate-400 mb-4">{tr("每成功邀請 1 位好友完成首充計 1 人，達成門檻自動發放獎勵")}</div>
+                {(() => {
+                  const ms = [...info.milestones].sort((a, b) => a.count - b.count);
+                  const maxC = ms[ms.length - 1].count || 1;
+                  const pct = Math.min(100, Math.round((info.invited / maxC) * 100));
+                  const granted = info.milestones_granted || [];
+                  return (
+                    <>
+                      <div className="relative h-2 rounded-full bg-slate-100 mb-6">
+                        <div className="absolute left-0 top-0 h-2 rounded-full bg-gradient-to-r from-orange-500 to-amber-400 transition-all" style={{ width: `${pct}%` }} data-testid="invite-milestone-bar" />
+                      </div>
+                      <div className="grid grid-cols-3 gap-2">
+                        {ms.map((m) => {
+                          const done = info.invited >= m.count || granted.includes(m.count);
+                          const reward = m.type === "points" ? tr("+{0} 積分", m.value) : tr("優惠券");
+                          return (
+                            <div key={m.count} data-testid={`invite-milestone-${m.count}`} className={`rounded-xl p-2.5 text-center border ${done ? "bg-orange-50 border-orange-200" : "bg-slate-50 border-slate-100"}`}>
+                              <div className={`font-head text-lg font-extrabold ${done ? "text-orange-600" : "text-slate-500"}`}>{m.count}{tr("人")}</div>
+                              <div className="text-[11px] text-slate-500 mt-0.5">{reward}</div>
+                              {done ? <div className="inline-flex items-center gap-0.5 text-[11px] text-emerald-600 font-semibold mt-1"><CheckCircle2 className="h-3 w-3" />{tr("已達成")}</div>
+                                : <div className="text-[11px] text-slate-400 mt-1">{tr("還差 {0} 人", Math.max(0, m.count - info.invited))}</div>}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </>
+                  );
+                })()}
+              </div>
+            )}
 
             <div className="bg-white rounded-2xl p-5 mt-4 shadow-lg" data-testid="invite-bind-card">
               <div className="flex items-center gap-1.5 text-sm font-semibold text-slate-700 mb-2"><Gift className="h-4 w-4 text-rose-500" />{tr("填寫好友的邀請碼")}</div>

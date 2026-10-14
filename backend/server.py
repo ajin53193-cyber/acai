@@ -1264,8 +1264,22 @@ async def log_user(user_id: str, type_: str, action: str, detail: str = "", ip: 
         logger.warning("log_user failed: %s", e)
 
 
-REFERRAL_DEFAULT = {"enabled": True, "referrer_points": 500, "referee_points": 200,
-                    "poster_title": "邀請好友 · 一起賺積分", "poster_subtitle": "掃碼註冊並完成首充，雙方立得積分獎勵"}
+REFERRAL_DEFAULT = {
+    "enabled": True, "referrer_points": 500, "referee_points": 200,
+    "poster_title": "邀請好友 · 一起賺積分", "poster_subtitle": "掃碼註冊並完成首充，雙方立得積分獎勵",
+    "weekly_enabled": True,
+    "weekly_rewards": [
+        {"rank": 1, "type": "points", "value": 2000, "coupon_code": ""},
+        {"rank": 2, "type": "points", "value": 1000, "coupon_code": ""},
+        {"rank": 3, "type": "points", "value": 500, "coupon_code": ""},
+    ],
+    "milestones_enabled": True,
+    "milestones": [
+        {"count": 3, "type": "points", "value": 300, "coupon_code": ""},
+        {"count": 5, "type": "points", "value": 800, "coupon_code": ""},
+        {"count": 10, "type": "points", "value": 2000, "coupon_code": ""},
+    ],
+}
 
 
 async def get_referral_cfg() -> dict:
@@ -1301,6 +1315,35 @@ async def _grant_points(user_id: str, pts: int, source: str, reason: str, ref: s
                                             "source": source, "reason": reason, "ref": ref, "created_at": now_iso()})
 
 
+async def _grant_reward(user_id: str, rtype: str, value, coupon_code: str, source: str, reason: str):
+    """Grant a points or coupon reward to a user (idempotency is caller's responsibility)."""
+    if rtype == "points":
+        await _grant_points(user_id, int(value or 0), source, reason)
+    elif rtype == "coupon" and coupon_code:
+        exists = await db.promos.find_one({"code": coupon_code, "active": True}, {"_id": 1})
+        has = await db.user_coupons.find_one({"user_id": user_id, "code": coupon_code}, {"_id": 1})
+        if exists and not has:
+            await db.user_coupons.insert_one({"id": new_id(), "user_id": user_id, "code": coupon_code,
+                                              "claimed_at": now_iso(), "source": source})
+
+
+async def _apply_referral_milestones(inviter: str, cfg: dict):
+    """Auto-grant tiered milestone rewards when an inviter crosses an invite-count threshold."""
+    if not cfg.get("milestones_enabled"):
+        return
+    inv = await db.users.find_one({"user_id": inviter}, {"_id": 0, "referral_invited": 1, "referral_milestones_granted": 1}) or {}
+    invited = int(inv.get("referral_invited") or 0)
+    granted = set(inv.get("referral_milestones_granted") or [])
+    for ms in sorted(cfg.get("milestones") or [], key=lambda m: int(m.get("count") or 0)):
+        c = int(ms.get("count") or 0)
+        if c > 0 and invited >= c and c not in granted:
+            await _grant_reward(inviter, ms.get("type", "points"), ms.get("value"), ms.get("coupon_code", ""),
+                                "referral_milestone", f"邀請滿 {c} 人階梯獎勵")
+            await db.users.update_one({"user_id": inviter}, {"$addToSet": {"referral_milestones_granted": c}})
+            granted.add(c)
+            await log_user(inviter, "referral", f"邀請里程碑 {c} 人", "達成邀請階梯目標，獎勵已自動發放")
+
+
 async def apply_referral_reward(user_id: str, ref: str):
     """On a user's first successful top-up, reward both the referee and the referrer."""
     cfg = await get_referral_cfg()
@@ -1315,22 +1358,71 @@ async def apply_referral_reward(user_id: str, ref: str):
     await _grant_points(inviter, int(cfg.get("referrer_points") or 0), "referral", "邀請好友獎勵（邀請人）", user_id)
     await db.users.update_one({"user_id": inviter}, {"$inc": {"referral_invited": 1, "referral_points_earned": int(cfg.get("referrer_points") or 0)}})
     await log_user(inviter, "referral", "邀請獎勵", f"好友完成首充，獲得 {int(cfg.get('referrer_points') or 0)} 積分")
+    await _apply_referral_milestones(inviter, cfg)
+
+
+async def run_referral_weekly():
+    """Settle last 7 days' referral leaderboard and reward the top-ranked inviters (idempotent per week+user)."""
+    cfg = await get_referral_cfg()
+    rewards = cfg.get("weekly_rewards") or []
+    if not cfg.get("weekly_enabled") or not rewards:
+        return
+    end = datetime.now(timezone.utc)
+    start = end - timedelta(days=7)
+    week_key = start.strftime("%G-W%V")
+    pipeline = [
+        {"$match": {"referred_by": {"$nin": [None, ""]},
+                    "referral_rewarded_at": {"$gte": start.isoformat(), "$lt": end.isoformat()}}},
+        {"$group": {"_id": "$referred_by", "cnt": {"$sum": 1}}},
+        {"$sort": {"cnt": -1}},
+        {"$limit": len(rewards)},
+    ]
+    rows = await db.users.aggregate(pipeline).to_list(50)
+    for i, row in enumerate(rows):
+        inviter = row["_id"]
+        rw = rewards[i]
+        if await db.referral_weekly_awards.find_one({"week": week_key, "user_id": inviter}, {"_id": 1}):
+            continue
+        await _grant_reward(inviter, rw.get("type", "points"), rw.get("value"), rw.get("coupon_code", ""),
+                            "referral_weekly", f"邀請週榜第 {i + 1} 名獎勵")
+        await db.referral_weekly_awards.insert_one({"id": new_id(), "week": week_key, "rank": i + 1, "user_id": inviter,
+                                                    "count": int(row["cnt"]), "type": rw.get("type", "points"),
+                                                    "value": rw.get("value"), "coupon_code": rw.get("coupon_code", ""),
+                                                    "created_at": now_iso()})
+        await log_user(inviter, "referral", f"邀請週榜第 {i + 1} 名", f"本週成功邀請 {int(row['cnt'])} 人，獎勵已自動發放")
+
+
+@api_router.post("/cron/referral-weekly")
+async def cron_referral_weekly(request: Request):
+    # Cron endpoints must ack 2xx immediately; enqueue/background the actual work.
+    secret = os.environ.get("WEBHOOK_CRON_SECRET", "")
+    auth = request.headers.get("authorization", "")
+    if not secret or not auth.startswith("Bearer ") or not hmac.compare_digest(auth[7:], secret):
+        raise HTTPException(status_code=401, detail="unauthorized")
+    run_id = request.headers.get("x-webhook-id") or uuid.uuid4().hex
+    if await db.cron_runs.find_one({"run_id": run_id}):
+        return {"ok": True, "duplicate": True}
+    await db.cron_runs.insert_one({"run_id": run_id, "job": "referral-weekly", "created_at": now_iso()})
+    asyncio.create_task(run_referral_weekly())
+    return {"ok": True}
 
 
 @api_router.get("/me/referral")
 async def my_referral(member: dict = Depends(current_member)):
     uid = member["user_id"]
     code = await _ensure_referral_code(uid)
-    u = await db.users.find_one({"user_id": uid}, {"_id": 0, "referred_by": 1, "referral_rewarded": 1, "referral_invited": 1, "referral_points_earned": 1}) or {}
+    u = await db.users.find_one({"user_id": uid}, {"_id": 0, "referred_by": 1, "referral_rewarded": 1, "referral_invited": 1, "referral_points_earned": 1, "referral_milestones_granted": 1}) or {}
     cfg = await get_referral_cfg()
     has_topup = bool(await db.topup_orders.find_one({"user_id": uid, "status": "paid"}, {"_id": 1}))
-    posters = await db.referral_posters.find({"active": True}, {"_id": 0, "id": 1, "name": 1, "image": 1}).sort("sort", 1).to_list(50)
+    posters = await db.referral_posters.find({"active": True}, {"_id": 0, "id": 1, "name": 1, "image": 1, "style": 1}).sort("sort", 1).to_list(50)
     return {"code": code, "enabled": bool(cfg.get("enabled")), "referrer_points": int(cfg.get("referrer_points") or 0),
             "referee_points": int(cfg.get("referee_points") or 0), "bound": bool(u.get("referred_by")),
             "can_bind": not u.get("referred_by") and not has_topup,
             "invited": int(u.get("referral_invited") or 0), "points_earned": int(u.get("referral_points_earned") or 0),
             "rewarded": bool(u.get("referral_rewarded")),
-            "posters": posters, "poster_title": cfg.get("poster_title") or "", "poster_subtitle": cfg.get("poster_subtitle") or ""}
+            "posters": posters, "poster_title": cfg.get("poster_title") or "", "poster_subtitle": cfg.get("poster_subtitle") or "",
+            "milestones_enabled": bool(cfg.get("milestones_enabled")), "milestones": cfg.get("milestones") or [],
+            "milestones_granted": u.get("referral_milestones_granted") or []}
 
 
 @api_router.post("/me/referral/bind")
@@ -2654,6 +2746,7 @@ admin_api.award_points = award_points
 admin_api.log_user = log_user
 admin_api.get_points_config = get_points_config
 admin_api.upload_b64 = _upload_b64
+admin_api.run_referral_weekly = run_referral_weekly
 cms_api.db = db
 cms_api.upload_b64 = _upload_b64
 cms_api.new_id = new_id

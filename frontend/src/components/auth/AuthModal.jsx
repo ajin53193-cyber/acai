@@ -18,11 +18,12 @@ export const useAuthModal = () => useContext(Ctx);
 
 export function AuthModalProvider({ children }) {
   const [open, setOpen] = useState(false);
-  const openAuth = useCallback(() => setOpen(true), []);
+  const [initialView, setInitialView] = useState("login");
+  const openAuth = useCallback((view = "login") => { setInitialView(typeof view === "string" ? view : "login"); setOpen(true); }, []);
   return (
     <Ctx.Provider value={{ openAuth }}>
       {children}
-      <AuthModal open={open} onOpenChange={setOpen} />
+      <AuthModal open={open} onOpenChange={setOpen} initialView={initialView} />
     </Ctx.Provider>
   );
 }
@@ -32,7 +33,7 @@ const TABS = [
   ["email", tr("驗證碼登入")],
 ];
 
-function AuthModal({ open, onOpenChange }) {
+function AuthModal({ open, onOpenChange, initialView = "login" }) {
   const { signIn, setActive: setSignInActive, isLoaded: siLoaded } = useSignIn();
   const [tab, setTab] = useState("account");
   const [doc, setDoc] = useState(null);
@@ -45,6 +46,8 @@ function AuthModal({ open, onOpenChange }) {
   const [dialCode, setDialCode] = useState("+886");
   const [view, setView] = useState("login");
   const [trust, setTrust] = useState(null);
+
+  useEffect(() => { if (open) setView(initialView || "login"); }, [open, initialView]);
 
   const switchTab = (t) => {
     setTab(t);

@@ -38,6 +38,7 @@ award_points = None
 log_user = None
 get_points_config = None
 upload_b64 = None
+run_referral_weekly = None
 ADMIN_TOKEN_TTL = 12 * 3600
 
 
@@ -1260,7 +1261,15 @@ async def admin_reports(days: int = 30, format: str = "json", admin: dict = Depe
 
 # ---------------- 邀請返利（Referral） ----------------
 REFERRAL_DEFAULTS = {"enabled": True, "referrer_points": 500, "referee_points": 200,
-                     "poster_title": "邀請好友 · 一起賺積分", "poster_subtitle": "掃碼註冊並完成首充，雙方立得積分獎勵"}
+                     "poster_title": "邀請好友 · 一起賺積分", "poster_subtitle": "掃碼註冊並完成首充，雙方立得積分獎勵",
+                     "weekly_enabled": True,
+                     "weekly_rewards": [{"rank": 1, "type": "points", "value": 2000, "coupon_code": ""},
+                                        {"rank": 2, "type": "points", "value": 1000, "coupon_code": ""},
+                                        {"rank": 3, "type": "points", "value": 500, "coupon_code": ""}],
+                     "milestones_enabled": True,
+                     "milestones": [{"count": 3, "type": "points", "value": 300, "coupon_code": ""},
+                                    {"count": 5, "type": "points", "value": 800, "coupon_code": ""},
+                                    {"count": 10, "type": "points", "value": 2000, "coupon_code": ""}]}
 
 
 class ReferralConfigIn(BaseModel):
@@ -1269,6 +1278,10 @@ class ReferralConfigIn(BaseModel):
     referee_points: int = 200
     poster_title: str = ""
     poster_subtitle: str = ""
+    weekly_enabled: bool = True
+    weekly_rewards: list = []
+    milestones_enabled: bool = True
+    milestones: list = []
 
 
 class PosterIn(BaseModel):
@@ -1278,6 +1291,7 @@ class PosterIn(BaseModel):
     image: str = ""
     active: bool = True
     sort: int = 0
+    style: dict = {}
 
 
 def _ref_user_label(u: dict) -> str:
@@ -1369,14 +1383,15 @@ async def admin_referral_poster_create(body: PosterIn, admin: dict = Depends(cur
     if not img:
         raise HTTPException(status_code=400, detail="請上傳海報背景圖")
     doc = {"id": uuid.uuid4().hex[:12], "name": body.name.strip() or "海報模板", "image": img,
-           "active": bool(body.active), "sort": int(body.sort), "created_at": datetime.now(timezone.utc).isoformat()}
+           "active": bool(body.active), "sort": int(body.sort), "style": body.style or {},
+           "created_at": datetime.now(timezone.utc).isoformat()}
     await db.referral_posters.insert_one(dict(doc))
     return doc
 
 
 @router.put("/referral/posters/{pid}")
 async def admin_referral_poster_update(pid: str, body: PosterIn, admin: dict = Depends(current_admin)):
-    upd = {"name": body.name.strip() or "海報模板", "active": bool(body.active), "sort": int(body.sort)}
+    upd = {"name": body.name.strip() or "海報模板", "active": bool(body.active), "sort": int(body.sort), "style": body.style or {}}
     if body.image_b64:
         upd["image"] = await upload_b64("gogo589/referral", body.image_b64, body.image_name, max_mb=4)
     elif body.image:
@@ -1388,4 +1403,25 @@ async def admin_referral_poster_update(pid: str, body: PosterIn, admin: dict = D
 @router.delete("/referral/posters/{pid}")
 async def admin_referral_poster_delete(pid: str, admin: dict = Depends(current_admin)):
     await db.referral_posters.delete_one({"id": pid})
+    return {"ok": True}
+
+
+@router.get("/referral/weekly/awards")
+async def admin_referral_weekly_awards(limit: int = 100, admin: dict = Depends(current_admin)):
+    rows = await db.referral_weekly_awards.find({}, {"_id": 0}).sort("created_at", -1).to_list(limit)
+    uids = list({r["user_id"] for r in rows})
+    users = {u["user_id"]: u async for u in db.users.find({"user_id": {"$in": uids}}, {"_id": 0, "user_id": 1, "email": 1, "phone": 1})}
+    for r in rows:
+        u = users.get(r["user_id"], {})
+        r["label"] = _ref_user_label(u)
+        r["account"] = account_no(r["user_id"])
+        r["reward_label"] = (f"+{r.get('value')} 積分" if r.get("type") == "points" else f"優惠券 {r.get('coupon_code') or '-'}")
+    return rows
+
+
+@router.post("/referral/weekly/run")
+async def admin_referral_weekly_run(admin: dict = Depends(current_admin)):
+    if run_referral_weekly is None:
+        raise HTTPException(status_code=500, detail="weekly settle unavailable")
+    await run_referral_weekly()
     return {"ok": True}

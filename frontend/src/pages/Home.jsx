@@ -2,7 +2,7 @@ import React, { useEffect, useState, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { ChevronRight, ChevronLeft, Zap, Megaphone, ShieldCheck, Rocket, Headphones, Tag, Globe, Star, Users, Gift, Percent, Volume2, Package } from "lucide-react";
 import { useUser } from "@clerk/react";
-import { publicApi } from "@/lib/api";
+import { publicApi, useApi } from "@/lib/api";
 import { useAuthModal } from "@/components/auth/AuthModal";
 import { useCurrency } from "@/context/CurrencyContext";
 import { useCart } from "@/context/CartContext";
@@ -32,18 +32,36 @@ export default function Home() {
   const { openAuth } = useAuthModal();
   const { addCombo } = useCart();
   const navigate = useNavigate();
+  const callApi = useApi();
   const cfg = useSiteConfig();
   const { hero, hero_slides: heroSlides, announcement, promo_banners: promos, features, register } = cfg;
 
   useEffect(() => {
     const ref = new URLSearchParams(window.location.search).get("ref");
-    if (ref) localStorage.setItem("ref_code", ref);
+    if (ref) localStorage.setItem("ref_code", ref.toUpperCase());
     publicApi.get("/categories").then((r) => setCategories(r.data)).catch(() => {});
     publicApi.get("/products/home").then((r) => setHome(r.data)).catch(() => {});
     publicApi.get("/articles", { params: { page: 1, size: 10 } }).then((r) => setNews(r.data.rows)).catch(() => {});
     publicApi.get("/flash-sales/public").then((r) => setFlash(r.data)).catch(() => {});
     publicApi.get("/combos/public").then((r) => setCombos(r.data)).catch(() => {});
   }, []);
+
+  // Scan-to-register: a visitor arriving with ?ref=CODE who isn't signed in gets the register sheet (prefilled code).
+  useEffect(() => {
+    if (isSignedIn !== false) return;
+    const ref = new URLSearchParams(window.location.search).get("ref");
+    if (ref) openAuth("register");
+  }, [isSignedIn]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Auto-bind a pending referral code once the user is signed in (ignore if already bound / topped up).
+  useEffect(() => {
+    if (!isSignedIn) return;
+    const ref = localStorage.getItem("ref_code");
+    if (!ref) return;
+    callApi({ method: "POST", url: "/me/referral/bind", data: { code: ref } })
+      .then(() => localStorage.removeItem("ref_code"))
+      .catch((e) => { if (e.response?.status && e.response.status !== 500) localStorage.removeItem("ref_code"); });
+  }, [isSignedIn]); // eslint-disable-line react-hooks/exhaustive-deps
   const refetchFlash = () => publicApi.get("/flash-sales/public").then((r) => setFlash(r.data)).catch(() => {});
 
   const hot = home.hot || [];

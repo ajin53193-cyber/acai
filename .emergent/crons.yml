@@ -6,3 +6,10 @@ crons:
     endpoint: "{{BASE_URL}}/api/cron/refresh-rates"
     method: POST
     enabled: true
+  - name: referral-weekly
+    description: "Settles last week's referral leaderboard every Monday 00:05 UTC and rewards the top-ranked inviters"
+    cron: "5 0 * * 1"
+    # Cron endpoints must ack 2xx immediately; enqueue/background the actual work.
+    endpoint: "{{BASE_URL}}/api/cron/referral-weekly"
+    method: POST
+    enabled: true
