@@ -2254,8 +2254,12 @@ async def _prep_product(body: "ProductIn") -> dict:
 
 
 @api_router.get("/admin/products")
-async def admin_list_products(q: str = "", category: str = "", active: str = "", ids: str = "", page: int = 1, size: int = 30, admin: dict = Depends(require_role("admin"))):
+async def admin_list_products(q: str = "", category: str = "", active: str = "", ids: str = "", giftcard: str = "", page: int = 1, size: int = 30, admin: dict = Depends(require_role("admin"))):
     cond: dict = {}
+    if giftcard == "1":
+        cond["is_giftcard"] = True
+    elif giftcard == "0":
+        cond["is_giftcard"] = {"$ne": True}
     if ids:
         cond["id"] = {"$in": [i for i in ids.split(",") if i]}
     if category:

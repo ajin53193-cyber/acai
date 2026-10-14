@@ -407,3 +407,4 @@
 - 使用者將一步步指示後續各模組內容，勿自行擴充。
 - Round 30 續：「添加禮品卡」= ProductsAdmin autoCreate + giftcard prop（表單預設 is_giftcard=true），與普通商品新增完全相同。截圖驗證。
 - Round 30 續：「添加禮品卡」改為獨立頁 GiftCardNewAdmin.jsx（ProductForm 新增 inline/title prop 並 export，EMPTY 改名 export EMPTY_PRODUCT），頁內直接渲染完整商品表單、is_giftcard 預設開、儲存後重置。截圖驗證。
+- Round 30 續：新增「禮品卡 → 禮品卡列表」（ProductsAdmin giftcardOnly prop → GET /admin/products?giftcard=1 僅列 is_giftcard 商品）；刪除先前誤建的示範商品 giftcard-shkp-hkd。使用者已自行新增「新地商場禮品卡 (HKD)」。

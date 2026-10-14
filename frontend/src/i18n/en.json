@@ -1742,5 +1742,6 @@
  "添加禮品卡": "Add Gift Card",
  "交易號查詢": "Trade No. Lookup",
  "核銷接口API": "Redeem API",
- "此模組待配置": "Module not configured yet"
+ "此模組待配置": "Module not configured yet",
+ "共 {0} 張禮品卡商品；點擊編輯可修改規格、面額與下單需填寫資料。": "{0} gift card products; click edit to change specs, face value and checkout fields."
 }

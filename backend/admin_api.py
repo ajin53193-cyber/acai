@@ -1529,7 +1529,7 @@ ALL_PERMISSIONS = [
     "overview", "sales-analysis", "download-reports",
     "members", "user-tags", "member-assets", "blacklist", "user-logs", "verifications", "user-batch", "feedback", "user-reports",
     "products", "categories", "reviews",
-    "giftcard-pool", "giftcard-orders", "giftcard-new", "giftcard-trade-query", "giftcard-api",
+    "giftcard-list", "giftcard-pool", "giftcard-orders", "giftcard-new", "giftcard-trade-query", "giftcard-api",
     "home-decoration", "banners", "recommendations", "promos", "notifications", "announcements",
     "activities",
     "orders", "order-settlement", "topups", "payments", "reconciliation", "currencies", "finance-reports",

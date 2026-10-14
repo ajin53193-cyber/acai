@@ -17,7 +17,7 @@ const inferLimit = (b = "") => (/每月一單|每月一单/.test(b) ? "monthly" 
 const FIELD_TYPES = { text: tr("文字"), select: tr("下拉選擇"), password: tr("密碼"), textarea: tr("多行文字") };
 const priceRange = (specs) => { const ps = (specs || []).map((s) => s.price_usd).filter((n) => n > 0); if (!ps.length) return "-"; const a = Math.min(...ps), b = Math.max(...ps); return a === b ? `$${a}` : `$${a} ~ $${b}`; };
 
-export function ProductsAdmin({ callApi, autoCreate }) {
+export function ProductsAdmin({ callApi, autoCreate, giftcardOnly }) {
   const [data, setData] = useState({ total: 0, rows: [] });
   const [cats, setCats] = useState([]);
   const [q, setQ] = useState("");
@@ -31,7 +31,7 @@ export function ProductsAdmin({ callApi, autoCreate }) {
   const size = 30;
 
   useEffect(() => { const t = setTimeout(() => { setQd(q); setPage(1); }, 350); return () => clearTimeout(t); }, [q]);
-  const load = useCallback(() => callApi({ method: "GET", url: `/admin/products?q=${encodeURIComponent(qd)}&category=${cat}&active=${status}&page=${page}&size=${size}` }).then((r) => setData(r.data)).catch(() => toast.error(tr("載入失敗"))), [callApi, qd, cat, status, page]);
+  const load = useCallback(() => callApi({ method: "GET", url: `/admin/products?q=${encodeURIComponent(qd)}&category=${cat}&active=${status}&giftcard=${giftcardOnly ? "1" : ""}&page=${page}&size=${size}` }).then((r) => setData(r.data)).catch(() => toast.error(tr("載入失敗"))), [callApi, qd, cat, status, page, giftcardOnly]);
   useEffect(() => { load(); }, [load]);
   useEffect(() => { callApi({ method: "GET", url: "/admin/categories" }).then((r) => setCats(r.data)).catch(() => {}); }, [callApi]);
   useEffect(() => { if (autoCreate && !autoOpened && cats.length) { setEditing({ ...EMPTY_PRODUCT, category: cats[0]?.id || "" }); setAutoOpened(true); } }, [autoCreate, autoOpened, cats]);
@@ -59,7 +59,7 @@ export function ProductsAdmin({ callApi, autoCreate }) {
 
   return (
     <div data-testid="products-admin">
-      <Head title={tr("商品管理")} sub={tr("共 {0} 件商品，可搜尋、按分類/狀態篩選；點擊編輯可修改規格、價格、角標與下單需填寫資料。", data.total)}
+      <Head title={giftcardOnly ? tr("禮品卡列表") : tr("商品管理")} sub={giftcardOnly ? tr("共 {0} 張禮品卡商品；點擊編輯可修改規格、面額與下單需填寫資料。", data.total) : tr("共 {0} 件商品，可搜尋、按分類/狀態篩選；點擊編輯可修改規格、價格、角標與下單需填寫資料。", data.total)}
         right={<Btn data-testid="product-add-btn" onClick={() => setEditing({ ...EMPTY_PRODUCT, category: cats[0]?.id || "" })}><Plus className="h-4 w-4 inline -mt-0.5 mr-1" />{tr("新增商品")}</Btn>} />
       <div className="flex flex-wrap items-center gap-2 mb-4">
         <div className="relative"><Search className="h-4 w-4 absolute left-2.5 top-2.5 text-slate-400" /><Input data-testid="product-search" value={q} onChange={(e) => setQ(e.target.value)} placeholder={tr("搜尋名稱 / 品牌 / ID")} className="pl-8 w-64" /></div>
