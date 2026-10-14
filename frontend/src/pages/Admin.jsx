@@ -37,6 +37,10 @@ import { HomeLayoutAdmin } from "@/pages/admin/HomeLayoutAdmin";
 import { ActivityRecordsAdmin } from "@/pages/admin/ActivityRecordsAdmin";
 import { ReferralAdmin } from "@/pages/admin/ReferralAdmin";
 import { ActivityCenterAdmin } from "@/pages/admin/ActivityCenterAdmin";
+import { IntegrationConfigAdmin } from "@/pages/admin/IntegrationConfigAdmin";
+import { AdminsAdmin } from "@/pages/admin/AdminsAdmin";
+import { RolesAdmin } from "@/pages/admin/RolesAdmin";
+import { OperationLogsAdmin } from "@/pages/admin/OperationLogsAdmin";
 import { tr } from "@/i18n";
 
 // Full admin IA — collapsible two-level menu. Keys map to real pages in PAGES; everything else renders <Soon/>.
@@ -118,15 +122,32 @@ const PAGES = {
   "home-decoration": (p) => <HomeLayoutAdmin {...p} />,
   referral: (p) => <ReferralAdmin {...p} />,
   "activity-center": (p) => <ActivityCenterAdmin {...p} />,
+  admins: (p) => <AdminsAdmin {...p} />,
+  roles: (p) => <RolesAdmin {...p} />,
+  "operation-logs": (p) => <OperationLogsAdmin {...p} />,
+  "sms-config": (p) => <IntegrationConfigAdmin group="sms" title={tr("短信配置")} sub={tr("大狗 / SUBMAIL 短信網關配置")} canTest {...p} />,
+  "email-config": (p) => <IntegrationConfigAdmin group="email" title={tr("郵箱配置")} sub={tr("SMTP 寄信配置")} canTest {...p} />,
+  "oauth-config": (p) => <IntegrationConfigAdmin group="oauth" title={tr("授權配置")} sub={tr("Google OAuth 登入配置")} {...p} />,
 };
 
 function AdminInner() {
   const callApi = useApi();
   const [section, setSection] = useState("overview");
   const [open, setOpen] = useState(MENU.filter((m) => m.defaultOpen).map((m) => m.key));
+  const [me, setMe] = useState(null);
   const toggle = (k) => setOpen((o) => (o.includes(k) ? o.filter((x) => x !== k) : [...o, k]));
   const go = (k) => { setSection(k); const grp = MENU.find((m) => m.items.some(([ik]) => ik === k)); if (grp) setOpen((o) => (o.includes(grp.key) ? o : [...o, grp.key])); };
-  const render = PAGES[section] || ((p) => <Soon title={SECTION_LABEL[section]} {...p} />);
+
+  useEffect(() => { callApi({ method: "GET", url: "/admin/me" }).then((r) => setMe(r.data)).catch(() => setMe({ is_super: true, permissions: [] })); }, [callApi]);
+
+  const allowed = (k) => !me || me.is_super || (me.permissions || []).includes(k);
+  const visibleMenu = (me && !me.is_super)
+    ? MENU.map((m) => ({ ...m, items: m.items.filter(([k]) => allowed(k)) })).filter((m) => m.items.length)
+    : MENU;
+
+  useEffect(() => { if (me && !allowed(section)) { const first = visibleMenu[0]?.items[0]?.[0] || "security"; setSection(first); } }, [me]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const render = allowed(section) ? (PAGES[section] || ((p) => <Soon title={SECTION_LABEL[section]} {...p} />)) : (() => <div className="text-slate-400 text-sm">{tr("無此模組權限")}</div>);
 
   return (
     <div className="admin-light min-h-screen bg-slate-950 text-slate-200 flex">
@@ -134,10 +155,10 @@ function AdminInner() {
       <aside className="w-56 md:w-64 bg-slate-900 border-r border-slate-800 flex flex-col shrink-0 sticky top-0 h-screen">
         <div className="h-16 flex items-center gap-2 px-4 border-b border-slate-800 shrink-0">
           <div className="h-8 w-8 rounded-lg bg-orange-500 flex items-center justify-center text-white font-black">G</div>
-          <span className="font-head font-bold text-white">{tr("管理後台")}</span>
+          <div className="min-w-0"><span className="font-head font-bold text-white block leading-tight">{tr("管理後台")}</span>{me && <span className="text-[10px] text-slate-400 truncate block" data-testid="admin-me-role">{me.role_name || (me.is_super ? tr("超級管理員") : tr("管理員"))}</span>}</div>
         </div>
         <nav className="flex-1 py-3 space-y-0.5 px-2 overflow-y-auto">
-          {MENU.map((m) => <NavGroup key={m.key} gkey={m.key} g={m.g} Icon={m.icon} items={m.items} section={section} setSection={go} open={open.includes(m.key)} toggle={() => toggle(m.key)} />)}
+          {visibleMenu.map((m) => <NavGroup key={m.key} gkey={m.key} g={m.g} Icon={m.icon} items={m.items} section={section} setSection={go} open={open.includes(m.key)} toggle={() => toggle(m.key)} />)}
           <div className="pt-2 mt-2 border-t border-slate-800">
             {LEAVES.map(([k, label, Icon]) => (
               <button key={k} data-testid={`admin-nav-${k}`} onClick={() => setSection(k)}

@@ -2861,6 +2861,22 @@ async def on_startup():
         await db.users.update_many({"role": old}, {"$set": {"role": new}})
     await seed()
     await translator.load()
+    await admin_api.load_integration_settings()
+
+
+@app.middleware("http")
+async def audit_admin(request: Request, call_next):
+    resp = await call_next(request)
+    try:
+        p = request.url.path
+        if request.method in ("POST", "PUT", "DELETE", "PATCH") and p.startswith("/api/admin") and "/auth/" not in p and "/operation-logs" not in p:
+            data = admin_api._verify(request.headers.get("x-admin-token", ""))
+            uid = data.get("uid") if data else None
+            if uid:
+                asyncio.create_task(admin_api.record_admin_log(uid, "", request.method, p, resp.status_code))
+    except Exception:
+        pass
+    return resp
 
 
 @app.on_event("shutdown")

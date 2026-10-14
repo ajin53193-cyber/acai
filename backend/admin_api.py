@@ -1499,3 +1499,282 @@ async def admin_activity_center_put(body: ActivityCenterIn, admin: dict = Depend
     await db.settings.update_one({"key": "activity_center"},
                                  {"$set": {"key": "activity_center", "value": body.dict()}}, upsert=True)
     return {"ok": True}
+
+
+# ================= 系統配置：RBAC / 管理員 / 操作日誌 / 集成配置 =================
+ALL_PERMISSIONS = [
+    "overview", "sales-analysis", "realtime", "download-reports",
+    "members", "user-levels", "user-tags", "member-assets", "blacklist", "user-logs", "verifications", "user-batch", "feedback", "user-reports",
+    "products", "product-new", "categories", "specs", "inventory", "reviews",
+    "giftcards", "giftcard-new", "giftcard-redeem", "giftcard-orders", "giftcard-api",
+    "home-decoration", "activity-center", "banners", "recommendations", "promos", "points", "referral", "notifications", "announcements",
+    "activities", "flashsale", "recharge-activity", "discount-activity", "lottery", "combo", "activity-records",
+    "orders", "order-settlement", "topups", "payments", "reconciliation", "currencies", "finance-reports",
+    "siteconfig", "admins", "roles", "operation-logs", "sms-config", "email-config", "oauth-config", "translations", "paylogos",
+]
+
+INTEGRATION_FIELDS = {
+    "sms": [
+        {"key": "DAGOU_UNAME", "label": "大狗 SMS 用戶名", "secret": False},
+        {"key": "DAGOU_KEY", "label": "大狗 SMS 密鑰", "secret": True},
+        {"key": "DAGOU_GATEWAY", "label": "大狗 SMS 網關地址", "secret": False},
+        {"key": "SUBMAIL_APPID", "label": "SUBMAIL AppID", "secret": False},
+        {"key": "SUBMAIL_APPKEY", "label": "SUBMAIL AppKey", "secret": True},
+        {"key": "SUBMAIL_PROJECT", "label": "SUBMAIL 模板項目", "secret": False},
+    ],
+    "email": [
+        {"key": "SMTP_HOST", "label": "SMTP 主機", "secret": False},
+        {"key": "SMTP_PORT", "label": "SMTP 端口", "secret": False},
+        {"key": "SMTP_USER", "label": "SMTP 帳號", "secret": False},
+        {"key": "SMTP_PASSWORD", "label": "SMTP 密碼", "secret": True},
+        {"key": "MAIL_FROM", "label": "寄件信箱", "secret": False},
+        {"key": "MAIL_FROM_NAME", "label": "寄件人名稱", "secret": False},
+    ],
+    "oauth": [
+        {"key": "GOOGLE_CLIENT_ID", "label": "Google Client ID", "secret": False},
+        {"key": "GOOGLE_CLIENT_SECRET", "label": "Google Client Secret", "secret": True},
+    ],
+}
+MASK = "••••••"
+
+
+def _is_super(admin: dict) -> bool:
+    if admin.get("admin_super") is True:
+        return True
+    # legacy / bootstrap: an admin without an assigned non-super role is treated as super
+    return not admin.get("admin_role_id") and admin.get("admin_super") is None
+
+
+async def _admin_perms(admin: dict) -> list:
+    if _is_super(admin):
+        return list(ALL_PERMISSIONS)
+    role = await db.admin_roles.find_one({"id": admin.get("admin_role_id")}, {"_id": 0})
+    return [p for p in (role or {}).get("permissions", []) if p in ALL_PERMISSIONS]
+
+
+async def require_super(admin: dict = Depends(current_admin)) -> dict:
+    if not _is_super(admin):
+        raise HTTPException(status_code=403, detail="僅超級管理員可操作")
+    return admin
+
+
+@router.get("/me")
+async def admin_me(admin: dict = Depends(current_admin)):
+    role = await db.admin_roles.find_one({"id": admin.get("admin_role_id")}, {"_id": 0}) if admin.get("admin_role_id") else None
+    return {"user_id": admin["user_id"], "email": admin.get("email", ""), "account": account_no(admin["user_id"]),
+            "is_super": _is_super(admin), "role_name": (role or {}).get("name") or ("超級管理員" if _is_super(admin) else ""),
+            "permissions": await _admin_perms(admin), "all_permissions": ALL_PERMISSIONS}
+
+
+# ---- Roles ----
+class RoleIn(BaseModel):
+    name: str
+    permissions: list = []
+
+
+@router.get("/roles")
+async def admin_roles_list(admin: dict = Depends(require_super)):
+    rows = await db.admin_roles.find({}, {"_id": 0}).sort("created_at", 1).to_list(100)
+    for r in rows:
+        r["admin_count"] = await db.users.count_documents({"role": "admin", "admin_role_id": r["id"]})
+    return rows
+
+
+@router.post("/roles")
+async def admin_role_create(body: RoleIn, admin: dict = Depends(require_super)):
+    perms = [p for p in body.permissions if p in ALL_PERMISSIONS]
+    doc = {"id": uuid.uuid4().hex[:12], "name": body.name.strip() or "角色", "permissions": perms, "created_at": datetime.now(timezone.utc).isoformat()}
+    await db.admin_roles.insert_one(dict(doc))
+    return doc
+
+
+@router.put("/roles/{rid}")
+async def admin_role_update(rid: str, body: RoleIn, admin: dict = Depends(require_super)):
+    perms = [p for p in body.permissions if p in ALL_PERMISSIONS]
+    await db.admin_roles.update_one({"id": rid}, {"$set": {"name": body.name.strip() or "角色", "permissions": perms}})
+    return {"ok": True}
+
+
+@router.delete("/roles/{rid}")
+async def admin_role_delete(rid: str, admin: dict = Depends(require_super)):
+    await db.users.update_many({"admin_role_id": rid}, {"$unset": {"admin_role_id": ""}})
+    await db.admin_roles.delete_one({"id": rid})
+    return {"ok": True}
+
+
+# ---- Admins ----
+class PromoteIn(BaseModel):
+    email: str
+    role_id: str = ""
+
+
+class AssignRoleIn(BaseModel):
+    role_id: str = ""
+    is_super: bool = False
+
+
+@router.get("/admins")
+async def admin_admins_list(admin: dict = Depends(require_super)):
+    rows = await db.users.find({"role": "admin"}, {"_id": 0, "user_id": 1, "email": 1, "phone": 1, "admin_super": 1, "admin_role_id": 1, "created_at": 1}).to_list(200)
+    roles = {r["id"]: r async for r in db.admin_roles.find({}, {"_id": 0, "id": 1, "name": 1})}
+    out = []
+    for r in rows:
+        twofa = await db.admin_2fa.find_one({"user_id": r["user_id"], "enabled": True}, {"_id": 1})
+        out.append({"user_id": r["user_id"], "email": _ref_user_label(r), "account": account_no(r["user_id"]),
+                    "is_super": _is_super(r), "role_id": r.get("admin_role_id") or "",
+                    "role_name": roles.get(r.get("admin_role_id"), {}).get("name", ""),
+                    "twofa": bool(twofa), "is_self": r["user_id"] == admin["user_id"], "created_at": r.get("created_at", "")})
+    return out
+
+
+@router.post("/admins/promote")
+async def admin_admins_promote(body: PromoteIn, admin: dict = Depends(require_super)):
+    email = body.email.strip().lower()
+    u = await db.users.find_one({"email": email}, {"_id": 0, "user_id": 1, "role": 1})
+    if not u:
+        raise HTTPException(status_code=404, detail="找不到該用戶，請先讓對方用此信箱註冊帳號")
+    upd = {"role": "admin"}
+    if body.role_id:
+        upd["admin_role_id"] = body.role_id
+        upd["admin_super"] = False
+    await db.users.update_one({"user_id": u["user_id"]}, {"$set": upd})
+    return {"ok": True}
+
+
+@router.post("/admins/{uid}/role")
+async def admin_admins_set_role(uid: str, body: AssignRoleIn, admin: dict = Depends(require_super)):
+    if body.is_super:
+        await db.users.update_one({"user_id": uid}, {"$set": {"admin_super": True}, "$unset": {"admin_role_id": ""}})
+    else:
+        if uid == admin["user_id"]:
+            raise HTTPException(status_code=400, detail="不能降級自己的超級管理員權限")
+        await db.users.update_one({"user_id": uid}, {"$set": {"admin_super": False, "admin_role_id": body.role_id or ""}})
+    return {"ok": True}
+
+
+@router.post("/admins/{uid}/revoke")
+async def admin_admins_revoke(uid: str, admin: dict = Depends(require_super)):
+    if uid == admin["user_id"]:
+        raise HTTPException(status_code=400, detail="不能撤銷自己的管理員權限")
+    supers = await db.users.count_documents({"role": "admin", "admin_super": True})
+    target = await db.users.find_one({"user_id": uid}, {"_id": 0, "admin_super": 1, "admin_role_id": 1})
+    if target and _is_super(target) and supers <= 1:
+        raise HTTPException(status_code=400, detail="至少需保留一位超級管理員")
+    await db.users.update_one({"user_id": uid}, {"$set": {"role": "user"}, "$unset": {"admin_super": "", "admin_role_id": ""}})
+    return {"ok": True}
+
+
+# ---- Operation logs ----
+@router.get("/operation-logs")
+async def admin_operation_logs(q: str = "", page: int = 1, size: int = 50, admin: dict = Depends(require_super)):
+    page, size = max(1, page), min(max(1, size), 200)
+    query = {}
+    if q:
+        query["$or"] = [{"path": {"$regex": re.escape(q)}}, {"admin_email": {"$regex": re.escape(q), "$options": "i"}}]
+    total = await db.admin_logs.count_documents(query)
+    rows = await db.admin_logs.find(query, {"_id": 0}).sort("created_at", -1).skip((page - 1) * size).limit(size).to_list(size)
+    return {"rows": rows, "total": total, "page": page, "size": size}
+
+
+@router.get("/operation-logs/export")
+async def admin_operation_logs_export(q: str = "", admin: dict = Depends(require_super)):
+    query = {}
+    if q:
+        query["$or"] = [{"path": {"$regex": re.escape(q)}}, {"admin_email": {"$regex": re.escape(q), "$options": "i"}}]
+    rows = await db.admin_logs.find(query, {"_id": 0}).sort("created_at", -1).limit(5000).to_list(5000)
+    buf = io.StringIO()
+    w = csv.writer(buf)
+    w.writerow(["time", "admin", "method", "path", "status"])
+    for r in rows:
+        w.writerow([r.get("created_at", ""), r.get("admin_email", ""), r.get("method", ""), r.get("path", ""), r.get("status", "")])
+    buf.seek(0)
+    return StreamingResponse(iter([buf.getvalue()]), media_type="text/csv",
+                             headers={"Content-Disposition": "attachment; filename=operation_logs.csv"})
+
+
+# ---- Integration settings (sms / email / oauth) ----
+class IntegrationIn(BaseModel):
+    group: str
+    values: dict = {}
+
+
+class IntegrationTestIn(BaseModel):
+    group: str
+    target: str
+
+
+def _mask(val: str) -> str:
+    if not val:
+        return ""
+    return MASK + val[-4:] if len(val) > 4 else MASK
+
+
+@router.get("/integration-settings")
+async def admin_integration_get(group: str, admin: dict = Depends(require_super)):
+    fields = INTEGRATION_FIELDS.get(group)
+    if not fields:
+        raise HTTPException(status_code=400, detail="未知配置組")
+    out = []
+    for f in fields:
+        val = os.environ.get(f["key"], "") or ""
+        db_set = bool(await db.integration_settings.find_one({"key": f["key"]}, {"_id": 1}))
+        out.append({"key": f["key"], "label": f["label"], "secret": f["secret"], "set": bool(val),
+                    "source": "db" if db_set else ("env" if val else "none"),
+                    "value": _mask(val) if f["secret"] else val})
+    return {"group": group, "fields": out}
+
+
+@router.put("/integration-settings")
+async def admin_integration_put(body: IntegrationIn, admin: dict = Depends(require_super)):
+    fields = {f["key"]: f for f in INTEGRATION_FIELDS.get(body.group, [])}
+    if not fields:
+        raise HTTPException(status_code=400, detail="未知配置組")
+    changed = 0
+    for key, val in (body.values or {}).items():
+        if key not in fields:
+            continue
+        val = (val or "").strip()
+        if not val or val.startswith(MASK):
+            continue  # unchanged / masked placeholder
+        await db.integration_settings.update_one({"key": key}, {"$set": {"key": key, "value": val, "updated_at": datetime.now(timezone.utc).isoformat()}}, upsert=True)
+        os.environ[key] = val
+        changed += 1
+    return {"ok": True, "changed": changed}
+
+
+@router.post("/integration-settings/test")
+async def admin_integration_test(body: IntegrationTestIn, admin: dict = Depends(require_super)):
+    try:
+        if body.group == "sms":
+            await send_sms_text(body.target, "【GOGO589】測試短信：您的後台短信配置已生效。")
+            return {"ok": True, "message": "測試短信已發送"}
+        if body.group == "email":
+            await send_mail(body.target, "GOGO589 測試郵件", "<p>您的後台郵箱配置已生效。</p>", "您的後台郵箱配置已生效。")
+            return {"ok": True, "message": "測試郵件已發送"}
+        raise HTTPException(status_code=400, detail="該配置組不支持測試")
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"發送失敗：{str(e)[:160]}")
+
+
+async def load_integration_settings():
+    """Load DB-stored integration secrets into the process env (DB overrides .env)."""
+    try:
+        async for s in db.integration_settings.find({}, {"_id": 0, "key": 1, "value": 1}):
+            if s.get("value"):
+                os.environ[s["key"]] = s["value"]
+    except Exception as e:
+        logger.error("load_integration_settings failed: %s", e)
+
+
+async def record_admin_log(uid: str, email: str, method: str, path: str, status: int):
+    try:
+        if not email and uid:
+            u = await db.users.find_one({"user_id": uid}, {"_id": 0, "email": 1})
+            email = (u or {}).get("email", "")
+        await db.admin_logs.insert_one({"id": uuid.uuid4().hex, "admin_user_id": uid, "admin_email": email,
+                                        "method": method, "path": path, "status": status,
+                                        "created_at": datetime.now(timezone.utc).isoformat()})
+    except Exception:
+        pass
