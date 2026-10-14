@@ -7,7 +7,7 @@ import { RichEditor } from "@/components/admin/RichEditor";
 import { Card, Btn, Input, Pill, Table, Head } from "@/pages/admin/ui";
 import { tr } from "@/i18n";
 
-const TYPES = { promo: tr("優惠活動"), tutorial: tr("充值教學"), news: tr("新聞公告") };
+const TYPES = { promo: tr("促銷活動"), tutorial: tr("充值教學"), news: tr("新聞公告") };
 const STATUS = { live: [tr("進行中"), "emerald"], scheduled: [tr("未開始"), "sky"], expired: [tr("已結束"), "slate"], inactive: [tr("已下架"), "red"] };
 const EMPTY = { title: "", type: "promo", summary: "", cover: "", content_html: "", link: "", keywords: "", start_at: null, end_at: null, sort_order: 0, active: true };
 
@@ -33,7 +33,7 @@ export function ActivitiesAdmin({ callApi }) {
     setEditing(r.data);
   };
   const del = async (row) => {
-    if (!window.confirm(tr("確定刪除活動「{0}」？", row.title))) return;
+    if (!window.confirm(tr("確定刪除文章「{0}」？", row.title))) return;
     await callApi({ method: "DELETE", url: `/admin/articles/${row.id}` });
     toast.success(tr("已刪除")); load();
   };
@@ -46,8 +46,8 @@ export function ActivitiesAdmin({ callApi }) {
 
   return (
     <div data-testid="activities-admin">
-      <Head title={tr("活動配置")} sub={tr("新增/編輯活動與文章，顯示於前台「活動中心」與首頁「新聞 & 促銷」；可設定活動時間，到期自動下架。")}
-        right={<Btn data-testid="activity-add-btn" onClick={() => setEditing({ ...EMPTY })}><Plus className="h-4 w-4 inline -mt-0.5 mr-1" />{tr("新增活動")}</Btn>} />
+      <Head title={tr("新聞 & 促銷")} sub={tr("新增/編輯新聞、促銷與充值教學文章，顯示於首頁「新聞 & 促銷」與文章列表；可設定有效期，到期自動下架。")}
+        right={<Btn data-testid="activity-add-btn" onClick={() => setEditing({ ...EMPTY })}><Plus className="h-4 w-4 inline -mt-0.5 mr-1" />{tr("新增文章")}</Btn>} />
       <div className="flex flex-wrap items-center gap-2 mb-4">
         <div className="relative"><Search className="h-4 w-4 absolute left-2.5 top-2.5 text-slate-400" /><Input data-testid="activity-search" value={q} onChange={(e) => { setQ(e.target.value); setPage(1); }} placeholder={tr("搜尋標題")} className="pl-8 w-56" /></div>
         {[["", tr("全部")], ...Object.entries(TYPES)].map(([k, label]) => (
@@ -55,7 +55,7 @@ export function ActivitiesAdmin({ callApi }) {
         ))}
         <span className="text-xs text-slate-400 ml-auto">{tr("共 {0} 筆", data.total)}</span>
       </div>
-      <Table testId="activities-table" cols={[tr("封面"), tr("標題"), tr("類型"), tr("活動時間"), tr("狀態"), tr("閱讀"), tr("排序"), tr("操作")]} rows={data.rows} render={(r) => (
+      <Table testId="activities-table" cols={[tr("封面"), tr("標題"), tr("類型"), tr("有效期"), tr("狀態"), tr("閱讀"), tr("排序"), tr("操作")]} rows={data.rows} render={(r) => (
         <tr key={r.id} data-testid={`activity-row-${r.id}`} className="hover:bg-orange-50/40">
           <td className="px-4 py-2"><div className="h-10 w-20 rounded-md bg-slate-100 overflow-hidden">{r.cover && <img src={r.cover} alt="" className="h-full w-full object-cover" />}</div></td>
           <td className="px-4 py-2 max-w-[320px]"><div className="font-medium text-slate-800 truncate">{r.title}</div><div className="text-[11px] text-slate-400">{r.published_at}</div></td>
@@ -102,7 +102,7 @@ function ActivityForm({ item, callApi, onClose, onSaved }) {
   return (
     <Dialog open onOpenChange={onClose}>
       <DialogContent className="max-w-4xl max-h-[92vh] overflow-y-auto bg-white" data-testid="activity-form">
-        <DialogHeader><DialogTitle>{f.id ? tr("編輯活動") : tr("新增活動")}</DialogTitle></DialogHeader>
+        <DialogHeader><DialogTitle>{f.id ? tr("編輯文章") : tr("新增文章")}</DialogTitle></DialogHeader>
         <div className="grid md:grid-cols-3 gap-4">
           <div className="md:col-span-2 space-y-3">
             <div><label className={lbl}>{tr("標題")} *</label><Input data-testid="activity-title" className="w-full" value={f.title} onChange={(e) => set("title", e.target.value)} /></div>
@@ -114,7 +114,7 @@ function ActivityForm({ item, callApi, onClose, onSaved }) {
             </div>
             <div><label className={lbl}>{tr("摘要（列表顯示）")}</label><textarea data-testid="activity-summary" className="w-full rounded-lg bg-slate-100 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-orange-300 h-16" value={f.summary} onChange={(e) => set("summary", e.target.value)} /></div>
             <div><label className={lbl}>{tr("跳轉連結（選填，詳情頁顯示「立即參與」按鈕）")}</label><Input className="w-full" placeholder="/category/games 或 https://..." value={f.link || ""} onChange={(e) => set("link", e.target.value)} /></div>
-            <div><label className={lbl}>{tr("活動內容")}</label><RichEditor testId="activity-content" value={f.content_html} onChange={(v) => set("content_html", v)} onUpload={upload} placeholder={tr("輸入活動詳情，可插入圖片…")} /></div>
+            <div><label className={lbl}>{tr("文章內容")}</label><RichEditor testId="activity-content" value={f.content_html} onChange={(v) => set("content_html", v)} onUpload={upload} placeholder={tr("輸入文章內容，可插入圖片…")} /></div>
           </div>
           <div className="space-y-3">
             <div>

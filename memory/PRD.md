@@ -364,3 +364,4 @@
 - 前端 SalesAnalysisAdmin 重寫：快捷鍵 今日/昨日/本週/本月/近30天 + 起止日期 + 查詢；6 指標卡含較上期漲跌；recharts ComposedChart（營收/充值柱 + 訂單數/新增用戶線，雙 Y 軸）；熱銷 Top15、訂單狀態分佈、充值渠道。data-testid：sales-filter、sales-quick-<key>、sales-from/to/query、sales-stats、sales-stat-*、sales-chart、sales-top、sales-status、sales-channels。
 - 移除「實時監控」（Admin.jsx/RolesAdmin.jsx 菜單、RealtimeAdmin.jsx、ALL_PERMISSIONS realtime key；後端 /analytics/realtime 路由保留無害）。
 - 驗證：函式直測今日(小時桶)與 30 天(日桶)資料正確；截圖確認今日/本月切換、圖表與指標卡渲染正常。
+- Round 24 補充：文章管理（ActivitiesAdmin, key=activities）自「活動管理 → 活動列表」移至「運營管理 → 新聞 & 促銷」；頁面標題/按鈕/彈窗/刪除提示改為「文章」措辭、類型 promo 標籤改「促銷活動」、「活動時間」欄改「有效期」；RolesAdmin 與 i18n 同步。截圖驗證通過。

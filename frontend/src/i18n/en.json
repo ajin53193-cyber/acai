@@ -1728,5 +1728,13 @@
  "邀請好友": "Invite friends",
  "邀請好友返積分": "Invite friends to earn points",
  "邀請連結已複製": "Invitation link copied",
- "充值審核": "Top-up Review"
+ "充值審核": "Top-up Review",
+ "促銷活動": "Promotion",
+ "新增文章": "New Article",
+ "編輯文章": "Edit Article",
+ "文章內容": "Content",
+ "有效期": "Validity",
+ "確定刪除文章「{0}」？": "Delete article \"{0}\"?",
+ "輸入文章內容，可插入圖片…": "Enter article content, images supported…",
+ "新增/編輯新聞、促銷與充值教學文章，顯示於首頁「新聞 & 促銷」與文章列表；可設定有效期，到期自動下架。": "Create/edit news, promotion and tutorial articles shown on the home page \"News & Promotions\" and article list; set validity to auto-unpublish."
 }
