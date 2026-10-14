@@ -1411,6 +1411,34 @@ async def admin_referral_poster_delete(pid: str, admin: dict = Depends(current_a
     return {"ok": True}
 
 
+@router.get("/referral/trend")
+async def admin_referral_trend(days: int = 14, admin: dict = Depends(current_admin)):
+    days = max(1, min(int(days or 14), 60))
+    start = (datetime.now(timezone.utc) - timedelta(days=days - 1)).strftime("%Y-%m-%d")
+    rows = {}
+    for i in range(days):
+        d = (datetime.now(timezone.utc) - timedelta(days=days - 1 - i)).strftime("%Y-%m-%d")
+        rows[d] = {"date": d, "bound": 0, "converted": 0}
+    async for u in db.users.find({"referred_at": {"$gte": start}}, {"_id": 0, "referred_at": 1}):
+        r = rows.get((u.get("referred_at") or "")[:10])
+        if r:
+            r["bound"] += 1
+    async for u in db.users.find({"referral_rewarded_at": {"$gte": start}}, {"_id": 0, "referral_rewarded_at": 1}):
+        r = rows.get((u.get("referral_rewarded_at") or "")[:10])
+        if r:
+            r["converted"] += 1
+    data = list(rows.values())
+    tot_bound = sum(r["bound"] for r in data)
+    tot_conv = sum(r["converted"] for r in data)
+    all_bound = await db.users.count_documents({"referred_by": {"$nin": [None, ""]}})
+    all_conv = await db.users.count_documents({"referral_rewarded": True})
+    return {"days": days, "rows": data,
+            "period_bound": tot_bound, "period_converted": tot_conv,
+            "period_rate": round((tot_conv / tot_bound * 100) if tot_bound else 0, 1),
+            "total_bound": all_bound, "total_converted": all_conv,
+            "total_rate": round((all_conv / all_bound * 100) if all_bound else 0, 1)}
+
+
 @router.get("/referral/weekly/awards")
 async def admin_referral_weekly_awards(limit: int = 100, admin: dict = Depends(current_admin)):
     rows = await db.referral_weekly_awards.find({}, {"_id": 0}).sort("created_at", -1).to_list(limit)

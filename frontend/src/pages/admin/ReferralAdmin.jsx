@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { toast } from "sonner";
-import { Plus, Pencil, Trash2, Users, Gift, Trophy, Image as ImageIcon, Save, CheckCircle2, Clock, Target, Repeat, Play } from "lucide-react";
+import { Plus, Pencil, Trash2, Users, Gift, Trophy, Image as ImageIcon, Save, CheckCircle2, Clock, Target, Repeat, Play, BarChart3, TrendingUp } from "lucide-react";
 import { tr } from "@/i18n";
 import { Head, Btn, Input, Table, Modal, Field, Pill, Card, useLoad, ImgField, fmt } from "./ui";
 
 const TABS = [
   ["config", tr("獎勵配置"), Gift],
+  ["analytics", tr("數據看板"), BarChart3],
   ["posters", tr("海報模板"), ImageIcon],
   ["records", tr("邀請記錄"), Users],
   ["leaderboard", tr("排行榜與週獎"), Trophy],
@@ -38,6 +39,57 @@ function RewardFields({ row, onChange, promos, testPrefix }) {
           {(promos || []).map((p) => <option key={p.code} value={p.code}>{p.code}</option>)}
         </select>
       )}
+    </div>
+  );
+}
+
+function AnalyticsTab({ callApi }) {
+  const [days, setDays] = useState(14);
+  const [data, setData] = useState(null);
+  useEffect(() => { callApi({ method: "GET", url: `/admin/referral/trend?days=${days}` }).then((r) => setData(r.data)).catch(() => {}); }, [callApi, days]);
+  if (!data) return <div className="text-slate-400 text-sm">{tr("載入中…")}</div>;
+  const rows = data.rows || [];
+  const max = Math.max(1, ...rows.flatMap((d) => [d.bound, d.converted]));
+  const series = [{ key: "bound", label: tr("新綁定"), color: "#f97316" }, { key: "converted", label: tr("首充轉化"), color: "#10b981" }];
+  return (
+    <div className="space-y-4" data-testid="ref-analytics">
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex gap-2">
+          {[7, 14, 30].map((d) => (
+            <button key={d} data-testid={`ref-trend-days-${d}`} onClick={() => setDays(d)}
+              className={`h-8 px-3 rounded-full text-xs font-semibold ${days === d ? "bg-orange-500 text-white" : "bg-slate-100 text-slate-600"}`}>{tr("近 {0} 日", d)}</button>
+          ))}
+        </div>
+      </div>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <StatCard label={tr("期間新綁定")} value={data.period_bound} tone="orange" />
+        <StatCard label={tr("期間首充轉化")} value={data.period_converted} tone="emerald" />
+        <StatCard label={tr("期間轉化率")} value={`${data.period_rate}%`} tone="sky" />
+        <StatCard label={tr("累計轉化率")} value={`${data.total_rate}%`} tone="amber" />
+      </div>
+      <Card className="p-4" data-testid="ref-trend-chart">
+        <div className="flex items-center justify-between mb-3">
+          <div className="text-sm font-semibold text-slate-700 flex items-center gap-1.5"><TrendingUp className="h-4 w-4 text-orange-500" />{tr("每日新綁定與首充轉化")}</div>
+          <div className="flex gap-3">{series.map((s) => <span key={s.key} className="inline-flex items-center gap-1 text-[11px] text-slate-500"><span className="h-2.5 w-2.5 rounded-sm" style={{ background: s.color }} />{s.label}</span>)}</div>
+        </div>
+        <div className="flex items-end gap-1.5 h-36 overflow-x-auto">
+          {rows.map((d) => {
+            const rate = d.bound ? Math.round((d.converted / d.bound) * 100) : 0;
+            return (
+              <div key={d.date} className="flex-1 min-w-[18px] flex flex-col items-center gap-1" data-testid={`ref-trend-day-${d.date}`}>
+                <div className="flex items-end gap-0.5 h-24 w-full justify-center">
+                  {series.map((s) => (
+                    <div key={s.key} className="w-2 sm:w-2.5 rounded-t transition-all" title={`${s.label} ${d[s.key]}`}
+                      style={{ height: `${Math.max(2, (d[s.key] / max) * 96)}px`, background: s.color }} />
+                  ))}
+                </div>
+                <span className="text-[9px] text-emerald-600 font-semibold">{d.bound ? `${rate}%` : "-"}</span>
+                <span className="text-[10px] text-slate-400">{d.date.slice(5)}</span>
+              </div>
+            );
+          })}
+        </div>
+      </Card>
     </div>
   );
 }
@@ -326,6 +378,7 @@ export function ReferralAdmin({ callApi }) {
         ))}
       </div>
       {tab === "config" && <ConfigTab callApi={callApi} />}
+      {tab === "analytics" && <AnalyticsTab callApi={callApi} />}
       {tab === "posters" && <PostersTab callApi={callApi} />}
       {tab === "records" && <RecordsTab callApi={callApi} />}
       {tab === "leaderboard" && <LeaderboardTab callApi={callApi} />}

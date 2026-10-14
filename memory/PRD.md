@@ -299,3 +299,8 @@
 - **配置 PUT 防覆蓋**：`PUT /admin/referral/config` 改用 `body.dict(exclude_unset=True)` 合併既有值，部分提交不會清空 milestones/weekly。
 - data-testid：ref-cfg-ms-*/ref-cfg-wk-*/ref-cfg-wk-run/ref-cfg-ms-add/ref-cfg-wk-add、ref-poster-preview/ref-poster-drag-title/ref-poster-drag-card/ref-poster-color-*/ref-poster-align-*、ref-weekly-table、invite-milestones-card/invite-milestone-bar/invite-milestone-*、register-ref-banner。
 - 驗證：iteration_35 後端 24/24 PASS（含 test_referral_round35.py）；DB 模擬實測 milestone 自動發放+冪等、週榜7天聚合發獎+冪等、config 還原預設；cron 401/ok/duplicate curl 驗；後台 UI 無頭登入實測 3 區塊配置+保存+立即結算+海報樣式編輯+週榜記錄表全通過。用戶端 Invite 進度卡/海報樣式與 Home 掃碼直達因 Clerk 無頭攔截未跑（環境限制），消費的後端資料已驗。
+
+## 2026-10 後台 Round 15：邀請數據看板（趨勢圖 + 轉化率）
+- **後端** `GET /api/admin/referral/trend?days=14`（7/14/30，上限60）：回每日 {date, bound（當日新綁定 referred_at）, converted（當日首充轉化 referral_rewarded_at）} + period_bound/period_converted/period_rate（期間轉化率%）+ total_bound/total_converted/total_rate（累計轉化率%）。
+- **後台** ReferralAdmin 新增「數據看板」分頁（ref-tab-analytics → ref-analytics）：天數切換（ref-trend-days-7/14/30）、4 張統計卡（期間新綁定/期間首充轉化/期間轉化率/累計轉化率）、雙色柱狀趨勢圖（新綁定橙 + 首充轉化綠，每日下方標當日轉化率%）ref-trend-chart / ref-trend-day-<date>。
+- 驗證：DB 模擬實測 trend 每日 bound/converted 計數與轉化率正確（今日 2 綁定/1 轉化、昨日 1 綁定；period_rate 33.3%）；前後端編譯通過。圖表沿用既有 activity-trend 柱狀樣式。
