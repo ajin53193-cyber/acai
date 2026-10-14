@@ -170,3 +170,15 @@
 - 已接現有頁面（18 個 slot）：overview→Dashboard、members→會員管理、verifications、feedback、products、categories、reviews、promos、notifications、activities、orders、topups(資金流水)、payments(支付渠道配置)、currencies(匯率配置)、siteconfig(基礎設置)、translations、paylogos、download-reports→ReportsAdmin。其餘 ~37 個子項渲染 `Soon` 占位頁（data-testid admin-soon，標「功能開發中」）。
 - data-testid：分組 `admin-group-{ascii key}`（dashboard/users/products/giftcards/ops/activities/finance/system，已與 i18n 標籤解耦）；子項 `admin-nav-{key}`；葉 `admin-nav-security`。
 - **待辦（後續 Round 分批開發真實模組）**，建議順序：用戶管理子模組（用戶等級/標籤/會員資產/黑名單/用戶日誌/批量操作/報表）→ 積分管理 → 禮品卡管理 → 活動管理（秒殺/充值活動/滿減滿折/抽獎/組合套餐）→ 運營（首頁裝修/輪播圖/推薦位/公告）→ 系統（管理員/角色權限/操作日誌/短信郵箱授權配置/安全配置）→ 財務（訂單結算/財務對賬/財務報表）→ 儀表盤（銷售分析/實時監控）。
+
+## 2026-10 後台 Round 2：用戶管理模組 + 積分管理（iteration_27 後端 15/15、前端 100%）
+- **用戶等級**（`UserLevelsAdmin.jsx` + `/api/admin/member-levels` CRUD）：可配置等級（名稱/累計消費門檻/專屬折扣%/顏色），依累計消費自動判級；首次 GET 自動播種 普通/白銀/黃金/鑽石。`_levels()`/`_level_of()` in admin_api。會員列表與詳情回傳 `level{name,color,discount_percent}`。
+- **用戶標籤**（`UserTagsAdmin.jsx` + `/api/admin/user-tags` CRUD + `/members/{uid}/tags`）：自定義標籤（名稱/顏色），在會員詳情 TagsEditor 打標籤；刪除標籤會從所有用戶移除。
+- **會員資產**（`MemberAssetsAdmin.jsx` + `/api/admin/member-assets`）：總餘額/總積分/會員數統計卡 + 餘額/積分/優惠券明細表。
+- **黑名單管理**（`BlacklistAdmin.jsx` + `/api/admin/blacklist`）：列出被封禁會員（原因/時間）、一鍵解封。ban/unban 擴充 `ban_reason`+`banned_at`，並寫入用戶日誌。
+- **用戶日誌**（`UserLogsAdmin.jsx` + `/api/admin/user-logs`）：記錄 下單/訂單付款/充值到賬/積分調整/封禁解封 等行為；類型頁籤 + 搜尋。`log_user()` in server.py。
+- **積分管理**（`PointsAdmin.jsx` + `/api/admin/points/config` GET/PUT、`/points/ledger`、`/members/{uid}/points/adjust`）：規則配置（每 USD$1 積分、下單/充值開關、抵現比例）+ 積分明細。`award_points()` in server.py 在**訂單付款**（pay-wallet 與 admin /pay）與**充值到賬**（_usdt_settle）時按金額發放，依 (user_id, source, ref) 冪等；會員詳情可手動加/扣積分。
+- 會員詳情新增：積分顯示、等級（含折扣）、標籤編輯、積分調整。
+- data-testid：levels-admin/levels-table/level-*、tags-admin/tags-grid/tag-*、assets-admin/assets-table/asset-*、blacklist-admin/blacklist-*、userlogs-admin/userlogs-*、points-admin/points-tab-*/points-*、member-tags/member-tag-*/member-points-adjust/points-add/points-sub。
+- 修復：`/points/adjust` 投影 `{points:1}` 在用戶無 points 欄位時塌陷為 `{}` 誤報 404 → 改為 `if u is None`（已測 15/15 通過）。
+- **後續**：Round 3 禮品卡管理（列表/創建/核銷記錄/訂單/核銷API）、Round 4 營銷活動（秒殺/充值贈送/滿減滿折/抽獎）。建議後續補：point_transactions 建 (user_id,source,ref) 唯一索引防併發重複發放。

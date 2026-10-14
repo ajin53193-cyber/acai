@@ -515,7 +515,7 @@ async def admin_points_adjust(uid: str, body: PointsAdjustIn, admin: dict = Depe
     if body.delta == 0:
         raise HTTPException(status_code=400, detail="積分變動不可為 0")
     u = await db.users.find_one({"user_id": uid}, {"_id": 0, "points": 1})
-    if not u:
+    if u is None:
         raise HTTPException(status_code=404, detail="會員不存在")
     new_bal = int(u.get("points") or 0) + body.delta
     if new_bal < 0:

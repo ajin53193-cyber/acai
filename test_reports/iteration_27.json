@@ -1,0 +1,53 @@
+{
+  "summary": "Round-2 用戶管理 + 積分管理 verified end-to-end. 15 pytest cases run against the live preview (14 pass, 1 skipped as expected). Full points-on-order integration validated via a real create-order → pay-wallet flow for tester+clerk_test (USD$5.38 order → delta=5 points, source=order, idempotent on re-POST, user_log rows '創建訂單' and '訂單付款' written). All 6 new admin pages render on the preview under /admin: levels-admin (4 seeded tiers 普通/白銀/黃金/鑽石 with member_count), tags-admin (grid + CRUD + assign), assets-admin (summary + rows), blacklist-admin (ban+reason→list→unban), userlogs-admin (type tabs + search), points-admin (rules form + ledger tab, config load/save roundtrip). Members list enriched: level{name,color,discount_percent}, points (int), tags (list) all present. Member detail returns points, tags, level.discount_percent and point_transactions. Ban now stores ban_reason + banned_at and unban $unsets them. ONE CRITICAL BACKEND BUG FOUND in /api/admin/members/{uid}/points/adjust (admin_api.py L517).",
+  "backend_issues": {
+    "critical": [
+      {
+        "endpoint": "POST /api/admin/members/{uid}/points/adjust",
+        "issue": "Returns 404 '會員不存在' for any user who exists in the users collection but has NO 'points' field yet. Root cause: `await db.users.find_one({'user_id': uid}, {'_id':0,'points':1})` returns `{}` (empty dict → falsy) when the user doc lacks a 'points' field, so `if not u` raises 404. Reproduction: before any order payment awards points, GET /api/admin/members/<tester_uid> returns points=0 fine (member detail does find_one without projection), but POST /points/adjust fails. After one paid order has set u.points, the adjust endpoint starts working. Fix: either remove the projection, or query without the projection: `u = await db.users.find_one({'user_id': uid}, {'_id':0})` or check with explicit `is None`.",
+        "priority": "HIGH"
+      }
+    ],
+    "minor": []
+  },
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "verified_checks": {
+    "admin_login": "email + password + TOTP → /admin reached",
+    "member_levels": "GET seeds default 4 tiers; POST/PUT/DELETE roundtrip verified; member_count attached",
+    "user_tags": "CRUD + /members/{uid}/tags assign; member_count increments; delete pulls tag from users",
+    "member_assets": "summary {total_balance,total_points,members} + rows with account_no/balance/points/coupons; search q works",
+    "blacklist": "POST /members/{uid}/ban with {reason} sets ban_reason+banned_at; GET /blacklist lists; POST /unban removes & clears fields",
+    "user_logs": "GET returns enriched rows (account_no, user_label); filter type=ban works; ban+unban write log rows",
+    "points_config": "GET/PUT roundtrip ok; keys earn_enabled, earn_per_usd, order_enabled, topup_enabled, redeem_enabled, points_per_usd_redeem, min_redeem",
+    "points_ledger": "GET lists point_transactions enriched with account_no/user_label",
+    "points_adjust": "+/- delta ok (AFTER user has points field); delta=0 → 400; over-draft → 400; writes ledger row source=admin and user_log type=points",
+    "members_enrichment": "list returns level{name,color,discount_percent}, points (int), tags (list)",
+    "member_detail": "includes points, tags, level with discount_percent, point_transactions[]",
+    "integration_order_points": "Created real order USD$5.38 for tester → /orders/{id}/pay-wallet → ledger row {source:'order', ref:order.id, delta:5, balance_after:5, reason:'消費獲得積分'}; user_logs type=order '創建訂單' + '訂單付款' written; re-POST pay-wallet returns 200 but ledger stays length=1 (idempotent via unique (user_id,source,ref))",
+    "frontend_pages_render": "levels-admin, tags-admin, assets-admin, blacklist-admin, userlogs-admin, points-admin all mount under their admin-nav-* sub-items; PointsAdmin rules form loaded with current config (earn_enabled=on, per_usd=1, order_enabled=on, topup_enabled=on)"
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_round27_user_mgmt_points.py",
+    "/app/test_reports/pytest/iter27_results.xml"
+  ],
+  "action_items": [
+    "FIX HIGH: admin_api.py L517 — projection `{'_id':0,'points':1}` collapses to `{}` when the user has no points field yet, causing `if not u` to raise 404. Change to `u = await db.users.find_one({'user_id': uid}, {'_id':0})` (or `if u is None`). Without this fix, 積分調整 is broken for every member who has never earned/received points — i.e. every brand-new member in the admin UI."
+  ],
+  "critical_code_review_comments": [
+    "admin_api.py:517 projection-vs-truthiness bug (see above). Same pattern should be audited elsewhere in admin_api.py — any `find_one(..., {_id:0, X:1})` followed by `if not u` is unsafe when field X is optional.",
+    "server.py:1402 only logs 創建訂單 after /api/orders; the admin confirm path (admin /pay, /admin/orders/{id}/confirm) also awards points but there is no corresponding log_user hook on reject/complete beyond notify_user — consider adding log_user rows for 'order' type on complete and reject to make 用戶日誌 reflect the full lifecycle.",
+    "admin_api.py:410 /member-assets returns name from profile.name || users.name, but users doc inserted via phone/email auth often omits both and uses profile.name alone — mostly ok, just worth noting that the 'name' column may be empty for many legacy users.",
+    "admin_api.py:333 _levels() counts members by iterating all order aggregations into Python; fine for current volume but should be converted to a $lookup/$bucket pipeline if the orders collection grows past 100k.",
+    "admin_api.py:378 user-tags list fires one count_documents per tag in a loop — O(N) extra queries; batch with an $unwind + $group pipeline for larger tag sets.",
+    "server.py:862 award_points idempotency depends on (user_id, source, ref) — good. But the point_transactions collection has no unique index on that triple; concurrent duplicate webhooks could still race between the find_one check and the insert. Add a partial unique index on {user_id:1, source:1, ref:1} where ref != ''.",
+    "admin_api.py:48 DEFAULT_LEVELS is seeded on first GET but duplicate inserts could still happen if two admins hit GET simultaneously (no upsert / unique index). Add unique index on member_levels.name or seed in a startup hook."
+  ],
+  "updated_files": ["/app/backend/tests/test_round27_user_mgmt_points.py"],
+  "success_rate": {"backend": "93% (14/15 pytest + full integration e2e all green; 1 real backend bug found)", "frontend": "100% (all 6 new pages render and expose spec data-testids)"},
+  "test_credentials": "admin+clerk_test@shop.com / Gogo589!Admin#7x2Q + TOTP (secret /tmp/admin_totp_secret). JWTs minted via /app/tests/mint_token.py <uid>.",
+  "seed_data_creation": "Created and PAID one real tester order (GT2610141028B7, USD$5.38) via /api/orders + /api/orders/{id}/pay-wallet to exercise points integration — this persists in the orders collection and left a corresponding point_transactions row (delta=5, source=order) and two user_logs rows for tester_uid. Tester wallet debited USD$5.38.",
+  "retest_needed": true,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Round-2 modules all working except one real bug (admin_api.py L517 projection → 404 on points/adjust for users without a points field). The pytest file /app/backend/tests/test_round27_user_mgmt_points.py is parallel-safe (xdist 2 workers) and the TestPoints.test_adjust_* cases only pass if the tester user already has a 'points' field — they fail on a cold DB until some order has been paid. After the main agent fixes the projection bug, those tests should pass unconditionally. Integration helper pattern: /app/tests/mint_token.py <uid> gives a short-lived Clerk JWT. Full points-on-order flow verified live.",
+  "rca of the issue": "RCA for /points/adjust 404: in admin_api.py admin_points_adjust (L517), the fetch is `u = await db.users.find_one({'user_id': uid}, {'_id': 0, 'points': 1})`. Motor returns `{}` (not None) when the document matches the filter but has none of the projected fields. The next line `if not u: raise 404` therefore fires on every user whose doc has not yet acquired a 'points' field (which is almost every member before their first paid order or admin adjust). Mitigation: drop the projection or use `u is None`."
+}
