@@ -18,6 +18,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { tr, LANG } from "@/i18n";
+import { userLabel } from "@/lib/api";
 
 const CAT_ICONS = {
   livestream: [Tv, "from-orange-400 to-orange-500"],
@@ -40,7 +41,7 @@ export default function Header() {
   const { count, setOpen } = useCart();
   const { active } = useCurrency();
   const { isSignedIn, user } = useUser();
-  const accountLabel = user?.primaryEmailAddress?.emailAddress || user?.primaryPhoneNumber?.phoneNumber || user?.username || user?.fullName || tr("會員");
+  const accountLabel = userLabel(user);
   const { openAuth } = useAuthModal();
   const callApi = useApi();
   const [categories, setCategories] = useState([]);

@@ -26,3 +26,11 @@ export function useApi() {
     [getToken]
   );
 }
+
+const PHONE_DOMAIN = "@phone.gogo589.com";
+export const userEmail = (user) => {
+  const e = user?.primaryEmailAddress?.emailAddress || "";
+  return e.endsWith(PHONE_DOMAIN) ? "" : e;
+};
+export const userPhone = (user) => user?.publicMetadata?.phone || user?.primaryPhoneNumber?.phoneNumber || "";
+export const userLabel = (user) => userEmail(user) || userPhone(user) || user?.username || "";

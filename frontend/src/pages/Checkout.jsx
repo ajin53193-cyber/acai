@@ -5,6 +5,7 @@ import { Minus, Plus, Trash2, CheckCircle2, Ticket, Wallet } from "lucide-react"
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import { publicApi, useApi } from "@/lib/api";
+import { userLabel } from "@/lib/api";
 import { useCart } from "@/context/CartContext";
 import { useCurrency } from "@/context/CurrencyContext";
 import { useAuthModal } from "@/components/auth/AuthModal";
@@ -103,7 +104,7 @@ function CheckoutInner() {
           recharge_account: "",
           delivery_info: {},
           recharge_note: "",
-          contact: user?.primaryEmailAddress?.emailAddress || "",
+          contact: userLabel(user),
           promo_code: promo?.code || null,
         },
       });

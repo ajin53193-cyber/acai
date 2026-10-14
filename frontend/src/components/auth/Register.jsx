@@ -1,9 +1,7 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
-import { useSignUp, useAuth } from "@clerk/react";
-import axios from "axios";
-import { publicApi, API } from "@/lib/api";
+import { publicApi } from "@/lib/api";
 import { PhoneInput, toE164, isValidPhone } from "./PhoneInput";
 import { tr } from "@/i18n";
 
@@ -12,8 +10,6 @@ const apiErr = (e, fallback) => e?.response?.data?.detail || e?.errors?.[0]?.mes
 const validPassword = (p) => p.length >= 8 && p.length <= 32 && [/[0-9]/, /[a-zA-Z]/, /[^0-9a-zA-Z]/].filter((r) => r.test(p)).length >= 2;
 
 export function Register({ onBack, onClose, finishTicket }) {
-  const { signUp, setActive, isLoaded } = useSignUp();
-  const { getToken } = useAuth();
   const [kind, setKind] = useState("phone");
   const [dialCode, setDialCode] = useState("+886");
   const [email, setEmail] = useState("");
@@ -33,18 +29,14 @@ export function Register({ onBack, onClose, finishTicket }) {
       if (kind === "phone") {
         const phone = toE164(dialCode, email);
         if (!isValidPhone(phone)) throw { detail: tr("請輸入正確的手機號碼") };
-        if (!isLoaded) throw { detail: tr("請稍候再試") };
-        await signUp.create({ phoneNumber: phone });
-        await signUp.preparePhoneNumberVerification({ strategy: "phone_code" });
+        await publicApi.post("/auth/email/phone/send-code", { phone, purpose: "register" });
       } else {
         await publicApi.post("/auth/email/send-code", { email: email.trim(), purpose: "register" });
       }
       setSent(true);
       toast.success(tr("驗證碼已發送"));
     } catch (e) {
-      const c = e?.errors?.[0]?.code;
-      const msg = c === "form_identifier_exists" ? tr("此手機號已註冊，請直接登入") : c === "form_param_unknown" ? tr("手機號碼註冊暫未開放，請先使用郵箱註冊") : e?.detail || apiErr(e, tr("發送失敗，請稍後再試"));
-      toast.error(msg);
+      toast.error(e?.detail || apiErr(e, tr("發送失敗，請稍後再試")));
     }
     setLoading(false);
   };
@@ -58,13 +50,9 @@ export function Register({ onBack, onClose, finishTicket }) {
     setLoading(true);
     try {
       if (kind === "phone") {
-        const r = await signUp.attemptPhoneNumberVerification({ code: code.trim() });
-        if (r.status !== "complete") throw { detail: tr("驗證未完成，請重試") };
-        await setActive({ session: r.createdSessionId });
-        const token = await getToken();
-        await axios.post(`${API}/auth/email/me/set-password`, { password: pw1 }, { headers: { Authorization: `Bearer ${token}` } });
+        const r = await publicApi.post("/auth/email/phone/register", { phone: toE164(dialCode, email), code: code.trim(), password: pw1 });
         toast.success(tr("註冊成功"));
-        onClose();
+        await finishTicket(r.data.ticket);
         return;
       }
       const r = await publicApi.post("/auth/email/register", { email: email.trim(), code: code.trim(), password: pw1 });

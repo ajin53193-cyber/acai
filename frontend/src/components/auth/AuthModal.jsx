@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useCallback, useEffect } from "react";
-import { useSignIn, useSignUp } from "@clerk/react/legacy";
+import { useSignIn } from "@clerk/react/legacy";
 import { Link } from "react-router-dom";
 import { X, Apple, Home, Gift } from "lucide-react";
 import { INFO_CONTENT } from "@/pages/Info";
@@ -34,7 +34,6 @@ const TABS = [
 
 function AuthModal({ open, onOpenChange }) {
   const { signIn, setActive: setSignInActive, isLoaded: siLoaded } = useSignIn();
-  const { signUp, setActive: setSignUpActive, isLoaded: suLoaded } = useSignUp();
   const [tab, setTab] = useState("account");
   const [doc, setDoc] = useState(null);
   const [identifier, setIdentifier] = useState("");
@@ -93,50 +92,26 @@ function AuthModal({ open, onOpenChange }) {
   };
 
   async function sendCode() {
-    if (!siLoaded || !suLoaded) return;
+    if (!siLoaded) return;
     if (!identifier) return toast.error(tab === "phone" ? tr("請輸入手機號碼") : tr("請輸入信箱"));
     const phoneFull = toE164(dialCode, identifier);
     if (tab === "phone" && !isValidPhone(phoneFull))
       return toast.error(tr("請輸入正確的手機號碼"));
     setLoading(true);
-    if (tab === "email") {
-      try {
-        const r = await publicApi.post("/auth/email/send-code", { email: identifier.trim(), purpose: "login" });
-        setSent(true);
-        toast.success(tr("驗證碼已發送"));
-      } catch (e) {
-        toast.error(apiErr(e, tr("發送失敗，請稍後再試")));
-      }
-      setLoading(false);
-      return;
-    }
     try {
-      try {
-        const createId = tab === "phone" ? phoneFull : identifier;
-        const r = await signIn.create({ identifier: createId });
-        const strat = tab === "email" ? "email_code" : "phone_code";
-        const f = r.supportedFirstFactors?.find((x) => x.strategy === strat);
-        if (!f) throw new Error("no-factor");
-        await signIn.prepareFirstFactor(
-          tab === "email"
-            ? { strategy: "email_code", emailAddressId: f.emailAddressId }
-            : { strategy: "phone_code", phoneNumberId: f.phoneNumberId }
-        );
-          } catch (e) {
-        const c = e?.errors?.[0]?.code;
-        throw Object.assign(new Error("unregistered"), { detail: c === "form_param_unknown" || c === "form_param_format_invalid" ? tr("手機驗證碼登入暫未開放，請使用郵箱驗證碼") : tr("此手機號尚未註冊，請先註冊") });
-      }
+      if (tab === "email") await publicApi.post("/auth/email/send-code", { email: identifier.trim(), purpose: "login" });
+      else await publicApi.post("/auth/email/phone/send-code", { phone: phoneFull, purpose: "login" });
       setSent(true);
       toast.success(tr("驗證碼已發送"));
     } catch (e) {
-      toast.error(e?.detail || e?.errors?.[0]?.message || tr("發送失敗，請稍後再試"));
+      toast.error(apiErr(e, tr("發送失敗，請稍後再試")));
     }
     setLoading(false);
   }
 
   async function submit() {
     if (!agree) return toast.error(tr("請先勾選同意條款與條件"));
-    if (!siLoaded || !suLoaded) return;
+    if (!siLoaded) return;
     setLoading(true);
     try {
       if (tab === "account") {
@@ -160,9 +135,8 @@ function AuthModal({ open, onOpenChange }) {
           const r = await publicApi.post("/auth/email/verify", { email: identifier.trim(), code: code.trim() });
           return await finishTicket(r.data.ticket);
         }
-        const r = await signIn.attemptFirstFactor({ strategy: "phone_code", code });
-        if (r.status === "complete") return await finish(r.createdSessionId, setSignInActive);
-        toast.error(tr("驗證未完成"));
+        const r = await publicApi.post("/auth/email/phone/verify", { phone: toE164(dialCode, identifier), code: code.trim() });
+        return await finishTicket(r.data.ticket);
       }
     } catch (e) {
       toast.error(apiErr(e, tr("登入失敗，請檢查輸入")));

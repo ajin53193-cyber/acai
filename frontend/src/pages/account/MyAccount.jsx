@@ -4,7 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { LogOut } from "lucide-react";
 import { Check, ChevronDown } from "lucide-react";
 import { toast } from "sonner";
-import { useApi } from "@/lib/api";
+import { useApi, userEmail, userPhone } from "@/lib/api";
 import { Panel, Tag, Box, OrangeBtn } from "./AccountLayout";
 import { BindPhoneDialog } from "./BindPhoneDialog";
 import { tr } from "@/i18n";
@@ -55,8 +55,8 @@ export default function MyAccount() {
     } catch (e) { toast.error(e?.response?.data?.detail || tr("密碼更新失敗")); }
   };
 
-  const email = user?.primaryEmailAddress?.emailAddress;
-  const phone = user?.primaryPhoneNumber?.phoneNumber;
+  const email = userEmail(user);
+  const phone = userPhone(user);
   const google = user?.externalAccounts?.some((a) => a.provider === "google");
   const Row = ({ label, children }) => <div className="flex items-center flex-wrap gap-x-3 gap-y-1 text-sm text-slate-600 min-h-11 py-1"><span className="w-16 md:w-20 shrink-0">{label}</span>{children}</div>;
   const Hint = ({ children }) => <span className="text-slate-400 text-xs">{children}</span>;

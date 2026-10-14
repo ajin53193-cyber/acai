@@ -33,8 +33,6 @@ export function ForgotPassword({ onBack, onClose }) {
   const [loading, setLoading] = useState(false);
   const [sent, setSent] = useState(false);
 
-  const strategy = tab === "email" ? "reset_password_email_code" : "reset_password_phone_code";
-
   const switchTab = (t) => { setTab(t); setSent(false); setCode(""); setIdentifier(""); };
 
   async function sendCode() {
@@ -45,7 +43,7 @@ export function ForgotPassword({ onBack, onClose }) {
     setLoading(true);
     try {
       if (tab === "email") await publicApi.post("/auth/email/send-code", { email: id, purpose: "reset" });
-      else await signIn.create({ strategy, identifier: id });
+      else await publicApi.post("/auth/email/phone/send-code", { phone: id, purpose: "reset" });
       setSent(true);
       toast.success(tr("驗證碼已發送"));
     } catch (e) {
@@ -70,14 +68,12 @@ export function ForgotPassword({ onBack, onClose }) {
         onClose();
         return;
       }
-      const r = await signIn.attemptFirstFactor({ strategy, code: code.trim(), password: pw1 });
-      if (r.status === "complete") {
-        await setActive({ session: r.createdSessionId });
-        toast.success(tr("密碼已重設，已為您登入"));
-        onClose();
-        return;
-      }
-      toast.error(tr("需要額外驗證步驟，請聯繫客服"));
+      const res = await publicApi.post("/auth/email/phone/reset-password", { phone: toE164(dialCode, identifier), code: code.trim(), password: pw1 });
+      const si = await signIn.create({ strategy: "ticket", ticket: res.data.ticket });
+      await setActive({ session: si.createdSessionId });
+      toast.success(tr("密碼已重設，已為您登入"));
+      onClose();
+      return;
     } catch (e) {
       toast.error(apiErr(e, tr("重設失敗，請檢查驗證碼")));
     }

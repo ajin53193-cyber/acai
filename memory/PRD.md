@@ -110,3 +110,9 @@
 - 前端：AuthModal 信箱/帳號登入、ForgotPassword 信箱分頁、MyAccount 修改密碼（信箱驗證碼）皆改走後端；手機登入仍走 Clerk SMS。密碼規則 8~32 位、兩種字元。
 - 錢包「充值記錄」`/account/wallet/topups`（GET /api/me/wallet/topups，過期自動標記）：狀態分頁、重新開啟收銀台、查詢到帳、複製地址/TX。
 - 部署 Secrets 需新增：SMTP_HOST、SMTP_PORT、SMTP_USER、SMTP_PASSWORD、MAIL_FROM、MAIL_FROM_NAME。
+
+## 2026-06 登入視窗重構 + SUBMAIL 國際簡訊
+- 登入分頁：帳號登入（預設）/ 驗證碼登入（子選項：手機驗證碼(預設)/郵箱驗證碼，僅限已註冊）；登入旁「註冊」→ Register.jsx（手機號碼註冊(預設)/郵箱註冊）；我的帳戶底部「退出帳戶」。手機版 /article、/info 隱藏頁尾。iOS PWA 鍵盤位移修正（AuthModal useEffect scrollTo + 高度同步，PhoneInput 搜尋框不自動聚焦）。
+- 手機 OTP：`backend/sms.py` SUBMAIL internationalsms xsend（env SUBMAIL_APPID/APPKEY/PROJECT=VS8zK，模板 @var(code) @var(time)）。**+86 中國大陸不支援**（回 400 提示用郵箱）；待用戶提供中國簡訊平台再接。測試號 +1201555xxxx 固定碼 424242 不發送。
+- 手機帳號：Clerk 不支援 phone，故以佔位信箱 `p{digits}@phone.gogo589.com` 建 Clerk 用戶 + public_metadata.phone，映射存 `phone_accounts {phone,user_id}`；前端 `userLabel/userEmail/userPhone`(lib/api.js) 顯示手機而非佔位信箱。端點：/api/auth/email/phone/{send-code,register,verify,reset-password}；password-login 支援 + 開頭手機識別。
+- 部署 Secrets 新增：SUBMAIL_APPID、SUBMAIL_APPKEY、SUBMAIL_PROJECT。

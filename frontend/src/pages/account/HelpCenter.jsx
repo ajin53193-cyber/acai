@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import { useApi } from "@/lib/api";
 import { Panel, OrangeBtn, SubTabs } from "./AccountLayout";
 import { tr } from "@/i18n";
+import { userLabel } from "@/lib/api";
 
 const KINDS = [["suggestion", tr("用戶建議")], ["complaint", tr("投訴")], ["restock", tr("缺貨登記")]];
 const TOPICS = {
@@ -18,7 +19,7 @@ export default function HelpCenter() {
   const [kind, setKind] = useState("suggestion");
   const [topic, setTopic] = useState("");
   const [content, setContent] = useState("");
-  const [contact, setContact] = useState(user?.primaryEmailAddress?.emailAddress || "");
+  const [contact, setContact] = useState(userLabel(user));
   const [sending, setSending] = useState(false);
 
   const submit = async () => {
