@@ -199,3 +199,10 @@
 - **等級進度條**：`_member_context`/`/me/profile` 新增 `next_level{name,min_spend_usd,remaining}`（下一等級門檻與差額）；MyAccount 新增「升級進度」進度條（account-level-progress）顯示「再消費 USD$ X 即可升級至 Y」，已達頂級顯示 account-level-max。
 - 驗證：profile 返回 白銀(spent 832.79)→next 黃金(1000, remaining 167.21)；quote use_points>持有 時正確封頂（5<min_redeem100 → 不抵）。
 - **後續大模組**：Round 5 禮品卡管理（列表/創建/核銷記錄/訂單/核銷API）、Round 6 營銷活動（秒殺/充值贈送/滿減滿折/抽獎）。
+
+## 2026-10 後台 Round 5：充值贈送 + 升級禮包（後端直測驗證通過，前端編譯通過）
+- **充值贈送**（`RechargeBonusAdmin.jsx` → 活動管理「充值活動」slot；`/api/admin/recharge-bonus` CRUD）：規則 {min_usd, bonus_type(fixed_usd|percent|points), bonus_value, active}。充值到賬時 `apply_recharge_bonus()` 取「最高符合門檻」規則發放（固定金額/比例→錢包 topup_bonus；積分→point_transactions source=recharge_bonus）。公開端點 `/api/recharge-bonus/public`；錢包充值頁顯示動態贈送橫幅（topup-bonus-banner）。已播種 2 條示例規則（充值50送$5、充值100送500積分）。
+- **升級禮包**：member_levels 新增 `reward_points` + `reward_coupon_code`（UserLevelsAdmin 表單「升級禮包」區：level-reward-points / level-reward-coupon）。訂單付款後 `check_levelup()` 偵測等級提升（以 user.level_name 為基準，首次下單設基準不獎勵），升級時發放積分（source=levelup）+ 認領指定優惠券到 user_coupons（source=levelup，已領則冪等跳過）+ 寫日誌。
+- 驗證：apply_recharge_bonus(120)→命中100檔+500積分；check_levelup 普通→白銀 +200積分、等級更新、優惠券因已領取而正確跳過（冪等）。
+- data-testid：recharge-bonus-admin/rb-table/rb-add/rb-row-*/rb-modal/rb-min/rb-type/rb-value/rb-save、topup-bonus-banner、level-reward-points/level-reward-coupon。
+- 說明：前端管理頁與充值頁橫幅已編譯通過但未跑視覺測試；後端邏輯已直測。**後續**：Round 6 禮品卡管理、Round 7 其餘營銷活動（秒殺/滿減滿折/抽獎）。

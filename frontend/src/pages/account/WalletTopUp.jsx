@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { Plus, Check, ChevronLeft } from "lucide-react";
+import { Plus, Check, ChevronLeft, Gift } from "lucide-react";
 import { toast } from "sonner";
 import { useApi, publicApi } from "@/lib/api";
 import { useCurrency } from "@/context/CurrencyContext";
@@ -24,9 +24,11 @@ export default function WalletTopUp() {
   const [methodId, setMethodId] = useState("");
   const [busy, setBusy] = useState(false);
   const [pending, setPending] = useState(null);
+  const [bonusRules, setBonusRules] = useState([]);
   const navigate = useNavigate();
 
   useEffect(() => { publicApi.get("/payment-methods").then((r) => setMethods(r.data)).catch(() => {}); }, []);
+  useEffect(() => { publicApi.get("/recharge-bonus/public").then((r) => setBonusRules(r.data)).catch(() => {}); }, []);
   useEffect(() => {
     if (methodId || methods.length === 0) return;
     setMethodId(methods.find((m) => m.id === data.last_method_id)?.id || methods[0].id);
@@ -86,6 +88,16 @@ export default function WalletTopUp() {
           <span className="absolute left-4 top-1/2 -translate-y-1/2 text-sm text-slate-400">USD$</span>
           <input data-testid="topup-custom" type="number" min="50" value={custom} onChange={(e) => setCustom(e.target.value)} placeholder={tr("自訂金額（最低 50）")} className="w-full h-12 rounded-xl bg-white pl-14 pr-4 text-sm outline-none focus:ring-2 focus:ring-orange-300" />
         </div>
+        {bonusRules.length > 0 && (() => {
+          const elig = bonusRules.filter((r) => value >= (r.min_usd || 0)).sort((a, b) => (b.min_usd || 0) - (a.min_usd || 0))[0];
+          const label = (r) => r.bonus_type === "fixed_usd" ? tr("送 USD$ {0}", Number(r.bonus_value).toFixed(2)) : r.bonus_type === "percent" ? tr("送 {0}%", r.bonus_value) : tr("送 {0} 積分", r.bonus_value);
+          return (
+            <div className="mt-3 rounded-xl bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 px-4 py-2.5 flex items-center gap-2 text-sm" data-testid="topup-bonus-banner">
+              <Gift className="h-4 w-4 text-orange-500 shrink-0" />
+              {elig ? <span className="text-orange-700 font-semibold">{tr("本次充值可享：")}{label(elig)} 🎉</span> : <span className="text-slate-600">{tr("充值 USD$ {0} 起{1}", bonusRules[0].min_usd, label(bonusRules[0]))}</span>}
+            </div>
+          );
+        })()}
 
         <div className="mt-6 font-semibold text-slate-900">{tr("支付方式")}</div>
         <div className="mt-3 flex items-center justify-between sm:justify-start gap-1 sm:gap-2" data-testid="pm-category-tabs">

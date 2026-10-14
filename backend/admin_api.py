@@ -323,6 +323,8 @@ class LevelIn(BaseModel):
     min_spend_usd: float = 0
     discount_percent: float = 0
     color: str = "slate"
+    reward_points: int = 0
+    reward_coupon_code: str = ""
 
 
 @router.get("/member-levels")
@@ -526,6 +528,39 @@ async def admin_points_adjust(uid: str, body: PointsAdjustIn, admin: dict = Depe
     if log_user:
         await log_user(uid, "points", "積分調整", f"{'+' if body.delta > 0 else ''}{body.delta} · {body.reason}")
     return {"ok": True, "points": new_bal}
+
+
+# ----------------------------- Recharge Bonus (充值贈送) -----------------------------
+class RechargeBonusIn(BaseModel):
+    min_usd: float = 0
+    bonus_type: str = "fixed_usd"  # fixed_usd | percent | points
+    bonus_value: float = 0
+    active: bool = True
+
+
+@router.get("/recharge-bonus")
+async def admin_recharge_bonus_list(admin: dict = Depends(current_admin)):
+    return await db.recharge_bonus_rules.find({}, {"_id": 0}).sort("min_usd", 1).to_list(100)
+
+
+@router.post("/recharge-bonus")
+async def admin_recharge_bonus_create(body: RechargeBonusIn, admin: dict = Depends(current_admin)):
+    doc = {"id": uuid.uuid4().hex[:12], **body.dict()}
+    await db.recharge_bonus_rules.insert_one(dict(doc))
+    doc.pop("_id", None)
+    return doc
+
+
+@router.put("/recharge-bonus/{rid}")
+async def admin_recharge_bonus_update(rid: str, body: RechargeBonusIn, admin: dict = Depends(current_admin)):
+    await db.recharge_bonus_rules.update_one({"id": rid}, {"$set": body.dict()})
+    return {"ok": True}
+
+
+@router.delete("/recharge-bonus/{rid}")
+async def admin_recharge_bonus_delete(rid: str, admin: dict = Depends(current_admin)):
+    await db.recharge_bonus_rules.delete_one({"id": rid})
+    return {"ok": True}
 
 
 # ----------------------------- Translations -----------------------------

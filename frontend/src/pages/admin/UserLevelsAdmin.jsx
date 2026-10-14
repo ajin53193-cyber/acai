@@ -41,6 +41,11 @@ export function UserLevelsAdmin({ callApi }) {
             <Field label={tr("專屬折扣 %")}><Input data-testid="level-discount" type="number" className="w-full" value={edit.discount_percent} onChange={(e) => setEdit({ ...edit, discount_percent: +e.target.value })} /></Field>
           </div>
           <Field label={tr("顏色")}><div className="flex flex-wrap gap-2">{TONES.map((c) => <button key={c} onClick={() => setEdit({ ...edit, color: c })} className={`h-8 w-8 rounded-full ${toneSolid(c)} ${edit.color === c ? "ring-2 ring-offset-2 ring-slate-800" : ""}`} />)}</div></Field>
+          <div className="pt-2 border-t border-slate-100 text-xs font-semibold text-slate-500">{tr("升級禮包（升到此等級時自動發放）")}</div>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label={tr("贈送積分")}><Input data-testid="level-reward-points" type="number" className="w-full" value={edit.reward_points || 0} onChange={(e) => setEdit({ ...edit, reward_points: +e.target.value })} /></Field>
+            <Field label={tr("贈送優惠券碼")}><Input data-testid="level-reward-coupon" className="w-full" value={edit.reward_coupon_code || ""} onChange={(e) => setEdit({ ...edit, reward_coupon_code: e.target.value.toUpperCase() })} placeholder={tr("選填，如 GLOBAL2026")} /></Field>
+          </div>
         </Modal>
       )}
     </div>

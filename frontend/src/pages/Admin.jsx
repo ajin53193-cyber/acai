@@ -27,6 +27,7 @@ import { MemberAssetsAdmin } from "@/pages/admin/MemberAssetsAdmin";
 import { BlacklistAdmin } from "@/pages/admin/BlacklistAdmin";
 import { UserLogsAdmin } from "@/pages/admin/UserLogsAdmin";
 import { PointsAdmin } from "@/pages/admin/PointsAdmin";
+import { RechargeBonusAdmin } from "@/pages/admin/RechargeBonusAdmin";
 import { tr } from "@/i18n";
 
 // Full admin IA — collapsible two-level menu. Keys map to real pages in PAGES; everything else renders <Soon/>.
@@ -94,6 +95,7 @@ const PAGES = {
   blacklist: (p) => <BlacklistAdmin {...p} />,
   "user-logs": (p) => <UserLogsAdmin {...p} />,
   points: (p) => <PointsAdmin {...p} />,
+  "recharge-activity": (p) => <RechargeBonusAdmin {...p} />,
 };
 
 function AdminInner() {

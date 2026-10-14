@@ -465,6 +465,11 @@ async def public_promos():
     return [d for d in docs if not d.get("expires_at") or d["expires_at"] > now]
 
 
+@api_router.get("/recharge-bonus/public")
+async def public_recharge_bonus():
+    return await db.recharge_bonus_rules.find({"active": True}, {"_id": 0}).sort("min_usd", 1).to_list(50)
+
+
 @api_router.post("/promo/validate")
 async def validate_promo(payload: dict):
     code = (payload.get("code") or "").strip().upper()
@@ -928,6 +933,59 @@ async def log_user(user_id: str, type_: str, action: str, detail: str = "", ip: 
         logger.warning("log_user failed: %s", e)
 
 
+async def apply_recharge_bonus(user_id: str, amount_usd: float, ref: str):
+    """On top-up settle, grant the best-matching recharge bonus (extra wallet or points)."""
+    rules = await db.recharge_bonus_rules.find({"active": True}, {"_id": 0}).to_list(100)
+    elig = [r for r in rules if amount_usd + 1e-9 >= (r.get("min_usd") or 0)]
+    if not elig:
+        return
+    r = max(elig, key=lambda x: x.get("min_usd") or 0)
+    bt = r.get("bonus_type")
+    bv = float(r.get("bonus_value") or 0)
+    if bv <= 0:
+        return
+    if bt == "fixed_usd":
+        await _wallet_tx(user_id, "topup_bonus", round(bv, 2), f"充值贈送 USD$ {bv:.2f}", ref)
+    elif bt == "percent":
+        amt = round(amount_usd * bv / 100, 2)
+        if amt > 0:
+            await _wallet_tx(user_id, "topup_bonus", amt, f"充值贈送 {bv:.0f}%（USD$ {amt:.2f}）", ref)
+    elif bt == "points":
+        pts = int(bv)
+        uu = await db.users.find_one({"user_id": user_id}, {"_id": 0, "points": 1}) or {}
+        nb = int(uu.get("points") or 0) + pts
+        await db.users.update_one({"user_id": user_id}, {"$set": {"points": nb}})
+        await db.point_transactions.insert_one({"id": new_id(), "user_id": user_id, "delta": pts, "balance_after": nb, "source": "recharge_bonus", "reason": f"充值贈送 {pts} 積分", "ref": ref, "created_at": now_iso()})
+    await log_user(user_id, "topup", "充值贈送", r.get("bonus_type"))
+
+
+async def check_levelup(user_id: str):
+    """Detect a membership upgrade (spend-based) and grant the level's reward points / coupon once."""
+    agg = await db.orders.aggregate([{"$match": {"user_id": user_id}}, {"$group": {"_id": None, "spent": {"$sum": "$total_usd"}}}]).to_list(1)
+    spent = round((agg[0]["spent"] if agg else 0) or 0, 2)
+    levels = await admin_api._levels()
+    cur = admin_api._level_of(spent, levels)
+    u = await db.users.find_one({"user_id": user_id}, {"_id": 0, "level_name": 1}) or {}
+    prev = u.get("level_name")
+    if cur["name"] == prev:
+        return
+    idx = {lv["name"]: i for i, lv in enumerate(levels)}
+    await db.users.update_one({"user_id": user_id}, {"$set": {"level_name": cur["name"]}})
+    if prev is None or idx.get(cur["name"], 0) <= idx.get(prev, -1):
+        return  # baseline set or not an upgrade
+    lvl = next((lv for lv in levels if lv["name"] == cur["name"]), {})
+    pts = int(lvl.get("reward_points") or 0)
+    if pts > 0:
+        uu = await db.users.find_one({"user_id": user_id}, {"_id": 0, "points": 1}) or {}
+        nb = int(uu.get("points") or 0) + pts
+        await db.users.update_one({"user_id": user_id}, {"$set": {"points": nb}})
+        await db.point_transactions.insert_one({"id": new_id(), "user_id": user_id, "delta": pts, "balance_after": nb, "source": "levelup", "reason": f"升級至{cur['name']}贈送", "ref": cur["name"], "created_at": now_iso()})
+    code = (lvl.get("reward_coupon_code") or "").strip().upper()
+    if code and await db.promos.find_one({"code": code, "active": True}, {"_id": 1}) and not await db.user_coupons.find_one({"user_id": user_id, "code": code}):
+        await db.user_coupons.insert_one({"id": new_id(), "user_id": user_id, "code": code, "claimed_at": now_iso(), "source": "levelup"})
+    await log_user(user_id, "level", f"升級至{cur['name']}", (f"贈 {pts} 積分" if pts else "") + (f" + 優惠券 {code}" if code else ""))
+
+
 @api_router.get("/me/wallet")
 async def get_wallet(member: dict = Depends(current_member)):
     txs = await db.wallet_transactions.find({"user_id": member["user_id"]}, {"_id": 0}).sort("created_at", -1).to_list(100)
@@ -1012,6 +1070,7 @@ async def _usdt_settle(topup: dict, gw: dict) -> dict:
         await db.users.update_one({"user_id": topup["user_id"]}, {"$set": {"last_payment_method_id": topup.get("method_id", "")}})
         asyncio.create_task(admin_api.notify_user(topup["user_id"], "topup_paid", {"amount": f"USD$ {float(topup['amount_usd']):.2f}", "balance": f"USD$ {bal:.2f}"}))
         asyncio.create_task(award_points(topup["user_id"], float(topup["amount_usd"]), "topup", topup["id"]))
+        asyncio.create_task(apply_recharge_bonus(topup["user_id"], float(topup["amount_usd"]), topup["id"]))
         asyncio.create_task(log_user(topup["user_id"], "topup", "錢包充值到賬", f"USD$ {float(topup['amount_usd']):.2f}（{label}）"))
         return r
     return await db.topup_orders.find_one({"id": topup["id"]}, {"_id": 0})
@@ -1125,6 +1184,7 @@ async def pay_order_wallet(order_id: str, member: dict = Depends(current_member)
     asyncio.create_task(admin_api.notify_user(o["user_id"], "order_paid", admin_api.order_ctx(o)))
     asyncio.create_task(award_points(o["user_id"], float(o["total_usd"]), "order", o["id"]))
     asyncio.create_task(log_user(o["user_id"], "order", "訂單付款", f"{o['order_no']} · USD$ {float(o['total_usd']):.2f}（錢包支付）"))
+    asyncio.create_task(check_levelup(o["user_id"]))
     return {**o, **upd}
 
 
@@ -1486,6 +1546,7 @@ async def pay_order(order_id: str, member: dict = Depends(current_member)):
     asyncio.create_task(admin_api.notify_user(o["user_id"], "order_paid", admin_api.order_ctx(o)))
     asyncio.create_task(award_points(o["user_id"], float(o["total_usd"]), "order", o["id"]))
     asyncio.create_task(log_user(o["user_id"], "order", "訂單付款", f"{o['order_no']} · USD$ {float(o['total_usd']):.2f}"))
+    asyncio.create_task(check_levelup(o["user_id"]))
     return o
 
 
