@@ -61,7 +61,6 @@ export function PhoneInput({ dialCode, setDialCode, value, onChange, placeholder
           <div className="flex items-center gap-2 bg-slate-100 rounded-xl px-3 h-11 mb-2">
             <Search className="h-4 w-4 text-slate-400" />
             <input
-              autoFocus
               size={1}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
