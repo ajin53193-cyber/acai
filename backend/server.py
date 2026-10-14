@@ -132,6 +132,8 @@ class Spec(BaseModel):
     sale_price_usd: Optional[float] = None
     badge: str = ""
     in_stock: bool = True
+    limit: str = ""
+    limit_count: int = 1
 
 
 class DeliveryField(BaseModel):
@@ -510,6 +512,11 @@ async def _compute_order(order: OrderIn):
     return items_out, round(subtotal_usd, 2), round(discount_usd, 2), round(total_usd, 2), promo_code
 
 
+LIMIT_KINDS = ("daily", "weekly", "monthly", "lifetime", "newcomer")
+LIMIT_LABEL = {"daily": "每日", "weekly": "每週", "monthly": "每月", "lifetime": "終生"}
+LIMIT_WINDOW = {"daily": timedelta(hours=24), "weekly": timedelta(days=7), "monthly": timedelta(days=30)}
+
+
 def _limit_kind(badge: str):
     b = badge or ""
     if "每月一單" in b:
@@ -521,51 +528,79 @@ def _limit_kind(badge: str):
     return None
 
 
+def _spec_limit(spec: dict):
+    """(kind, count) — explicit spec.limit wins; empty falls back to badge inference; 'none' disables."""
+    lim = (spec.get("limit") or "").strip()
+    if lim == "none":
+        return None, 0
+    kind = lim if lim in LIMIT_KINDS else _limit_kind(spec.get("badge"))
+    if not kind:
+        return None, 0
+    return kind, max(1, int(spec.get("limit_count") or 1))
+
+
 async def _daily_limited_specs(user_id: str, product_ids: List[str]):
-    """Return {spec_id: last_bought_iso} for this user within 30 days."""
-    since = (datetime.now(timezone.utc) - timedelta(days=30)).isoformat()
-    cur = db.orders.find({"user_id": user_id, "status": {"$ne": "cancelled"}, "created_at": {"$gte": since}, "items.product_id": {"$in": product_ids}}, {"_id": 0, "items.spec_id": 1, "created_at": 1})
-    used = {}
+    """Return {spec_id: [created_at_iso, ...]} for this user's non-cancelled orders."""
+    cur = db.orders.find({"user_id": user_id, "status": {"$ne": "cancelled"}, "items.product_id": {"$in": product_ids}}, {"_id": 0, "items.spec_id": 1, "items.quantity": 1, "created_at": 1})
+    used: Dict[str, list] = {}
     async for o in cur:
         for it in o.get("items", []):
-            used[it["spec_id"]] = max(used.get(it["spec_id"], ""), o["created_at"])
+            used.setdefault(it["spec_id"], []).extend([o["created_at"]] * max(1, int(it.get("quantity") or 1)))
     return used
 
 
-def _is_locked(kind: str, last_iso: Optional[str]) -> bool:
-    if not last_iso:
-        return False
-    window = timedelta(days=30) if kind == "monthly" else timedelta(hours=24)
-    return datetime.fromisoformat(last_iso) > datetime.now(timezone.utc) - window
+def _used_in_window(kind: str, stamps: Optional[list]) -> int:
+    if not stamps:
+        return 0
+    if kind == "lifetime":
+        return len(stamps)
+    cutoff = datetime.now(timezone.utc) - LIMIT_WINDOW[kind]
+    return sum(1 for s in stamps if datetime.fromisoformat(s) > cutoff)
+
+
+def _is_locked(kind: str, stamps, count: int = 1) -> bool:
+    return _used_in_window(kind, stamps) >= count
 
 
 async def _check_daily_limit(order: OrderIn, user_id: str):
     pids = [it.product_id for it in order.items]
     used = await _daily_limited_specs(user_id, pids)
     has_orders = await db.orders.count_documents({"user_id": user_id, "status": {"$ne": "cancelled"}}) > 0
-    seen = set()
+    in_cart: Dict[str, int] = {}
     for it in order.items:
         p = await db.products.find_one({"id": it.product_id}, {"_id": 0, "specs": 1, "name": 1})
         spec = next((s for s in p["specs"] if s["id"] == it.spec_id), None)
         if not spec:
             continue
-        kind = _limit_kind(spec.get("badge"))
-        if kind in ("daily", "monthly"):
-            if _is_locked(kind, used.get(it.spec_id)) or it.spec_id in seen or int(it.quantity) > 1:
-                unit = "每月" if kind == "monthly" else "每日"
-                raise HTTPException(status_code=409, detail=f"「{p['name']} {spec['label']}」為{unit}一單特價規格，每個帳號{unit}限購 1 份，請稍後再來或選擇其他規格")
-            seen.add(it.spec_id)
-        elif kind == "newcomer" and (has_orders or int(it.quantity) > 1):
-            raise HTTPException(status_code=409, detail=f"「{p['name']} {spec['label']}」為新用戶專享規格，僅限首單購買 1 份，請選擇其他規格")
+        kind, count = _spec_limit(spec)
+        if not kind:
+            continue
+        qty = int(it.quantity)
+        if kind == "newcomer":
+            if has_orders or qty > count or in_cart.get(it.spec_id, 0) + qty > count:
+                raise HTTPException(status_code=409, detail=f"「{p['name']} {spec['label']}」為新用戶專享規格，僅限首單購買 {count} 份，請選擇其他規格")
+        else:
+            remaining = count - _used_in_window(kind, used.get(it.spec_id)) - in_cart.get(it.spec_id, 0)
+            if qty > remaining:
+                unit = LIMIT_LABEL[kind]
+                raise HTTPException(status_code=409, detail=f"「{p['name']} {spec['label']}」為{unit}限購規格，每個帳號{unit}限購 {count} 份，請稍後再來或選擇其他規格")
+        in_cart[it.spec_id] = in_cart.get(it.spec_id, 0) + qty
 
 
 @api_router.get("/products/{product_id}/daily-limit")
 async def product_daily_limit(product_id: str, member: dict = Depends(current_member)):
     used = await _daily_limited_specs(member["user_id"], [product_id])
     p = await db.products.find_one({"id": product_id}, {"_id": 0, "specs": 1}) or {"specs": []}
-    locked = [s["id"] for s in p["specs"] if _limit_kind(s.get("badge")) in ("daily", "monthly") and _is_locked(_limit_kind(s.get("badge")), used.get(s["id"]))]
+    locked, remaining = [], {}
+    for s in p["specs"]:
+        kind, count = _spec_limit(s)
+        if kind and kind != "newcomer":
+            left = count - _used_in_window(kind, used.get(s["id"]))
+            remaining[s["id"]] = max(0, left)
+            if left <= 0:
+                locked.append(s["id"])
     has_orders = await db.orders.count_documents({"user_id": member["user_id"], "status": {"$ne": "cancelled"}}) > 0
-    return {"used_spec_ids": locked, "is_new_customer": not has_orders}
+    return {"used_spec_ids": locked, "remaining": remaining, "is_new_customer": not has_orders}
 
 
 # ----------------------------- Site settings -----------------------------
@@ -1460,6 +1495,37 @@ async def admin_update_product(product_id: str, body: ProductIn, admin: dict = D
     return r
 
 
+class BulkIn(BaseModel):
+    ids: List[str]
+    action: str
+    value: object = None
+
+
+@api_router.post("/admin/products/bulk")
+async def admin_bulk_products(body: BulkIn, admin: dict = Depends(require_role("admin"))):
+    if not body.ids:
+        raise HTTPException(status_code=400, detail="未選擇商品")
+    q = {"id": {"$in": body.ids}}
+    a, v = body.action, body.value
+    if a == "set_active":
+        r = await db.products.update_many(q, {"$set": {"active": bool(v)}})
+    elif a == "set_category":
+        if not v or not await db.categories.find_one({"id": str(v)}):
+            raise HTTPException(status_code=400, detail="分類不存在")
+        r = await db.products.update_many(q, {"$set": {"category": str(v)}})
+    elif a in ("add_tags", "remove_tags"):
+        tags = [to_traditional(t.strip()) for t in (v if isinstance(v, list) else str(v or "").split(",")) if t.strip()]
+        if not tags:
+            raise HTTPException(status_code=400, detail="請輸入標籤")
+        r = await db.products.update_many(q, {"$addToSet": {"tags": {"$each": tags}}} if a == "add_tags" else {"$pull": {"tags": {"$in": tags}}})
+    elif a == "delete":
+        r = await db.products.delete_many(q)
+        return {"ok": True, "count": r.deleted_count}
+    else:
+        raise HTTPException(status_code=400, detail="未知操作")
+    return {"ok": True, "count": r.modified_count}
+
+
 @api_router.patch("/admin/products/{product_id}")
 async def admin_patch_product(product_id: str, body: Dict[str, object], admin: dict = Depends(require_role("admin"))):
     allowed = {k: v for k, v in body.items() if k in ("active", "sort_order", "sales_count", "tags")}
@@ -1479,12 +1545,57 @@ async def admin_delete_product(product_id: str, admin: dict = Depends(require_ro
     return {"ok": True}
 
 
-@api_router.get("/admin/orders")
-async def admin_list_orders(status: Optional[str] = None, admin: dict = Depends(require_role("admin"))):
-    query = {}
+def _orders_query(status: Optional[str], q: str, date_from: str, date_to: str, info: str = "") -> dict:
+    query: dict = {}
     if status and status != "all":
-        query["status"] = status
-    return await db.orders.find(query, {"_id": 0}).sort("created_at", -1).to_list(2000)
+        if status == "awaiting_info":
+            query.update({"status": "paid", "info_submitted": False})
+        else:
+            query["status"] = status
+    if info == "rejected":
+        query["info_rejected"] = True
+    if date_from:
+        query.setdefault("created_at", {})["$gte"] = date_from if "T" in date_from else f"{date_from}T00:00:00"
+    if date_to:
+        query.setdefault("created_at", {})["$lt"] = date_to if "T" in date_to else f"{date_to}T23:59:59.999999"
+    if q:
+        rx = {"$regex": re.escape(q.strip()), "$options": "i"}
+        ors = [{"order_no": rx}, {"user_email": rx}, {"recharge_account": rx}, {"contact": rx}, {"items.product_name": rx}, {"user_id": q.strip()}]
+        for v in {to_simplified(q), to_traditional(q)} - {q}:
+            ors.append({"items.product_name": {"$regex": re.escape(v), "$options": "i"}})
+        query["$or"] = ors
+    return query
+
+
+@api_router.get("/admin/orders")
+async def admin_list_orders(status: Optional[str] = None, q: str = "", date_from: str = "", date_to: str = "", info: str = "", page: int = 1, size: int = 30, admin: dict = Depends(require_role("admin"))):
+    query = _orders_query(status, q, date_from, date_to, info)
+    total = await db.orders.count_documents(query)
+    rows = await db.orders.find(query, {"_id": 0}).sort("created_at", -1).skip((page - 1) * max(1, size)).to_list(max(1, min(size, 200)))
+    agg = await db.orders.aggregate([{"$match": query}, {"$group": {"_id": None, "total_usd": {"$sum": "$total_usd"}, "paid_usd": {"$sum": {"$cond": [{"$in": ["$status", ["paid", "processing", "shipped", "completed"]]}, "$total_usd", 0]}}}}]).to_list(1)
+    counts = {r["_id"]: r["n"] for r in await db.orders.aggregate([{"$match": {k: v for k, v in query.items() if k != "status" and k != "info_submitted"}}, {"$group": {"_id": "$status", "n": {"$sum": 1}}}]).to_list(20)}
+    summary = {"total_usd": round((agg[0]["total_usd"] if agg else 0) or 0, 2), "paid_usd": round((agg[0]["paid_usd"] if agg else 0) or 0, 2), "by_status": counts}
+    return {"total": total, "rows": rows, "summary": summary}
+
+
+@api_router.get("/admin/orders/export")
+async def admin_export_orders(status: Optional[str] = None, q: str = "", date_from: str = "", date_to: str = "", info: str = "", admin: dict = Depends(require_role("admin"))):
+    import csv
+    import io
+    from fastapi.responses import StreamingResponse
+    query = _orders_query(status, q, date_from, date_to, info)
+    rows = await db.orders.find(query, {"_id": 0}).sort("created_at", -1).to_list(20000)
+    buf = io.StringIO()
+    w = csv.writer(buf)
+    w.writerow(["訂單編號", "建立時間", "狀態", "用戶信箱", "用戶ID", "商品", "充值帳號", "填寫資料", "聯絡資訊", "幣別", "小計USD", "折扣USD", "總額USD", "優惠碼", "客服備註", "付款時間", "完成時間"])
+    for o in rows:
+        items = "；".join(f"{i.get('product_name', '')} {i.get('spec_label', '')}×{i.get('quantity', 1)}" for i in o.get("items", []))
+        info_txt = "；".join(f"{k}:{v}" for f in (o.get("delivery_info") or {}).values() for k, v in f.items())
+        w.writerow([o.get("order_no"), (o.get("created_at") or "")[:19].replace("T", " "), STATUS_LABELS.get(o.get("status"), o.get("status")), o.get("user_email", ""), o.get("user_id", ""), items,
+                    o.get("recharge_account", ""), info_txt, o.get("contact", ""), o.get("currency", ""), o.get("subtotal_usd", ""), o.get("discount_usd", ""), o.get("total_usd", ""), o.get("promo_code") or "",
+                    o.get("admin_note", ""), (o.get("paid_at") or "")[:19].replace("T", " "), (o.get("completed_at") or "")[:19].replace("T", " ")])
+    fname = f"orders_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M')}.csv"
+    return StreamingResponse(iter([("\ufeff" + buf.getvalue()).encode("utf-8")]), media_type="text/csv; charset=utf-8", headers={"Content-Disposition": f"attachment; filename={fname}"})
 
 
 @api_router.patch("/admin/orders/{order_id}")

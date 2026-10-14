@@ -19,6 +19,7 @@ import { ActivitiesAdmin } from "@/pages/admin/ActivitiesAdmin";
 import { SiteConfigAdmin } from "@/pages/admin/SiteConfigAdmin";
 import { ProductsAdmin } from "@/pages/admin/ProductsAdmin";
 import { CategoriesAdmin } from "@/pages/admin/CategoriesAdmin";
+import { OrdersAdmin } from "@/pages/admin/OrdersAdmin";
 import { tr } from "@/i18n";
 
 const NAV = [
@@ -73,7 +74,7 @@ function AdminInner() {
         {section === "overview" && <Overview callApi={callApi} />}
         {section === "products" && <ProductsAdmin callApi={callApi} />}
         {section === "categories" && <CategoriesAdmin callApi={callApi} />}
-        {section === "orders" && <Orders callApi={callApi} />}
+        {section === "orders" && <OrdersAdmin callApi={callApi} />}
         {section === "wallets" && <WalletAdmin callApi={callApi} />}
         {section === "payments" && <PaymentMethodsAdmin callApi={callApi} />}
         {section === "verifications" && <VerificationsAdmin callApi={callApi} />}
@@ -137,83 +138,6 @@ function SectionHeader({ title, action }) {
     <div className="flex items-center justify-between mb-5">
       <h1 className="font-head text-2xl font-bold text-white">{title}</h1>
       {action}
-    </div>
-  );
-}
-
-function Orders({ callApi }) {
-  const [list, setList] = useState([]);
-  const [filter, setFilter] = useState("all");
-  const load = useCallback(() => {
-    callApi({ method: "GET", url: `/admin/orders${filter === "all" ? "" : `?status=${filter}`}` }).then((r) => setList(r.data)).catch(() => {});
-  }, [callApi, filter]);
-  useEffect(() => { load(); }, [load]);
-
-  const confirmTopup = async (o) => {
-    if (!window.confirm(tr("確認已完成人工充值？訂單 {0} 將標記為「已完成」", o.order_no))) return;
-    try { await callApi({ method: "POST", url: `/admin/orders/${o.id}/confirm` }); toast.success(tr("已確認充值，訂單完成")); load(); }
-    catch (e) { toast.error(e.response?.data?.detail || tr("操作失敗")); }
-  };
-  const changeStatus = async (o, status) => {
-    await callApi({ method: "PATCH", url: `/admin/orders/${o.id}`, data: { status } });
-    toast.success(tr("已更新為「{0}」", STATUS_LABELS[status]));
-    load();
-  };
-  const rejectInfo = async (o) => {
-    const reason = window.prompt("駁回原因（將顯示給用戶）", tr("充值帳號有誤，請重新填寫"));
-    if (reason === null) return;
-    try { await callApi({ method: "POST", url: `/admin/orders/${o.id}/reject-info`, data: { reason } }); toast.success(tr("已駁回，用戶可重新填寫充值資料")); load(); }
-    catch (e) { toast.error(e.response?.data?.detail || tr("操作失敗")); }
-  };
-  const addNote = async (o) => {
-    const note = window.prompt("客服備註", o.admin_note || "");
-    if (note === null) return;
-    await callApi({ method: "PATCH", url: `/admin/orders/${o.id}`, data: { status: o.status, admin_note: note } });
-    toast.success(tr("備註已更新"));
-    load();
-  };
-
-  return (
-    <div>
-      <SectionHeader title={tr("訂單管理")} />
-      <div className="flex overflow-x-auto no-scrollbar gap-2 mb-4">
-        {[["all", tr("全部")], ...Object.entries(STATUS_LABELS)].map(([k, label]) => (
-          <button key={k} onClick={() => setFilter(k)} className={`whitespace-nowrap text-xs font-semibold rounded-full px-3 py-1.5 ${filter === k ? "bg-primary text-white" : "bg-slate-800 text-slate-400"}`}>{label}</button>
-        ))}
-      </div>
-      <div className="space-y-3">
-        {list.length === 0 && <div className="text-slate-500 text-sm py-10 text-center">{tr("暫無訂單")}</div>}
-        {list.map((o) => (
-          <div key={o.id} data-testid={`admin-order-${o.id}`} className="bg-slate-900 rounded-xl border border-slate-800 p-4">
-            <div className="flex items-center justify-between mb-2">
-              <span className="font-mono text-xs text-slate-500">{o.order_no}</span>
-              <StatusBadge status={o.status} />
-            </div>
-            <div className="text-sm text-white">{o.items.map((i) => `${i.product_name} ${i.spec_label}×${i.quantity}`).join("、")}</div>
-            <div className="grid grid-cols-2 gap-x-4 gap-y-1 mt-2 text-xs text-slate-400">
-              <div>{tr("充值帳號：")}<span className="text-slate-200 font-semibold">{o.recharge_account}</span></div>
-              <div>{tr("金額：")}{o.currency_symbol}{(o.total_usd * o.rate_to_usd).toFixed(2)} {o.currency}</div>
-              {o.delivery_info && Object.values(o.delivery_info).flatMap((f) => Object.entries(f)).map(([k, v]) => <div key={k}>{k}：<span className="text-slate-200">{v}</span></div>)}
-              {o.recharge_note && <div>{tr("備註：")}{o.recharge_note}</div>}
-              {o.contact && <div>{tr("聯絡：")}{o.contact}</div>}
-              {o.admin_note && <div className="col-span-2 text-emerald-400">{tr("客服備註：")}{o.admin_note}</div>}
-            </div>
-            <div className="flex flex-wrap items-center gap-2 mt-3">
-              {["paid", "processing", "shipped"].includes(o.status) && <button data-testid={`admin-order-confirm-${o.id}`} onClick={() => confirmTopup(o)} className="text-xs h-8 px-3 rounded-lg bg-emerald-500 text-white font-semibold">{tr("確認充值完成")}</button>}
-              {o.status === "paid" && o.info_submitted === false && <span className="text-xs text-amber-400">{o.info_rejected ? tr("已駁回，等待用戶重新填寫") : tr("用戶尚未填寫充值資料")}</span>}
-              {["paid", "processing"].includes(o.status) && o.info_submitted !== false && <button data-testid={`admin-order-reject-info-${o.id}`} onClick={() => rejectInfo(o)} className="text-xs h-8 px-3 rounded-lg bg-amber-600 text-white">{tr("駁回充值資料")}</button>}
-              {o.status === "paid" && <button data-testid={`admin-order-start-${o.id}`} onClick={() => changeStatus(o, "processing")} className="text-xs h-8 px-3 rounded-lg bg-violet-600 text-white">{tr("開始充值")}</button>}
-              {o.status === "processing" && <button data-testid={`admin-order-ship-${o.id}`} onClick={() => changeStatus(o, "shipped")} className="text-xs h-8 px-3 rounded-lg bg-cyan-600 text-white">{tr("確認人工發貨")}</button>}
-              {o.status === "shipped" && <button onClick={() => changeStatus(o, "completed")} className="text-xs h-8 px-3 rounded-lg bg-emerald-600 text-white">{tr("標記已完成")}</button>}
-              {!["completed", "exception"].includes(o.status) && <button onClick={() => changeStatus(o, "exception")} className="text-xs h-8 px-3 rounded-lg bg-red-600/80 text-white flex items-center gap-1"><ShieldAlert className="h-3 w-3" /> {tr("標記異常")}</button>}
-              <select value={o.status} onChange={(e) => changeStatus(o, e.target.value)} className="text-xs h-8 rounded-lg bg-slate-800 border border-slate-700 px-2 text-slate-200">
-                {ALL_STATUSES.map((s) => <option key={s} value={s}>{STATUS_LABELS[s]}</option>)}
-              </select>
-              <button onClick={() => addNote(o)} className="text-xs h-8 px-3 rounded-lg border border-slate-700 text-slate-300">{tr("備註")}</button>
-            </div>
-          </div>
-        ))}
-      </div>
     </div>
   );
 }

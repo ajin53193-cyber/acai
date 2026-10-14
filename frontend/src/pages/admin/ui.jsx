@@ -13,7 +13,7 @@ export const Pill = ({ children, tone = "slate" }) => <span className={`inline-b
 export const Table = ({ cols, rows, render, empty, testId }) => (
   <Card className="overflow-x-auto">
     <table className="w-full text-sm" data-testid={testId}>
-      <thead><tr className="text-left text-xs text-slate-500 border-b border-slate-200 bg-slate-50/70">{cols.map((c) => <th key={c} className="px-4 py-3 font-semibold whitespace-nowrap">{c}</th>)}</tr></thead>
+      <thead><tr className="text-left text-xs text-slate-500 border-b border-slate-200 bg-slate-50/70">{cols.map((c, i) => <th key={typeof c === "string" ? c : i} className="px-4 py-3 font-semibold whitespace-nowrap">{c}</th>)}</tr></thead>
       <tbody className="divide-y divide-slate-100">{rows.length === 0 ? <tr><td colSpan={cols.length} className="px-4 py-10 text-center text-slate-400">{empty || tr("暫無資料")}</td></tr> : rows.map(render)}</tbody>
     </table>
   </Card>

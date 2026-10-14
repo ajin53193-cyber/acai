@@ -105,10 +105,15 @@ export default function ProductDetail() {
     callApi({ method: "GET", url: `/products/${id}/daily-limit` }).then((r) => setLimit(r.data)).catch(() => {});
   }, [id, isSignedIn, callApi]);
 
-  const limitKind = (s) => { const b = s.badge || ""; return /每月一單|每月一单|monthly/i.test(b) ? "monthly" : /每日一單|每日一单|daily/i.test(b) ? "daily" : /新客|新用戶|新用户|新使用者|new (user|customer)/i.test(b) ? "newcomer" : null; };
+  const limitKind = (s) => {
+    if (s.limit === "none") return null;
+    if (["daily", "weekly", "monthly", "lifetime", "newcomer"].includes(s.limit)) return s.limit;
+    const b = s.badge || ""; return /每月一單|每月一单|monthly/i.test(b) ? "monthly" : /每日一單|每日一单|daily/i.test(b) ? "daily" : /新客|新用戶|新用户|新使用者|new (user|customer)/i.test(b) ? "newcomer" : null;
+  };
+  const limitCount = (s) => Math.max(1, +s.limit_count || 1);
   const specLimited = (s) => !!limitKind(s);
-  const specLocked = (s) => { const k = limitKind(s); return ((k === "daily" || k === "monthly") && limit.used_spec_ids.includes(s.id)) || (k === "newcomer" && !limit.is_new_customer); };
-  const limitText = (s) => { const k = limitKind(s); return k === "monthly" ? tr("每月一單") : k === "daily" ? tr("每日一單") : tr("新用戶專享"); };
+  const specLocked = (s) => { const k = limitKind(s); return (k && k !== "newcomer" && limit.used_spec_ids.includes(s.id)) || (k === "newcomer" && !limit.is_new_customer); };
+  const limitText = (s) => { const k = limitKind(s); const n = limitCount(s); const unit = { monthly: tr("每月"), daily: tr("每日"), weekly: tr("每週"), lifetime: tr("終生") }[k]; return k === "newcomer" ? tr("新用戶專享") : n === 1 ? tr("{0}一單", unit) : tr("{0}限購 {1} 份", unit, n); };
 
   const spec = useMemo(() => product?.specs.find((s) => s.id === specId), [product, specId]);
   const totalUsd = (spec?.price_usd || 0) * qty;
@@ -119,7 +124,7 @@ export default function ProductDetail() {
   const handleAdd = (buyNow = false) => {
     if (!spec) return;
     if (specLocked(spec)) return toast.error(limitKind(spec) === "newcomer" ? tr("此規格為新用戶專享，僅限首單購買，請選擇其他規格") : tr("此規格為{0}特價，您已購買過，請稍後再來或選擇其他規格", limitText(spec)));
-    if (specLimited(spec) && qty > 1) return toast.error(tr("{0}規格每次限購 1 份", limitText(spec)));
+    if (specLimited(spec) && qty > limitCount(spec)) return toast.error(tr("{0}規格每次限購 {1} 份", limitText(spec), limitCount(spec)));
     addItem(product, spec, qty);
     if (buyNow) navigate("/checkout");
     else { toast.success(tr("已加入購物車")); setOpen(true); }
@@ -202,8 +207,8 @@ export default function ProductDetail() {
           {spec && specLimited(spec) && (
             <div data-testid="daily-limit-notice" className={`mx-5 sm:mx-8 mb-4 rounded-xl px-4 py-2.5 text-sm ${specLocked(spec) ? "bg-slate-100 text-slate-600" : "bg-orange-50 text-orange-600"}`}>
               {specLocked(spec)
-                ? (limitKind(spec) === "newcomer" ? tr("「新用戶專享」規格僅限首次下單使用，請選擇其他規格。") : tr("您已購買過此「{0}」規格，{1}即可再次購買；也可選擇其他規格。", limitText(spec), limitKind(spec) === "monthly" ? tr("30 天後") : tr("明天")))
-                : (limitKind(spec) === "newcomer" ? tr("此規格為「新用戶專享」特價：僅限首單購買 1 份。") : tr("此規格為「{0}」特價：每個帳號{1}限購 1 份。", limitText(spec), limitKind(spec) === "monthly" ? tr("每月") : tr("每天")))}
+                ? (limitKind(spec) === "newcomer" ? tr("「新用戶專享」規格僅限首次下單使用，請選擇其他規格。") : limitKind(spec) === "lifetime" ? tr("您已達此「{0}」規格的購買上限，請選擇其他規格。", limitText(spec)) : tr("您已購買過此「{0}」規格，{1}即可再次購買；也可選擇其他規格。", limitText(spec), { monthly: tr("30 天後"), weekly: tr("7 天後"), daily: tr("明天") }[limitKind(spec)]))
+                : (limitKind(spec) === "newcomer" ? tr("此規格為「新用戶專享」特價：僅限首單購買 {0} 份。", limitCount(spec)) : tr("此規格為「{0}」特價：每個帳號{1}限購 {2} 份。", limitText(spec), { monthly: tr("每月"), weekly: tr("每週"), daily: tr("每天"), lifetime: tr("終生") }[limitKind(spec)], limitCount(spec)))}
             </div>
           )}
           <div className="relative bg-[#FFF6EC] [background-image:radial-gradient(rgba(255,255,255,0.9)_1.5px,transparent_1.5px)] [background-size:14px_14px] px-5 sm:px-8 py-5">

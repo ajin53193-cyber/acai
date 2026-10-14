@@ -12,6 +12,8 @@ const selBase = "h-9 rounded-lg bg-slate-100 px-3 text-sm outline-none focus:rin
 const sel = selBase + " w-full";
 const ta = "w-full rounded-lg bg-slate-100 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-orange-300";
 const EMPTY = { name: "", category: "", brand: "", subtitle: "", image: "", description: "", content_html: "", tutorial: "", delivery_fields: [{ code: "account", name: "充值帳號", required: true, placeholder: "", tips: "", type: "text", options: [] }], specs: [], tags: [], sales_count: 0, rating: 5, sort_order: 0, active: true, related_ids: [], related: [] };
+const LIMIT_KINDS = { "": tr("依角標自動"), none: tr("不限購"), daily: tr("每日限購"), weekly: tr("每週限購"), monthly: tr("每月限購"), lifetime: tr("終生限購"), newcomer: tr("新用戶專享") };
+const inferLimit = (b = "") => (/每月一單|每月一单/.test(b) ? "monthly" : /每日一單|每日一单/.test(b) ? "daily" : /新客|新用戶|新用户|新使用者/.test(b) ? "newcomer" : "");
 const FIELD_TYPES = { text: tr("文字"), select: tr("下拉選擇"), password: tr("密碼"), textarea: tr("多行文字") };
 const priceRange = (specs) => { const ps = (specs || []).map((s) => s.price_usd).filter((n) => n > 0); if (!ps.length) return "-"; const a = Math.min(...ps), b = Math.max(...ps); return a === b ? `$${a}` : `$${a} ~ $${b}`; };
 
@@ -24,6 +26,7 @@ export function ProductsAdmin({ callApi }) {
   const [status, setStatus] = useState("");
   const [page, setPage] = useState(1);
   const [editing, setEditing] = useState(null);
+  const [sel, setSel] = useState([]);
   const size = 30;
 
   useEffect(() => { const t = setTimeout(() => { setQd(q); setPage(1); }, 350); return () => clearTimeout(t); }, [q]);
@@ -39,6 +42,18 @@ export function ProductsAdmin({ callApi }) {
   };
   const pages = Math.max(1, Math.ceil(data.total / size));
   const catName = (id) => cats.find((c) => c.id === id)?.name || id;
+  const pageIds = data.rows.map((p) => p.id);
+  const allChecked = pageIds.length > 0 && pageIds.every((id) => sel.includes(id));
+  const toggleAll = () => setSel(allChecked ? sel.filter((id) => !pageIds.includes(id)) : [...new Set([...sel, ...pageIds])]);
+  const toggleOne = (id) => setSel(sel.includes(id) ? sel.filter((x) => x !== id) : [...sel, id]);
+  const bulk = async (action, value) => {
+    if (action === "delete" && !window.confirm(tr("確定刪除選取的 {0} 件商品？此操作無法復原", sel.length))) return;
+    try {
+      const r = await callApi({ method: "POST", url: "/admin/products/bulk", data: { ids: sel, action, value } });
+      toast.success(tr("已更新 {0} 件商品", r.data.count)); setSel([]); load();
+      if (action === "set_category" || action === "delete") callApi({ method: "GET", url: "/admin/categories" }).then((c) => setCats(c.data)).catch(() => {});
+    } catch (e) { toast.error(e.response?.data?.detail || tr("操作失敗")); }
+  };
 
   return (
     <div data-testid="products-admin">
@@ -50,8 +65,10 @@ export function ProductsAdmin({ callApi }) {
         <select data-testid="product-filter-status" className={selBase + " w-32"} value={status} onChange={(e) => { setStatus(e.target.value); setPage(1); }}><option value="">{tr("全部狀態")}</option><option value="true">{tr("上架中")}</option><option value="false">{tr("已下架")}</option></select>
         <span className="text-xs text-slate-400 ml-auto">{tr("第 {0} / {1} 頁", page, pages)}</span>
       </div>
-      <Table testId="products-table" cols={[tr("商品"), tr("分類"), tr("規格 / 價格"), tr("已售"), tr("評分"), tr("排序"), tr("上架"), tr("操作")]} rows={data.rows} render={(p) => (
-        <tr key={p.id} data-testid={`product-row-${p.id}`} className="hover:bg-orange-50/40">
+      {sel.length > 0 && <BulkBar count={sel.length} cats={cats} onAction={bulk} onClear={() => setSel([])} />}
+      <Table testId="products-table" cols={[<input key="all" type="checkbox" data-testid="product-select-all" checked={allChecked} onChange={toggleAll} className="h-4 w-4 accent-orange-500" />, tr("商品"), tr("分類"), tr("規格 / 價格"), tr("已售"), tr("評分"), tr("排序"), tr("上架"), tr("操作")]} rows={data.rows} render={(p) => (
+        <tr key={p.id} data-testid={`product-row-${p.id}`} className={`hover:bg-orange-50/40 ${sel.includes(p.id) ? "bg-orange-50/60" : ""}`}>
+          <td className="px-4 py-2"><input type="checkbox" data-testid={`product-select-${p.id}`} checked={sel.includes(p.id)} onChange={() => toggleOne(p.id)} className="h-4 w-4 accent-orange-500" /></td>
           <td className="px-4 py-2 max-w-[360px]">
             <div className="flex items-center gap-3">
               <img src={p.image} alt="" className="h-11 w-11 rounded-lg object-cover bg-slate-100 shrink-0" />
@@ -77,6 +94,28 @@ export function ProductsAdmin({ callApi }) {
       {pages > 1 && <Pager page={page} pages={pages} onChange={setPage} />}
       {editing && <ProductForm item={editing} cats={cats} callApi={callApi} onClose={() => setEditing(null)} onSaved={() => { setEditing(null); load(); }} />}
     </div>
+  );
+}
+
+function BulkBar({ count, cats, onAction, onClear }) {
+  const [cat, setCat] = useState("");
+  const [tags, setTags] = useState("");
+  return (
+    <Card className="p-3 mb-3 flex flex-wrap items-center gap-2 border-orange-200 bg-orange-50/60" data-testid="bulk-bar">
+      <span className="text-sm font-semibold text-orange-700">{tr("已選 {0} 件", count)}</span>
+      <button onClick={onClear} className="text-xs text-slate-500 underline">{tr("取消選取")}</button>
+      <span className="h-5 w-px bg-orange-200 mx-1" />
+      <Btn kind="ok" data-testid="bulk-activate" onClick={() => onAction("set_active", true)}>{tr("批量上架")}</Btn>
+      <Btn kind="ghost" data-testid="bulk-deactivate" onClick={() => onAction("set_active", false)}>{tr("批量下架")}</Btn>
+      <span className="h-5 w-px bg-orange-200 mx-1" />
+      <select data-testid="bulk-category" className={selBase + " w-40"} value={cat} onChange={(e) => setCat(e.target.value)}><option value="">{tr("移動到分類…")}</option>{cats.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select>
+      <Btn kind="ghost" data-testid="bulk-category-apply" disabled={!cat} onClick={() => onAction("set_category", cat)}>{tr("移動")}</Btn>
+      <span className="h-5 w-px bg-orange-200 mx-1" />
+      <Input data-testid="bulk-tags" className="w-44" value={tags} onChange={(e) => setTags(e.target.value)} placeholder={tr("標籤，逗號分隔")} />
+      <Btn kind="ghost" data-testid="bulk-add-tags" disabled={!tags.trim()} onClick={() => onAction("add_tags", tags)}>{tr("加標籤")}</Btn>
+      <Btn kind="ghost" data-testid="bulk-remove-tags" disabled={!tags.trim()} onClick={() => onAction("remove_tags", tags)}>{tr("移除標籤")}</Btn>
+      <Btn kind="danger" data-testid="bulk-delete" className="ml-auto" onClick={() => onAction("delete")}>{tr("批量刪除")}</Btn>
+    </Card>
   );
 }
 
@@ -113,7 +152,7 @@ function ProductForm({ item, cats, callApi, onClose, onSaved }) {
       const body = {
         name: f.name, category: f.category, brand: f.brand, subtitle: f.subtitle, image: f.image, description: f.description, content_html: f.content_html, tutorial: f.tutorial,
         delivery_fields: f.delivery_fields.map((d) => ({ ...d, options: Array.isArray(d.options) ? d.options : String(d.options || "").split(/[,，\n]/).map((o) => o.trim()).filter(Boolean) })),
-        specs: f.specs.map((s) => ({ ...s, price_usd: +s.price_usd || 0, sale_price_usd: s.sale_price_usd ? +s.sale_price_usd : null })),
+        specs: f.specs.map((s) => ({ ...s, price_usd: +s.price_usd || 0, sale_price_usd: s.sale_price_usd ? +s.sale_price_usd : null, limit: s.limit || "", limit_count: Math.max(1, +s.limit_count || 1) })),
         tags: f.tags.split(/[,，]/).map((t) => t.trim()).filter(Boolean), sales_count: +f.sales_count || 0, rating: +f.rating || 5, sort_order: +f.sort_order || 0, active: !!f.active,
         related_ids: (f.related || []).map((r) => r.id),
       };
@@ -180,10 +219,10 @@ function SpecsEditor({ specs, badges, onChange }) {
   const move = (i, d) => { const j = i + d; if (j < 0 || j >= specs.length) return; const a = [...specs]; [a[i], a[j]] = [a[j], a[i]]; onChange(a); };
   return (
     <div>
-      <div className="text-[11px] text-slate-400 mb-2">{tr("售價為實際結帳價格；「原價」填寫後商品頁顯示刪除線；角標如「每日一單」「每月一單」「新客專享」會自動啟用對應限購規則。")}</div>
+      <div className="text-[11px] text-slate-400 mb-2">{tr("售價為實際結帳價格；「原價」填寫後商品頁顯示刪除線。限購：「依角標自動」會依角標文字（每日一單 / 每月一單 / 新客專享）判斷；也可明確指定每日 / 每週 / 每月 / 終生限購份數或新用戶專享。")}</div>
       <Card className="overflow-x-auto">
         <table className="w-full text-sm" data-testid="pf-specs-table">
-          <thead><tr className="text-left text-xs text-slate-500 bg-slate-50/70 border-b border-slate-200"><th className="px-3 py-2">{tr("規格名稱")}</th><th className="px-3 py-2 w-28">{tr("售價 USD")}</th><th className="px-3 py-2 w-28">{tr("原價 USD")}</th><th className="px-3 py-2 w-48">{tr("角標")}</th><th className="px-3 py-2 w-16">{tr("有貨")}</th><th className="px-3 py-2 w-24"></th></tr></thead>
+          <thead><tr className="text-left text-xs text-slate-500 bg-slate-50/70 border-b border-slate-200"><th className="px-3 py-2">{tr("規格名稱")}</th><th className="px-3 py-2 w-28">{tr("售價 USD")}</th><th className="px-3 py-2 w-28">{tr("原價 USD")}</th><th className="px-3 py-2 w-44">{tr("角標")}</th><th className="px-3 py-2 w-48">{tr("限購")}</th><th className="px-3 py-2 w-16">{tr("有貨")}</th><th className="px-3 py-2 w-24"></th></tr></thead>
           <tbody className="divide-y divide-slate-100">
             {specs.map((s, i) => (
               <tr key={s.id || i} data-testid={`pf-spec-row-${i}`}>
@@ -191,6 +230,12 @@ function SpecsEditor({ specs, badges, onChange }) {
                 <td className="px-3 py-1.5"><Input data-testid={`pf-spec-price-${i}`} type="number" step="0.01" className="w-full" value={s.price_usd} onChange={(e) => set(i, "price_usd", e.target.value)} /></td>
                 <td className="px-3 py-1.5"><Input type="number" step="0.01" className="w-full" value={s.sale_price_usd ?? ""} onChange={(e) => set(i, "sale_price_usd", e.target.value)} placeholder={tr("選填")} /></td>
                 <td className="px-3 py-1.5"><Input list="badge-list" data-testid={`pf-spec-badge-${i}`} className="w-full" value={s.badge || ""} onChange={(e) => set(i, "badge", e.target.value)} placeholder={tr("如 每日一單")} /></td>
+                <td className="px-3 py-1.5">
+                  <div className="flex items-center gap-1">
+                    <select data-testid={`pf-spec-limit-${i}`} className={selBase + " flex-1 px-2 text-xs"} value={s.limit || ""} onChange={(e) => set(i, "limit", e.target.value)}>{Object.entries(LIMIT_KINDS).map(([k, v]) => <option key={k} value={k}>{k === "" ? `${v}${inferLimit(s.badge) ? `（${LIMIT_KINDS[inferLimit(s.badge)]}）` : `（${LIMIT_KINDS.none}）`}` : v}</option>)}</select>
+                    {["daily", "weekly", "monthly", "lifetime", "newcomer"].includes(s.limit) && <Input data-testid={`pf-spec-limit-count-${i}`} type="number" min="1" className="w-14 px-2 text-xs" value={s.limit_count || 1} onChange={(e) => set(i, "limit_count", e.target.value)} title={tr("份數")} />}
+                  </div>
+                </td>
                 <td className="px-3 py-1.5"><Switch checked={s.in_stock !== false} onCheckedChange={(v) => set(i, "in_stock", v)} /></td>
                 <td className="px-3 py-1.5 whitespace-nowrap">
                   <button onClick={() => move(i, -1)} className="p-1 text-slate-400 hover:text-slate-700"><ArrowUp className="h-4 w-4" /></button>
@@ -199,12 +244,12 @@ function SpecsEditor({ specs, badges, onChange }) {
                 </td>
               </tr>
             ))}
-            {specs.length === 0 && <tr><td colSpan={6} className="px-3 py-8 text-center text-slate-400 text-xs">{tr("尚無規格，請新增")}</td></tr>}
+            {specs.length === 0 && <tr><td colSpan={7} className="px-3 py-8 text-center text-slate-400 text-xs">{tr("尚無規格，請新增")}</td></tr>}
           </tbody>
         </table>
       </Card>
       <datalist id="badge-list">{badges.map((b) => <option key={b} value={b} />)}</datalist>
-      <Btn kind="ghost" className="mt-3" data-testid="pf-add-spec" onClick={() => onChange([...specs, { id: `new-${Date.now()}`, label: "", price_usd: 0, sale_price_usd: null, badge: "", in_stock: true }])}><Plus className="h-4 w-4 inline -mt-0.5 mr-1" />{tr("新增規格")}</Btn>
+      <Btn kind="ghost" className="mt-3" data-testid="pf-add-spec" onClick={() => onChange([...specs, { id: `new-${Date.now()}`, label: "", price_usd: 0, sale_price_usd: null, badge: "", in_stock: true, limit: "", limit_count: 1 }])}><Plus className="h-4 w-4 inline -mt-0.5 mr-1" />{tr("新增規格")}</Btn>
     </div>
   );
 }
