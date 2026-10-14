@@ -214,6 +214,17 @@ async def admin_members(q: str = "", limit: int = 200, admin: dict = Depends(cur
     return out
 
 
+@router.get("/members/stats")
+async def admin_member_stats(admin: dict = Depends(current_admin)):
+    now = datetime.now(timezone.utc)
+    since30 = (now - timedelta(days=30)).isoformat()
+    total = await db.users.count_documents({})
+    banned = await db.users.count_documents({"banned": True})
+    new30 = await db.users.count_documents({"created_at": {"$gte": since30}})
+    active_ids = await db.orders.distinct("user_id", {"created_at": {"$gte": since30}})
+    return {"total": total, "active": len(active_ids), "new": new30, "banned": banned}
+
+
 @router.get("/members/{uid}")
 async def admin_member_detail(uid: str, admin: dict = Depends(current_admin)):
     u = await db.users.find_one({"user_id": uid}, {"_id": 0})
@@ -225,7 +236,11 @@ async def admin_member_detail(uid: str, admin: dict = Depends(current_admin)):
     acct = await db.phone_accounts.find_one({"user_id": uid}, {"_id": 0})
     orders = await db.orders.find({"user_id": uid}, {"_id": 0, "id": 1, "status": 1, "total_usd": 1, "created_at": 1, "items": 1}).sort("created_at", -1).to_list(20)
     txs = await db.wallet_transactions.find({"user_id": uid}, {"_id": 0}).sort("created_at", -1).to_list(20)
-    return {**u, "emails": emails, "account_no": account_no(uid), "phone": acct["phone"] if acct else (c.get("public_metadata") or {}).get("phone", ""),
+    verified = bool(await db.verifications.find_one({"user_id": uid, "status": "approved"}, {"_id": 1}))
+    order_count = await db.orders.count_documents({"user_id": uid})
+    agg = await db.orders.aggregate([{"$match": {"user_id": uid}}, {"$group": {"_id": None, "spent": {"$sum": "$total_usd"}}}]).to_list(1)
+    spent = round((agg[0]["spent"] if agg else 0) or 0, 2)
+    return {**u, "emails": emails, "account_no": account_no(uid), "verified": verified, "order_count": order_count, "spent_usd": spent, "phone": acct["phone"] if acct else (c.get("public_metadata") or {}).get("phone", ""),
             "google": bool((c.get("public_metadata") or {}).get("google_sub")) or any(a.get("provider") == "oauth_google" for a in c.get("external_accounts", [])),
             "password_enabled": c.get("password_enabled", False), "banned": c.get("banned", False) or u.get("banned", False),
             "last_sign_in_at": c.get("last_sign_in_at"), "orders": orders, "transactions": txs,

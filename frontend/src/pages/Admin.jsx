@@ -24,12 +24,13 @@ import { tr } from "@/i18n";
 
 const NAV = [
   ["overview", tr("總覽"), LayoutDashboard],
+  ["members", tr("會員管理"), Users],
 ];
 const NAV_GROUPS = [
   [tr("財務管理"), [["payments", tr("支付管理"), CreditCard], ["currencies", tr("匯率管理"), DollarSign], ["topups", tr("充值訂單"), Wallet]]],
   [tr("運營管理"), [["products", tr("商品管理"), Package], ["categories", tr("分類管理"), LayoutGrid], ["orders", tr("訂單管理"), ShoppingBag], ["verifications", tr("認證審核"), BadgeCheck], ["reviews", tr("評價管理"), Star], ["feedback", tr("用戶反饋"), MessageSquare]]],
   [tr("活動管理"), [["activities", tr("活動配置"), Megaphone], ["promos", tr("優惠碼"), Tag]]],
-  [tr("會員與數據"), [["members", tr("會員管理"), Users], ["reports", tr("數據報表"), TrendingUp]]],
+  [tr("數據"), [["reports", tr("數據報表"), TrendingUp]]],
   [tr("系統設定"), [["siteconfig", tr("網站配置"), Settings], ["translations", tr("翻譯管理"), Globe], ["notifications", tr("通知設定"), Bell], ["paylogos", tr("頁尾支付Logo"), ImagePlus]]],
 ];
 
