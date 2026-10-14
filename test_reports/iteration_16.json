@@ -1,0 +1,58 @@
+{
+  "summary": "Iteration 16 — Email OTP auth (/api/auth/email/*) via Mailgun + Clerk sign-in tickets, plus new wallet 充值記錄 page. Backend 15/15 pytest passed in ~11s. Frontend: all 4 critical flows verified end-to-end on desktop 1920 and mobile 390.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "verified_checks": {
+    "backend_pytest_15_15": {
+      "send_code_login_ok": "200 {sent:true, resend_after:60, expires_in:600, is_new:true for unregistered}",
+      "resend_cooldown": "immediate 2nd call → 429",
+      "reset_unregistered_404": "{detail: '此信箱尚未註冊'}",
+      "invalid_purpose_400": "pass",
+      "verify_existing_user": "200 {ticket:…, is_new:false} for tester+clerk_test@shop.com",
+      "verify_wrong_then_consumed": "wrong→400 '驗證碼錯誤'; correct→200 is_new:true for new account; replay→400",
+      "password_login_ok": "200 {ticket}",
+      "password_login_wrong_401": "'帳號或密碼錯誤'",
+      "password_login_unknown_401": "pass",
+      "reset_ok": "200 {ticket} (same password preserved)",
+      "reset_weak_pw_400": "detail contains '8…32' rule",
+      "me_send_code_no_token_401": "pass",
+      "me_send_and_change_password": "200 {sent, email:'te***@shop.com'} + change-password 200 {ok:true}",
+      "wallet_topups_no_token_401": "pass",
+      "wallet_topups_list": "list sorted desc; all required fields {id,amount_usd,pay_amount,network,status,out_trade_no,pay_url,created_at}; no stale pending-past-expiry"
+    },
+    "frontend_desktop_1920": {
+      "email_login": "modal opens → auth-tab-email → fill auth-identifier → auth-send-code → fill auth-code 424242 → auth-submit → modal closes, header shows tester+clerk_test@shop.com",
+      "password_login_no_2FA": "auth-tab-account → identifier+password → auth-submit → logged in directly; auth-trust-code did NOT appear (critical check passed)",
+      "forgot_password": "auth-forgot → forgot-tab-email → fill identifier → forgot-send-code → code 424242 + new pw x2 → forgot-submit → modal closes, user logged in",
+      "account_password_change": "pw-code, pw-send-code, pw-new, pw-confirm, pw-save all present; send → fill → save completed without errors",
+      "wallet_topups_page": "/account/wallet → wallet-go-topups card → navigates to /account/wallet/topups → wallet-topups-page present; tabs: all/pending/paid/closed; 8 topup-row-* with topup-status-* pills; TX id visible on paid rows",
+      "wallet_topup_records_link": "/account/wallet/topup header → wallet-topup-records link present"
+    },
+    "frontend_mobile_390": {
+      "topups_page": "/account/wallet/topups loads for logged-in member; 8 rows, 4 tabs visible; horizontal overflow = 0px (no layout break)"
+    }
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_email_auth_and_topups.py",
+    "/app/test_reports/pytest/iter16_email_auth.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "email_auth._issue_code: uses CLERK_SECRET_KEY as HMAC key for storing code hashes. Secure, but note that rotating the Clerk secret would invalidate all in-flight OTPs; acceptable but worth documenting.",
+    "email_auth.send_code purpose='login' leaks user existence via is_new boolean in the response — intentional per spec (frontend needs to decide register vs login copy), but is an enumeration surface. Rate-limited by RESEND_SECONDS and MAX_PER_HOUR, so OK.",
+    "email_auth.send_code purpose='reset' returns 404 '此信箱尚未註冊' which is also an enumeration surface. Common tradeoff; left as-is.",
+    "server.wallet_topups (L850): on each GET, pending-past-expiry rows are mutated inline with an await inside the for-loop; this does per-doc round-trips. For a wallet listing capped at 100 this is fine but a single bulk update_many would be cleaner.",
+    "email_auth._primary_email returns '' when no addresses; _issue_code then would use empty email and ultimately 400 '帳號未綁定信箱' is only raised in me_send_code — good — but me_change_password calls _consume_code with email ='' without the same empty guard. Low-risk because any authenticated user without an email cannot have reached send-code.",
+    "AuthModal / ForgotPassword — forgot flow uses auth-tab-email key name 'forgot-tab-email' and 'forgot-tab-phone'; naming consistent."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_email_auth_and_topups.py"
+  ],
+  "success_rate": {"backend": "100% (15/15)", "frontend": "100% (all critical flows: email login, password login w/o 2FA, forgot password, account pw change, wallet topups listing on desktop and mobile)"},
+  "test_credentials": "Used /app/memory/test_credentials.md as-is: member tester+clerk_test@shop.com / Gogo589!Tester#4m9Z (code 424242). Member password restored to original value via reset-password and me/change-password tests (both set to same Gogo589!Tester#4m9Z).",
+  "seed_data_creation": "Backend test created ~5 ephemeral Clerk users via /verify is_new=True path (newuser{rand}+clerk_test@shop.com) — these persist in the Clerk dev instance per the task note ('Clean-up not required'). No topup_orders were created.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Regression suite: /app/backend/tests/test_email_auth_and_topups.py (run with 'python -m pytest backend/tests/test_email_auth_and_topups.py -p xdist -n 1'; parallel mode breaks the resend-cooldown test). Uses /app/tests/mint_token.py for JWT via Clerk Backend API. Resend cooldown is 60s per (email,purpose) — stagger tests by using fresh +clerk_test@ emails or waiting. Password login no longer triggers a new-device 2FA because /api/auth/email/password-login mints a Clerk sign-in ticket after /users/{id}/verify_password; auth-trust-code must NEVER appear in that flow (confirmed). Mobile 390 layout for /account/wallet/topups is clean (0px overflow).",
+  "rca of the issue": "No bugs found. All 15 backend endpoints and all 4 UI flows (email login, password login without new-device prompt, forgot-password reset, in-account password change, wallet topups listing with reopen/check actions and tab filtering) behave per spec on both desktop 1920 and mobile 390."
+}

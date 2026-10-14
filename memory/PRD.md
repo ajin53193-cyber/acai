@@ -103,3 +103,10 @@
 - 貨幣：18 種（USD 預設，KRW/VND/IDR/JPY/TWD 0 位小數），`auto_rate` 旗標；每日 02:00 UTC 平台 cron（.emergent/crons.yml → POST /api/cron/refresh-rates，Bearer WEBHOOK_CRON_SECRET，X-Webhook-Id 去重）從 open.er-api.com 更新；後台手動改匯率即關閉自動。
 - 已知限制：含中文文字的圖片（頂部 AI 推廣條、商品頁權益/活動 banner 圖、新用戶註冊角標圖）不會翻譯；英文模式商品頁權益條已改為文字卡。
 - 部署需設定 Secrets：USDT_PAY_API_KEY/SECRET/BASE_URL、APP_PUBLIC_URL、WEBHOOK_CRON_SECRET、EMERGENT_LLM_KEY。
+
+## 2026-06 Mailgun 郵件驗證碼 + 充值記錄（iteration_16 全數通過）
+- `backend/mailer.py`：Mailgun SMTP（smtp.mailgun.org:587 STARTTLS），env：SMTP_HOST/PORT/USER/PASSWORD、MAIL_FROM、MAIL_FROM_NAME；簡體中文橘色品牌 OTP 郵件模板。
+- `backend/email_auth.py`（/api/auth/email/*）：send-code（purpose login/reset/change_password，60 秒冷卻、每小時 6 次、10 分鐘有效、5 次錯誤作廢、HMAC 雜湊儲存於 `email_codes`）、verify（登入/自動註冊 → Clerk Backend API 建用戶 → sign_in_token）、password-login（Clerk verify_password → ticket，繞過新裝置二次驗證）、reset-password、me/send-code、me/change-password。`+clerk_test@` 信箱固定碼 424242 且不寄信。
+- 前端：AuthModal 信箱/帳號登入、ForgotPassword 信箱分頁、MyAccount 修改密碼（信箱驗證碼）皆改走後端；手機登入仍走 Clerk SMS。密碼規則 8~32 位、兩種字元。
+- 錢包「充值記錄」`/account/wallet/topups`（GET /api/me/wallet/topups，過期自動標記）：狀態分頁、重新開啟收銀台、查詢到帳、複製地址/TX。
+- 部署 Secrets 需新增：SMTP_HOST、SMTP_PORT、SMTP_USER、SMTP_PASSWORD、MAIL_FROM、MAIL_FROM_NAME。
