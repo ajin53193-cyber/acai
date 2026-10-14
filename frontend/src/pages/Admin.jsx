@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Show, useUser } from "@clerk/react";
-import { LayoutDashboard, Package, ShoppingBag, Star, DollarSign, Tag, Users, Plus, Pencil, Trash2, X, Loader2, ArrowLeft, TrendingUp, Clock, ShieldAlert, Settings, CreditCard, ArrowUp, ArrowDown, ImagePlus, Wallet, BadgeCheck, MessageSquare, Globe, Bell, Megaphone, LayoutGrid } from "lucide-react";
+import { LayoutDashboard, Package, ShoppingBag, Star, DollarSign, Tag, Users, Plus, Pencil, Trash2, X, Loader2, ArrowLeft, TrendingUp, Clock, ShieldAlert, Settings, CreditCard, ArrowUp, ArrowDown, ImagePlus, Wallet, BadgeCheck, MessageSquare, Globe, Bell, Megaphone, LayoutGrid, Gift, Zap, ShieldCheck, ChevronDown, Construction } from "lucide-react";
 import { toast } from "sonner";
 import { useApi, publicApi } from "@/lib/api";
 import { STATUS_LABELS, STATUS_ORDER, StatusBadge } from "@/lib/status";
@@ -20,77 +20,105 @@ import { ProductsAdmin } from "@/pages/admin/ProductsAdmin";
 import { CategoriesAdmin } from "@/pages/admin/CategoriesAdmin";
 import { OrdersAdmin } from "@/pages/admin/OrdersAdmin";
 import { DashboardAdmin } from "@/pages/admin/DashboardAdmin";
+import { Soon } from "@/pages/admin/Soon";
 import { tr } from "@/i18n";
 
-const NAV = [
-  ["overview", tr("總覽"), LayoutDashboard],
-  ["members", tr("會員管理"), Users],
+// Full admin IA — collapsible two-level menu. Keys map to real pages in PAGES; everything else renders <Soon/>.
+const MENU = [
+  { g: tr("儀表盤"), icon: LayoutDashboard, items: [["overview", tr("數據概覽")], ["sales-analysis", tr("銷售分析")], ["realtime", tr("實時監控")], ["download-reports", tr("下載報表")]] },
+  { g: tr("用戶管理"), icon: Users, items: [["members", tr("用戶列表")], ["user-levels", tr("用戶等級")], ["user-tags", tr("用戶標籤")], ["member-assets", tr("會員資產")], ["blacklist", tr("黑名單管理")], ["user-logs", tr("用戶日誌")], ["verifications", tr("用戶認證")], ["user-batch", tr("用戶批量操作")], ["feedback", tr("用戶反饋")], ["user-reports", tr("用戶報表統計")]] },
+  { g: tr("商品管理"), icon: Package, items: [["products", tr("商品列表")], ["product-new", tr("新增商品")], ["categories", tr("商品分類")], ["specs", tr("規格管理")], ["inventory", tr("庫存管理")], ["reviews", tr("商品評論")]] },
+  { g: tr("禮品卡管理"), icon: Gift, items: [["giftcards", tr("禮品卡列表")], ["giftcard-new", tr("創建禮品卡")], ["giftcard-redeem", tr("卡券核銷記錄")], ["giftcard-orders", tr("禮品卡訂單")], ["giftcard-api", tr("核銷API配置")]] },
+  { g: tr("運營管理"), icon: Megaphone, items: [["home-decoration", tr("首頁裝修")], ["banners", tr("輪播圖管理")], ["recommendations", tr("推薦位管理")], ["promos", tr("優惠券管理")], ["points", tr("積分管理")], ["notifications", tr("消息中心")], ["announcements", tr("公告管理")]] },
+  { g: tr("活動管理"), icon: Zap, items: [["activities", tr("活動列表")], ["flashsale", tr("秒殺活動")], ["recharge-activity", tr("充值活動")], ["discount-activity", tr("滿減/滿折活動")], ["lottery", tr("抽獎活動")], ["combo", tr("組合套餐")], ["activity-records", tr("活動記錄")]] },
+  { g: tr("財務管理"), icon: DollarSign, items: [["orders", tr("訂單管理")], ["order-settlement", tr("訂單結算")], ["topups", tr("資金流水")], ["payments", tr("支付渠道配置")], ["reconciliation", tr("財務對賬")], ["currencies", tr("匯率配置")], ["finance-reports", tr("財務報表")]] },
+  { g: tr("系統配置"), icon: Settings, items: [["siteconfig", tr("基礎設置")], ["admins", tr("管理員管理")], ["roles", tr("角色權限管理")], ["operation-logs", tr("操作日誌")], ["sms-config", tr("短信配置")], ["email-config", tr("郵箱配置")], ["oauth-config", tr("授權配置")], ["translations", tr("翻譯管理")], ["paylogos", tr("頁尾支付Logo")]] },
 ];
-const NAV_GROUPS = [
-  [tr("財務管理"), [["payments", tr("支付管理"), CreditCard], ["currencies", tr("匯率管理"), DollarSign], ["topups", tr("充值訂單"), Wallet]]],
-  [tr("運營管理"), [["products", tr("商品管理"), Package], ["categories", tr("分類管理"), LayoutGrid], ["orders", tr("訂單管理"), ShoppingBag], ["verifications", tr("認證審核"), BadgeCheck], ["reviews", tr("評價管理"), Star], ["feedback", tr("用戶反饋"), MessageSquare]]],
-  [tr("活動管理"), [["activities", tr("活動配置"), Megaphone], ["promos", tr("優惠碼"), Tag]]],
-  [tr("數據"), [["reports", tr("數據報表"), TrendingUp]]],
-  [tr("系統設定"), [["siteconfig", tr("網站配置"), Settings], ["translations", tr("翻譯管理"), Globe], ["notifications", tr("通知設定"), Bell], ["paylogos", tr("頁尾支付Logo"), ImagePlus]]],
-];
+const LEAVES = [["security", tr("安全配置"), ShieldCheck]];
+const SECTION_LABEL = Object.fromEntries([...MENU.flatMap((m) => m.items), ...LEAVES.map(([k, l]) => [k, l])]);
 
 const ALL_STATUSES = Object.keys(STATUS_LABELS);
 const inputCls = "w-full h-10 rounded-lg bg-slate-800 border border-slate-700 px-3 text-sm text-slate-100 outline-none focus:border-primary";
 
-const NavBtn = ({ k, label, Icon, section, setSection }) => (
-  <button data-testid={`admin-nav-${k}`} onClick={() => setSection(k)}
-    className={`w-full flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${section === k ? "bg-primary text-white" : "text-slate-400 hover:bg-slate-800"}`}>
-    <Icon className="h-4 w-4 shrink-0" /><span className="hidden md:block">{label}</span>
-  </button>
-);
+const NavGroup = ({ g, Icon, items, section, setSection, open, toggle }) => {
+  const active = items.some(([k]) => k === section);
+  return (
+    <div>
+      <button data-testid={`admin-group-${g}`} onClick={toggle}
+        className={`w-full flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-semibold transition-colors ${active ? "text-orange-600" : "text-slate-600 hover:bg-slate-100"}`}>
+        <Icon className="h-4 w-4 shrink-0" /><span className="flex-1 text-left truncate">{g}</span>
+        <ChevronDown className={`h-3.5 w-3.5 shrink-0 transition-transform ${open ? "rotate-180" : ""}`} />
+      </button>
+      {open && (
+        <div className="mt-0.5 mb-1 ml-3.5 pl-3 border-l border-slate-200 space-y-0.5">
+          {items.map(([k, label]) => (
+            <button key={k} data-testid={`admin-nav-${k}`} onClick={() => setSection(k)}
+              className={`w-full flex items-center rounded-md px-2.5 py-1.5 text-[13px] transition-colors ${section === k ? "bg-orange-500 text-white font-semibold" : "text-slate-500 hover:bg-slate-100 hover:text-slate-800"}`}>
+              <span className="truncate">{label}</span>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
+const PAGES = {
+  overview: (p) => <DashboardAdmin {...p} />,
+  members: (p) => <MembersAdmin {...p} />,
+  verifications: (p) => <VerificationsAdmin {...p} />,
+  feedback: (p) => <FeedbackAdmin {...p} />,
+  products: (p) => <ProductsAdmin {...p} />,
+  categories: (p) => <CategoriesAdmin {...p} />,
+  reviews: (p) => <Reviews {...p} />,
+  promos: (p) => <Promos {...p} />,
+  notifications: (p) => <NotificationsAdmin {...p} />,
+  activities: (p) => <ActivitiesAdmin {...p} />,
+  orders: (p) => <OrdersAdmin {...p} />,
+  topups: (p) => <TopupsAdmin {...p} />,
+  payments: (p) => <PaymentMethodsAdmin {...p} />,
+  currencies: (p) => <Currencies {...p} />,
+  siteconfig: (p) => <SiteConfigAdmin {...p} />,
+  translations: (p) => <TranslationsAdmin {...p} />,
+  paylogos: (p) => <PaymentLogos {...p} />,
+  "download-reports": (p) => <ReportsAdmin {...p} />,
+};
 
 function AdminInner() {
   const callApi = useApi();
   const [section, setSection] = useState("overview");
+  const [open, setOpen] = useState([MENU[0].g, MENU[1].g]);
+  const toggle = (g) => setOpen((o) => (o.includes(g) ? o.filter((x) => x !== g) : [...o, g]));
+  const go = (k) => { setSection(k); const grp = MENU.find((m) => m.items.some(([ik]) => ik === k)); if (grp) setOpen((o) => (o.includes(grp.g) ? o : [...o, grp.g])); };
+  const render = PAGES[section] || ((p) => <Soon title={SECTION_LABEL[section]} {...p} />);
 
   return (
     <div className="admin-light min-h-screen bg-slate-950 text-slate-200 flex">
       {/* Sidebar */}
-      <aside className="w-16 md:w-60 bg-slate-900 border-r border-slate-800 flex flex-col shrink-0 sticky top-0 h-screen">
-        <div className="h-16 flex items-center gap-2 px-4 border-b border-slate-800">
+      <aside className="w-56 md:w-64 bg-slate-900 border-r border-slate-800 flex flex-col shrink-0 sticky top-0 h-screen">
+        <div className="h-16 flex items-center gap-2 px-4 border-b border-slate-800 shrink-0">
           <div className="h-8 w-8 rounded-lg bg-orange-500 flex items-center justify-center text-white font-black">G</div>
-          <span className="hidden md:block font-head font-bold text-white">{tr("管理後台")}</span>
+          <span className="font-head font-bold text-white">{tr("管理後台")}</span>
         </div>
         <nav className="flex-1 py-3 space-y-0.5 px-2 overflow-y-auto">
-          {NAV.map(([key, label, Icon]) => <NavBtn key={key} k={key} label={label} Icon={Icon} section={section} setSection={setSection} />)}
-          {NAV_GROUPS.map(([g, items]) => (
-            <div key={g} className="pt-3">
-              <div className="hidden md:block px-3 pb-1 text-[11px] font-semibold text-slate-400 tracking-wide">{g}</div>
-              {items.map(([key, label, Icon]) => <NavBtn key={key} k={key} label={label} Icon={Icon} section={section} setSection={setSection} />)}
-            </div>
-          ))}
+          {MENU.map((m) => <NavGroup key={m.g} g={m.g} Icon={m.icon} items={m.items} section={section} setSection={go} open={open.includes(m.g)} toggle={() => toggle(m.g)} />)}
+          <div className="pt-2 mt-2 border-t border-slate-800">
+            {LEAVES.map(([k, label, Icon]) => (
+              <button key={k} data-testid={`admin-nav-${k}`} onClick={() => setSection(k)}
+                className={`w-full flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-semibold transition-colors ${section === k ? "bg-orange-500 text-white" : "text-slate-600 hover:bg-slate-100"}`}>
+                <Icon className="h-4 w-4 shrink-0" /><span className="truncate">{label}</span>
+              </button>
+            ))}
+          </div>
         </nav>
-        <button data-testid="admin-logout" onClick={() => { sessionStorage.removeItem("admin_token"); window.location.href = "/admin/login"; }} className="flex items-center gap-2 px-4 py-2.5 text-xs text-slate-500 hover:text-red-500 border-t border-slate-800"><ShieldAlert className="h-4 w-4" /> <span className="hidden md:block">{tr("登出後台")}</span></button>
-        <Link to="/" className="flex items-center gap-2 px-4 py-3 text-xs text-slate-500 hover:text-white border-t border-slate-800">
-          <ArrowLeft className="h-4 w-4" /> <span className="hidden md:block">{tr("返回商城")}</span>
+        <button data-testid="admin-logout" onClick={() => { sessionStorage.removeItem("admin_token"); window.location.href = "/admin/login"; }} className="flex items-center gap-2 px-4 py-2.5 text-xs text-slate-500 hover:text-red-500 border-t border-slate-800 shrink-0"><ShieldAlert className="h-4 w-4" /> <span>{tr("登出後台")}</span></button>
+        <Link to="/" className="flex items-center gap-2 px-4 py-3 text-xs text-slate-500 hover:text-white border-t border-slate-800 shrink-0">
+          <ArrowLeft className="h-4 w-4" /> <span>{tr("返回商城")}</span>
         </Link>
       </aside>
 
       <main className="flex-1 min-w-0 p-4 md:p-8 overflow-x-hidden">
-        {section === "overview" && <DashboardAdmin callApi={callApi} go={setSection} />}
-        {section === "products" && <ProductsAdmin callApi={callApi} />}
-        {section === "categories" && <CategoriesAdmin callApi={callApi} />}
-        {section === "orders" && <OrdersAdmin callApi={callApi} />}
-        {section === "payments" && <PaymentMethodsAdmin callApi={callApi} />}
-        {section === "verifications" && <VerificationsAdmin callApi={callApi} />}
-        {section === "feedback" && <FeedbackAdmin callApi={callApi} />}
-        {section === "reviews" && <Reviews callApi={callApi} />}
-        {section === "currencies" && <Currencies callApi={callApi} />}
-        {section === "promos" && <Promos callApi={callApi} />}
-        {section === "activities" && <ActivitiesAdmin callApi={callApi} />}
-        {section === "siteconfig" && <SiteConfigAdmin callApi={callApi} />}
-        {section === "paylogos" && <PaymentLogos callApi={callApi} />}
-        {section === "users" && <UsersSec callApi={callApi} />}
-        {section === "members" && <MembersAdmin callApi={callApi} />}
-        {section === "topups" && <TopupsAdmin callApi={callApi} />}
-        {section === "reports" && <ReportsAdmin callApi={callApi} />}
-        {section === "translations" && <TranslationsAdmin callApi={callApi} />}
-        {section === "notifications" && <NotificationsAdmin callApi={callApi} />}
+        {render({ callApi, go })}
       </main>
     </div>
   );
@@ -266,35 +294,7 @@ function Promos({ callApi }) {
   );
 }
 
-function UsersSec({ callApi }) {
-  const [data, setData] = useState({ roles: [], users: [] });
-  const load = useCallback(() => callApi({ method: "GET", url: "/users" }).then((r) => setData(r.data)), [callApi]);
-  useEffect(() => { load(); }, [load]);
-  const setRole = async (u, role) => {
-    try { await callApi({ method: "PATCH", url: `/users/${u.user_id}/role`, data: { role } }); toast.success(tr("角色已更新")); load(); }
-    catch (e) { toast.error(e.response?.data?.detail || tr("失敗")); }
-  };
-  return (
-    <div>
-      <SectionHeader title={tr("用戶管理")} />
-      <div className="bg-slate-900 rounded-xl border border-slate-800 divide-y divide-slate-800">
-        {data.users.map((u) => (
-          <div key={u.user_id} className="p-4 flex items-center gap-4" data-testid={`admin-user-${u.user_id}`}>
-            <div className="h-9 w-9 rounded-full bg-slate-800 flex items-center justify-center text-sm font-bold text-primary">{(u.name || u.email || "?")[0].toUpperCase()}</div>
-            <div className="flex-1 min-w-0">
-              <div className="text-sm font-semibold text-white truncate">{u.name || tr("未命名")}</div>
-              <div className="text-xs text-slate-500 truncate">{u.email}</div>
-            </div>
-            <div className="text-xs text-slate-400">{u.order_count} {tr("筆訂單")}</div>
-            <select value={u.role} onChange={(e) => setRole(u, e.target.value)} className="text-xs h-8 rounded-lg bg-slate-800 border border-slate-700 px-2 text-slate-200">
-              {data.roles.map((r) => <option key={r} value={r}>{r === "admin" ? tr("管理員") : tr("會員")}</option>)}
-            </select>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
+
 
 export default function Admin() {
   const navigate = useNavigate();
