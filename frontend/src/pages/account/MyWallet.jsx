@@ -149,7 +149,7 @@ export function TxRow({ t }) {
 const ACTIONS = [
   { to: "/account/wallet/topup", title: tr("錢包充值"), sub: tr("多種支付 · 即時入帳"), btn: tr("立即充值"), img: "/banners/wallet-topup-3d.webp", bg: "#FED5B5", tid: "wallet-go-topup" },
   { to: "/account/wallet/transactions", title: tr("交易紀錄"), sub: tr("充值 · 付款 · 明細"), btn: tr("查看明細"), img: "/banners/wallet-transactions-3d.webp", bg: "#F3CCAB", tid: "wallet-go-transactions" },
-  { to: "/account/wallet/topups", title: tr("充值記錄"), sub: tr("USDT 充值單 · 到帳狀態"), btn: tr("查看記錄"), img: "/payments/usdt.svg", bg: "#D8F3E8", tid: "wallet-go-topups", icon: true },
+  { to: "/account/wallet/topups", title: tr("充值記錄"), sub: tr("充值單 · 到帳狀態"), btn: tr("查看記錄"), img: "/banners/wallet-topups-3d.webp", bg: "#FBE3C9", tid: "wallet-go-topups" },
 ];
 
 export default function MyWallet() {
@@ -163,7 +163,7 @@ export default function MyWallet() {
           {ACTIONS.map((a) => (
             <Link key={a.to} to={a.to} data-testid={a.tid} style={{ backgroundColor: a.bg }} className="group relative block overflow-hidden rounded-xl md:rounded-2xl aspect-[16/10] md:aspect-[2.3/1] last:max-md:col-span-2 last:max-md:aspect-[2.6/1] shadow-[0_8px_22px_-14px_rgba(232,121,42,0.5)] hover:shadow-lg transition-shadow">
               <div className="absolute inset-y-0 left-0 w-2/3 bg-gradient-to-r from-white/40 to-transparent" />
-              <img src={a.img} alt="" className={a.icon ? "absolute right-3 md:right-5 top-1/2 -translate-y-1/2 h-[42%] w-auto max-w-none group-hover:scale-105 transition-transform duration-300" : "absolute right-1 md:right-4 bottom-0 h-[86%] w-auto max-w-none group-hover:scale-105 transition-transform duration-300"} />
+              <img src={a.img} alt="" className="absolute right-1 md:right-4 bottom-0 h-[86%] w-auto max-w-none group-hover:scale-105 transition-transform duration-300" />
               <div className="relative h-full flex flex-col justify-center pl-3.5 md:pl-7 pr-[42%]">
                 <div className="font-head text-[17px] md:text-2xl font-extrabold text-[#5A2D0C] leading-tight">{a.title}</div>
                 <div className="mt-0.5 md:mt-1 text-[10px] md:text-sm text-[#8A5A3A] whitespace-nowrap">{a.sub}</div>
