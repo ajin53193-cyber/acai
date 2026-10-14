@@ -163,3 +163,10 @@
 - **會員管理移至側欄第二位**（`Admin.jsx` NAV = [overview, members]；原「會員與數據」群組改名「數據」僅含報表）。
 - **會員管理 `MembersAdmin.jsx` 改版**：頂部 4 統計卡（總用戶/活躍/近30天新增/封禁，`GET /api/admin/members/stats` 回 {total, active, new, banned}）；表格含 帳戶ID / 頭像(漸層首字) / 會員 / 手機 / 等級(依累計消費 普通<300≤白銀<1000≤黃金) / 訂單數·消費 / 餘額 / 註冊時間 / 狀態 / 詳情；右側詳情面板（深色漸層頭像卡 + 已實名/高價值徽章 + 基本信息 + 帳戶數據 + 封禁/重置密碼/餘額調整 + 最近訂單/流水）。`GET /api/admin/members/{uid}` 新增 account_no/verified/order_count/spent_usd 並以聚合計算餘額與消費。
 - data-testid：member-stat-{total|active|new|banned}、members-table、members-search、members-tab-{all|active|banned}、member-view-{uid}、member-detail、pm-table、pm-channel-{id}。
+
+## 2026-10 後台資訊架構重構 Round 1（iteration_26 前端 100% 功能通過）
+- 後台側欄改為**可展開/收起的二級菜單**（`Admin.jsx` MENU 常數 + NavGroup 元件 + PAGES 映射 + Soon 占位頁）。使用者點擊分組標題展開/收起子項；儀表盤、用戶管理預設展開。
+- 完整菜單（分組 → 子項）：儀表盤(數據概覽/銷售分析/實時監控/下載報表)、用戶管理(用戶列表/用戶等級/用戶標籤/會員資產/黑名單/用戶日誌/用戶認證/用戶批量操作/用戶反饋/用戶報表統計)、商品管理(商品列表/新增商品/商品分類/規格管理/庫存管理/商品評論)、禮品卡管理(列表/創建/卡券核銷記錄/訂單/核銷API配置)、運營管理(首頁裝修/輪播圖/推薦位/優惠券/積分/消息中心/公告)、活動管理(活動列表/秒殺/充值活動/滿減滿折/抽獎/組合套餐/活動記錄)、財務管理(訂單管理/訂單結算/資金流水/支付渠道配置/財務對賬/匯率配置/財務報表)、系統配置(基礎設置/管理員管理/角色權限/操作日誌/短信配置/郵箱配置/授權配置/翻譯管理/頁尾Logo) + 葉節點 安全配置。
+- 已接現有頁面（18 個 slot）：overview→Dashboard、members→會員管理、verifications、feedback、products、categories、reviews、promos、notifications、activities、orders、topups(資金流水)、payments(支付渠道配置)、currencies(匯率配置)、siteconfig(基礎設置)、translations、paylogos、download-reports→ReportsAdmin。其餘 ~37 個子項渲染 `Soon` 占位頁（data-testid admin-soon，標「功能開發中」）。
+- data-testid：分組 `admin-group-{ascii key}`（dashboard/users/products/giftcards/ops/activities/finance/system，已與 i18n 標籤解耦）；子項 `admin-nav-{key}`；葉 `admin-nav-security`。
+- **待辦（後續 Round 分批開發真實模組）**，建議順序：用戶管理子模組（用戶等級/標籤/會員資產/黑名單/用戶日誌/批量操作/報表）→ 積分管理 → 禮品卡管理 → 活動管理（秒殺/充值活動/滿減滿折/抽獎/組合套餐）→ 運營（首頁裝修/輪播圖/推薦位/公告）→ 系統（管理員/角色權限/操作日誌/短信郵箱授權配置/安全配置）→ 財務（訂單結算/財務對賬/財務報表）→ 儀表盤（銷售分析/實時監控）。

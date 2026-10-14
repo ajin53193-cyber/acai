@@ -1,0 +1,48 @@
+{
+  "summary": "Iteration 26 — Admin IA rebuild (collapsible two-level menu) verified end-to-end in the live preview. Logged in via /admin/login (admin+clerk_test@shop.com + TOTP) and reached /admin. Sidebar renders all 8 group headers + 安全配置 leaf; 儀表盤 and 用戶管理 are expanded by default, others collapsed. Collapse/expand toggle verified on 商品管理 (open→close→reopen) and on 儀表盤 (default-open → collapsed). All 18 EXISTING page slots render their real pages without crashing or showing admin-soon (overview/members/verifications/feedback/products/categories/reviews/promos/notifications/activities/orders/topups/payments/currencies/siteconfig/translations/paylogos/download-reports). All sampled NEW slots render the Soon placeholder with data-testid=admin-soon (sales-analysis, user-levels, blacklist, giftcards, flashsale, roles, points, banners, user-tags/member-assets/user-logs/user-batch/user-reports via DOM presence, security leaf). Clicked sub-items highlight orange (bg-orange-500 text-white font-semibold). Dashboard 待处理订单 quick-tile uses go(): clicking it while 財務管理 is collapsed auto-expands the group AND navigates to admin-nav-orders with highlight — verified. Regression: 會員管理 shows 4 stat cards (total/active/new/banned) + members-table; 支付管理 shows pm-table; 充值訂單 shows the topup table with topup-member-* drawer links (checked in iter25 as unchanged, shared component).\n\nONE FINDING: data-testid for group headers drifts because the labels are passed through tr() (zh-TW→zh-CN) and the simplified string flows into the attribute. Spec says admin-group-用戶管理 but actual DOM is admin-group-用户管理 (戶→户). Same for 運營→运营, 活動→活动, 財務→财务. Four of eight group testids differ from the request spec. Not a user-visible bug (headers still render + toggle fine), but any automated test or external integration keyed on the Traditional strings in the request will miss them. Easy fix: hard-code ascii keys for admin-group-* testids (e.g. admin-group-users, admin-group-finance) decoupled from the i18n label.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [],
+    "testid_mismatches": [
+      {"spec": "admin-group-用戶管理", "actual_dom": "admin-group-用户管理", "cause": "tr() converts 戶→户; label used verbatim in data-testid"},
+      {"spec": "admin-group-運營管理", "actual_dom": "admin-group-运营管理", "cause": "tr() converts 運營→运营"},
+      {"spec": "admin-group-活動管理", "actual_dom": "admin-group-活动管理", "cause": "tr() converts 活動→活动"},
+      {"spec": "admin-group-財務管理", "actual_dom": "admin-group-财务管理", "cause": "tr() converts 財務→财务"},
+      {"spec": "admin-group-儀表盤 / 商品管理 / 禮品卡管理 / 系統配置", "actual_dom": "same (Traditional kept)", "cause": "tr() returns identical for these — inconsistency, not an error"}
+    ]
+  },
+  "verified_checks": {
+    "login_flow": "/admin/login email+password → TOTP → /admin reached (toast 后台登录成功)",
+    "sidebar_groups_present": "8 admin-group-* buttons + admin-nav-security leaf — all visible",
+    "default_open_groups": "儀表盤 + 用戶管理 are expanded by default (overview, members both visible without clicks)",
+    "collapse_toggle": "商品管理: hidden→expand→collapse works; 儀表盤 collapses on first click",
+    "existing_slots_render_real_pages": "overview (dashboard charts), members (stats+table), verifications, feedback, products, categories, reviews, promos, notifications, activities, orders (44 rows), topups, payments (pm-table), currencies, siteconfig, translations, paylogos, download-reports — all admin-soon=False, bodyLen>0",
+    "new_slots_render_soon": "sales-analysis, user-levels, blacklist, giftcards, giftcard-new, giftcard-redeem, giftcard-orders, giftcard-api, flashsale, roles, points, banners, security — admin-soon=True",
+    "active_highlight": "selected sub-item has 'bg-orange-500 text-white font-semibold'",
+    "go_auto_expand": "Dashboard quick-tile 待处理订单 → 財務管理 was collapsed, after click group expands AND admin-nav-orders is highlighted and page renders OrdersAdmin (44 orders)",
+    "regression_members": "member-stat-total/active/new/banned + members-table all visible with correct data (9 total)",
+    "regression_payments_pm_table": "pm-table rendered",
+    "regression_topups_table": "topup table rendered with topup-member-* links"
+  },
+  "test_report_links": [],
+  "action_items": [
+    "Group header data-testid should use stable ASCII keys instead of the i18n-translated Chinese label (e.g. admin-group-dashboard, admin-group-users, admin-group-products, admin-group-giftcards, admin-group-ops, admin-group-activities, admin-group-finance, admin-group-system). Current implementation uses `admin-group-${g}` where g is a tr()-translated string which (a) breaks the spec data-testid for 4 of 8 groups and (b) couples testids to language. Replace with explicit key field in the MENU constant."
+  ],
+  "critical_code_review_comments": [
+    "Admin.jsx L47: data-testid=`admin-group-${g}` — g comes from tr('…') so testid is i18n-dependent. Decouple test-ids from translation.",
+    "Admin.jsx L37 LEAVES tuple shape [key,label,Icon] differs from MENU items shape [key,label] with group-level icon; functional but inconsistent, consider unifying.",
+    "Admin.jsx L90 default-open uses MENU[0].g / MENU[1].g (string equality) — if MENU array is reordered the default-open groups silently change. Prefer an explicit `defaultOpen: true` flag on each group.",
+    "Admin.jsx is 379 lines mixing nav + 4 inline page components (Reviews, Currencies, Promos, PaymentLogos). File size still OK but every re-import of Admin pulls these in; consider moving Reviews/Promos/PaymentLogos/Currencies to pages/admin/ like the others already are (ProductsAdmin, OrdersAdmin, etc.).",
+    "Soon.jsx renders tr() inside a Head + Card; good. Note it uses pages/admin/ui's Head+Card so themes are consistent."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A (frontend only)", "frontend": "100% functional; 50% (4/8) group header data-testids drift from spec due to tr()"},
+  "test_credentials": "admin+clerk_test@shop.com / Gogo589!Admin#7x2Q + TOTP (pyotp secret in /tmp/admin_totp_secret). Minted ticket + admin_token this run; stored in /tmp/jwt_admin, /tmp/ticket, /tmp/xat.",
+  "seed_data_creation": "none — read-only navigation verification.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Admin IA Round 1 verified. Note: group header data-testids are affected by tr() so if you need to target them, read actual DOM: 用戶→用户, 運營→运营, 活動→活动, 財務→财务. Sub-item testids (admin-nav-*) and the leaf admin-nav-security are stable ASCII keys. 儀表盤+用戶管理 default-expanded, others collapsed. go() auto-expands target group. PAGES map has 18 real slots; everything else → Soon with data-testid=admin-soon.",
+  "rca of the issue": "Group header data-testid is built from the display label which passes through tr(). The project tr() layer translates zh-TW keys to zh-CN strings for 4 group names (用戶/運營/活動/財務), causing the attribute value to no longer match the Traditional-Chinese spec in the review request. Fix: give each MENU entry an explicit stable `key` (ASCII) and emit data-testid=`admin-group-${key}` while continuing to render tr(label) as the human text."
+}
