@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { X } from "lucide-react";
 import { tr } from "@/i18n";
@@ -7,6 +7,7 @@ import { STATUS_LABELS } from "@/lib/status";
 
 function MemberDetail({ uid, callApi, onClose, onChanged }) {
   const [d, load] = useLoad(callApi, `/admin/members/${uid}`);
+  useEffect(() => { const h = (e) => e.key === "Escape" && onClose(); window.addEventListener("keydown", h); return () => window.removeEventListener("keydown", h); }, [onClose]);
   const act = async (path, body, msg) => {
     try { await callApi({ method: "POST", url: `/admin/members/${uid}/${path}`, data: body }); toast.success(msg); load(); onChanged(); }
     catch (e) { toast.error(e.response?.data?.detail || tr("操作失敗")); }

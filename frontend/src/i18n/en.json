@@ -957,5 +957,12 @@
  "首次登入：請用 Google Authenticator 掃描綁定": "First login: Scan binding with Google Authenticator",
  "驗證中…": "Verifying…",
  "驗證失敗": "Verification failed",
- "登出後台": "Logout Admin"
+ "登出後台": "Logout Admin",
+ "充值訂單": "Top-up Orders",
+ "會員與數據": "Members & Data",
+ "活動管理": "Campaign Management",
+ "活動配置": "Campaign Settings",
+ "系統設定": "System Settings",
+ "財務管理": "Finance Management",
+ "運營管理": "Operations Management"
 }

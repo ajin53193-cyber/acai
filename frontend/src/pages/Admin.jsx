@@ -20,26 +20,24 @@ import { tr } from "@/i18n";
 
 const NAV = [
   ["overview", tr("總覽"), LayoutDashboard],
-  ["products", tr("商品管理"), Package],
-  ["orders", tr("訂單管理"), ShoppingBag],
-  ["wallets", tr("錢包管理"), Wallet],
-  ["payments", tr("支付管理"), CreditCard],
-  ["verifications", tr("認證審核"), BadgeCheck],
-  ["feedback", tr("用戶反饋"), MessageSquare],
-  ["reviews", tr("評價管理"), Star],
-  ["currencies", tr("匯率管理"), DollarSign],
-  ["promos", tr("優惠碼"), Tag],
-  ["members", tr("會員管理"), Users],
-  ["topups", tr("USDT 充值單"), Wallet],
-  ["reports", tr("數據報表"), TrendingUp],
-  ["translations", tr("翻譯管理"), Globe],
-  ["notifications", tr("通知設定"), Bell],
-  ["settings", tr("網站設定"), Settings],
-  ["paylogos", tr("頁尾支付Logo"), ImagePlus],
+];
+const NAV_GROUPS = [
+  [tr("財務管理"), [["wallets", tr("錢包管理"), Wallet], ["payments", tr("支付管理"), CreditCard], ["currencies", tr("匯率管理"), DollarSign], ["topups", tr("充值訂單"), Wallet]]],
+  [tr("運營管理"), [["products", tr("商品管理"), Package], ["orders", tr("訂單管理"), ShoppingBag], ["verifications", tr("認證審核"), BadgeCheck], ["reviews", tr("評價管理"), Star], ["feedback", tr("用戶反饋"), MessageSquare]]],
+  [tr("活動管理"), [["settings", tr("活動配置"), Settings], ["promos", tr("優惠碼"), Tag]]],
+  [tr("會員與數據"), [["members", tr("會員管理"), Users], ["reports", tr("數據報表"), TrendingUp]]],
+  [tr("系統設定"), [["translations", tr("翻譯管理"), Globe], ["notifications", tr("通知設定"), Bell], ["paylogos", tr("頁尾支付Logo"), ImagePlus]]],
 ];
 
 const ALL_STATUSES = Object.keys(STATUS_LABELS);
 const inputCls = "w-full h-10 rounded-lg bg-slate-800 border border-slate-700 px-3 text-sm text-slate-100 outline-none focus:border-primary";
+
+const NavBtn = ({ k, label, Icon, section, setSection }) => (
+  <button data-testid={`admin-nav-${k}`} onClick={() => setSection(k)}
+    className={`w-full flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${section === k ? "bg-primary text-white" : "text-slate-400 hover:bg-slate-800"}`}>
+    <Icon className="h-4 w-4 shrink-0" /><span className="hidden md:block">{label}</span>
+  </button>
+);
 
 function AdminInner() {
   const callApi = useApi();
@@ -53,19 +51,13 @@ function AdminInner() {
           <div className="h-8 w-8 rounded-lg bg-orange-500 flex items-center justify-center text-white font-black">G</div>
           <span className="hidden md:block font-head font-bold text-white">{tr("管理後台")}</span>
         </div>
-        <nav className="flex-1 py-3 space-y-1 px-2">
-          {NAV.map(([key, label, Icon]) => (
-            <button
-              key={key}
-              data-testid={`admin-nav-${key}`}
-              onClick={() => setSection(key)}
-              className={`w-full flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${
-                section === key ? "bg-primary text-white" : "text-slate-400 hover:bg-slate-800"
-              }`}
-            >
-              <Icon className="h-4 w-4 shrink-0" />
-              <span className="hidden md:block">{label}</span>
-            </button>
+        <nav className="flex-1 py-3 space-y-0.5 px-2 overflow-y-auto">
+          {NAV.map(([key, label, Icon]) => <NavBtn key={key} k={key} label={label} Icon={Icon} section={section} setSection={setSection} />)}
+          {NAV_GROUPS.map(([g, items]) => (
+            <div key={g} className="pt-3">
+              <div className="hidden md:block px-3 pb-1 text-[11px] font-semibold text-slate-400 tracking-wide">{g}</div>
+              {items.map(([key, label, Icon]) => <NavBtn key={key} k={key} label={label} Icon={Icon} section={section} setSection={setSection} />)}
+            </div>
           ))}
         </nav>
         <button data-testid="admin-logout" onClick={() => { sessionStorage.removeItem("admin_token"); window.location.href = "/admin/login"; }} className="flex items-center gap-2 px-4 py-2.5 text-xs text-slate-500 hover:text-red-500 border-t border-slate-800"><ShieldAlert className="h-4 w-4" /> <span className="hidden md:block">{tr("登出後台")}</span></button>

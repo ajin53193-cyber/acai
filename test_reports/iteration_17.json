@@ -1,0 +1,91 @@
+{
+  "summary": "Iteration 17 — Admin 2FA console (independent /admin/login, X-Admin-Token guard, members / topups / reports / translations / notifications). Backend: 24/24 passed in pytest (1 test skipped on 2nd run because its target expired topup was already credited by the 1st run, which itself passed). Frontend: all critical flows green after a one-line fix to the shared `Card` component in /app/frontend/src/pages/admin/ui.jsx that was swallowing `data-testid` (so chart-* and notify-event-* didn't reach the DOM).",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "GET /api/admin/members", "issue": "The row object is just `{**user_doc, ...}` so the `banned` field is missing for users whose doc never had the key written. Spec listed `banned` as a guaranteed column. Fix: `\"banned\": bool(u.get(\"banned\") or False)` in admin_api.admin_members."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "admin/ui.jsx Card", "issue": "Card did not forward `data-testid` (and any other HTML attr) to its underlying div. Result: `chart-revenue_usd`, `chart-orders`, `chart-topup_usd`, `chart-new_users`, `notify-event-order_paid|order_completed|order_rejected|topup_paid` test-ids never reached the DOM, so automated tests and future RUM selectors would miss them. Fixed by spreading `...rest` on the Card div.", "selector": "[data-testid^=chart-], [data-testid^=notify-event-]", "priority": "LOW"}
+    ],
+    "integration_issues": [
+      {"flow": "MemberDetail drawer dismissal", "issue": "Drawer only closes via backdrop click or the X button; there is no Escape-key handler. This can trap automation that uses `page.keyboard.press('Escape')` and is a minor UX gap for keyboard users.", "affected_selectors": ["[data-testid=\"member-detail\"]"]}
+    ],
+    "design_issues": [
+      {"screen": "Admin.jsx shell", "issues": ["Even with .admin-light overrides, the markup still carries dark-mode classes (bg-slate-950/900/800) and only an `admin-light` class on the root flips them via !important CSS. Works for current screens (confirmed in screenshots: white sidebar, orange active nav, slate-700/900 text, white content cards) but any new section that uses primary brand colors or shadcn components will need the admin-light overrides updated. Consider refactoring Admin.jsx to directly use light-theme Tailwind classes once the look is finalised."]},
+      {"screen": "ReportsAdmin recharts", "issues": ["Transient console warnings `The width(-1) and height(-1) of chart should be greater than 0` fire while the chart first mounts in a 0×0 container (ResponsiveContainer timing). Not blocking — charts settle to normal size after ~500ms. Could be silenced by setting `minHeight` on the chart Card or by lazy-mounting ResponsiveContainer after layout."]}
+    ]
+  },
+  "verified_checks": {
+    "backend_pytest_24_24": {
+      "admin_login_wrong_pw_401": "pass (detail contains 密碼)",
+      "admin_login_member_403": "pass (detail: 此帳號沒有後台權限)",
+      "admin_login_ok_setup_null": "pass (admin already enrolled)",
+      "admin_totp_wrong_code_400": "pass (detail: 驗證碼錯誤)",
+      "admin_guard_new_route_401_without_token": "GET /api/admin/topups → 401 {detail: admin_2fa_required}",
+      "admin_guard_legacy_stats_401_without_token": "GET /api/admin/stats → 401 {detail: admin_2fa_required}",
+      "admin_guard_legacy_stats_200_with_token": "pass",
+      "topups_list": "list sorted desc; required fields (id,status,amount_usd,user_id,user_email,out_trade_no) present",
+      "topups_filter_paid": "all returned rows status=paid",
+      "topup_requery_expired": "200 {topup, gateway}",
+      "topup_credit_expired_200_then_409": "balance_usd before=... after=before+amount_usd (EXACT match on the specific topup $50); 2nd credit → 409 {此充值單已入帳}",
+      "members_list_q": "has user_id, order_count, spent_usd, balance_usd, google (banned may be omitted — see minor issue)",
+      "members_detail": "has emails, phone, password_enabled, orders[], transactions[], balance_usd",
+      "members_ban_then_unban_throwaway_uid_user_3KfPpaMZWYY6G1TxMw4TkwVQ4Oj": "ban→banned=true then unban→banned=false; Clerk & Mongo both toggled",
+      "members_reset_pw_weak_400": "pass",
+      "members_reset_pw_ok_Abcdef12!": "200 {ok:true}",
+      "translations_list_q_抖音": "returns list of {src,en}",
+      "translations_put_reflects_in_categories_en": "PUT src=直播平臺 en='Live Streaming Platforms X' → GET /api/categories with X-Lang:en returns livestream.name == probe. Restored after test.",
+      "translations_retranslate": "returns {src, en:non-empty}",
+      "notifications_get_defaults": "has events {order_paid,order_completed,order_rejected,topup_paid} + templates",
+      "notifications_put_restore": "PUT events.topup_paid=false persisted; restored",
+      "notifications_test_email_to_admin": "200 {to:'admin+clerk_test@shop.com'}",
+      "sms_balance": "200 {dagou:{...}, submail:{...}} — both providers returned payload (dagou status=1 ok, submail status present)",
+      "reports_json_7days": "{rows:[7 items], totals:{orders,revenue_usd,paid_orders,topups,topup_usd,new_users}}",
+      "reports_csv_7days": "Content-Type text/csv, Content-Disposition attachment; UTF-8 BOM + header `date,orders,revenue_usd,paid_orders,topups,topup_usd,new_users`"
+    },
+    "frontend_desktop_1920": {
+      "admin_redirect_without_token": "visiting /admin with no sessionStorage.admin_token redirects to /admin/login",
+      "admin_login_full_flow": "fill admin creds → login success → TOTP step with no QR (admin-totp-setup absent, enrolled) → wrong code 000000 → toast '驗證碼錯誤' and stays on login → correct pyotp code (377819/current) → navigates to /admin and sessionStorage.admin_token populated (len=123)",
+      "light_theme_sidebar_white": "aside bg = rgb(255,255,255)",
+      "nav_new_sections": "admin-nav-members → members-table ✓; admin-nav-topups → topups-table ✓; admin-nav-reports → report-table ✓; admin-nav-translations → tr-table ✓; admin-nav-notifications → notify-event-order_paid/completed/rejected/topup_paid all visible ✓ (after Card fix)",
+      "reports_charts": "chart-revenue_usd / chart-orders / chart-topup_usd / chart-new_users all mounted in DOM after Card fix",
+      "reports_days_7_switch": "report-days-7 click → table repopulates with 7 rows",
+      "reports_csv_download": "report-export triggers download named report_7d.csv",
+      "members_drawer": "member-view-<uid> opens member-detail with member-ban + member-reset-pw buttons present (member-unban correctly hidden for non-banned user)",
+      "topups_requery": "topup-requery-<id> clicked successfully (toast captured briefly during one run then dismissed in <4.5s)",
+      "legacy_sections_smoke": "overview / products / orders / wallets nav all mount under light theme without errors",
+      "admin_logout": "admin-logout clears sessionStorage.admin_token and navigates to /admin/login"
+    }
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_admin_console.py",
+    "/app/test_reports/pytest/iter17_admin.xml"
+  ],
+  "action_items": [
+    "(minor) admin_api.admin_members: always emit `banned: bool` on each row — currently missing when the user doc never had the field set, which breaks the spec contract for the members listing.",
+    "(minor UX) Add Escape-key handler to MemberDetail drawer (MembersAdmin.jsx) for keyboard dismissal.",
+    "(polish) Silence recharts 0×0-container warnings by giving the chart card a `minHeight: 192px` style or deferring ResponsiveContainer mount."
+  ],
+  "critical_code_review_comments": [
+    "admin_api.admin_topup_credit (L158): the credit path mutates status to 'pending' then calls `_usdt_settle`; the 409 is raised BEFORE the mutation on an already-paid record, so there's no window where a paid topup could be clobbered back to pending — good. However, _usdt_settle presumably increments the wallet; if it throws between the `set status=pending` and completion, the topup is left in a worse state than it started. Consider using a Mongo transaction, or at minimum roll back on exception.",
+    "admin_api._sign/_verify (L38-54): HS256 token using CLERK_SECRET_KEY as the HMAC key. Rotating the Clerk key invalidates every active admin session — acceptable but should be documented alongside the email-OTP HMAC usage noted in iteration 16.",
+    "admin_api.admin_member_detail (L209): computes balance_usd by fetching ALL wallet_transactions (`to_list(10000)`) just to sum them — same values are already computed server-side in the admin_members aggregation. Prefer a `$group` aggregate (one round-trip, O(1) memory) for consistency and scalability.",
+    "admin_api.admin_members (L189): `email: '' if email.endswith('@' + PHONE_DOMAIN)` strips phone-only sentinel emails but `banned`, `role`, etc. come from the raw doc spread — minor but inconsistent. Normalize all output fields in one pass.",
+    "Admin.jsx (L21-39): NAV table interleaves the brand-new sections (members/topups/reports/translations/notifications) between legacy ones, so the sidebar order is 總覽 → 商品/訂單/錢包/支付/認證/反饋/評價/匯率/優惠碼 → 會員/USDT充值單/數據報表/翻譯/通知 → 網站設定/頁尾Logo. For admin console IA, grouping the new 'core operations' at top or in a sub-section would improve findability.",
+    "admin/ui.jsx Card component (now fixed): any shared component that renders a wrapper div MUST forward unknown props (`...rest`), otherwise data-testid / aria-* / role props silently vanish. Add this review check to the component template."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_admin_console.py",
+    "/app/frontend/src/pages/admin/ui.jsx"
+  ],
+  "success_rate": {"backend": "100% (24/24 — 1 of 25 skipped on re-run because its target expired topup had already been credited in the first run, which itself passed with balance assertion)", "frontend": "100% of listed critical flows after the one-line Card fix (admin-login redirect, 2FA happy & unhappy paths, light theme, all nav sections and their test-ids, reports charts + CSV, members drawer, topups requery, logout, legacy sections smoke)"},
+  "test_credentials": "Used /app/memory/test_credentials.md as-is. Admin 2FA secret for user_3Kc4MDW67YZmA1ym1sGkaMiLVwK read from Mongo admin_2fa (also present in /tmp/totp_secret). The throwaway member ui1791945829+clerk_test@shop.com (user_3KfPpaMZWYY6G1TxMw4TkwVQ4Oj) was used for ban/unban/reset-password; password left at 'Abcdef12!' after the final reset test.",
+  "seed_data_creation": "No new seed data; however topup_order id=eb5d3819-265f-44e9-a7b9-bbf0f31da09f (owner tester+clerk_test@shop.com, amount $50 USD) was transitioned from 'expired' → 'paid' via the manual-credit test, incrementing the tester wallet by $50 USD. This is permanent for the preview DB.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Regression file: /app/backend/tests/test_admin_console.py. The credit test is self-skipping if run against an already-paid topup — to re-exercise the +balance assertion, pick a fresh pending/expired topup and update EXPIRED_TOPUP_ID. The sidebar is intentionally dark-markup + .admin-light CSS override — treat computed background rgb(255,255,255) as PASS even though raw className says bg-slate-900. Any new admin sub-page using the shared Card component now correctly forwards data-testid, so author new sections like `<Card data-testid=\"foo-section\">`.",
+  "rca of the issue": "Only one bug surfaced: admin/ui.jsx `Card` was destructuring just `{children, className}`, dropping every other prop including `data-testid`. ReportsAdmin & NotificationsAdmin set `data-testid` on Card instances (chart-* and notify-event-*), so those IDs were silently lost from the DOM. Fix: spread `...rest` onto the underlying div. Mitigation: add a lint rule or component template rule that every wrapper component forwards unknown props (or uses `React.forwardRef`). The admin members list `banned`-missing-field is likewise a one-line fix in admin_api.admin_members and does not affect the UI (frontend defaults it to false via `u.banned ? ... : ...`)."
+}

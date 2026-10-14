@@ -186,7 +186,7 @@ async def admin_members(q: str = "", limit: int = 200, admin: dict = Depends(cur
     for u in users:
         o = orders.get(u["user_id"], {})
         email = u.get("email", "")
-        out.append({**u, "email": "" if email.endswith("@" + email_auth.PHONE_DOMAIN) else email, "order_count": o.get("count", 0), "spent_usd": round(o.get("spent", 0) or 0, 2),
+        out.append({**u, "banned": bool(u.get("banned")), "email": "" if email.endswith("@" + email_auth.PHONE_DOMAIN) else email, "order_count": o.get("count", 0), "spent_usd": round(o.get("spent", 0) or 0, 2),
                     "balance_usd": round(bal.get(u["user_id"], 0) or 0, 2), "google": bool((u.get("public_metadata") or {}).get("google_sub"))})
     return out
 

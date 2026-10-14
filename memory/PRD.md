@@ -116,3 +116,9 @@
 - 手機 OTP：`backend/sms.py` SUBMAIL internationalsms xsend（env SUBMAIL_APPID/APPKEY/PROJECT=VS8zK，模板 @var(code) @var(time)）。**+86 中國大陸不支援**（回 400 提示用郵箱）；待用戶提供中國簡訊平台再接。測試號 +1201555xxxx 固定碼 424242 不發送。
 - 手機帳號：Clerk 不支援 phone，故以佔位信箱 `p{digits}@phone.gogo589.com` 建 Clerk 用戶 + public_metadata.phone，映射存 `phone_accounts {phone,user_id}`；前端 `userLabel/userEmail/userPhone`(lib/api.js) 顯示手機而非佔位信箱。端點：/api/auth/email/phone/{send-code,register,verify,reset-password}；password-login 支援 + 開頭手機識別。
 - 部署 Secrets 新增：SUBMAIL_APPID、SUBMAIL_APPKEY、SUBMAIL_PROJECT。
+
+## 2026-06 後台重做（iteration_17 後端 24/24、前端通過）
+- 獨立後台登入 `/admin/login`：帳密（Clerk verify_password）→ Google Authenticator TOTP（pyotp，首登顯示 QR/密鑰綁定，存 `admin_2fa`）→ 回 Clerk ticket + `admin_token`(HMAC 12h)。前端 sessionStorage `admin_token`，`useApi` 自動帶 `X-Admin-Token`；已綁定 2FA 的管理員呼叫 /api/admin/* 必須帶此標頭（否則 401 admin_2fa_required）。
+- `backend/admin_api.py`：/api/admin/topups(+requery/credit 手動補單)、/members(+詳情/ban/unban/reset-password)、/translations(+retranslate)、/notifications(+test、/sms/balance)、/reports(json/csv)。通知 hook：USDT 到帳、訂單完成、資料駁回 → 依 settings.notifications 模板寄郵件/簡訊。
+- 前端：淺色 Kavip 商戶風（index.css `.admin-light` 覆寫舊深色 class）、側欄分組（總覽 / 財務管理 / 運營管理 / 活動管理(活動配置=網站設定, 優惠碼) / 會員與數據 / 系統設定）、新頁面 pages/admin/{Topups,Members,Reports,Translations,Notifications}Admin.jsx + ui.jsx。
+- 業主後台帳號：admin@gogo589.com（見 test_credentials.md）。

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { tr } from "@/i18n";
 
-export const Card = ({ children, className = "" }) => <div className={`bg-white rounded-2xl border border-slate-200 ${className}`}>{children}</div>;
+export const Card = ({ children, className = "", ...rest }) => <div {...rest} className={`bg-white rounded-2xl border border-slate-200 ${className}`}>{children}</div>;
 export const Btn = ({ children, kind = "primary", className = "", ...p }) => {
   const k = { primary: "bg-orange-500 hover:bg-orange-600 text-white", ghost: "bg-slate-100 hover:bg-slate-200 text-slate-700", danger: "bg-red-50 hover:bg-red-100 text-red-600", ok: "bg-emerald-50 hover:bg-emerald-100 text-emerald-700" }[kind];
   return <button {...p} className={`h-9 px-3.5 rounded-lg text-xs font-semibold whitespace-nowrap disabled:opacity-50 transition-colors ${k} ${className}`}>{children}</button>;
