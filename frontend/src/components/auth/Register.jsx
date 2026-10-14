@@ -11,7 +11,6 @@ const validPassword = (p) => p.length >= 8 && p.length <= 32 && [/[0-9]/, /[a-zA
 
 export function Register({ onBack, onClose, finishTicket }) {
   const [kind, setKind] = useState("phone");
-  const refCode = (typeof window !== "undefined" && localStorage.getItem("ref_code")) || "";
   const [dialCode, setDialCode] = useState("+886");
   const [email, setEmail] = useState("");
   const [code, setCode] = useState("");
@@ -68,13 +67,6 @@ export function Register({ onBack, onClose, finishTicket }) {
       <div className="flex items-center gap-6 mb-4">
         <span className="relative text-lg font-bold pb-1 text-orange-600">{tr("註冊帳號")}<span className="absolute left-1/2 -translate-x-1/2 -bottom-0.5 h-1 w-7 rounded-full bg-orange-500" /></span>
       </div>
-      {refCode && (
-        <div data-testid="register-ref-banner" className="flex items-center gap-2 mb-4 rounded-2xl bg-orange-50 px-4 py-2.5 text-sm text-orange-600">
-          <span className="font-semibold">{tr("邀請碼")}</span>
-          <span className="font-head font-extrabold tracking-widest">{refCode}</span>
-          <span className="text-xs text-orange-400 ml-auto">{tr("註冊後自動綁定，首充雙方得積分")}</span>
-        </div>
-      )}
       <div className="flex items-center gap-2 mb-4" data-testid="register-kind">
         {[["phone", tr("手機號碼註冊")], ["email", tr("郵箱註冊")]].map(([k, l]) => (
           <button key={k} data-testid={`register-kind-${k}`} onClick={() => switchKind(k)}

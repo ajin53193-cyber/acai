@@ -383,3 +383,9 @@
 - 資料：flash_sales / combos / cart_promotions / recharge_bonus_rules 全部 active=false，lottery 設定 enabled=false（後端計價引擎與 API 路由保留但不再生效）。
 - 保留：邀請返利（運營管理）、優惠券、積分等非活動模組。
 - 驗證：首頁無秒殺/套餐/活動橫幅；後台登入無「活動管理」「活動中心」；/lottery/config enabled=false。
+
+## 2026-10 Round 27：移除會員等級 / 積分 / 邀請好友
+- 前台：帳戶頁刪除「會員等級 / 我的積分 / 升級進度」三列與邀請按鈕；結帳頁刪除積分抵現卡與等級/積分折扣列（quote 不再傳 use_points）；刪除 Invite.jsx 與 /invite 路由；註冊彈窗移除邀請碼橫幅；首頁移除 ?ref 追蹤/自動綁定邏輯。
+- 後台：刪除 用戶等級(UserLevelsAdmin)、積分管理(PointsAdmin)、邀請返利(ReferralAdmin) 菜單與頁面；會員列表移除等級欄、詳情移除等級/積分與積分調整卡；會員資產移除總積分/積分欄；用戶批量移除發放積分；用戶報表移除等級分佈；RolesAdmin 與 ALL_PERMISSIONS 同步。
+- 資料：points 設定 earn/order/topup/redeem 全部關閉；referral enabled/weekly/milestones 關閉；member_levels discount_percent 全部設 0（後端計價不再有等級折扣）。後端相關 API 與欄位保留但無效。
+- 驗證：後台菜單無三項、會員詳情無等級/積分；結帳頁與首頁正常渲染。
