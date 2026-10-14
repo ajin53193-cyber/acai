@@ -1,0 +1,39 @@
+{
+  "summary": "Round 35 referral additions (milestones + weekly rewards + scan-to-register backend + poster style) tested end-to-end. Added /app/backend/tests/test_referral_round35.py (11 tests, all PASS); regression /app/backend/tests/test_referral.py (13 tests) still PASS — 24/24 total. Covers: GET/PUT /api/admin/referral/config round-trip for new fields (milestones_enabled, milestones[], weekly_enabled, weekly_rewards[]) with edited count=4/val=400 persistence then restore to defaults; POST /api/admin/referral/weekly/run → {ok:true}; GET /api/admin/referral/weekly/awards returns list; POST /api/cron/referral-weekly → 401 without Authorization, 200 {ok:true} with Bearer WEBHOOK_CRON_SECRET, duplicate X-Webhook-Id → {ok:true, duplicate:true}; GET /api/me/referral now includes milestones_enabled/milestones/milestones_granted and every poster has a style dict; poster create+update stores style (title_color/subtitle_color/code_color/align/title_pos/card_pos) and persists through list GET. Admin UI (/admin/login → TOTP → 運營管理 → 邀請返利) exercised with Playwright: 獎勵配置 tab shows all 3 sections (基礎 / ref-cfg-milestones / ref-cfg-weekly) with ref-cfg-ms-add / ref-cfg-wk-add / ref-cfg-wk-run / ref-cfg-save all present; adding a milestone row works; 儲存全部配置 shows success; 立即結算本週榜 fires without crash. 海報模板 tab edit modal (ref-poster-modal) shows ref-poster-preview with draggable title+card chips, 3 color inputs, align-left/center toggles, 儲存 button — color change + align-left + save round-trip verified via DB (first poster style persisted with title_color=#aabbcc / card_x,title_x etc.). 排行榜與週獎 tab shows both ref-lb-table and ref-weekly-table. Config and first poster style restored to defaults.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "GET /api/me/referral", "issue": "Seeded poster rows (created before the style field existed) returned without a 'style' key, forcing clients to defensively default it. Fixed in server.py (defaults to {} in the response loop) so Invite.jsx buildPoster(poster.style) is safe."},
+      {"endpoint": "GET /api/admin/referral/posters", "issue": "Legacy seeded poster '福氣紅' still returns style:null in admin list (no normalisation on admin side). Non-blocking because the admin editor opens null→{} client-side, but worth normalising for parity."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_referral_round35.py",
+    "/app/backend/tests/test_referral.py",
+    "/app/test_reports/pytest/referral_r35_results.xml"
+  ],
+  "action_items": [
+    "User-side Invite.jsx (invite-milestones-card / invite-milestone-bar / invite-milestone-<count>) and Home.jsx ?ref auto-open-register + auto-bind-on-signin flows cannot be driven headlessly on preview (Clerk bot protection on password sign-in for the member user). Backend data they consume is verified (/api/me/referral returns milestones + milestones_granted; poster.style flows through). Please self-verify these two UI flows in a real browser or add a test-only Clerk ticket mint for the tester user (mirrors /admin/login) so headless Playwright can signIn.create({strategy:'ticket'}).",
+    "(Optional) Normalise poster.style to {} inside admin_api.admin_referral_posters list so admin GET matches /me/referral behaviour."
+  ],
+  "critical_code_review_comments": [
+    "run_referral_weekly() correctly idempotent via referral_weekly_awards unique (week,user_id) — good.",
+    "_apply_referral_milestones() idempotent via $addToSet on referral_milestones_granted — good; sorted by count so lower tiers grant first.",
+    "ReferralConfigIn defaults milestones=[] / weekly_rewards=[]; a PUT with only base fields will overwrite the saved arrays to []. Consider making these Optional[list]=None and merging with existing when None (otherwise the older test_referral.py::test_update_persists wipes milestones/weekly as observed during the parallel run; it was restored by this suite)."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_referral_round35.py",
+    "/app/backend/server.py (my_referral: default poster.style to {} to normalise seeded rows)"
+  ],
+  "success_rate": {"backend": "100% (24/24)", "frontend": "admin 100%; member /invite + Home scan-to-register not testable headlessly (Clerk bot protection)"},
+  "test_credentials": "admin+clerk_test@shop.com / Gogo589!Admin#7x2Q + TOTP (admin_2fa secret DNY74VQQI3454NAKX3XW7INOIG4UCTQA in Mongo). Member bearer via /app/tests/mint_token.py user_3Kc4MFu2DHwZuy8itp5vS09nzaL.",
+  "seed_data_creation": "Config was temporarily mutated during config persistence tests (milestones count=4, weekly rank1=2500, first poster.style.title_color=#aabbcc) and restored to defaults after the suite (enabled true, 500/200, default zh titles, milestones [3/5/10 -> 300/800/2000], weekly [2000/1000/500], first poster style={}). A TEST_style_poster was created+deleted inside TestPosterStyle. No residual test data.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "test_referral_round35.py is the regression suite for the new fields; test_referral.py remains the base regression. The parallel run order has a subtle gotcha: test_referral.py::TestReferralConfig::test_update_persists PUTs only {enabled,referrer,referee,poster_title,poster_subtitle} which — because ReferralConfigIn defaults milestones=[]/weekly_rewards=[] — wipes those arrays from the stored doc; the Round 35 suite always restores defaults at the end, so running them together leaves clean state."
+}

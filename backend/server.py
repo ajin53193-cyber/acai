@@ -1415,6 +1415,8 @@ async def my_referral(member: dict = Depends(current_member)):
     cfg = await get_referral_cfg()
     has_topup = bool(await db.topup_orders.find_one({"user_id": uid, "status": "paid"}, {"_id": 1}))
     posters = await db.referral_posters.find({"active": True}, {"_id": 0, "id": 1, "name": 1, "image": 1, "style": 1}).sort("sort", 1).to_list(50)
+    for p in posters:
+        p["style"] = p.get("style") or {}
     return {"code": code, "enabled": bool(cfg.get("enabled")), "referrer_points": int(cfg.get("referrer_points") or 0),
             "referee_points": int(cfg.get("referee_points") or 0), "bound": bool(u.get("referred_by")),
             "can_bind": not u.get("referred_by") and not has_topup,

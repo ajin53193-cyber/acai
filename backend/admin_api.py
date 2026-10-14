@@ -1315,7 +1315,9 @@ async def admin_referral_config(admin: dict = Depends(current_admin)):
 
 @router.put("/referral/config")
 async def admin_referral_config_put(body: ReferralConfigIn, admin: dict = Depends(current_admin)):
-    await db.settings.update_one({"key": "referral"}, {"$set": {"key": "referral", "value": body.dict()}}, upsert=True)
+    cur = await _ref_cfg()
+    cur.update(body.dict(exclude_unset=True))
+    await db.settings.update_one({"key": "referral"}, {"$set": {"key": "referral", "value": cur}}, upsert=True)
     return {"ok": True}
 
 
@@ -1372,7 +1374,10 @@ async def admin_referral_leaderboard(limit: int = 20, admin: dict = Depends(curr
 
 @router.get("/referral/posters")
 async def admin_referral_posters(admin: dict = Depends(current_admin)):
-    return await db.referral_posters.find({}, {"_id": 0}).sort("sort", 1).to_list(100)
+    rows = await db.referral_posters.find({}, {"_id": 0}).sort("sort", 1).to_list(100)
+    for r in rows:
+        r["style"] = r.get("style") or {}
+    return rows
 
 
 @router.post("/referral/posters")
