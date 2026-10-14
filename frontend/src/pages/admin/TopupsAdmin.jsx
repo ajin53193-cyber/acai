@@ -8,7 +8,6 @@ import { MemberDetail } from "./MembersAdmin";
 const TONE = { pending: "orange", reviewing: "sky", paid: "emerald", expired: "slate", cancelled: "slate", closed: "slate", failed: "red", rejected: "red" };
 const LABEL = { pending: tr("待付款"), reviewing: tr("待審核"), paid: tr("已到帳"), rejected: tr("已駁回"), expired: tr("已過期"), cancelled: tr("已取消"), closed: tr("已關閉"), failed: tr("失敗") };
 const TABS = ["", "pending", "reviewing", "paid", "rejected", "expired"];
-const PROVIDER = { crypto: "USDT", stripe: "Stripe", paypal: "PayPal", manual: tr("銀行轉帳") };
 const ICON = { crypto: "/payments/usdt.svg", stripe: "/payments/visa-mastercard.svg", paypal: "/payments/paypal.svg", manual: "/payments/bank.svg" };
 const MANUAL = ["manual", "other", "alipay", "wechat"];
 const PRESETS = [["today", tr("今天")], ["7", tr("近 7 天")], ["30", tr("近 30 天")], ["month", tr("本月")]];
@@ -109,7 +108,7 @@ export function TopupsAdmin({ callApi }) {
                   <td className="px-4 py-3 whitespace-nowrap">
                     <div className="flex items-center gap-2">
                       <span className="h-7 w-11 rounded-md bg-slate-50 border border-slate-100 flex items-center justify-center overflow-hidden">{(pmImg[t.method_id] || ICON[prov]) ? <img src={pmImg[t.method_id] || ICON[prov]} alt="" className="max-h-5 max-w-[36px] object-contain" /> : <span className="text-[10px] font-bold text-slate-500">{tr("轉帳")}</span>}</span>
-                      <span className="text-xs text-slate-700">{t.method_name || PROVIDER[prov]}</span>
+                      <span className="font-mono text-xs text-slate-500">{t.channel_no}</span>
                     </div>
                   </td>
                   <td className="px-4 py-3 whitespace-nowrap">

@@ -155,6 +155,8 @@ async def admin_topups(status: str = "", q: str = "", date_from: str = "", date_
         t["user_email"] = u.get("email", "")
         t["user_phone"] = u.get("phone", "")
         t["account_no"] = account_no(t["user_id"])
+        mid = t.get("method_id") or t.get("provider") or ""
+        t["channel_no"] = "CH" + str(10000 + (int(hashlib.md5(mid.encode()).hexdigest()[:5], 16) % 90000)) if mid else "-"
     base = {k: v for k, v in query.items() if k != "status"}
     counts = {c["_id"]: c["n"] async for c in db.topup_orders.aggregate([{"$match": base}, {"$group": {"_id": "$status", "n": {"$sum": 1}}}])}
     return {"rows": items, "counts": counts, "total": sum(counts.values())}
