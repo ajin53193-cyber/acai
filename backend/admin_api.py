@@ -350,6 +350,73 @@ async def admin_sms_balance(admin: dict = Depends(current_admin)):
 
 
 # ----------------------------- Reports -----------------------------
+PAID_STATUSES = ["paid", "processing", "shipped", "completed"]
+
+
+async def _period_stats(since: str, until: str) -> dict:
+    o = await db.orders.aggregate([{"$match": {"created_at": {"$gte": since, "$lt": until}}}, {"$group": {"_id": None, "orders": {"$sum": 1},
+        "revenue": {"$sum": {"$cond": [{"$in": ["$status", PAID_STATUSES]}, "$total_usd", 0]}}}}]).to_list(1)
+    t = await db.topup_orders.aggregate([{"$match": {"created_at": {"$gte": since, "$lt": until}, "status": "paid"}}, {"$group": {"_id": None, "n": {"$sum": 1}, "usd": {"$sum": "$amount_usd"}}}]).to_list(1)
+    users = await db.users.count_documents({"created_at": {"$gte": since, "$lt": until}})
+    return {"orders": (o[0]["orders"] if o else 0), "revenue_usd": round((o[0]["revenue"] if o else 0) or 0, 2), "topups": (t[0]["n"] if t else 0), "topup_usd": round((t[0]["usd"] if t else 0) or 0, 2), "new_users": users}
+
+
+@router.get("/dashboard")
+async def admin_dashboard(days: int = 30, admin: dict = Depends(current_admin)):
+    days = max(7, min(days, 365))
+    now = datetime.now(timezone.utc)
+    since = (now - timedelta(days=days - 1)).strftime("%Y-%m-%d")
+    prev_since = (now - timedelta(days=2 * days - 1)).strftime("%Y-%m-%d")
+    cur, prev = await _period_stats(since, "9999"), await _period_stats(prev_since, since)
+    rows = {}
+    for i in range(days):
+        d = (now - timedelta(days=days - 1 - i)).strftime("%Y-%m-%d")
+        rows[d] = {"date": d, "orders": 0, "revenue_usd": 0.0, "topup_usd": 0.0, "new_users": 0}
+    product_rev: dict = {}
+    async for o in db.orders.find({"created_at": {"$gte": since}}, {"_id": 0, "created_at": 1, "status": 1, "total_usd": 1, "items": 1}):
+        r = rows.get(o["created_at"][:10])
+        paid = o.get("status") in PAID_STATUSES
+        if r:
+            r["orders"] += 1
+            if paid:
+                r["revenue_usd"] += float(o.get("total_usd") or 0)
+        if paid:
+            for it in o.get("items", []):
+                p = product_rev.setdefault(it.get("product_id"), {"product_id": it.get("product_id"), "name": it.get("product_name"), "image": it.get("image", ""), "qty": 0, "revenue_usd": 0.0})
+                p["qty"] += int(it.get("quantity") or 1)
+                p["revenue_usd"] += float(it.get("unit_price_usd") or it.get("price_usd") or 0) * int(it.get("quantity") or 1)
+    async for t in db.topup_orders.find({"created_at": {"$gte": since}, "status": "paid"}, {"_id": 0, "created_at": 1, "amount_usd": 1}):
+        r = rows.get(t["created_at"][:10])
+        if r:
+            r["topup_usd"] += float(t.get("amount_usd") or 0)
+    async for u in db.users.find({"created_at": {"$gte": since}}, {"_id": 0, "created_at": 1}):
+        r = rows.get((u.get("created_at") or "")[:10])
+        if r:
+            r["new_users"] += 1
+    by_status = {r["_id"]: r["n"] for r in await db.orders.aggregate([{"$group": {"_id": "$status", "n": {"$sum": 1}}}]).to_list(20)}
+    pay_mix = await db.topup_orders.aggregate([{"$match": {"status": "paid", "created_at": {"$gte": since}}}, {"$group": {"_id": {"$ifNull": ["$method_name", {"$ifNull": ["$provider", "USDT"]}]}, "n": {"$sum": 1}, "usd": {"$sum": "$amount_usd"}}}, {"$sort": {"usd": -1}}]).to_list(10)
+    wallet = await db.users.aggregate([{"$group": {"_id": None, "s": {"$sum": {"$ifNull": ["$wallet_balance_usd", 0]}}}}]).to_list(1)
+    cat_rev = await db.orders.aggregate([{"$match": {"created_at": {"$gte": since}, "status": {"$in": PAID_STATUSES}}}, {"$unwind": "$items"},
+        {"$lookup": {"from": "products", "localField": "items.product_id", "foreignField": "id", "as": "p"}}, {"$unwind": {"path": "$p", "preserveNullAndEmptyArrays": True}},
+        {"$group": {"_id": {"$ifNull": ["$p.category", "other"]}, "usd": {"$sum": {"$multiply": [{"$ifNull": ["$items.unit_price_usd", {"$ifNull": ["$items.price_usd", 0]}]}, {"$ifNull": ["$items.quantity", 1]}]}}}}, {"$sort": {"usd": -1}}, {"$limit": 8}]).to_list(8)
+    cats = {c["id"]: c["name"] for c in await db.categories.find({}, {"_id": 0, "id": 1, "name": 1}).to_list(100)}
+    recent_orders = await db.orders.find({}, {"_id": 0, "id": 1, "order_no": 1, "user_email": 1, "items": 1, "total_usd": 1, "status": 1, "created_at": 1}).sort("created_at", -1).to_list(8)
+    recent_topups = await db.topup_orders.find({}, {"_id": 0, "id": 1, "amount_usd": 1, "status": 1, "provider": 1, "method_name": 1, "created_at": 1, "user_id": 1}).sort("created_at", -1).to_list(6)
+    top_products = sorted(product_rev.values(), key=lambda p: -p["revenue_usd"])[:8]
+    for p in top_products:
+        p["revenue_usd"] = round(p["revenue_usd"], 2)
+    return {
+        "days": days, "current": cur, "previous": prev,
+        "totals": {"wallet_balance_usd": round((wallet[0]["s"] if wallet else 0) or 0, 2), "users": await db.users.count_documents({}), "products": await db.products.count_documents({"active": True}),
+                   "pending_dispatch": (by_status.get("paid", 0) + by_status.get("processing", 0)), "pending_topup_reviews": await db.topup_orders.count_documents({"status": "reviewing"}),
+                   "pending_verifications": await db.verifications.count_documents({"status": "pending"}), "open_feedback": await db.feedback.count_documents({"status": "open"})},
+        "series": [{**r, "revenue_usd": round(r["revenue_usd"], 2), "topup_usd": round(r["topup_usd"], 2)} for r in rows.values()],
+        "by_status": by_status, "payment_mix": [{"name": r["_id"] or "-", "count": r["n"], "usd": round(r["usd"], 2)} for r in pay_mix],
+        "category_mix": [{"name": cats.get(r["_id"], r["_id"]), "usd": round(r["usd"], 2)} for r in cat_rev],
+        "top_products": top_products, "recent_orders": recent_orders, "recent_topups": recent_topups,
+    }
+
+
 @router.get("/reports")
 async def admin_reports(days: int = 30, format: str = "json", admin: dict = Depends(current_admin)):
     days = max(1, min(days, 365))

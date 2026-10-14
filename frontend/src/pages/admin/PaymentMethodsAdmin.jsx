@@ -5,17 +5,22 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Switch } from "@/components/ui/switch";
 import { tr } from "@/i18n";
 
-const inp = "w-full h-10 rounded-lg bg-slate-800 border border-slate-700 px-3 text-sm text-slate-100 outline-none focus:border-primary";
+const inp = "w-full h-10 rounded-lg bg-slate-100 border border-slate-200 px-3 text-sm text-slate-900 outline-none focus:ring-2 focus:ring-orange-300";
 const CATS = { usdt: "USDT", card: tr("卡支付"), ewallet: tr("電子錢包"), bank: tr("銀行轉賬") };
 const PROVIDERS = { manual: tr("人工核對（無對接）"), stripe: "Stripe", paypal: "PayPal", alipay: tr("支付寶"), wechat: tr("微信支付"), crypto: tr("加密貨幣"), other: tr("其他") };
 const CONFIG_FIELDS = {
-  manual: [["account_info", tr("收款帳戶資訊（顯示給客服核對）")]],
-  stripe: [["merchant_id", "Account ID"], ["api_key", "Publishable Key"], ["api_secret", "Secret Key"], ["webhook_secret", "Webhook Secret"]],
-  paypal: [["merchant_id", "Client ID"], ["api_secret", "Client Secret"], ["notify_url", "Return URL"]],
-  alipay: [["merchant_id", "APPID"], ["api_secret", tr("應用私鑰")], ["notify_url", tr("異步通知地址")]],
-  wechat: [["merchant_id", tr("商戶號 mch_id")], ["api_key", "APIv3 Key"], ["notify_url", tr("回調地址")]],
+  manual: [["bank_name", tr("銀行名稱")], ["account_name", tr("收款戶名")], ["account_no", tr("收款帳號")], ["swift", tr("SWIFT / 分行代碼（選填）")], ["bank_note", tr("轉帳說明（顯示給用戶，如：請備註轉帳碼）")]],
+  stripe: [],
+  paypal: [["client_id", "Client ID"], ["api_secret", "Client Secret"], ["env", tr("環境")]],
+  alipay: [["account_info", tr("收款帳戶資訊（顯示給用戶）")]],
+  wechat: [["account_info", tr("收款帳戶資訊（顯示給用戶）")]],
   crypto: [["base_url", tr("網關 API 網址（留空用系統預設）")], ["api_key", tr("網關 API Key")], ["api_secret", tr("網關 API Secret")], ["merchant_id", tr("網路（TRC20）")]],
-  other: [["merchant_id", tr("商戶 ID")], ["api_key", "API Key"], ["api_secret", "API Secret"], ["notify_url", tr("回調地址")]],
+  other: [["account_info", tr("收款帳戶資訊（顯示給用戶）")]],
+};
+const PROVIDER_HINT = {
+  stripe: tr("Stripe 密鑰由系統 Secrets（STRIPE_API_KEY）統一管理，無需在此填寫；收銀台自動支援信用卡、Apple Pay、Google Pay，付款成功後自動入帳。"),
+  paypal: tr("請至 developer.paypal.com 建立應用取得 Client ID / Secret；沙盒用於測試，正式環境請切換為 live。用戶付款返回後自動入帳。"),
+  manual: tr("用戶會看到以上收款資訊與專屬轉帳碼，上傳轉帳憑證後由後台「充值訂單」審核入帳。"),
 };
 const readFile = (f) => new Promise((res) => { const r = new FileReader(); r.onload = () => res({ image_b64: r.result, image_name: f.name }); r.readAsDataURL(f); });
 const empty = { name: "", category: "card", provider: "manual", description: "", config: {}, min_usd: 50, max_usd: 10000, fee_percent: 0, active: true };
@@ -45,7 +50,7 @@ export default function PaymentMethodsAdmin({ callApi }) {
         <h1 className="font-head text-2xl font-bold text-white">{tr("支付管理 · 錢包充值方式")}</h1>
         <button data-testid="pm-add-btn" onClick={() => setEditing({ ...empty })} className="flex items-center gap-1.5 h-10 px-4 rounded-lg bg-primary text-white text-sm font-semibold"><Plus className="h-4 w-4" /> {tr("新增支付方式")}</button>
       </div>
-      <p className="text-xs text-slate-500 mb-4">{tr("會員在「我的錢包」充值時可選擇以下方式；Logo、付款說明、對接參數皆可在此維護。目前為測試支付，選擇後即時入帳。")}</p>
+      <p className="text-xs text-slate-500 mb-4">{tr("會員在「我的錢包」充值時可選擇以下方式；Logo、付款說明、對接參數皆可在此維護。Stripe / PayPal 付款成功自動入帳；銀行轉帳需上傳憑證由後台審核。")}</p>
       {list === null ? <Loader2 className="h-6 w-6 animate-spin" /> : (
         <div className="space-y-2">
           {list.length === 0 && <div className="text-slate-500 text-sm py-10 text-center">{tr("尚無支付方式")}</div>}
@@ -81,8 +86,8 @@ function MethodForm({ f, setF, onSave, onClose }) {
   const setCfg = (k, v) => setF((p) => ({ ...p, config: { ...p.config, [k]: v } }));
   return (
     <Dialog open onOpenChange={onClose}>
-      <DialogContent className="bg-slate-900 border-slate-800 text-slate-200 max-w-2xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader><DialogTitle className="text-white">{f.id ? tr("編輯支付方式") : tr("新增支付方式")}</DialogTitle></DialogHeader>
+      <DialogContent className="bg-white max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader><DialogTitle className="text-slate-900">{f.id ? tr("編輯支付方式") : tr("新增支付方式")}</DialogTitle></DialogHeader>
         <div className="space-y-3">
           <div className="grid grid-cols-2 gap-3">
             <div><label className="text-xs text-slate-400">{tr("名稱")}</label><input data-testid="pm-form-name" className={inp} value={f.name} onChange={(e) => set("name", e.target.value)} placeholder={tr("例如 VISA / MasterCard")} /></div>
@@ -104,10 +109,12 @@ function MethodForm({ f, setF, onSave, onClose }) {
           <div className="rounded-xl border border-slate-800 p-4 space-y-3">
             <div><label className="text-xs text-slate-400">{tr("支付對接")}</label>
               <select data-testid="pm-form-provider" className={inp} value={f.provider} onChange={(e) => set("provider", e.target.value)}>{Object.entries(PROVIDERS).map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select></div>
+            {PROVIDER_HINT[f.provider] && <div className="col-span-2 text-[11px] text-slate-500 bg-orange-50 border border-orange-100 rounded-lg px-3 py-2">{PROVIDER_HINT[f.provider]}</div>}
             <div className="grid grid-cols-2 gap-3">
               {(CONFIG_FIELDS[f.provider] || []).map(([k, l]) => (
                 <div key={k} className={k === "account_info" ? "col-span-2" : ""}><label className="text-xs text-slate-400">{l}</label>
-                  {k === "account_info" ? <textarea data-testid={`pm-form-cfg-${k}`} className={inp + " h-20 py-2"} value={f.config[k] || ""} onChange={(e) => setCfg(k, e.target.value)} />
+                  {k === "env" ? <select data-testid="pm-form-cfg-env" className={inp} value={f.config.env || "sandbox"} onChange={(e) => setCfg("env", e.target.value)}><option value="sandbox">{tr("沙盒（測試）")}</option><option value="live">{tr("正式（live）")}</option></select>
+                    : ["account_info", "bank_note"].includes(k) ? <textarea data-testid={`pm-form-cfg-${k}`} className={inp + " h-20 py-2"} value={f.config[k] || ""} onChange={(e) => setCfg(k, e.target.value)} />
                     : <input data-testid={`pm-form-cfg-${k}`} className={inp} value={f.config[k] || ""} onChange={(e) => setCfg(k, e.target.value)} placeholder={["api_key", "api_secret", "webhook_secret"].includes(k) ? tr("儲存後將遮罩顯示") : ""} />}
                 </div>
               ))}
@@ -117,7 +124,7 @@ function MethodForm({ f, setF, onSave, onClose }) {
           <label className="flex items-center gap-2 text-sm"><Switch checked={f.active} onCheckedChange={(v) => set("active", v)} /> {tr("啟用（會員可選）")}</label>
         </div>
         <DialogFooter>
-          <button onClick={onClose} className="h-10 px-4 rounded-lg border border-slate-700 text-slate-300 text-sm">{tr("取消")}</button>
+          <button onClick={onClose} className="h-10 px-4 rounded-lg border border-slate-300 text-slate-600 text-sm">{tr("取消")}</button>
           <button data-testid="pm-form-save" onClick={() => onSave(f)} className="h-10 px-5 rounded-lg bg-primary text-white text-sm font-semibold">{tr("儲存")}</button>
         </DialogFooter>
       </DialogContent>

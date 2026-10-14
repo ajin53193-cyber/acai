@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { Plus, Check, ChevronLeft } from "lucide-react";
 import { toast } from "sonner";
 import { useApi, publicApi } from "@/lib/api";
@@ -24,6 +24,7 @@ export default function WalletTopUp() {
   const [methodId, setMethodId] = useState("");
   const [busy, setBusy] = useState(false);
   const [pending, setPending] = useState(null);
+  const navigate = useNavigate();
 
   useEffect(() => { publicApi.get("/payment-methods").then((r) => setMethods(r.data)).catch(() => {}); }, []);
   useEffect(() => {
@@ -64,10 +65,9 @@ export default function WalletTopUp() {
     setBusy(true);
     try {
       if (isUsdt) { await topupUsdt(); return; }
-      await new Promise((r) => setTimeout(r, 700));
-      const r = await callApi({ method: "POST", url: "/me/wallet/topup", data: { amount_usd: value, method_id: selected.id } });
-      toast.success(tr("充值成功（測試），餘額 {0}", format(r.data.balance_usd)));
-      setCustom(""); load();
+      const r = await callApi({ method: "POST", url: "/me/wallet/topup/checkout", data: { amount_usd: value, method_id: selected.id, origin_url: window.location.origin } });
+      if (["stripe", "paypal"].includes(r.data.provider)) { toast.success(tr("正在前往收銀台…")); window.location.href = r.data.pay_url; return; }
+      navigate(`/account/wallet/topups?topup=${r.data.id}`);
     } catch (e) { toast.error(e.response?.data?.detail || tr("充值失敗")); }
     finally { setBusy(false); }
   };

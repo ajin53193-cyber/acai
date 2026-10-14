@@ -20,6 +20,7 @@ import { SiteConfigAdmin } from "@/pages/admin/SiteConfigAdmin";
 import { ProductsAdmin } from "@/pages/admin/ProductsAdmin";
 import { CategoriesAdmin } from "@/pages/admin/CategoriesAdmin";
 import { OrdersAdmin } from "@/pages/admin/OrdersAdmin";
+import { DashboardAdmin } from "@/pages/admin/DashboardAdmin";
 import { tr } from "@/i18n";
 
 const NAV = [
@@ -71,7 +72,7 @@ function AdminInner() {
       </aside>
 
       <main className="flex-1 min-w-0 p-4 md:p-8 overflow-x-hidden">
-        {section === "overview" && <Overview callApi={callApi} />}
+        {section === "overview" && <DashboardAdmin callApi={callApi} go={setSection} />}
         {section === "products" && <ProductsAdmin callApi={callApi} />}
         {section === "categories" && <CategoriesAdmin callApi={callApi} />}
         {section === "orders" && <OrdersAdmin callApi={callApi} />}
@@ -92,43 +93,6 @@ function AdminInner() {
         {section === "translations" && <TranslationsAdmin callApi={callApi} />}
         {section === "notifications" && <NotificationsAdmin callApi={callApi} />}
       </main>
-    </div>
-  );
-}
-
-function Overview({ callApi }) {
-  const [stats, setStats] = useState(null);
-  useEffect(() => {
-    callApi({ method: "GET", url: "/admin/stats" }).then((r) => setStats(r.data)).catch(() => {});
-  }, [callApi]);
-  if (!stats) return <Loader2 className="h-6 w-6 animate-spin" />;
-  const cards = [
-    [tr("總營收 (USD)"), `$${stats.revenue_usd.toLocaleString()}`, TrendingUp, "text-emerald-400"],
-    [tr("訂單總數"), stats.order_count, ShoppingBag, "text-blue-400"],
-    [tr("待處理發貨"), stats.pending_dispatch, Clock, "text-amber-400"],
-    [tr("商品數 / 用戶數"), `${stats.product_count} / ${stats.user_count}`, Users, "text-violet-400"],
-  ];
-  return (
-    <div>
-      <h1 className="font-head text-2xl font-bold text-white mb-6">{tr("總覽儀表板")}</h1>
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-        {cards.map(([label, val, Icon, color], i) => (
-          <div key={i} className="bg-slate-900 rounded-2xl border border-slate-800 p-5">
-            <Icon className={`h-5 w-5 ${color}`} />
-            <div className="font-head font-extrabold text-2xl text-white mt-3">{val}</div>
-            <div className="text-xs text-slate-500 mt-1">{label}</div>
-          </div>
-        ))}
-      </div>
-      <h2 className="font-semibold text-white mb-3">{tr("訂單狀態分佈")}</h2>
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-        {ALL_STATUSES.map((s) => (
-          <div key={s} className="bg-slate-900 rounded-xl border border-slate-800 p-4 text-center">
-            <div className="font-head font-bold text-xl text-white">{stats.by_status[s] || 0}</div>
-            <div className="text-xs text-slate-500 mt-1">{STATUS_LABELS[s]}</div>
-          </div>
-        ))}
-      </div>
     </div>
   );
 }

@@ -21,6 +21,7 @@ from translate import Translator, to_simplified, to_traditional
 import email_auth
 import admin_api
 import cms_api
+import payments_api
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -925,7 +926,8 @@ async def _usdt_settle(topup: dict, gw: dict) -> dict:
         {"$set": {"status": "paid", "paid_at": gw.get("paid_at") or now_iso(), "tx_id": gw.get("tx_id", ""), "pay_amount": gw.get("pay_amount", topup.get("pay_amount"))}},
         projection={"_id": 0}, return_document=ReturnDocument.AFTER)
     if r:
-        bal = await _wallet_tx(topup["user_id"], "topup", float(topup["amount_usd"]), f"錢包充值（USDT {topup.get('network', 'TRC20')}）", ref=topup.get("order_no", ""))
+        label = topup.get("method_name") or f"USDT {topup.get('network', 'TRC20')}"
+        bal = await _wallet_tx(topup["user_id"], "topup", float(topup["amount_usd"]), f"錢包充值（{label}）", ref=topup.get("order_no") or topup.get("out_trade_no", ""))
         await db.users.update_one({"user_id": topup["user_id"]}, {"$set": {"last_payment_method_id": topup.get("method_id", "")}})
         asyncio.create_task(admin_api.notify_user(topup["user_id"], "topup_paid", {"amount": f"USD$ {float(topup['amount_usd']):.2f}", "balance": f"USD$ {bal:.2f}"}))
         return r
@@ -967,11 +969,13 @@ async def wallet_topups(member: dict = Depends(current_member)):
 
 
 @api_router.get("/me/wallet/topup/{tid}")
-async def wallet_topup_status(tid: str, member: dict = Depends(current_member)):
+async def wallet_topup_status(tid: str, request: Request, member: dict = Depends(current_member)):
     t = await db.topup_orders.find_one({"id": tid, "user_id": member["user_id"]}, {"_id": 0})
     if not t:
         raise HTTPException(status_code=404, detail="充值單不存在")
-    if t["status"] == "pending":
+    if t["status"] == "pending" and t.get("provider") and t["provider"] != "crypto":
+        t = await payments_api.refresh_status(t, request)
+    elif t["status"] == "pending":
         pm = await db.payment_methods.find_one({"id": t.get("method_id")}, {"_id": 0})
         try:
             key, secret, base = _usdt_creds(pm)
@@ -1964,7 +1968,7 @@ async def seed():
 
 
 translator = Translator(db)
-LOCALIZE_SKIP = ("/api/auth/email", "/api/admin", "/api/img", "/api/payments", "/api/cron", "/api/me/wallet/topup", "/api/i18n")
+LOCALIZE_SKIP = ("/api/auth/email", "/api/admin", "/api/img", "/api/payments", "/api/webhook", "/api/cron", "/api/me/wallet/topup", "/api/i18n")
 
 
 @api_router.get("/i18n/stats")
@@ -1984,6 +1988,14 @@ cms_api.db = db
 cms_api.upload_b64 = _upload_b64
 cms_api.new_id = new_id
 app.include_router(cms_api.router)
+payments_api.db = db
+payments_api.current_member = current_member
+payments_api.settle = _usdt_settle
+payments_api.wallet = _wallet
+payments_api.upload_b64 = _upload_b64
+payments_api.new_id = new_id
+payments_api.now_iso = now_iso
+app.include_router(payments_api.router)
 app.include_router(admin_api.router)
 app.include_router(api_router)
 app.include_router(clerk_router)
