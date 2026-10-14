@@ -1,0 +1,33 @@
+{
+  "summary": "Round 9 storefront E2E PASS. Verified (1) combo card on Home + add-to-cart→checkout combo discount, (2) lottery /lottery page with 10-draw batch result modal, (3) flash-sale countdown ticks. Admin homepage builder skipped per instructions (admin 2FA).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "feature_test_results": {
+    "combo_section_on_home": "PASS — [data-testid=combos-section] renders. Combo card [data-testid=combo-card-7f7eb86527ad] shows '超值双人组', items (抖音抖币×1, 小红书薯币×1), package price $9.99, struck-through $60.67, 立即抢购 button [combo-buy-7f7eb86527ad].",
+    "combo_buy_navigates_to_checkout": "PASS — clicking combo-buy adds 2 cart items (抖音抖币 2980+20钻石 / 小红书 980薯币) with combo_id prefix cart-item-combo_7f7eb86527ad__..., and navigates to /checkout.",
+    "checkout_combo_discount_row": "PASS — [data-testid=checkout-combo-discount] innerText = '超值双人组:\\n-$50.68' (combo title + discount amount).",
+    "checkout_total_reflects_combo_pricing": "PASS — [data-testid=checkout-total] = '$4.89'. Breakdown: 商品总额 $60.67 − 全场满减 $5.00 − 超值双人组 $50.68 − 白银2% $0.10 + 手续费 $0.00 = $4.89 (matches expected ~$4.89).",
+    "flash_sale_section_and_countdown": "PASS — [data-testid=flash-sale-section] and [data-testid=flash-countdown] both present. Countdown ticks (observed '05:22:25' → '05:22:22' over 2s). No sold-out overlays currently (expected, cards not sold out yet).",
+    "lottery_points_display": "PASS — [data-testid=lottery-points] shows '我的积分：1400'.",
+    "lottery_single_and_batch_buttons": "PASS — [data-testid=lottery-draw-btn-2] text='抽 1 次（100 积分）', [data-testid=lottery-draw-btn-10] text='连抽十次（1000 积分）'.",
+    "lottery_free_daily_badge": "NOT SHOWN (expected) — free_available=false at test time (daily free draw already consumed by earlier session). This is correct behavior; no bug. Button label falls back to paid labels as expected.",
+    "lottery_batch_10_result_modal": "PASS — clicking 连抽十次 opened [data-testid=lottery-result] titled '连抽 10 次结果' with 10 prize rows (50积分, 实物公仔, 200积分, 谢谢惠顾, 50积分, 50积分, USD$2 余额, 谢谢惠顾, 谢谢惠顾, 50积分). Closed via [data-testid=lottery-result-close].",
+    "lottery_points_decrement": "PASS — points 1400 → 800 after batch. Net −600 reconciles: 1000 cost spent − 400 points awarded (50+200+50+50+50) = 600 net."
+  },
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "AuthModal: the agree-checkbox is sr-only; label does not wrap the terms/privacy <button> children, so clicking the span text 已阅读并同意 does toggle (good), but testing needed Playwright .check(force=true) to tick. Not a bug—works for real users clicking the visible orange pill. Noted only for future test agents."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A (skipped)", "frontend": "100% (10/10 checked assertions)"},
+  "test_credentials": "Member: tester+clerk_test@shop.com / Gogo589!Tester#4m9Z — no 2FA email code prompted this session.",
+  "seed_data_creation": "None. Used seeded combo id 7f7eb86527ad (超值双人组, $9.99 vs $60.67). Lottery batch of 10 was executed (consumed 1000 points, awarded 400 back) — member now at 800 points; mention this to next tester if more lottery tests are planned.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "All 4 new Round-9 storefront behaviors (combo on Home, combo at Checkout, lottery 10-draw batch, flash countdown tick) verified via DOM/testid queries. The lottery-free-badge was not visible because the member already consumed today's free draw before/after this run (10-draw does not grant a free). If retesting free_daily, use a different member or reset lottery_free state. Admin 首页装修 was NOT tested (skipped per request — admin 2FA barrier). After this run: member points reduced from 1400 → 800; cart was cleared via localStorage before combo test; no real wallet order was placed (checkout stopped at summary display per instruction)."
+}

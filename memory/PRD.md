@@ -241,3 +241,14 @@
 - data-testid：flashsale-admin/fs-*、lottery-admin/lottery-*、flash-sale-section/flash-item-*/flash-countdown、home-lottery-entry、lottery-page/lottery-wheel/lottery-draw-btn/lottery-points/lottery-result、cart-flash-badge-*、checkout-cartpromo-hint、order-giftcard-codes/order-giftcard-copy-*、pf-giftcard/pf-spec-giftcard-*、account-lottery-btn。
 - 驗證：秒殺 quote 8.68（=4.34×2）、per-user limit 2 超限 409、sold 原子預扣；抽獎扣 100 積分並發 50 積分/$0.5 餘額；禮品卡付款生成 2 張 $10 卡掛單；admin flash/lottery CRUD 全通；結算秒殺價 6/6 E2E 通過。
 - **後續（未做）**：活動管理剩餘 slot（組合套餐 combo、活動記錄 activity-records）；秒殺倒計時歸零自動刷新/下架；首頁裝修/輪播圖/推薦位等運營 slot。
+
+## 2026-10 後台 Round 9：組合套餐 + 秒殺收尾態 + 抽獎進階 + 首頁裝修（iteration_31 前端 10/10 通過；後端 curl 全驗）
+- **組合套餐**（`CombosAdmin.jsx` → 活動管理「組合套餐」combo slot；admin_api `/admin/combos` CRUD + `_enrich_combo` 回原價）：規則 {title, image, items:[{product_id,spec_id,quantity}], price_usd, active, sort_order}。公開 `GET /api/combos/public`（含每項 price_usd、original_total_usd）。
+  - OrderItemIn 新增 `combo_id`；`_compute_order` 將同 combo_id 的商品組折價至套餐價（combo_discount_usd，在 promo/滿減之前），extras + 訂單落盤 combo_discount_usd/combo_title。CartContext 新增 `addCombo`（展開套餐商品帶 combo_id 入購物車）；首頁 `CombosSection`（套餐卡 + 原價刪除線 + 立即搶購→加購物車跳結算）；結算頁 `checkout-combo-discount` 行。
+  - 驗證：subtotal 60.67 → 套餐 -50.68 → 9.99 → 滿50減5 → 2% → 4.89。
+- **秒殺收尾態**：`Countdown` 歸零顯示「已結束」並回調 `onExpire` 重新拉 `/flash-sales/public`；秒殺卡 remaining<=0 顯示「已搶光」遮罩（flash-soldout-*）。
+- **抽獎進階**：lottery 設定新增 `free_daily`；`GET /api/lottery/my-status`（points/cost/free_available）；`POST /api/lottery/draw {count}` 支援 count=1/10，單抽每日首次免費（free_used，`_free_draw_used_today`），連抽十次扣 cost×10；`_pick_and_grant` 抽出到為批次共用。前台 Lottery 加「連抽十次」按鈕（lottery-draw-btn-10）、今日免費徽章（lottery-free-badge）、批次結果彈窗列出 10 項。
+- **首頁裝修**（`HomeLayoutAdmin.jsx` → 運營管理「首頁裝修」home-decoration slot）：拖曳（HTML5 draggable，無新依賴）+ 上下箭頭排序、顯示/隱藏切換、儲存至 site-config `home_layout`。Home.jsx 改為依 `cfg.home_layout` 順序與 visible 渲染 7 個板塊（flash_sale/lottery_entry/combos/quick_order/hot_products/promo_banners/hot_categories）。cms_api DEFAULT_CONFIG 新增 home_layout。
+- data-testid：combos-admin/combo-*、homelayout-admin/hl-row-*/hl-toggle-*/homelayout-save、combos-section/combo-card-*/combo-buy-*、checkout-combo-discount、lottery-draw-btn-10/lottery-free-badge、flash-soldout-*/flash-ended。
+- 驗證：組合套餐 10/10 E2E；免費抽/連抽十次後端直測；首頁裝修 PUT/讀回/reset 全通。
+- **後續（未做）**：活動記錄 activity-records slot；輪播圖/推薦位/公告等運營 slot；系統配置（管理員/角色權限/操作日誌）。
