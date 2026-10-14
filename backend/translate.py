@@ -16,7 +16,7 @@ _cc_t = OpenCC("s2twp")
 GLOSSARY = {
     "每月一單": "Monthly limit 1", "每日一單": "Daily limit 1", "新用戶專享": "New users only", "新用戶": "New user",
     "新客": "New customer", "特價": "Special price", "限時": "Limited time", "充值": "Top-up", "儲值": "Top-up",
-    "直充": "Direct top-up", "點卡": "Gift card", "代充": "Agent top-up", "錢包": "Wallet", "優惠券": "Coupon",
+    "直充": "Direct top-up", "果豆": "Fruit Beans", "鑽石": "Diamonds", "金幣": "Gold Coins", "點券": "Points", "月卡": "Monthly Card", "點卡": "Gift card", "代充": "Agent top-up", "錢包": "Wallet", "優惠券": "Coupon",
 }
 
 SYSTEM = (

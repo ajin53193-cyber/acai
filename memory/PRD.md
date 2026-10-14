@@ -93,3 +93,13 @@
 - **USDT TRC20 真實網關接入**（print8.2bc8uyz.com，HMAC-SHA256 簽名）：金鑰在 backend/.env（USDT_PAY_API_KEY/SECRET/BASE_URL、APP_PUBLIC_URL 作 notify_url），後台 USDT 方法 config(base_url/api_key/api_secret) 可覆蓋。
   - POST /api/me/wallet/topup/usdt → 建單(topup_orders, 1 USD=1 USDT) 回 pay_url/pay_amount/wallet_address；前端新分頁開收銀台 + 等待面板每 5 秒輪詢 GET /api/me/wallet/topup/{id}（主動查詢網關）。
   - POST /api/payments/usdt/notify 驗簽後冪等入帳，回純文字 success。(iteration_14 全數通過，含 notify 重放不重複入帳)
+
+## 2026-06 三語 + 多幣種（iteration_15 全數通過）
+- 語言：zh-CN（預設）/ zh-TW / en。`frontend/src/i18n/index.js` 匯出 `tr(key,...args)`（key 為繁體原文）；字典 `zh-CN.json`（OpenCC 產生）、`en.json`（LLM 產生）；切換語言 = 寫入 localStorage `gt_lang` 後整頁 reload。所有 API 帶 `X-Lang` 標頭。
+- 後端 `localize_response` middleware：zh-CN 用 OpenCC 轉換所有 CJK 字串；en 查 `translations` 集合（2 萬筆預翻，`scripts/pretranslate_db.py`），缺漏回傳簡體並由 `Translator` 背景 LLM(gpt-4.1-mini) 補翻（長文如 content_html 只在單筆回應時排程）。跳過 /api/admin、/api/payments、/api/cron、錢包充值等。
+- 後台 /admin：介面簡體（tr 字典），API 不轉換（避免存回簡體覆蓋繁體資料）。
+- 新增/維護 UI 文案流程：寫繁體並用 `tr("…")` 包住 → `python3 scripts/i18n_codemod.py keys` → `python3 scripts/gen_i18n_dicts.py`（增量產生兩本字典）。
+- 搜尋：q 同時以 原文/簡體/繁體 regex 及英文反查比對。
+- 貨幣：18 種（USD 預設，KRW/VND/IDR/JPY/TWD 0 位小數），`auto_rate` 旗標；每日 02:00 UTC 平台 cron（.emergent/crons.yml → POST /api/cron/refresh-rates，Bearer WEBHOOK_CRON_SECRET，X-Webhook-Id 去重）從 open.er-api.com 更新；後台手動改匯率即關閉自動。
+- 已知限制：含中文文字的圖片（頂部 AI 推廣條、商品頁權益/活動 banner 圖、新用戶註冊角標圖）不會翻譯；英文模式商品頁權益條已改為文字卡。
+- 部署需設定 Secrets：USDT_PAY_API_KEY/SECRET/BASE_URL、APP_PUBLIC_URL、WEBHOOK_CRON_SECRET、EMERGENT_LLM_KEY。

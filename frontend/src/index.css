@@ -149,3 +149,5 @@ code, .font-mono {
 .gt-toast-icon-info { background: #FDEBD9; color: #F08A3C; }
 .gt-toast-icon-warn { background: #FEF3C7; color: #D97706; }
 
+
+#root { overflow-x: clip; }

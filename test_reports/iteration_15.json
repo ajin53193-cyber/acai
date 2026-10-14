@@ -1,0 +1,57 @@
+{
+  "summary": "Iteration 15 — Multi-language (zh-CN default / zh-TW / en) + 18-currency FX with daily refresh. Backend 13/13 pytest pass. Frontend: default zh-CN works (html.lang=zh-CN, header 登录/所有服务/快捷下单, ZH-CN/USD badge); English switch works (html.lang=en, Login/All services/Quick order, product names Douyin/MiGuo Live/bilibili Live Battery in English, Product Description/Reviews tabs, perks-slide-0='New users only / Daily limit 1 / Buy and get unlimited gifts'); zh-TW switch works (登入 / 所有服務, no simplified leakage); localStorage gt_lang persists. Price formatting on product page verified: USD $8.69 (2 dec), KRW ₩11,590 (0 dec), CNY ¥65.18 (2 dec). Search works both EN ('douyin' → Douyin results) and zh-CN ('抖音' → 抖音 results). Backend: GET /api/currencies returns 18 sorted USD-first with rate_to_usd; GET /api/categories localizes correctly (en has English names, zh-CN has 游戏/no 遊戲, default traditional has 遊戲/平臺); GET /api/i18n/stats returns {cached, pending}; POST /api/cron/refresh-rates rejects wrong/missing bearer with 401, accepts valid secret with {ok:true}, idempotent on same X-Webhook-Id (duplicate:true), rate_updated_at populated after refresh; GET/PUT /api/admin/currencies works with admin JWT; manual CNY override (rate 7.5, auto_rate=false) is preserved through POST /api/admin/currencies/refresh while other auto currencies get updated rate_updated_at. Admin UI data-testids 'admin-refresh-rates' and 'admin-auto-rate-{code}' confirmed in Admin.jsx source.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "GET /api/admin/currencies", "issue": "USD document missing 'auto_rate' field (legacy seed via $setOnInsert didn't update existing docs). Server treats missing as auto=true via {auto_rate: {$ne: false}} so refresh works, but admin UI switch may render indeterminate for USD. Suggest a one-time seed migration to set auto_rate: true on all 18 currencies."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "Home mobile (English)", "issue": "Horizontal page overflow of ~184px at 375px viewport in English mode (zh-CN has 0 overflow). Caused by horizontal product rails where English card titles like 'bilibili Live Battery' or 'Meoo Live Top-up' are longer than zh-CN titles — the rail's parent appears to not clip overflow at the page level. zh-CN mode is clean. Visual layout still looks fine in screenshot (cards swipeable rail), but the whole page scrolls horizontally which is undesirable.", "selector": "A.group.shrink-0.bg-white.rounded-2xl inside horizontal rails under 'Quick order' / 'Popular Products' sections", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Product page EN", "issues": ["Spec button labels like '500,000 Guodou' / '1 Million Guodou' use pinyin 'Guodou' (果豆) — LLM transliteration is inconsistent with sibling buttons using 'Fruit Beans' for the same unit. Not a hard bug (translation-content issue), could be improved by adding 果豆→Fruit Beans to the glossary in translate.py."]}
+    ]
+  },
+  "verified_checks": {
+    "backend_pytest": "13/13 passed in 8.81s (test_i18n_currencies.py). Tests: 18 currencies USD-first, categories en/zh-CN/traditional, product search EN+simplified, i18n stats, cron 401/duplicate/valid+rate_updated_at, admin list, admin manual override survives refresh.",
+    "default_language": "html.lang=zh-CN; header has 登录 / 所有服务 / 快捷下单 / ZH-CN / USD",
+    "english_switch": "html.lang=en; Login / All services / Quick order; Douyin visible; no simplified leakage; localStorage gt_lang=en persists",
+    "zh_TW_switch": "html.lang=zh-TW; 登入 / 所有服務; no 登录 / 所有服务 (simplified) leakage",
+    "product_page_en": "MiGuo Live, 50,000 Fruit Beans, Product Description, Reviews (0), perks-slide-0='New users only...'",
+    "price_formatting": "USD=$8.69 (2 dec), KRW=₩11,590 (0 dec, no decimals leaked), CNY=¥65.18 (2 dec)",
+    "search_en": "'douyin' → results contain 'Douyin'",
+    "search_zh_cn": "'抖音' → results contain '抖音' (middleware converted traditional 抖音 to simplified)",
+    "cron_endpoint": "wrong bearer=401, missing=401, valid=200 {ok:true}, replay=200 {ok:true, duplicate:true}; after valid call ≥10 currencies have rate_updated_at",
+    "admin_override": "PUT /api/admin/currencies/CNY {rate_to_usd:7.5, auto_rate:false} → 200 rate=7.5; POST /refresh → CNY stays 7.5, other auto currencies updated",
+    "admin_testids_in_source": "data-testid='admin-refresh-rates' at Admin.jsx:410 and data-testid=`admin-auto-rate-${c.code}` at Admin.jsx:424"
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_i18n_currencies.py",
+    "/app/test_reports/pytest/i18n_currencies.xml"
+  ],
+  "action_items": [
+    "Fix horizontal overflow on mobile 375px in English: add overflow-x: hidden or proper container clipping to the horizontal product rails on home (zh-CN hidden overflow by shorter titles).",
+    "Optional: migrate USD (and any legacy currency doc) to have explicit auto_rate: true to avoid indeterminate admin switch rendering.",
+    "Optional: add '果豆→Fruit Beans' to GLOSSARY in /app/backend/translate.py for consistent spec-button English labels on MiGuo Live and similar products."
+  ],
+  "critical_code_review_comments": [
+    "server.py refresh_rates (L1500): no exception handling if rates.get() returns non-numeric; relies on upstream open.er-api.com. Acceptable since try wraps the fetch but inner coercion errors would log and skip only that currency silently.",
+    "server.py cron_refresh_rates (L1368): correctly uses hmac.compare_digest for bearer and gates on X-Webhook-Id; however there is NO expiry on cron_runs documents — the collection will grow unbounded over time. Suggest TTL index.",
+    "translate.py Translator._worker: pending set is mutated during iteration via discard inside the loop; batches of 40 pulled per round. If translate_batch raises, items are already removed from pending (not re-queued). Suggest requeueing on failure or persisting pending in Mongo for durability across restarts.",
+    "i18n/index.js: dict lookup uses nullish-coalescing with zhCN fallback, which works, but setLang() hard-reloads the whole SPA — intentional per spec but causes a visible flash and resets scroll. Could be a future SPA-level state swap for better UX.",
+    "server.py get_products search (L278): builds translator.en reverse lookup in Python every request (O(n) over all cached translations). For 20k entries this is cheap but could be memoized via an inverse index on translator init."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_i18n_currencies.py"
+  ],
+  "success_rate": {"backend": "100% (13/13)", "frontend": "95% (all i18n flows + price formatting pass; one minor mobile overflow in EN mode)"},
+  "test_credentials": "Reused /app/memory/test_credentials.md: member user_3Kc4MFu2DHwZuy8itp5vS09nzaL, admin user_3Kc4MDW67YZmA1ym1sGkaMiLVwK. JWT via /app/tests/mint_token.py. Browser Clerk __clerk_ticket flow did not auto-sign-in on this preview — admin UI live testing was skipped and replaced by source-grep verification of data-testids (both 'admin-refresh-rates' and 'admin-auto-rate-{code}' are present in Admin.jsx).",
+  "seed_data_creation": "Admin test temporarily sets CNY to {rate_to_usd:7.5, auto_rate:false} then restores to auto. Cron tests insert 2 cron_runs docs per full test run (one with X-Webhook-Id='iter15-test-*' and one with 'iter15-test-upd-*') — cron_runs collection grows unbounded (see code review).",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Regression file: /app/backend/tests/test_i18n_currencies.py — 13 tests covering all i18n+FX concerns. Uses REACT_APP_BACKEND_URL and WEBHOOK_CRON_SECRET from env. Admin JWT via mint_token.py. For frontend i18n Playwright: set localStorage.gt_lang before goto to force language, reload is required. Price formatting is NOT visible on home page cards; use product pages (e.g. /product/15640) to validate currency decimals. KRW/VND/IDR = 0 decimals, CNY/USD = 2 decimals. Browser-side admin sign-in via __clerk_ticket query param did NOT work in preview (Clerk login modal still appeared); admin UI needs to be tested either via manual password login or by setting Clerk session cookie directly.",
+  "rca of the issue": "Mobile EN overflow RCA: the horizontal product rails use `shrink-0` flex items with explicit widths and the parent carousel likely has `overflow-x: auto` on itself but the parent section/body does not clip. In zh-CN, card titles truncate to 1 line within 92px because they are shorter CJK strings; in English, titles are mapped to longer latin strings and the truncate class works but the surrounding `A` tag/card width remains 106px with padding, so total offscreen rail content pushes the body width beyond viewport. Fix: ensure the horizontal rail wrapper has overflow-x:auto and a width:100% constraint, or wrap sections in `overflow-x: clip` on mobile."
+}

@@ -1516,7 +1516,8 @@ async def refresh_rates() -> dict:
 
 async def seed():
     for i, c in enumerate(DEFAULT_CURRENCIES):
-        await db.currencies.update_one({"code": c["code"]}, {"$setOnInsert": {**c, "active": True, "auto_rate": True}, "$set": {"sort_order": i}}, upsert=True)
+        await db.currencies.update_one({"code": c["code"]}, {"$setOnInsert": {**c, "active": True}, "$set": {"sort_order": i}}, upsert=True)
+        await db.currencies.update_one({"code": c["code"], "auto_rate": {"$exists": False}}, {"$set": {"auto_rate": True}})
     IMG = "https://static.prod-images.emergentagent.com/jobs/8c0ad436-0c2e-49bb-a5bb-0efc73c32f62/images/"
     ICONS = {
         "shortvideo": "/icons/shortvideo.png",
