@@ -657,6 +657,42 @@ async def admin_gift_card_api_regen(admin: dict = Depends(current_admin)):
     return {"api_key": key}
 
 
+# ----------------------------- Cart Promotions (滿減/滿折) -----------------------------
+class CartPromoIn(BaseModel):
+    title: str = ""
+    promo_type: str = "reduce"  # reduce | percent
+    threshold_usd: float = 0
+    value: float = 0
+    active: bool = True
+    start_at: str = ""
+    end_at: str = ""
+
+
+@router.get("/cart-promotions")
+async def admin_cart_promos(admin: dict = Depends(current_admin)):
+    return await db.cart_promotions.find({}, {"_id": 0}).sort("threshold_usd", 1).to_list(100)
+
+
+@router.post("/cart-promotions")
+async def admin_cart_promo_create(body: CartPromoIn, admin: dict = Depends(current_admin)):
+    doc = {"id": uuid.uuid4().hex[:12], **body.dict()}
+    await db.cart_promotions.insert_one(dict(doc))
+    doc.pop("_id", None)
+    return doc
+
+
+@router.put("/cart-promotions/{cid}")
+async def admin_cart_promo_update(cid: str, body: CartPromoIn, admin: dict = Depends(current_admin)):
+    await db.cart_promotions.update_one({"id": cid}, {"$set": body.dict()})
+    return {"ok": True}
+
+
+@router.delete("/cart-promotions/{cid}")
+async def admin_cart_promo_delete(cid: str, admin: dict = Depends(current_admin)):
+    await db.cart_promotions.delete_one({"id": cid})
+    return {"ok": True}
+
+
 # ----------------------------- Translations -----------------------------
 class TranslationIn(BaseModel):
     src: str

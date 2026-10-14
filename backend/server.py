@@ -470,6 +470,13 @@ async def public_recharge_bonus():
     return await db.recharge_bonus_rules.find({"active": True}, {"_id": 0}).sort("min_usd", 1).to_list(50)
 
 
+@api_router.get("/cart-promotions/public")
+async def public_cart_promotions():
+    nowi = now_iso()
+    rows = await db.cart_promotions.find({"active": True}, {"_id": 0}).sort("threshold_usd", 1).to_list(50)
+    return [c for c in rows if (not c.get("start_at") or c["start_at"] <= nowi) and (not c.get("end_at") or c["end_at"] >= nowi)]
+
+
 class RedeemGiftCardIn(BaseModel):
     code: str
 
@@ -554,6 +561,19 @@ async def _compute_order(order: OrderIn, member_ctx: dict = None):
         discount_usd = res["discount_usd"]
         promo_code = res["code"]
     remaining = max(0.0, subtotal_usd - discount_usd)
+    # cart-level promotion (滿減/滿折) — auto-apply best eligible tier
+    cart_discount_usd = 0.0
+    cart_promo_title = None
+    cps = await db.cart_promotions.find({"active": True}, {"_id": 0}).to_list(100)
+    nowi = now_iso()
+    elig = [c for c in cps if subtotal_usd + 1e-9 >= (c.get("threshold_usd") or 0) and (not c.get("start_at") or c["start_at"] <= nowi) and (not c.get("end_at") or c["end_at"] >= nowi)]
+    if elig:
+        def _cd(c):
+            return float(c.get("value") or 0) if c.get("promo_type") == "reduce" else round(remaining * float(c.get("value") or 0) / 100, 2)
+        best = max(elig, key=_cd)
+        cart_discount_usd = round(min(_cd(best), remaining), 2)
+        cart_promo_title = best.get("title") or ("滿減" if best.get("promo_type") == "reduce" else "滿折")
+        remaining = max(0.0, round(remaining - cart_discount_usd, 2))
     level_discount_usd = 0.0
     level_name = None
     level_pct = 0
@@ -579,6 +599,7 @@ async def _compute_order(order: OrderIn, member_ctx: dict = None):
                     remaining = max(0.0, round(remaining - points_discount_usd, 2))
     total_usd = round(remaining, 2)
     extras = {"level_discount_usd": round(level_discount_usd, 2), "level_name": level_name, "level_discount_percent": level_pct,
+              "cart_discount_usd": cart_discount_usd, "cart_promo_title": cart_promo_title,
               "points_used": points_used, "points_discount_usd": round(points_discount_usd, 2)}
     return items_out, round(subtotal_usd, 2), round(discount_usd, 2), total_usd, promo_code, extras
 
@@ -1539,6 +1560,8 @@ async def create_order(order: OrderIn, member: dict = Depends(current_member)):
         "level_discount_usd": extras["level_discount_usd"],
         "level_name": extras["level_name"],
         "level_discount_percent": extras["level_discount_percent"],
+        "cart_discount_usd": extras["cart_discount_usd"],
+        "cart_promo_title": extras["cart_promo_title"],
         "points_used": extras["points_used"],
         "points_discount_usd": extras["points_discount_usd"],
         "total_usd": total_usd,

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Show, useUser } from "@clerk/react";
-import { Minus, Plus, Trash2, CheckCircle2, Ticket, Wallet, Crown, Star } from "lucide-react";
+import { Minus, Plus, Trash2, CheckCircle2, Ticket, Wallet, Crown, Star, Tag } from "lucide-react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import { publicApi, useApi } from "@/lib/api";
@@ -240,6 +240,9 @@ function CheckoutInner() {
             <div className="mt-5 md:mt-6 space-y-2.5 md:space-y-3 text-[13px] md:text-sm">
               <div className="flex items-center justify-between"><span className="text-slate-600">{tr("商品總額:")}</span><span className="text-orange-500">{format(subtotalUsd)}</span></div>
               <div className="flex items-center justify-between"><span className="text-slate-600">{tr("優惠金額:")}</span><span className="text-orange-500" data-testid="checkout-discount">-{format(discountUsd)}</span></div>
+              {(quote?.cart_discount_usd || 0) > 0 && (
+                <div className="flex items-center justify-between" data-testid="checkout-cart-discount"><span className="text-slate-600 flex items-center gap-1"><Tag className="h-3.5 w-3.5 text-emerald-500" />{tr(quote.cart_promo_title || "滿減優惠")}:</span><span className="text-orange-500">-{format(quote.cart_discount_usd)}</span></div>
+              )}
               {level && (level.discount_percent || 0) > 0 && (
                 <div className="flex items-center justify-between" data-testid="checkout-level-discount"><span className="text-slate-600 flex items-center gap-1"><Crown className="h-3.5 w-3.5 text-amber-500" />{tr("{0} 專屬 {1}% 折扣:", tr(level.name), level.discount_percent)}</span><span className="text-orange-500">-{format(levelDiscount)}</span></div>
               )}

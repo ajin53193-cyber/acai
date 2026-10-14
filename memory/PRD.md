@@ -217,3 +217,11 @@
 - **充值贈送回執**：MyWallet 的 KIND_LABEL/TX_ICONS 新增 `topup_bonus`(充值贈送, 禮物圖標橙) 與 `giftcard`(禮品卡充值, 紫)，使贈送/禮品卡入帳在錢包流水中單獨標識。
 - 驗證：member redeem 100→125；external api redeem OK/reuse 400/bad-key 401；topup_bonus 與 levelup 於前幾輪已驗。
 - **後續**：Round 7 營銷活動補全（秒殺 / 滿減滿折 / 抽獎）。
+
+## 2026-10 後台 Round 7：滿減/滿折活動 + 結算頁自動應用（後端 curl 驗證通過，前端編譯通過）
+- **滿減/滿折**（`CartPromoAdmin.jsx` → 活動管理「滿減/滿折活動」discount-activity slot；admin_api `/admin/cart-promotions` CRUD）：規則 {title, promo_type(reduce|percent), threshold_usd, value, active, start_at, end_at}。
+- `_compute_order` 在 promo 之後、等級折扣之前自動套用「訂單滿額」最優惠的一檔（多檔取 discount 最大），寫入 extras.cart_discount_usd / cart_promo_title，並落盤到訂單。公開端點 `/api/cart-promotions/public`。
+- **結算頁自動應用**：Checkout 報價顯示 checkout-cart-discount 行（活動名稱 + 減免），與 促銷碼 / 等級折扣 / 積分抵現 疊加，總額即時更新。
+- 驗證：subtotal 104.28 → 命中「滿100減15」(-15) → 白銀2%(-1.79) → total 87.49，正確取最優檔並疊加。已播種 2 條示例（滿50減5 / 滿100減15）。
+- data-testid：cartpromo-admin/cp-table/cp-add/cp-row-*/cp-modal/cp-type/cp-threshold/cp-value/cp-save、checkout-cart-discount。
+- **後續**：秒殺活動、抽獎活動（積分抽獎）、禮品卡當商品賣（下單自動發卡）。
