@@ -358,3 +358,9 @@
 - Round 23 補充：財務管理菜單「資金流水」更名為「充值審核」（Admin.jsx / RolesAdmin.jsx / TopupsAdmin 標題 / i18n zh-CN & en），截圖驗證通過。
 - Round 23 補充：用戶列表（MembersAdmin）移除「會員」與「手機號」兩欄，截圖驗證通過。
 - Round 23 補充：會員詳情抽屜移除頂部深色頭像卡（頭像/名稱/實名標籤），直接顯示基本信息；截圖驗證通過。
+
+## 2026-10 後台 Round 24：銷售分析改版（日期區間 + 圖表）；移除實時監控
+- 後端 GET /api/admin/analytics/sales 改為 date_from/date_to（本地日期，含兩端）+ tz_offset（JS getTimezoneOffset 分鐘）；回 summary（orders/paid_orders/revenue_usd/avg_order_usd/topups/topup_usd/new_users）、prev（上一同長度區間，供環比）、series（單日→24 小時桶，多日→每日桶）、status_dist、top_products（修正：金額改用 items.line_usd / unit_price_usd，原用不存在的 price_usd 導致全為 $0）、channels。
+- 前端 SalesAnalysisAdmin 重寫：快捷鍵 今日/昨日/本週/本月/近30天 + 起止日期 + 查詢；6 指標卡含較上期漲跌；recharts ComposedChart（營收/充值柱 + 訂單數/新增用戶線，雙 Y 軸）；熱銷 Top15、訂單狀態分佈、充值渠道。data-testid：sales-filter、sales-quick-<key>、sales-from/to/query、sales-stats、sales-stat-*、sales-chart、sales-top、sales-status、sales-channels。
+- 移除「實時監控」（Admin.jsx/RolesAdmin.jsx 菜單、RealtimeAdmin.jsx、ALL_PERMISSIONS realtime key；後端 /analytics/realtime 路由保留無害）。
+- 驗證：函式直測今日(小時桶)與 30 天(日桶)資料正確；截圖確認今日/本月切換、圖表與指標卡渲染正常。

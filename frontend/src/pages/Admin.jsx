@@ -45,14 +45,13 @@ import { OrderSettlementAdmin } from "@/pages/admin/OrderSettlementAdmin";
 import { ReconciliationAdmin } from "@/pages/admin/ReconciliationAdmin";
 import { FinanceReportsAdmin } from "@/pages/admin/FinanceReportsAdmin";
 import { SalesAnalysisAdmin } from "@/pages/admin/SalesAnalysisAdmin";
-import { RealtimeAdmin } from "@/pages/admin/RealtimeAdmin";
 import { UserBatchAdmin } from "@/pages/admin/UserBatchAdmin";
 import { UserReportsAdmin } from "@/pages/admin/UserReportsAdmin";
 import { tr } from "@/i18n";
 
 // Full admin IA — collapsible two-level menu. Keys map to real pages in PAGES; everything else renders <Soon/>.
 const MENU = [
-  { key: "dashboard", g: tr("儀表盤"), icon: LayoutDashboard, defaultOpen: true, items: [["overview", tr("數據概覽")], ["sales-analysis", tr("銷售分析")], ["realtime", tr("實時監控")], ["download-reports", tr("下載報表")]] },
+  { key: "dashboard", g: tr("儀表盤"), icon: LayoutDashboard, defaultOpen: true, items: [["overview", tr("數據概覽")], ["sales-analysis", tr("銷售分析")], ["download-reports", tr("下載報表")]] },
   { key: "users", g: tr("用戶管理"), icon: Users, defaultOpen: true, items: [["members", tr("用戶列表")], ["user-levels", tr("用戶等級")], ["user-tags", tr("用戶標籤")], ["member-assets", tr("會員資產")], ["blacklist", tr("黑名單管理")], ["user-logs", tr("用戶日誌")], ["verifications", tr("用戶認證")], ["user-batch", tr("用戶批量操作")], ["feedback", tr("用戶反饋")], ["user-reports", tr("用戶報表統計")]] },
   { key: "products", g: tr("商品管理"), icon: Package, items: [["products", tr("商品列表")], ["categories", tr("商品分類")], ["reviews", tr("商品評論")]] },
   { key: "giftcards", g: tr("禮品卡管理"), icon: Gift, items: [["giftcards", tr("禮品卡列表")], ["giftcard-new", tr("創建禮品卡")], ["giftcard-redeem", tr("卡券核銷記錄")], ["giftcard-orders", tr("禮品卡訂單")], ["giftcard-api", tr("核銷API配置")]] },
@@ -100,7 +99,6 @@ const PAGES = {
   reconciliation: (p) => <ReconciliationAdmin {...p} />,
   "finance-reports": (p) => <FinanceReportsAdmin {...p} />,
   "sales-analysis": (p) => <SalesAnalysisAdmin {...p} />,
-  realtime: (p) => <RealtimeAdmin {...p} />,
   "user-batch": (p) => <UserBatchAdmin {...p} />,
   "user-reports": (p) => <UserReportsAdmin {...p} />,
   categories: (p) => <CategoriesAdmin {...p} />,

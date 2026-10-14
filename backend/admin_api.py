@@ -1503,7 +1503,7 @@ async def admin_activity_center_put(body: ActivityCenterIn, admin: dict = Depend
 
 # ================= 系統配置：RBAC / 管理員 / 操作日誌 / 集成配置 =================
 ALL_PERMISSIONS = [
-    "overview", "sales-analysis", "realtime", "download-reports",
+    "overview", "sales-analysis", "download-reports",
     "members", "user-levels", "user-tags", "member-assets", "blacklist", "user-logs", "verifications", "user-batch", "feedback", "user-reports",
     "products", "categories", "reviews",
     "giftcards", "giftcard-new", "giftcard-redeem", "giftcard-orders", "giftcard-api",
@@ -1847,21 +1847,95 @@ async def admin_finance_reconciliation(days: int = 30, admin: dict = Depends(cur
 
 # ================= 儀表盤：銷售分析 / 實時監控 ；用戶：批量 / 報表 =================
 @router.get("/analytics/sales")
-async def admin_analytics_sales(days: int = 30, admin: dict = Depends(current_admin)):
-    start = _since(days)
-    paid = {"status": {"$in": ["paid", "processing", "shipped", "completed"]}, "created_at": {"$gte": start}}
-    top = await db.orders.aggregate([
-        {"$match": paid}, {"$unwind": "$items"},
-        {"$group": {"_id": "$items.product_name", "qty": {"$sum": {"$ifNull": ["$items.quantity", 1]}},
-                    "amount": {"$sum": {"$multiply": [{"$ifNull": ["$items.price_usd", 0]}, {"$ifNull": ["$items.quantity", 1]}]}}}},
-        {"$sort": {"amount": -1}}, {"$limit": 15},
-    ]).to_list(15)
-    products = [{"name": r["_id"] or "-", "qty": int(r["qty"]), "amount": round(float(r["amount"] or 0), 2)} for r in top]
-    channels = await db.topup_orders.aggregate([
-        {"$match": {"status": "paid", "created_at": {"$gte": start}}},
-        {"$group": {"_id": "$provider", "amount": {"$sum": "$amount_usd"}, "count": {"$sum": 1}}}, {"$sort": {"amount": -1}},
-    ]).to_list(20)
-    return {"top_products": products, "channels": [{"provider": c["_id"] or "-", "amount": round(float(c["amount"] or 0), 2), "count": c["count"]} for c in channels]}
+async def admin_analytics_sales(date_from: str = "", date_to: str = "", tz_offset: int = 0, admin: dict = Depends(current_admin)):
+    """date_from/date_to 為使用者本地日期(YYYY-MM-DD, 含兩端)；tz_offset = JS getTimezoneOffset() 分鐘。"""
+    off = timedelta(minutes=max(-840, min(840, tz_offset)))
+    now_local = datetime.now(timezone.utc) - off
+    try:
+        d_to = datetime.strptime(date_to, "%Y-%m-%d") if date_to else now_local.replace(tzinfo=None)
+        d_from = datetime.strptime(date_from, "%Y-%m-%d") if date_from else d_to - timedelta(days=29)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="日期格式錯誤")
+    d_from, d_to = d_from.replace(hour=0, minute=0, second=0, microsecond=0), d_to.replace(hour=0, minute=0, second=0, microsecond=0)
+    if d_from > d_to:
+        d_from, d_to = d_to, d_from
+    ndays = min((d_to - d_from).days + 1, 366)
+    d_to = d_from + timedelta(days=ndays - 1)
+    start = (d_from.replace(tzinfo=timezone.utc) + off).isoformat()
+    end = (d_to.replace(tzinfo=timezone.utc) + off + timedelta(days=1)).isoformat()
+    prev_start = (d_from.replace(tzinfo=timezone.utc) + off - timedelta(days=ndays)).isoformat()
+    rng = {"created_at": {"$gte": start, "$lt": end}}
+    hourly = ndays == 1
+
+    def bucket(created: str) -> str:
+        try:
+            t = datetime.fromisoformat(created.replace("Z", "+00:00")) - off
+        except Exception:
+            return ""
+        return t.strftime("%H:00") if hourly else t.strftime("%m-%d")
+
+    keys = [f"{h:02d}:00" for h in range(24)] if hourly else [(d_from + timedelta(days=i)).strftime("%m-%d") for i in range(ndays)]
+    series = {k: {"label": k, "orders": 0, "paid_orders": 0, "revenue_usd": 0.0, "topup_usd": 0.0, "topups": 0, "new_users": 0} for k in keys}
+    status_dist: dict = {}
+    product_rev: dict = {}
+    orders_n = paid_n = 0
+    revenue = 0.0
+    async for o in db.orders.find(rng, {"_id": 0, "created_at": 1, "status": 1, "total_usd": 1, "items": 1}):
+        st = o.get("status") or "-"
+        status_dist[st] = status_dist.get(st, 0) + 1
+        paid = st in PAID_STATUSES
+        r = series.get(bucket(o.get("created_at", "")))
+        orders_n += 1
+        if r:
+            r["orders"] += 1
+        if paid:
+            paid_n += 1
+            amt = float(o.get("total_usd") or 0)
+            revenue += amt
+            if r:
+                r["paid_orders"] += 1
+                r["revenue_usd"] += amt
+            for it in o.get("items", []):
+                p = product_rev.setdefault(it.get("product_id") or it.get("product_name"), {"name": it.get("product_name") or "-", "qty": 0, "amount": 0.0})
+                q = int(it.get("quantity") or 1)
+                p["qty"] += q
+                p["amount"] += float(it.get("line_usd") or 0) or float(it.get("unit_price_usd") or it.get("price_usd") or 0) * q
+    topups_n = 0
+    topup_usd = 0.0
+    channels: dict = {}
+    async for t in db.topup_orders.find({**rng, "status": "paid"}, {"_id": 0, "created_at": 1, "amount_usd": 1, "provider": 1}):
+        amt = float(t.get("amount_usd") or 0)
+        topups_n += 1
+        topup_usd += amt
+        r = series.get(bucket(t.get("created_at", "")))
+        if r:
+            r["topups"] += 1
+            r["topup_usd"] += amt
+        c = channels.setdefault(t.get("provider") or "-", {"provider": t.get("provider") or "-", "count": 0, "amount": 0.0})
+        c["count"] += 1
+        c["amount"] += amt
+    async for u in db.users.find(rng, {"_id": 0, "created_at": 1}):
+        r = series.get(bucket(u.get("created_at", "")))
+        if r:
+            r["new_users"] += 1
+    new_users = await db.users.count_documents(rng)
+    prev = await _period_stats(prev_start, start)
+    for r in series.values():
+        r["revenue_usd"] = round(r["revenue_usd"], 2)
+        r["topup_usd"] = round(r["topup_usd"], 2)
+    products = sorted(product_rev.values(), key=lambda x: -x["amount"])[:15]
+    for p in products:
+        p["amount"] = round(p["amount"], 2)
+    return {
+        "date_from": d_from.strftime("%Y-%m-%d"), "date_to": d_to.strftime("%Y-%m-%d"), "days": ndays, "hourly": hourly,
+        "summary": {"orders": orders_n, "paid_orders": paid_n, "revenue_usd": round(revenue, 2), "avg_order_usd": round(revenue / paid_n, 2) if paid_n else 0,
+                    "topups": topups_n, "topup_usd": round(topup_usd, 2), "new_users": new_users},
+        "prev": prev,
+        "series": list(series.values()),
+        "status_dist": [{"status": k, "count": v} for k, v in sorted(status_dist.items(), key=lambda x: -x[1])],
+        "top_products": products,
+        "channels": [{**c, "amount": round(c["amount"], 2)} for c in sorted(channels.values(), key=lambda x: -x["amount"])],
+    }
 
 
 @router.get("/analytics/realtime")
