@@ -107,6 +107,11 @@ class ChangePwIn(BaseModel):
     new_password: str
 
 
+class ChangePwByOldIn(BaseModel):
+    current_password: str = ""
+    new_password: str
+
+
 async def _issue_code(email: str, purpose: str) -> dict:
     email = email.lower()
     now = _now()
@@ -387,3 +392,19 @@ async def google_login(body: GoogleIn):
             raise HTTPException(status_code=502, detail="建立帳號失敗，請稍後再試")
         user = r.json()
     return {"ticket": await _ticket(user["id"]), "is_new": is_new, "email": email}
+
+
+@router.post("/me/change-password-by-old")
+async def me_change_password_by_old(body: ChangePwByOldIn, user: dict = Depends(require_user)):
+    if not _pw_ok(body.new_password):
+        raise HTTPException(status_code=400, detail="密碼長度為8~32位，數字、字母、符號至少包含兩種")
+    r = await _clerk("GET", f"/users/{user['user_id']}")
+    r.raise_for_status()
+    if r.json().get("password_enabled"):
+        v = await _clerk("POST", f"/users/{user['user_id']}/verify_password", json={"password": body.current_password})
+        if v.status_code != 200 or not v.json().get("verified"):
+            raise HTTPException(status_code=400, detail="舊密碼錯誤")
+    r = await _clerk("PATCH", f"/users/{user['user_id']}", json={"password": body.new_password, "skip_password_checks": True})
+    if r.status_code >= 300:
+        raise HTTPException(status_code=400, detail=(r.json().get("errors") or [{}])[0].get("long_message") or "修改失敗")
+    return {"ok": True}

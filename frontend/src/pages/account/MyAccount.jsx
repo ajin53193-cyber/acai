@@ -19,8 +19,7 @@ export default function MyAccount() {
   const navigate = useNavigate();
   const [info, setInfo] = useState(null);
   const [form, setForm] = useState({ name: "", gender: "male", contact_type: tr("微信"), contact: "" });
-  const [pw, setPw] = useState({ cur: "", n1: "", n2: "", code: "" });
-  const [codeSent, setCodeSent] = useState(0);
+  const [pw, setPw] = useState({ cur: "", n1: "", n2: "" });
   const [saving, setSaving] = useState(false);
   const [binding, setBinding] = useState(false);
 
@@ -38,20 +37,13 @@ export default function MyAccount() {
     setSaving(false);
   };
 
-  const sendPwCode = async () => {
-    try {
-      const r = await callApi({ method: "POST", url: "/auth/email/me/send-code" });
-      setCodeSent(Date.now()); toast.success(tr("驗證碼已發送至 {0}", r.data.email));
-    } catch (e) { toast.error(e?.response?.data?.detail || tr("發送失敗，請稍後再試")); }
-  };
-
   const savePassword = async () => {
-    if (!pw.code) return toast.error(tr("請輸入信箱驗證碼"));
+    if (user?.passwordEnabled && !pw.cur) return toast.error(tr("請輸入舊密碼"));
     if (!pw.n1 || pw.n1.length < 8) return toast.error(tr("新密碼至少 8 位"));
     if (pw.n1 !== pw.n2) return toast.error(tr("兩次輸入的新密碼不一致"));
     try {
-      await callApi({ method: "POST", url: "/auth/email/me/change-password", data: { code: pw.code.trim(), new_password: pw.n1 } });
-      toast.success(tr("密碼已更新")); setPw({ cur: "", n1: "", n2: "", code: "" }); setCodeSent(0);
+      await callApi({ method: "POST", url: "/auth/email/me/change-password-by-old", data: { current_password: pw.cur, new_password: pw.n1 } });
+      toast.success(tr("密碼已更新")); setPw({ cur: "", n1: "", n2: "" });
     } catch (e) { toast.error(e?.response?.data?.detail || tr("密碼更新失敗")); }
   };
 
@@ -125,11 +117,8 @@ export default function MyAccount() {
         <Box>
           <Tag>{tr("帳戶密碼修改")}</Tag>
           <div className="mt-5 space-y-2.5 md:space-y-3 pl-2 max-md:pl-0 max-md:mt-0">
-            <div className="relative">
-              <input data-testid="pw-code" value={pw.code} onChange={(e) => setPw({ ...pw, code: e.target.value })} placeholder={tr("請輸入信箱驗證碼")} className={field + " pr-28"} inputMode="numeric" maxLength={6} />
-              <button data-testid="pw-send-code" onClick={sendPwCode} disabled={!email} className="absolute right-1.5 top-1/2 -translate-y-1/2 h-8 px-3 rounded-full bg-orange-100 text-orange-500 text-xs font-semibold hover:bg-orange-200 disabled:opacity-50">{codeSent ? tr("重新發送") : tr("發送驗證碼")}</button>
-            </div>
-            <div className="text-[11px] md:text-xs text-slate-400 pl-4 md:pl-5">{email ? tr("驗證碼將發送至 {0}", email) : tr("請先綁定信箱後再修改密碼")}</div>
+            {user?.passwordEnabled && <input data-testid="pw-current" type="password" value={pw.cur} onChange={(e) => setPw({ ...pw, cur: e.target.value })} placeholder={tr("請輸入舊密碼")} className={field} />}
+            <div className="text-[11px] md:text-xs text-slate-400 pl-4 md:pl-5">{tr("如忘記密碼，請於登入視窗點擊「忘記密碼」找回")}</div>
             <input data-testid="pw-new" type="password" value={pw.n1} onChange={(e) => setPw({ ...pw, n1: e.target.value })} placeholder={tr("請輸入新密碼")} className={field} />
             <input data-testid="pw-confirm" type="password" value={pw.n2} onChange={(e) => setPw({ ...pw, n2: e.target.value })} placeholder={tr("請再次輸入新密碼")} className={field} />
             <div className="text-center pt-2 md:pt-4"><OrangeBtn data-testid="pw-save" onClick={savePassword} className="max-md:h-9 max-md:px-8 max-md:text-[13px]">{tr("儲存")}</OrangeBtn></div>
