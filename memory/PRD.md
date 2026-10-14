@@ -193,3 +193,9 @@
 - 積分配置預設啟用抵現：redeem_enabled=true, min_redeem=100, points_per_usd_redeem=100（管理員可在「積分管理」調整/關閉）。
 - 驗證：subtotal 5.38 → 白銀2%(-0.11) → 5.27；開積分→抵至 0.00；+promo GLOBAL2026(10%) 疊加正確；下單後積分正確扣減並落賬。
 - **後續**：Round 4 禮品卡管理、Round 5 營銷活動（秒殺/充值贈送/滿減滿折/抽獎）。建議：point_transactions 加 (user_id,source,ref) 唯一索引；積分抵現可擴充為「自訂抵扣數量」而非單一開關。
+
+## 2026-10 後台 Round 4：自定義抵扣 + 等級進度條（後端 curl 驗證、前端編譯通過）
+- **自定義抵扣**：Checkout 積分卡改為「開關 + 自訂數量輸入框（checkout-points-input）+ 全部按鈕（checkout-points-max）」，可輸入任意抵扣積分；後端 `_compute_order` 仍以 可用積分/min_redeem/剩餘金額 封頂，低於 min_redeem 顯示提示。
+- **等級進度條**：`_member_context`/`/me/profile` 新增 `next_level{name,min_spend_usd,remaining}`（下一等級門檻與差額）；MyAccount 新增「升級進度」進度條（account-level-progress）顯示「再消費 USD$ X 即可升級至 Y」，已達頂級顯示 account-level-max。
+- 驗證：profile 返回 白銀(spent 832.79)→next 黃金(1000, remaining 167.21)；quote use_points>持有 時正確封頂（5<min_redeem100 → 不抵）。
+- **後續大模組**：Round 5 禮品卡管理（列表/創建/核銷記錄/訂單/核銷API）、Round 6 營銷活動（秒殺/充值贈送/滿減滿折/抽獎）。

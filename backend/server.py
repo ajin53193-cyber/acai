@@ -545,8 +545,13 @@ async def _member_context(user_id: str) -> dict:
     spent = round((agg[0]["spent"] if agg else 0) or 0, 2)
     levels = await admin_api._levels()
     lv = admin_api._level_of(spent, levels)
+    nxt = None
+    for L in levels:
+        if (L.get("min_spend_usd") or 0) > spent:
+            nxt = {"name": L["name"], "min_spend_usd": L["min_spend_usd"], "remaining": round(L["min_spend_usd"] - spent, 2)}
+            break
     u = await db.users.find_one({"user_id": user_id}, {"_id": 0, "points": 1}) or {}
-    return {"spent": spent, "level": lv, "points": int(u.get("points") or 0)}
+    return {"spent": spent, "level": lv, "next_level": nxt, "points": int(u.get("points") or 0)}
 
 
 LIMIT_KINDS = ("daily", "weekly", "monthly", "lifetime", "newcomer")
@@ -1205,7 +1210,7 @@ async def get_profile(member: dict = Depends(current_member)):
     u = await db.users.find_one({"user_id": member["user_id"]}, {"_id": 0}) or {}
     ctx = await _member_context(member["user_id"])
     return {"user_id": member["user_id"], "email": member.get("email", ""), "role": member["role"], "profile": u.get("profile") or {},
-            "points": ctx["points"], "level": ctx["level"], "spent_usd": ctx["spent"],
+            "points": ctx["points"], "level": ctx["level"], "next_level": ctx["next_level"], "spent_usd": ctx["spent"],
             "account_no": str(100000000 + (int(hashlib.md5(member["user_id"].encode()).hexdigest()[:6], 16) % 900000000))}
 
 

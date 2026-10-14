@@ -72,6 +72,14 @@ export default function MyAccount() {
               <span className="text-amber-600 font-head font-bold text-base" data-testid="account-points">{info?.points ?? 0}</span>
               <Hint>{tr("（下單、充值可賺積分，結算可抵現）")}</Hint>
             </Row>
+            <Row label={tr("升級進度：")}>
+              {info?.next_level ? (
+                <div className="flex-1 min-w-[180px]" data-testid="account-level-progress">
+                  <div className="h-2 rounded-full bg-slate-100 overflow-hidden"><div className="h-2 rounded-full bg-gradient-to-r from-amber-400 to-orange-500 transition-all" style={{ width: `${Math.min(100, Math.max(4, ((info.spent_usd || 0) / (info.next_level.min_spend_usd || 1)) * 100)).toFixed(0)}%` }} /></div>
+                  <div className="text-xs text-slate-500 mt-1.5">{tr("再消費")} <span className="text-orange-500 font-semibold">USD$ {Number(info.next_level.remaining || 0).toFixed(2)}</span> {tr("即可升級至")} <span className="font-semibold text-amber-600">{tr(info.next_level.name)}</span></div>
+                </div>
+              ) : <span className="text-amber-600 text-sm font-semibold" data-testid="account-level-max">🎉 {tr("已達最高等級")}</span>}
+            </Row>
             <Row label={tr("信箱：")}>
               <span className="text-slate-800 truncate">{email || tr("未綁定")}</span>
               <button data-testid="bind-email-btn" className="rounded-full bg-orange-50 text-orange-500 text-xs px-3 py-1 hover:bg-orange-100" onClick={() => setBinding("email")}>{email ? tr("更換") : tr("綁定信箱")}</button>

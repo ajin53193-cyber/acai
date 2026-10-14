@@ -60,6 +60,7 @@ function CheckoutInner() {
   const [profile, setProfile] = useState(null);
   const [quote, setQuote] = useState(null);
   const [usePoints, setUsePoints] = useState(false);
+  const [pointsAmt, setPointsAmt] = useState("");
 
   useEffect(() => { publicApi.get("/promos/public").then((r) => setPromos(r.data)).catch(() => {}); }, []);
   useEffect(() => { callApi({ method: "GET", url: "/me/wallet" }).then((r) => setWallet(r.data.balance_usd)).catch(() => setWallet(0)); }, [callApi]);
@@ -69,9 +70,13 @@ function CheckoutInner() {
   const itemsKey = JSON.stringify(items.map((i) => [i.product_id, i.spec_id, i.quantity]));
   useEffect(() => {
     if (items.length === 0) return;
-    callApi({ method: "POST", url: "/orders/quote", data: { items: items.map((i) => ({ product_id: i.product_id, spec_id: i.spec_id, quantity: i.quantity })), currency: code, recharge_account: "", promo_code: promo?.code || null, use_points: usePoints ? (profile?.points || 0) : 0 } })
+    const up = usePoints ? (parseInt(pointsAmt, 10) || 0) : 0;
+    callApi({ method: "POST", url: "/orders/quote", data: { items: items.map((i) => ({ product_id: i.product_id, spec_id: i.spec_id, quantity: i.quantity })), currency: code, recharge_account: "", promo_code: promo?.code || null, use_points: up } })
       .then((r) => setQuote(r.data)).catch(() => setQuote(null));
-  }, [callApi, itemsKey, promo, usePoints, profile, code]); // eslint-disable-line
+  }, [callApi, itemsKey, promo, usePoints, pointsAmt, code]); // eslint-disable-line
+
+  const maxPoints = quote?.points_available ?? profile?.points ?? 0;
+  const togglePoints = () => { const nv = !usePoints; setUsePoints(nv); if (nv && !pointsAmt) setPointsAmt(String(maxPoints)); };
 
   const discountUsd = quote ? quote.discount_usd : (promo?.discount_usd || 0);
   const levelDiscount = quote?.level_discount_usd || 0;
@@ -120,7 +125,7 @@ function CheckoutInner() {
           recharge_note: "",
           contact: userLabel(user),
           promo_code: promo?.code || null,
-          use_points: usePoints ? (profile?.points || 0) : 0,
+          use_points: usePoints ? (parseInt(pointsAmt, 10) || 0) : 0,
         },
       });
       const order = orderRes.data;
@@ -207,13 +212,23 @@ function CheckoutInner() {
             <div className="mt-3 text-xs text-slate-500 leading-5">{tr("付款完成後，請至「我的訂單」填寫充值資料（帳號 / ID 等），提交後開始人工充值。")}</div>
 
             {quote?.redeem_enabled && (quote?.points_available || 0) > 0 && (
-              <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50/60 p-3.5 flex items-center gap-3" data-testid="checkout-points-card">
-                <span className="h-10 w-10 rounded-full bg-amber-400 text-white flex items-center justify-center shrink-0"><Star className="h-5 w-5" /></span>
-                <div className="flex-1 min-w-0">
-                  <div className="text-sm font-semibold text-slate-900">{tr("使用積分抵現")}</div>
-                  <div className="text-xs text-slate-600 mt-0.5">{tr("可用 {0} 積分", quote.points_available)}{usePoints && pointsDiscount > 0 ? tr("，本單抵扣 {0}", format(pointsDiscount)) : ""}</div>
+              <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50/60 p-3.5" data-testid="checkout-points-card">
+                <div className="flex items-center gap-3">
+                  <span className="h-10 w-10 rounded-full bg-amber-400 text-white flex items-center justify-center shrink-0"><Star className="h-5 w-5" /></span>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm font-semibold text-slate-900">{tr("使用積分抵現")}</div>
+                    <div className="text-xs text-slate-600 mt-0.5">{tr("可用 {0} 積分", quote.points_available)} · {tr("{0} 積分 = {1}", quote.points_per_usd_redeem, format(1))}</div>
+                  </div>
+                  <button data-testid="checkout-points-toggle" onClick={togglePoints} className={`relative h-6 w-11 rounded-full transition-colors shrink-0 ${usePoints ? "bg-amber-500" : "bg-slate-300"}`}><span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white transition-all ${usePoints ? "left-[22px]" : "left-0.5"}`} /></button>
                 </div>
-                <button data-testid="checkout-points-toggle" onClick={() => setUsePoints((v) => !v)} className={`relative h-6 w-11 rounded-full transition-colors shrink-0 ${usePoints ? "bg-amber-500" : "bg-slate-300"}`}><span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white transition-all ${usePoints ? "left-[22px]" : "left-0.5"}`} /></button>
+                {usePoints && (
+                  <div className="mt-3 flex items-center gap-2">
+                    <input data-testid="checkout-points-input" type="number" min="0" max={maxPoints} value={pointsAmt} onChange={(e) => setPointsAmt(e.target.value.replace(/[^\d]/g, ""))} placeholder={tr("輸入抵扣積分")} className="h-10 flex-1 rounded-xl bg-white border border-amber-200 px-3 text-sm outline-none focus:ring-2 focus:ring-amber-300" />
+                    <button data-testid="checkout-points-max" onClick={() => setPointsAmt(String(maxPoints))} className="h-10 px-3 rounded-xl bg-amber-100 text-amber-700 text-xs font-semibold whitespace-nowrap hover:bg-amber-200">{tr("全部")}</button>
+                    {quote.points_used > 0 && <span className="text-xs text-amber-700 whitespace-nowrap">{tr("抵 {0}", format(pointsDiscount))}</span>}
+                  </div>
+                )}
+                {usePoints && quote.min_redeem > 0 && (parseInt(pointsAmt, 10) || 0) < quote.min_redeem && <div className="mt-1.5 text-[11px] text-red-500">{tr("最低需使用 {0} 積分", quote.min_redeem)}</div>}
               </div>
             )}
 
