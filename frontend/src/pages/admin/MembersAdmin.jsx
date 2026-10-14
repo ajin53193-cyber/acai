@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from "react";
 import { toast } from "sonner";
-import { X, Search, Users, UserCheck, UserPlus, ShieldBan, BadgeCheck, Crown, Wallet, ShoppingBag, RotateCw, Star, Tag as TagIcon } from "lucide-react";
+import { X, Search, Users, UserCheck, UserPlus, ShieldBan, Wallet, ShoppingBag, RotateCw, Star, Tag as TagIcon } from "lucide-react";
 import { tr } from "@/i18n";
 import { Btn, Card, Input, Pill, Head, fmt, useLoad, toneCls } from "./ui";
 import { STATUS_LABELS } from "@/lib/status";
@@ -9,9 +9,6 @@ const KIND_LABEL = { credit: tr("加款"), debit: tr("扣款"), refund: tr("退�
 
 // Membership tier derived from lifetime spend (USD)
 const tierOf = (s) => (s >= 1000 ? { label: tr("黃金會員"), cls: "bg-amber-50 text-amber-600 border-amber-200" } : s >= 300 ? { label: tr("白銀會員"), cls: "bg-slate-100 text-slate-500 border-slate-200" } : { label: tr("普通會員"), cls: "bg-sky-50 text-sky-600 border-sky-100" });
-const initial = (u) => (u.email || u.profile?.name || u.emails?.[0] || "?").trim()[0]?.toUpperCase() || "?";
-const AVATAR_TONES = ["from-orange-400 to-rose-400", "from-sky-400 to-indigo-400", "from-emerald-400 to-teal-400", "from-violet-400 to-fuchsia-400", "from-amber-400 to-orange-500"];
-const avatarTone = (seed) => AVATAR_TONES[(seed || "").split("").reduce((a, c) => a + c.charCodeAt(0), 0) % AVATAR_TONES.length];
 
 function StatCard({ icon: Icon, label, value, tone, tid }) {
   return (
@@ -105,7 +102,6 @@ export function MemberDetail({ uid, callApi, onClose, onChanged }) {
   const resetPw = () => { const p = window.prompt(tr("輸入新密碼（8~32 位，數字/字母/符號至少兩種）")); if (p) act("reset-password", { new_password: p }, tr("密碼已重設，該會員其他裝置已登出")); };
   if (!d) return null;
   const tier = d.level ? { label: d.level.name, cls: toneCls(d.level.color) } : tierOf(d.spent_usd || 0);
-  const name = d.profile?.name || d.emails?.[0] || d.phone || tr("未命名會員");
   const InfoRow = ({ k, v }) => <div className="flex items-center gap-3 py-2 text-sm border-b border-slate-50 last:border-0"><span className="w-20 shrink-0 text-slate-400 text-xs">{k}</span><span className="text-slate-800 break-all font-medium">{v || "-"}</span></div>;
   const DataRow = ({ k, v }) => <div className="flex items-center justify-between py-2 text-sm border-b border-slate-50 last:border-0"><span className="text-slate-500">{k}</span><span className="font-head font-bold text-slate-900">{v}</span></div>;
   return (
@@ -114,17 +110,6 @@ export function MemberDetail({ uid, callApi, onClose, onChanged }) {
         <div className="sticky top-0 z-10 bg-white border-b border-slate-100 flex items-center justify-between px-5 py-3.5"><h2 className="font-head text-base font-bold text-slate-900">{tr("會員詳情")}</h2><button data-testid="member-detail-close" onClick={onClose} className="h-8 w-8 rounded-full bg-slate-100 flex items-center justify-center hover:bg-slate-200"><X className="h-4 w-4" /></button></div>
 
         <div className="p-5 space-y-4">
-          {/* header */}
-          <div className="relative rounded-2xl overflow-hidden bg-gradient-to-br from-slate-800 to-slate-900 p-5 text-center">
-            <div className={`mx-auto h-16 w-16 rounded-full bg-gradient-to-br ${avatarTone(d.user_id)} flex items-center justify-center text-white text-2xl font-black ring-4 ring-white/10`}>{initial(d)}</div>
-            <div className="mt-2.5 text-white font-head font-bold text-lg">{name}</div>
-            <div className="mt-2 flex items-center justify-center gap-1.5 flex-wrap">
-              {d.verified ? <span className="inline-flex items-center gap-1 rounded-full bg-sky-500 text-white px-2.5 py-0.5 text-[11px] font-semibold"><BadgeCheck className="h-3 w-3" />{tr("已實名認證")}</span> : <span className="inline-flex items-center gap-1 rounded-full bg-white/10 text-slate-300 px-2.5 py-0.5 text-[11px] font-semibold">{tr("未實名")}</span>}
-              {(d.spent_usd || 0) >= 1000 && <span className="inline-flex items-center gap-1 rounded-full bg-amber-400 text-amber-900 px-2.5 py-0.5 text-[11px] font-bold"><Crown className="h-3 w-3" />{tr("高價值用戶")}</span>}
-              {d.banned && <span className="inline-flex rounded-full bg-red-500 text-white px-2.5 py-0.5 text-[11px] font-semibold">{tr("已封禁")}</span>}
-            </div>
-          </div>
-
           {/* basic info */}
           <Card className="p-4">
             <div className="text-sm font-bold text-slate-800 mb-1.5">{tr("基本信息")}</div>
