@@ -18,6 +18,7 @@ from fastapi.responses import Response, PlainTextResponse
 from fastapi.concurrency import run_in_threadpool
 import storage as objstore
 from translate import Translator, to_simplified, to_traditional
+import email_auth
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -844,6 +845,17 @@ async def wallet_topup_usdt(body: TopUpIn, request: Request, member: dict = Depe
     await db.topup_orders.insert_one(doc)
     doc.pop("_id", None)
     return doc
+
+
+@api_router.get("/me/wallet/topups")
+async def wallet_topups(member: dict = Depends(current_member)):
+    items = await db.topup_orders.find({"user_id": member["user_id"]}, {"_id": 0}).sort("created_at", -1).to_list(100)
+    now = now_iso()
+    for t in items:
+        if t["status"] == "pending" and t.get("expires_at") and t["expires_at"] < now:
+            t["status"] = "expired"
+            await db.topup_orders.update_one({"id": t["id"], "status": "pending"}, {"$set": {"status": "expired"}})
+    return items
 
 
 @api_router.get("/me/wallet/topup/{tid}")
@@ -1693,7 +1705,7 @@ async def seed():
 
 
 translator = Translator(db)
-LOCALIZE_SKIP = ("/api/admin", "/api/img", "/api/payments", "/api/cron", "/api/me/wallet/topup", "/api/i18n")
+LOCALIZE_SKIP = ("/api/auth/email", "/api/admin", "/api/img", "/api/payments", "/api/cron", "/api/me/wallet/topup", "/api/i18n")
 
 
 @api_router.get("/i18n/stats")
@@ -1701,8 +1713,10 @@ async def i18n_stats():
     return {"cached": len(translator.en), "pending": len(translator.pending)}
 
 
+email_auth.db = db
 app.include_router(api_router)
 app.include_router(clerk_router)
+app.include_router(email_auth.router)
 
 
 @app.middleware("http")

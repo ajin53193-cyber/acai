@@ -24,6 +24,7 @@ import HelpCenter from "@/pages/account/HelpCenter";
 import MyWallet from "@/pages/account/MyWallet";
 import WalletTopUp from "@/pages/account/WalletTopUp";
 import WalletTransactions from "@/pages/account/WalletTransactions";
+import WalletTopups from "@/pages/account/WalletTopups";
 import Info from "@/pages/Info";
 import ArticleCenter from "@/pages/ArticleCenter";
 import ArticleDetail from "@/pages/ArticleDetail";
@@ -81,6 +82,7 @@ function App() {
                     <Route path="/account/wallet" element={<MyWallet />} />
                     <Route path="/account/wallet/topup" element={<WalletTopUp />} />
                     <Route path="/account/wallet/transactions" element={<WalletTransactions />} />
+                    <Route path="/account/wallet/topups" element={<WalletTopups />} />
                     <Route path="/account/verify" element={<MyVerify />} />
                     <Route path="/account/coupons" element={<MyCoupons />} />
                     <Route path="/account/help" element={<HelpCenter />} />

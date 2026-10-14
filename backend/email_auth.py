@@ -1,0 +1,215 @@
+"""Email OTP auth via Mailgun SMTP; Clerk stays the session provider (sign-in tickets)."""
+import hashlib
+import hmac
+import logging
+import os
+import re
+import secrets
+from datetime import datetime, timezone, timedelta
+from typing import Optional
+
+import httpx
+from fastapi import APIRouter, HTTPException, Depends
+from pydantic import BaseModel, EmailStr
+
+from clerk_auth import require_user, CLERK_BACKEND_API
+from mailer import send_mail, otp_email
+
+logger = logging.getLogger("email_auth")
+router = APIRouter(prefix="/api/auth/email")
+CODE_TTL_MIN = 10
+RESEND_SECONDS = 60
+MAX_PER_HOUR = 6
+MAX_ATTEMPTS = 5
+PURPOSES = ("login", "reset", "change_password")
+TEST_SUFFIX = "+clerk_test@"
+TEST_CODE = "424242"
+db = None  # injected from server.py
+
+
+def _now():
+    return datetime.now(timezone.utc)
+
+
+def _hash(email: str, code: str) -> str:
+    return hmac.new(os.environ["CLERK_SECRET_KEY"].encode(), f"{email.lower()}:{code}".encode(), hashlib.sha256).hexdigest()
+
+
+def _pw_ok(p: str) -> bool:
+    if not 8 <= len(p) <= 32:
+        return False
+    return sum(bool(re.search(r, p)) for r in (r"[0-9]", r"[a-zA-Z]", r"[^0-9a-zA-Z]")) >= 2
+
+
+async def _clerk(method: str, path: str, **kw) -> httpx.Response:
+    headers = {"Authorization": f"Bearer {os.environ['CLERK_SECRET_KEY']}", "User-Agent": "gogo589-backend"}
+    async with httpx.AsyncClient(timeout=20) as c:
+        return await c.request(method, f"{CLERK_BACKEND_API}{path}", headers=headers, **kw)
+
+
+async def _find_user(identifier: str) -> Optional[dict]:
+    key = "phone_number" if identifier.startswith("+") else "email_address"
+    r = await _clerk("GET", "/users", params={key: identifier, "limit": 1})
+    r.raise_for_status()
+    users = r.json()
+    return users[0] if users else None
+
+
+async def _ticket(user_id: str) -> str:
+    r = await _clerk("POST", "/sign_in_tokens", json={"user_id": user_id, "expires_in_seconds": 300})
+    if r.status_code >= 300:
+        logger.error("sign_in_token failed: %s", r.text[:200])
+        raise HTTPException(status_code=502, detail="登入服務暫時不可用，請稍後再試")
+    return r.json()["token"]
+
+
+def _primary_email(u: dict) -> str:
+    pid = u.get("primary_email_address_id")
+    for e in u.get("email_addresses", []):
+        if e["id"] == pid:
+            return e["email_address"]
+    return (u.get("email_addresses") or [{}])[0].get("email_address", "")
+
+
+class SendIn(BaseModel):
+    email: EmailStr
+    purpose: str = "login"
+
+
+class VerifyIn(BaseModel):
+    email: EmailStr
+    code: str
+
+
+class ResetIn(VerifyIn):
+    new_password: str
+
+
+class PasswordLoginIn(BaseModel):
+    identifier: str
+    password: str
+
+
+class ChangePwIn(BaseModel):
+    code: str
+    new_password: str
+
+
+async def _issue_code(email: str, purpose: str) -> dict:
+    email = email.lower()
+    now = _now()
+    last = await db.email_codes.find_one({"email": email, "purpose": purpose}, sort=[("created_at", -1)])
+    if last and (now - datetime.fromisoformat(last["created_at"])).total_seconds() < RESEND_SECONDS:
+        raise HTTPException(status_code=429, detail=f"請 {RESEND_SECONDS} 秒後再重新發送")
+    hour_ago = (now - timedelta(hours=1)).isoformat()
+    if await db.email_codes.count_documents({"email": email, "created_at": {"$gt": hour_ago}}) >= MAX_PER_HOUR:
+        raise HTTPException(status_code=429, detail="發送過於頻繁，請稍後再試")
+    is_test = TEST_SUFFIX in email
+    code = TEST_CODE if is_test else f"{secrets.randbelow(900000) + 100000}"
+    await db.email_codes.delete_many({"email": email, "purpose": purpose})
+    await db.email_codes.insert_one({"email": email, "purpose": purpose, "hash": _hash(email, code), "attempts": 0,
+                                     "created_at": now.isoformat(), "expires_at": (now + timedelta(minutes=CODE_TTL_MIN)).isoformat()})
+    if not is_test:
+        subject, html, text = otp_email(code, purpose, CODE_TTL_MIN)
+        try:
+            await send_mail(email, subject, html, text)
+        except Exception as e:
+            logger.error("smtp send failed: %s", e)
+            await db.email_codes.delete_many({"email": email, "purpose": purpose})
+            raise HTTPException(status_code=502, detail="郵件發送失敗，請稍後再試")
+    return {"sent": True, "resend_after": RESEND_SECONDS, "expires_in": CODE_TTL_MIN * 60}
+
+
+async def _consume_code(email: str, purpose: str, code: str):
+    email = email.lower()
+    rec = await db.email_codes.find_one({"email": email, "purpose": purpose})
+    if not rec or datetime.fromisoformat(rec["expires_at"]) < _now():
+        raise HTTPException(status_code=400, detail="驗證碼已過期，請重新發送")
+    if rec["attempts"] >= MAX_ATTEMPTS:
+        await db.email_codes.delete_one({"_id": rec["_id"]})
+        raise HTTPException(status_code=400, detail="錯誤次數過多，請重新發送驗證碼")
+    if not hmac.compare_digest(rec["hash"], _hash(email, code.strip())):
+        await db.email_codes.update_one({"_id": rec["_id"]}, {"$inc": {"attempts": 1}})
+        raise HTTPException(status_code=400, detail="驗證碼錯誤")
+    await db.email_codes.delete_one({"_id": rec["_id"]})
+
+
+@router.post("/send-code")
+async def send_code(body: SendIn):
+    if body.purpose not in PURPOSES:
+        raise HTTPException(status_code=400, detail="invalid purpose")
+    user = await _find_user(body.email.lower())
+    if body.purpose == "reset" and not user:
+        raise HTTPException(status_code=404, detail="此信箱尚未註冊")
+    res = await _issue_code(body.email, body.purpose)
+    return {**res, "is_new": user is None}
+
+
+@router.post("/verify")
+async def verify_login(body: VerifyIn):
+    email = body.email.lower()
+    await _consume_code(email, "login", body.code)
+    user = await _find_user(email)
+    is_new = user is None
+    if is_new:
+        r = await _clerk("POST", "/users", json={"email_address": [email], "skip_password_requirement": True})
+        if r.status_code >= 300:
+            logger.error("create user failed: %s", r.text[:300])
+            raise HTTPException(status_code=502, detail="註冊失敗，請稍後再試")
+        user = r.json()
+    return {"ticket": await _ticket(user["id"]), "is_new": is_new}
+
+
+@router.post("/password-login")
+async def password_login(body: PasswordLoginIn):
+    ident = body.identifier.strip().lower()
+    user = await _find_user(ident)
+    if not user:
+        raise HTTPException(status_code=401, detail="帳號或密碼錯誤")
+    if not user.get("password_enabled"):
+        raise HTTPException(status_code=400, detail="此帳號尚未設定密碼，請使用驗證碼登入")
+    r = await _clerk("POST", f"/users/{user['id']}/verify_password", json={"password": body.password})
+    if r.status_code != 200 or not r.json().get("verified"):
+        raise HTTPException(status_code=401, detail="帳號或密碼錯誤")
+    return {"ticket": await _ticket(user["id"])}
+
+
+@router.post("/reset-password")
+async def reset_password(body: ResetIn):
+    email = body.email.lower()
+    if not _pw_ok(body.new_password):
+        raise HTTPException(status_code=400, detail="密碼長度為8~32位，數字、字母、符號至少包含兩種")
+    await _consume_code(email, "reset", body.code)
+    user = await _find_user(email)
+    if not user:
+        raise HTTPException(status_code=404, detail="此信箱尚未註冊")
+    r = await _clerk("PATCH", f"/users/{user['id']}", json={"password": body.new_password, "sign_out_of_other_sessions": True})
+    if r.status_code >= 300:
+        logger.error("reset password failed: %s", r.text[:300])
+        raise HTTPException(status_code=400, detail=(r.json().get("errors") or [{}])[0].get("long_message") or "重設失敗")
+    return {"ticket": await _ticket(user["id"])}
+
+
+@router.post("/me/send-code")
+async def me_send_code(user: dict = Depends(require_user)):
+    r = await _clerk("GET", f"/users/{user['user_id']}")
+    r.raise_for_status()
+    email = _primary_email(r.json())
+    if not email:
+        raise HTTPException(status_code=400, detail="帳號未綁定信箱")
+    res = await _issue_code(email, "change_password")
+    return {**res, "email": email[:2] + "***" + email[email.index("@"):]}
+
+
+@router.post("/me/change-password")
+async def me_change_password(body: ChangePwIn, user: dict = Depends(require_user)):
+    if not _pw_ok(body.new_password):
+        raise HTTPException(status_code=400, detail="密碼長度為8~32位，數字、字母、符號至少包含兩種")
+    r = await _clerk("GET", f"/users/{user['user_id']}")
+    r.raise_for_status()
+    email = _primary_email(r.json())
+    await _consume_code(email, "change_password", body.code)
+    r = await _clerk("PATCH", f"/users/{user['user_id']}", json={"password": body.new_password})
+    if r.status_code >= 300:
+        raise HTTPException(status_code=400, detail=(r.json().get("errors") or [{}])[0].get("long_message") or "修改失敗")
+    return {"ok": True}

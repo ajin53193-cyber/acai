@@ -8,6 +8,9 @@ import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { PhoneInput, toE164, isValidPhone } from "./PhoneInput";
 import { ForgotPassword } from "./ForgotPassword";
 import { tr } from "@/i18n";
+import { publicApi } from "@/lib/api";
+
+const apiErr = (e, fallback) => e?.response?.data?.detail || e?.errors?.[0]?.message || fallback;
 
 const Ctx = createContext({ openAuth: () => {} });
 export const useAuthModal = () => useContext(Ctx);
@@ -69,6 +72,12 @@ function AuthModal({ open, onOpenChange }) {
     close();
   };
 
+  const finishTicket = async (ticket) => {
+    const r = await signIn.create({ strategy: "ticket", ticket });
+    if (r.status !== "complete") throw new Error("ticket");
+    await finish(r.createdSessionId, setSignInActive);
+  };
+
   async function sendCode() {
     if (!siLoaded || !suLoaded) return;
     if (!identifier) return toast.error(tab === "phone" ? tr("請輸入手機號碼") : tr("請輸入信箱"));
@@ -76,6 +85,18 @@ function AuthModal({ open, onOpenChange }) {
     if (tab === "phone" && !isValidPhone(phoneFull))
       return toast.error(tr("請輸入正確的手機號碼"));
     setLoading(true);
+    if (tab === "email") {
+      try {
+        const r = await publicApi.post("/auth/email/send-code", { email: identifier.trim(), purpose: "login" });
+        setIsSignUp(!!r.data.is_new);
+        setSent(true);
+        toast.success(tr("驗證碼已發送"));
+      } catch (e) {
+        toast.error(apiErr(e, tr("發送失敗，請稍後再試")));
+      }
+      setLoading(false);
+      return;
+    }
     try {
       try {
         const createId = tab === "phone" ? phoneFull : identifier;
@@ -117,26 +138,9 @@ function AuthModal({ open, onOpenChange }) {
           setLoading(false);
           return toast.error(tr("請輸入帳號與密碼"));
         }
-        if (trust) {
-          if (!code) { setLoading(false); return toast.error(tr("請輸入驗證碼")); }
-          const r = await signIn.attemptSecondFactor({ strategy: trust.strategy, code: code.trim() });
-          if (r.status === "complete") return await finish(r.createdSessionId, setSignInActive);
-          toast.error(tr("驗證未完成，請重試"));
-        } else {
-          const r = await signIn.create({ identifier, password });
-          if (r.status === "complete") return await finish(r.createdSessionId, setSignInActive);
-          if (r.status === "needs_client_trust" || r.status === "needs_second_factor") {
-            const f = r.supportedSecondFactors?.find((x) => x.strategy === "email_code") || r.supportedSecondFactors?.find((x) => x.strategy === "phone_code");
-            if (!f) return toast.error(tr("此帳號需要額外驗證，但未設定可用的驗證方式"));
-            await signIn.prepareSecondFactor(
-              f.strategy === "email_code" ? { strategy: "email_code", emailAddressId: f.emailAddressId } : { strategy: "phone_code", phoneNumberId: f.phoneNumberId }
-            );
-            setTrust(f);
-            toast.success(tr("新裝置安全驗證：驗證碼已發送至 {0}", f.safeIdentifier || (f.strategy === "email_code" ? tr("您的信箱") : tr("您的手機"))));
-          } else {
-            toast.error(tr("需要額外驗證步驟"));
-          }
-        }
+        const ident = identifier.includes("@") ? identifier.trim() : toE164(dialCode, identifier);
+        const r = await publicApi.post("/auth/email/password-login", { identifier: ident, password });
+        return await finishTicket(r.data.ticket);
       } else {
         if (!sent) {
           setLoading(false);
@@ -145,6 +149,11 @@ function AuthModal({ open, onOpenChange }) {
         if (!code) {
           setLoading(false);
           return toast.error(tr("請輸入驗證碼"));
+        }
+        if (tab === "email") {
+          const r = await publicApi.post("/auth/email/verify", { email: identifier.trim(), code: code.trim() });
+          if (r.data.is_new) toast.success(tr("註冊成功"));
+          return await finishTicket(r.data.ticket);
         }
         if (isSignUp) {
           const r =
@@ -163,7 +172,7 @@ function AuthModal({ open, onOpenChange }) {
         }
       }
     } catch (e) {
-      toast.error(e?.errors?.[0]?.message || tr("登入失敗，請檢查輸入"));
+      toast.error(apiErr(e, tr("登入失敗，請檢查輸入")));
     }
     setLoading(false);
   }

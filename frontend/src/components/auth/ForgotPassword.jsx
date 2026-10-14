@@ -4,6 +4,9 @@ import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import { PhoneInput, toE164, isValidPhone } from "./PhoneInput";
 import { tr } from "@/i18n";
+import { publicApi } from "@/lib/api";
+
+const apiErr = (e, fallback) => e?.response?.data?.detail || e?.errors?.[0]?.longMessage || e?.errors?.[0]?.message || fallback;
 
 const TABS = [
   ["email", tr("透過信箱")],
@@ -13,7 +16,7 @@ const TABS = [
 const field = "w-full min-w-0 h-14 rounded-2xl bg-slate-100 px-5 text-base outline-none focus:ring-2 focus:ring-orange-300 placeholder:text-slate-400";
 
 const validPassword = (p) => {
-  if (p.length < 6 || p.length > 16) return false;
+  if (p.length < 8 || p.length > 32) return false;
   const kinds = [/[0-9]/, /[a-zA-Z]/, /[^0-9a-zA-Z]/].filter((r) => r.test(p)).length;
   return kinds >= 2;
 };
@@ -41,11 +44,12 @@ export function ForgotPassword({ onBack, onClose }) {
     if (tab === "phone" && !isValidPhone(id)) return toast.error(tr("請輸入正確的手機號碼"));
     setLoading(true);
     try {
-      await signIn.create({ strategy, identifier: id });
+      if (tab === "email") await publicApi.post("/auth/email/send-code", { email: id, purpose: "reset" });
+      else await signIn.create({ strategy, identifier: id });
       setSent(true);
       toast.success(tr("驗證碼已發送"));
     } catch (e) {
-      toast.error(e?.errors?.[0]?.longMessage || e?.errors?.[0]?.message || tr("發送失敗，請確認帳號是否已註冊"));
+      toast.error(apiErr(e, tr("發送失敗，請確認帳號是否已註冊")));
     }
     setLoading(false);
   }
@@ -54,10 +58,18 @@ export function ForgotPassword({ onBack, onClose }) {
     if (!agree) return toast.error(tr("請先勾選同意條款與條件"));
     if (!sent) return sendCode();
     if (!code) return toast.error(tr("請輸入驗證碼"));
-    if (!validPassword(pw1)) return toast.error(tr("密碼長度為6~16位，數字、字母、字元至少包含兩種"));
+    if (!validPassword(pw1)) return toast.error(tr("密碼長度為8~32位，數字、字母、符號至少包含兩種"));
     if (pw1 !== pw2) return toast.error(tr("兩次輸入的密碼不一致"));
     setLoading(true);
     try {
+      if (tab === "email") {
+        const res = await publicApi.post("/auth/email/reset-password", { email: identifier.trim(), code: code.trim(), new_password: pw1 });
+        const si = await signIn.create({ strategy: "ticket", ticket: res.data.ticket });
+        await setActive({ session: si.createdSessionId });
+        toast.success(tr("密碼已重設，已為您登入"));
+        onClose();
+        return;
+      }
       const r = await signIn.attemptFirstFactor({ strategy, code: code.trim(), password: pw1 });
       if (r.status === "complete") {
         await setActive({ session: r.createdSessionId });
@@ -67,7 +79,7 @@ export function ForgotPassword({ onBack, onClose }) {
       }
       toast.error(tr("需要額外驗證步驟，請聯繫客服"));
     } catch (e) {
-      toast.error(e?.errors?.[0]?.longMessage || e?.errors?.[0]?.message || tr("重設失敗，請檢查驗證碼"));
+      toast.error(apiErr(e, tr("重設失敗，請檢查驗證碼")));
     }
     setLoading(false);
   }
@@ -110,7 +122,7 @@ export function ForgotPassword({ onBack, onClose }) {
       </div>
 
       <div className="mt-3 text-xs text-slate-400 leading-relaxed">
-        <div>{tr("1.密碼長度為6~16位，數字、字母、字元至少包含兩種；")}</div>
+        <div>{tr("1.密碼長度為8~32位，數字、字母、符號至少包含兩種；")}</div>
         <div>{tr("2.如未收到驗證碼請檢查廣告或垃圾郵件匣。")}</div>
       </div>
 

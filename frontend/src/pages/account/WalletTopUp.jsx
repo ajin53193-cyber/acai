@@ -11,7 +11,7 @@ import { tr } from "@/i18n";
 const PRESETS = [50, 100, 200, 500, 1000, 2000];
 const CATS = [["all", tr("全部")], ["usdt", "USDT"], ["card", tr("卡支付")], ["ewallet", tr("電子錢包")], ["bank", tr("銀行轉賬")]];
 
-const BackLink = () => <Link to="/account/wallet" data-testid="wallet-back" className="flex items-center gap-1 text-sm text-slate-500 hover:text-orange-500"><ChevronLeft className="h-4 w-4" />{tr("返回錢包")}</Link>;
+const BackLink = () => <div className="flex items-center gap-3"><Link to="/account/wallet/topups" data-testid="wallet-topup-records" className="text-sm text-orange-500 font-semibold hover:underline">{tr("充值記錄")}</Link><Link to="/account/wallet" data-testid="wallet-back" className="flex items-center gap-1 text-sm text-slate-500 hover:text-orange-500"><ChevronLeft className="h-4 w-4" />{tr("返回錢包")}</Link></div>;
 
 export default function WalletTopUp() {
   const callApi = useApi();
