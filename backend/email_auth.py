@@ -14,7 +14,7 @@ from pydantic import BaseModel, EmailStr
 
 from clerk_auth import require_user, CLERK_BACKEND_API
 from mailer import send_mail, otp_email
-from sms import send_sms_code, sms_supported
+from sms import send_sms_code
 
 logger = logging.getLogger("email_auth")
 router = APIRouter(prefix="/api/auth/email")
@@ -268,8 +268,6 @@ def _check_phone(phone: str) -> str:
     phone = re.sub(r"[\s-]", "", phone)
     if not re.fullmatch(r"\+[1-9]\d{6,14}", phone):
         raise HTTPException(status_code=400, detail="請輸入正確的手機號碼")
-    if not sms_supported(phone):
-        raise HTTPException(status_code=400, detail="中國大陸手機號暫不支援簡訊驗證，請使用郵箱註冊/登入")
     return phone
 
 
