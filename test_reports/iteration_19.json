@@ -1,0 +1,68 @@
+{
+  "summary": "Iteration 19 — Admin 商品管理 (Products) + 分類管理 (Categories) end-to-end. Backend: 18/18 pytest passed (test_admin_products_and_categories.py) covering GET /admin/products pagination/search/filter/ids, /admin/products/badges, /admin/products/{id} with related, POST (Traditional conversion, spec id replacement, image upload to /api/img/..., account_field_label mirroring, public visibility, daily-limit 200 for 每日一單), PUT (add spec + active=false hides from public), PATCH (active/sort_order OK; disallowed key -> 400), DELETE -> 404 on GET, 401 unauth, Categories list product_count+active, POST id normalization 'Test Cat' -> 'test-cat' + Traditional name, duplicate 409, PUT toggle active=false removes from /api/categories & home.by_category, DELETE blocked (409) on populated 'games', empty category delete OK, unauth 401. Frontend (desktop 1920) after admin+TOTP login: 11 category rows, create 'uitest' + toggle + games delete blocked (409 toast) + uitest delete OK; products-table shows 30 rows + pager; product-edit-7814 opens dialog (white bg #fff) with 31 specs on specs tab and delivery field 0 name '抖音帳號'; new product UI create fills name/brand/category/tags, adds spec with badge '每日一单', delivery tab default field '充值帳號' + pf-add-field adds pf-field-1, related search '抖音' returns 6 options and pf-related-add adds a chip, pf-save closes dialog and the new product appears when searching its Traditional name 'UI測試商品Z'; empty-specs validation shows zh-CN toast '请至少添加一个规格'. All test seed data cleaned up (UI-deleted test product + 'uitest' category; final /api/admin/categories shows the 11 real rows and search for 'UI測試' returns 0 products).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Products admin dialog (dev build)", "issues": [
+        "React hydration warning: '<span> cannot be a child of <option>' — Visual-Edit-Mode injects x-ve-dynamic <span> inside <option> children when rendering {c.name} inside <option> in product-filter-category / pf-category selects. Dev-build-only; production bundle strips the wrapper. No functional impact but spams console.",
+        "Related-chip image <img src=''> warning when a related product has an empty image field (empty string passed to src attribute). Low priority; add `{r.image && <img ... />}` guard in RelatedEditor chip render."
+      ]}
+    ]
+  },
+  "verified_checks": {
+    "backend_pytest_18_18": {
+      "admin_products_list_shape": "total>2000 (2498), rows=30, excludes content_html/description/tutorial/delivery_fields; page 2 disjoint from page 1",
+      "admin_products_search_q": "q=抖音 returns rows with 抖音 in name or brand",
+      "admin_products_filter_category_active_ids": "category=games all match; active=false all inactive; ids=7814 returns exactly 7814",
+      "admin_products_badges": "list of 1..40 non-empty trimmed distinct badge strings",
+      "admin_product_get_with_related": "7814 returns content_html/delivery_fields/specs; related = [{id,name,image}] in related_ids order",
+      "admin_create_product": "POST 测试商品A -> name=測試商品A, tags=[熱銷], spec id replaced (!=new-1), spec label=100 鑽石, badge=每日一單, image=/api/img/... , account_field_label == delivery_fields[0].name (遊戲賬號/遊戲帳號), public GET works, public /api/products?category=games includes it (zh-TW), /api/products/{id}/daily-limit=200 for 每日一單",
+      "admin_put_add_spec_deactivate": "specs grew by 1, active=false, public listing excludes it",
+      "admin_patch_active_sort": "{active:true} and {sort_order:3} applied; {name:'x'} -> 400 nothing to update",
+      "admin_delete_then_404": "DELETE 200, GET /api/products/{id} -> 404",
+      "admin_unauth_401": "GET /api/admin/products without creds -> 401/403; POST /api/admin/categories without creds -> 401/403",
+      "admin_categories_list": "11 rows each with product_count & active",
+      "admin_categories_create_normalize": "{id:'Test Cat', name:'测试分类'} -> {id:'test-cat', name:'測試分類'}; dup -> 409",
+      "admin_categories_toggle": "active=false removes id from /api/categories and from /api/products/home by_category; re-enable restores both",
+      "admin_categories_delete_blocked": "DELETE /api/admin/categories/games -> 409 with 商品/products message",
+      "admin_categories_delete_empty_ok": "DELETE test-cat -> 200"
+    },
+    "frontend_desktop_1920": {
+      "login_2fa": "admin+clerk_test@shop.com + password + pyotp(DNY74VQQI3454NAKX3XW7INOIG4UCTQA).now() -> /admin, sessionStorage.admin_token len=123",
+      "categories_full_crud": "11 rows; create uitest -> row appears; toggle -> data-state unchecked; delete games -> 409 toast and row kept; delete uitest -> row removed",
+      "products_list_filters": "30 rows, products-pager visible, debounced search '抖音' returns 6 rows, category=games 30 rows, status=false 0 rows (none inactive in prod data at run time)",
+      "products_edit_7814": "pf-tab-specs loads 31 specs; pf-tab-delivery pf-field-name-0='抖音帳號'; dialog bg = rgb(255,255,255) (white themed)",
+      "products_new_via_UI": "pf-name 'UI测试商品Z', pf-category 'games', pf-tags '热销'; specs: pf-add-spec + pf-spec-label-0 '100 钻石' + pf-spec-price-0 9.9 + pf-spec-badge-0 '每日一单'; delivery default pf-field-name-0 '充值帳號' + pf-add-field creates pf-field-1; related search '抖音' -> 6 options, pf-related-add-<id> creates pf-related-<id> chip; pf-save closes dialog and 'UI測試商品Z' appears in product-search",
+      "validation_empty_specs": "toast '请至少添加一个规格' (zh-CN variant per request)",
+      "cleanup": "created product deleted via product-delete-<id> (confirm) with 已刪除 toast and row removed; final admin API search for UI 測試 returns 0 and /api/admin/categories lists the original 11 categories"
+    }
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_admin_products_and_categories.py",
+    "/app/test_reports/pytest/iter19_products.xml"
+  ],
+  "action_items": [
+    "(nit) RelatedEditor chip: guard the <img src={r.image}> with `r.image && ...` to avoid the 'empty string passed to src attribute' console warning when a related product has no image.",
+    "(nit, dev-only) Avoid rendering a {c.name} expression directly as the only child of <option> in product-filter-category and pf-category — Visual-Edit-Mode wraps it in an x-ve-dynamic <span>, triggering a hydration warning. Can be sidestepped by concatenating into a template literal, e.g. `{`${c.name}（${c.product_count}）`}`."
+  ],
+  "critical_code_review_comments": [
+    "server.py `admin_list_products` pagination truncates `.to_list(size)` AFTER `.skip()` — correct — but no `.limit(size)` is set so motor will fetch all remaining documents from the server; add `.limit(size)` before `.to_list(size)` for perf (2498-row collection is small today, matters at scale).",
+    "server.py `_prep_product` always rewrites `account_field_label` to `delivery_fields[0].name` whenever delivery_fields is non-empty. If an admin intentionally wants a different label from the first field name (e.g. localized shorter label), it will be silently overwritten. Consider only setting when `account_field_label` is empty/default '充值帳號'.",
+    "server.py admin create/update normalises spec ids starting with 'new-' to new_id(), but a POSTed empty spec id is also replaced; however the UI's SpecsEditor assigns `id: `new-${Date.now()}`` for brand-new rows (good), while PUT allows preserving existing ids. OK — just confirm the UI never collapses two client ids to the same string before PUT.",
+    "server.py `admin_patch_product` whitelists 4 keys but returns the updated doc with `content_html` excluded only on PATCH; on the full PUT it returns the doc including content_html (a potentially large field). Consider a lean projection on PUT responses to match PATCH.",
+    "CategoriesAdmin.jsx uses window.confirm for delete and relies on native alert UX inside the admin dark panel — inconsistent with the shadcn AlertDialog style used elsewhere. Low priority but visually jarring.",
+    "ProductsAdmin pagination state does not persist across tab switches (going to Categories and back resets page=1). If product edit navigates away via SPA and returns, the admin loses their page position. Consider lifting {q,cat,status,page} into a URL query param."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_admin_products_and_categories.py"
+  ],
+  "success_rate": {"backend": "100% (18/18)", "frontend": "100% of listed critical flows"},
+  "test_credentials": "admin+clerk_test@shop.com / Gogo589!Admin#7x2Q / pyotp.TOTP('DNY74VQQI3454NAKX3XW7INOIG4UCTQA').now(). JWT via /app/tests/mint_token.py and X-Admin-Token via admin_api._sign (124 chars) cached at /tmp/jwt and /tmp/xat.",
+  "seed_data_creation": "During pytest: 1 TEST product (测试商品A -> 測試商品A V2 then DELETE) and 1 TEST category (test-cat) — both deleted via class-scoped teardown. During UI test: 1 UI product (UI測試商品Z) deleted via product-delete-<id>, 1 UI category (uitest) deleted via category-delete-uitest. Final state verified: /api/admin/products?q=UI 測試 total=0; /api/admin/categories lists the original 11 category ids (livestream, games, social, video-music, play, voice, life, pointcard, literary, accelerator, ai). No real product toggled/modified; 7814 was only read.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Regression file: /app/backend/tests/test_admin_products_and_categories.py (run with `python3 -m pytest ... -o addopts=\"\"` to bypass the xdist default in /app/backend/pytest.ini). The daily-limit endpoint requires a logged-in member (uses current_member Depends), so when asserting that '每日一單' makes it return 200, pass Authorization: Bearer <jwt>. For UI tests: use pyotp.TOTP('DNY74VQQI3454NAKX3XW7INOIG4UCTQA').now() for the admin login; initial /admin page needs ~2s before the first callApi settles — give the Products table ~3s after clicking admin-nav-products before counting rows (the Categories page also needs ~2s for its first fetch). The ProductForm dialog is light-themed (bg white) by design — confirmed via computed style. New-product spec id strings are prefixed 'new-...' client-side and get replaced server-side with uuid4 hex. Related chip renders an <img src={r.image}> even when image='' which emits a React empty-string-src warning (noted in action_items).",
+  "rca of the issue": "No real bugs this iteration. Two cosmetic dev-build console warnings: (1) Visual-Edit-Mode injects an x-ve-dynamic <span> inside <option> for dynamic text, violating the HTML parser rule; this is a VEM instrumentation artefact only visible in `yarn start` builds. (2) Empty-src <img> on a related-product chip when the related product has no image URL."
+}

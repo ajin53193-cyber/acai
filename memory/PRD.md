@@ -129,3 +129,8 @@
   - 活動（沿用 `articles` 集合，新增 type promo|tutorial|news、start_at/end_at、link）：`GET/POST /api/admin/articles`、`GET/PUT/DELETE /api/admin/articles/{id}`、`POST /api/admin/articles/upload`（富文本插圖）。公開 `GET /api/articles?type=` 只回上架且在活動時間內的項目（到期自動隱藏）。既有 51 篇文章已補 type。
 - 前端：`lib/siteConfig.js` `useSiteConfig()`（模組快取 + 監聽）；Home / Header / Footer / DetailBannerCarousel 全部改讀配置。後台新頁 `admin/ActivitiesAdmin.jsx`（表格、篩選、搜尋、新增/編輯對話框、封面上傳、react-quill-new 富文本、活動時間、上下架）與 `admin/SiteConfigAdmin.jsx`（9 個分頁、儲存此區塊/恢復預設、客服 WhatsApp 併入）。側欄：活動管理 → 活動配置 / 優惠碼；系統設定 → 網站配置。
 - 活動中心 `/article` 新增類型頁籤（全部/優惠活動/充值教學/新聞公告）；詳情頁若有 link 顯示「立即參與」。
+
+## 2026-06 商品管理重做 + 分類管理（iteration_19 後端 18/18、前端全通）
+- 後端：`GET /api/admin/products`（q/category/active/ids/page/size 分頁）、`GET /api/admin/products/badges`（角標建議）、`GET /api/admin/products/{id}`（含 related 名稱）、POST/PUT（`_prep_product`：圖片 data URL 上傳、簡→繁、規格 new-id 換 uuid、第一個下單欄位同步 account_field_label/hint）、`PATCH`（active/sort_order/sales_count/tags 快速改）。ProductIn 新增 related_ids。
+- 分類：`GET/POST /api/admin/categories`、`PUT/DELETE /api/admin/categories/{id}`（有商品時 409）；新增 active 旗標，公開 `/api/categories` 與 `/api/products/home` 只回顯示中的分類。
+- 前端：`admin/ProductsAdmin.jsx`（表格 30/頁、搜尋防抖、分類/狀態篩選、行內排序與上下架；編輯對話框 5 分頁：基本資訊+圖片上傳 / 規格與價格(售價、原價、角標 datalist、有貨、排序) / 下單需填寫(欄位類型、必填、提示、下拉選項) / 商品說明(富文本) / 相關推薦(搜尋加入)）、`admin/CategoriesAdmin.jsx`。側欄運營管理新增「分類管理」。

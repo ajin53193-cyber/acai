@@ -46,7 +46,7 @@ export function ProductsAdmin({ callApi }) {
         right={<Btn data-testid="product-add-btn" onClick={() => setEditing({ ...EMPTY, category: cats[0]?.id || "" })}><Plus className="h-4 w-4 inline -mt-0.5 mr-1" />{tr("新增商品")}</Btn>} />
       <div className="flex flex-wrap items-center gap-2 mb-4">
         <div className="relative"><Search className="h-4 w-4 absolute left-2.5 top-2.5 text-slate-400" /><Input data-testid="product-search" value={q} onChange={(e) => setQ(e.target.value)} placeholder={tr("搜尋名稱 / 品牌 / ID")} className="pl-8 w-64" /></div>
-        <select data-testid="product-filter-category" className={selBase + " w-44"} value={cat} onChange={(e) => { setCat(e.target.value); setPage(1); }}><option value="">{tr("全部分類")}</option>{cats.map((c) => <option key={c.id} value={c.id}>{c.name}（{c.product_count}）</option>)}</select>
+        <select data-testid="product-filter-category" className={selBase + " w-44"} value={cat} onChange={(e) => { setCat(e.target.value); setPage(1); }}><option value="">{tr("全部分類")}</option>{cats.map((c) => <option key={c.id} value={c.id}>{`${c.name}（${c.product_count}）`}</option>)}</select>
         <select data-testid="product-filter-status" className={selBase + " w-32"} value={status} onChange={(e) => { setStatus(e.target.value); setPage(1); }}><option value="">{tr("全部狀態")}</option><option value="true">{tr("上架中")}</option><option value="false">{tr("已下架")}</option></select>
         <span className="text-xs text-slate-400 ml-auto">{tr("第 {0} / {1} 頁", page, pages)}</span>
       </div>
@@ -243,7 +243,7 @@ function RelatedEditor({ related, selfId, callApi, onChange }) {
     <div className="space-y-3">
       <div className="text-[11px] text-slate-400">{tr("商品頁底部「相關推薦」，最多 8 個；未設定時自動顯示同分類熱銷商品。")}</div>
       <div className="flex flex-wrap gap-2">
-        {related.map((r) => <span key={r.id} data-testid={`pf-related-${r.id}`} className="flex items-center gap-2 bg-orange-50 border border-orange-100 rounded-full pl-1 pr-2 py-1 text-xs"><img src={r.image} alt="" className="h-6 w-6 rounded-full object-cover" />{r.name}<button onClick={() => onChange(related.filter((x) => x.id !== r.id))} className="text-slate-400 hover:text-red-500"><X className="h-3.5 w-3.5" /></button></span>)}
+        {related.map((r) => <span key={r.id} data-testid={`pf-related-${r.id}`} className="flex items-center gap-2 bg-orange-50 border border-orange-100 rounded-full pl-1 pr-2 py-1 text-xs">{r.image && <img src={r.image} alt="" className="h-6 w-6 rounded-full object-cover" />}{r.name}<button onClick={() => onChange(related.filter((x) => x.id !== r.id))} className="text-slate-400 hover:text-red-500"><X className="h-3.5 w-3.5" /></button></span>)}
         {related.length === 0 && <span className="text-xs text-slate-400">{tr("尚未選擇")}</span>}
       </div>
       <div className="relative max-w-md"><Search className="h-4 w-4 absolute left-2.5 top-2.5 text-slate-400" /><Input data-testid="pf-related-search" className="pl-8 w-full" value={q} onChange={(e) => setQ(e.target.value)} placeholder={tr("搜尋商品名稱加入推薦")} disabled={related.length >= 8} /></div>
