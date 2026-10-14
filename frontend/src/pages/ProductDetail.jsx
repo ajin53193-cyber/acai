@@ -116,6 +116,7 @@ export default function ProductDetail() {
   const limitText = (s) => { const k = limitKind(s); const n = limitCount(s); const unit = { monthly: tr("每月"), daily: tr("每日"), weekly: tr("每週"), lifetime: tr("終生") }[k]; return k === "newcomer" ? tr("新用戶專享") : n === 1 ? tr("{0}一單", unit) : tr("{0}限購 {1} 份", unit, n); };
 
   const spec = useMemo(() => product?.specs.find((s) => s.id === specId), [product, specId]);
+  useEffect(() => { if (spec && specLimited(spec) && qty > limitCount(spec)) setQty(limitCount(spec)); }, [spec]); // eslint-disable-line react-hooks/exhaustive-deps
   const totalUsd = (spec?.price_usd || 0) * qty;
   const originalUsd = (spec?.sale_price_usd || 0) * qty;
 
@@ -218,7 +219,7 @@ export default function ProductDetail() {
                 <div className="flex items-center rounded-xl md:rounded-full border border-slate-200 md:border-0 bg-white md:bg-slate-100 h-10 md:h-9">
                   <button data-testid="qty-dec" onClick={() => setQty((q) => Math.max(1, q - 1))} className="h-9 w-9 flex items-center justify-center text-slate-500 hover:text-orange-500"><Minus className="h-4 w-4" /></button>
                   <span className="w-10 md:w-8 text-center text-sm font-semibold" data-testid="qty-value">{qty}</span>
-                  <button data-testid="qty-inc" onClick={() => setQty((q) => Math.min(99, q + 1))} className="h-9 w-9 flex items-center justify-center text-slate-500 hover:text-orange-500"><Plus className="h-4 w-4" /></button>
+                  <button data-testid="qty-inc" disabled={spec && specLimited(spec) && qty >= limitCount(spec)} onClick={() => setQty((q) => Math.min(spec && specLimited(spec) ? limitCount(spec) : 99, q + 1))} className="h-9 w-9 flex items-center justify-center text-slate-500 hover:text-orange-500 disabled:opacity-30 disabled:cursor-not-allowed"><Plus className="h-4 w-4" /></button>
                 </div>
               </div>
               <div className="md:ml-auto flex items-center gap-4 flex-wrap">
