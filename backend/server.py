@@ -518,6 +518,25 @@ async def lottery_config_public():
     return {"enabled": bool(cfg.get("enabled")), "cost_points": int(cfg.get("cost_points") or 0), "free_daily": bool(cfg.get("free_daily")), "prizes": prizes}
 
 
+@api_router.get("/lottery/recent-winners")
+async def lottery_recent_winners():
+    rows = await db.lottery_draws.find({"prize_type": {"$nin": ["none", None]}}, {"_id": 0, "user_id": 1, "prize_label": 1, "created_at": 1}).sort("created_at", -1).to_list(12)
+    out = []
+    for r in rows:
+        acc = admin_api.account_no(r.get("user_id", ""))
+        out.append({"account": f"{acc[:3]}***{acc[-2:]}" if len(acc) > 5 else "***", "prize": r.get("prize_label", ""), "at": r.get("created_at", "")})
+    return out
+
+
+@api_router.get("/referral/public")
+async def referral_public():
+    cfg = await get_referral_cfg()
+    poster = await db.referral_posters.find_one({"active": True}, {"_id": 0, "image": 1}, sort=[("sort", 1)])
+    return {"enabled": bool(cfg.get("enabled")), "referrer_points": int(cfg.get("referrer_points") or 0), "referee_points": int(cfg.get("referee_points") or 0),
+            "milestones_enabled": bool(cfg.get("milestones_enabled")), "milestones": cfg.get("milestones") or [],
+            "poster_title": cfg.get("poster_title") or "", "poster_subtitle": cfg.get("poster_subtitle") or "", "poster_image": (poster or {}).get("image", "")}
+
+
 async def _free_draw_used_today(uid: str) -> bool:
     today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     return bool(await db.lottery_draws.find_one({"user_id": uid, "free_kind": "daily", "created_at": {"$regex": f"^{today}"}}, {"_id": 1}))

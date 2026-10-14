@@ -375,3 +375,4 @@
 - 舊 6 卡入口與 ActivityCenterAdmin 的 cards 配置不再被前台使用（header_title/subtitle 仍生效）。
 - data-testid：ac-hero、activity-center-back、ac-hero-countdown、ac-coupon-wall、ac-coupon-<code>、ac-coupon-claim-<code>、ac-wheel、ac-invite、ac-recharge、ac-recharge-<i>、ac-flash、ac-flash-<id>、ac-bundles、ac-combo-<id>、ac-combo-buy-<id>、ac-cartpromo-<i>。
 - 驗證：截圖確認佈局與各區塊渲染；未登入點領券彈出登入框。
+- Round 25 補充（依使用者 mock 再調整）：Hero 加品牌/彩帶/「最高立省 N%」(自動取券與充值最高比例)/天時分秒倒計時（無限時活動時倒數至月底）；Coupon Wall 改橫向票券含豎排「領券/已領取」撕邊；轉盤加底座、奬品文字、剩餘次數角標、中獎播報（新公開 GET /api/lottery/recent-winners）；邀請卡（海報+階梯禮盒+進度條）與右欄邀請里程碑折線卡（新公開 GET /api/referral/public）；充值有禮 4 格；秒殺/套餐/滿減無資料顯示「敬請期待」占位；每區英文小標+中文大標。截圖驗證通過。
