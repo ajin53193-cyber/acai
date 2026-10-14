@@ -1505,7 +1505,7 @@ async def admin_activity_center_put(body: ActivityCenterIn, admin: dict = Depend
 ALL_PERMISSIONS = [
     "overview", "sales-analysis", "realtime", "download-reports",
     "members", "user-levels", "user-tags", "member-assets", "blacklist", "user-logs", "verifications", "user-batch", "feedback", "user-reports",
-    "products", "product-new", "categories", "specs", "inventory", "reviews",
+    "products", "categories", "reviews",
     "giftcards", "giftcard-new", "giftcard-redeem", "giftcard-orders", "giftcard-api",
     "home-decoration", "activity-center", "banners", "recommendations", "promos", "points", "referral", "notifications", "announcements",
     "activities", "flashsale", "recharge-activity", "discount-activity", "lottery", "combo", "activity-records",

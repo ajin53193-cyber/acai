@@ -351,3 +351,7 @@
 - 用戶(Batch5)：用戶批量 POST /admin/users/batch（封禁/解封/打標籤/發積分）；用戶報表 GET /admin/user-reports（總數/新增/封禁 + 等級分佈 + 消費排行 Top15）。
 - 前端新頁：OrderSettlementAdmin/ReconciliationAdmin/FinanceReportsAdmin/SalesAnalysisAdmin/RealtimeAdmin/UserBatchAdmin/UserReportsAdmin，均註冊進 Admin.jsx PAGES。至此 Batch 1-5 將原「即將上線」占位的 16 個模組全部替換為可用模組。
 - 驗證：DB 模擬實測 settlement/settle、reconciliation、analytics sales/realtime、user-reports、users/batch(加積分+標籤) 全通過；前端全部編譯成功。因使用者催促，批次 2-5 未跑 testing_agent 瀏覽器 E2E（批次1已跑並 100%），後端均已模擬驗證。
+
+## 2026-10 後台 Round 23：依使用者要求移除「新增商品 / 規格管理 / 庫存管理」
+- 使用者明確要求不要庫存管理、商品規格、添加商品三個後台模組。已從 Admin.jsx 菜單與 PAGES 移除，刪除 InventoryAdmin.jsx / SpecTemplatesAdmin.jsx，ProductsAdmin 的 SpecsEditor 去掉「套用規格模板」下拉；後端 ALL_PERMISSIONS 同步移除三個 key（API 路由保留，無害）。商品管理菜單現為：商品列表 / 商品分類 / 商品評論。
+- 驗證：後台 2FA 登入 + 儀表盤截圖正常，前端編譯通過。

@@ -41,8 +41,6 @@ import { IntegrationConfigAdmin } from "@/pages/admin/IntegrationConfigAdmin";
 import { AdminsAdmin } from "@/pages/admin/AdminsAdmin";
 import { RolesAdmin } from "@/pages/admin/RolesAdmin";
 import { OperationLogsAdmin } from "@/pages/admin/OperationLogsAdmin";
-import { InventoryAdmin } from "@/pages/admin/InventoryAdmin";
-import { SpecTemplatesAdmin } from "@/pages/admin/SpecTemplatesAdmin";
 import { OrderSettlementAdmin } from "@/pages/admin/OrderSettlementAdmin";
 import { ReconciliationAdmin } from "@/pages/admin/ReconciliationAdmin";
 import { FinanceReportsAdmin } from "@/pages/admin/FinanceReportsAdmin";
@@ -56,7 +54,7 @@ import { tr } from "@/i18n";
 const MENU = [
   { key: "dashboard", g: tr("儀表盤"), icon: LayoutDashboard, defaultOpen: true, items: [["overview", tr("數據概覽")], ["sales-analysis", tr("銷售分析")], ["realtime", tr("實時監控")], ["download-reports", tr("下載報表")]] },
   { key: "users", g: tr("用戶管理"), icon: Users, defaultOpen: true, items: [["members", tr("用戶列表")], ["user-levels", tr("用戶等級")], ["user-tags", tr("用戶標籤")], ["member-assets", tr("會員資產")], ["blacklist", tr("黑名單管理")], ["user-logs", tr("用戶日誌")], ["verifications", tr("用戶認證")], ["user-batch", tr("用戶批量操作")], ["feedback", tr("用戶反饋")], ["user-reports", tr("用戶報表統計")]] },
-  { key: "products", g: tr("商品管理"), icon: Package, items: [["products", tr("商品列表")], ["product-new", tr("新增商品")], ["categories", tr("商品分類")], ["specs", tr("規格管理")], ["inventory", tr("庫存管理")], ["reviews", tr("商品評論")]] },
+  { key: "products", g: tr("商品管理"), icon: Package, items: [["products", tr("商品列表")], ["categories", tr("商品分類")], ["reviews", tr("商品評論")]] },
   { key: "giftcards", g: tr("禮品卡管理"), icon: Gift, items: [["giftcards", tr("禮品卡列表")], ["giftcard-new", tr("創建禮品卡")], ["giftcard-redeem", tr("卡券核銷記錄")], ["giftcard-orders", tr("禮品卡訂單")], ["giftcard-api", tr("核銷API配置")]] },
   { key: "ops", g: tr("運營管理"), icon: Megaphone, items: [["home-decoration", tr("首頁裝修")], ["activity-center", tr("活動中心")], ["banners", tr("輪播圖管理")], ["recommendations", tr("推薦位管理")], ["promos", tr("優惠券管理")], ["points", tr("積分管理")], ["referral", tr("邀請返利")], ["notifications", tr("消息中心")], ["announcements", tr("公告管理")]] },
   { key: "activities", g: tr("活動管理"), icon: Zap, items: [["activities", tr("活動列表")], ["flashsale", tr("秒殺活動")], ["recharge-activity", tr("充值活動")], ["discount-activity", tr("滿減/滿折活動")], ["lottery", tr("抽獎活動")], ["combo", tr("組合套餐")], ["activity-records", tr("活動記錄")]] },
@@ -98,9 +96,6 @@ const PAGES = {
   verifications: (p) => <VerificationsAdmin {...p} />,
   feedback: (p) => <FeedbackAdmin {...p} />,
   products: (p) => <ProductsAdmin {...p} />,
-  "product-new": (p) => <ProductsAdmin autoCreate {...p} />,
-  inventory: (p) => <InventoryAdmin {...p} />,
-  specs: (p) => <SpecTemplatesAdmin {...p} />,
   "order-settlement": (p) => <OrderSettlementAdmin {...p} />,
   reconciliation: (p) => <ReconciliationAdmin {...p} />,
   "finance-reports": (p) => <FinanceReportsAdmin {...p} />,
