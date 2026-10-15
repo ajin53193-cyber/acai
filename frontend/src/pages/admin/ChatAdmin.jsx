@@ -228,7 +228,7 @@ export function ChatAdmin({ callApi }) {
             </div>
             <div className="relative"><Search className="h-4 w-4 text-slate-400 absolute left-2.5 top-2.5" /><input data-testid="chat-search" value={q} onChange={(e) => setQ(e.target.value)} placeholder={tr("搜尋姓名 / 聯絡方式 / 內容")} className="w-full h-9 rounded-lg bg-slate-100 pl-8 pr-3 text-sm outline-none focus:ring-2 focus:ring-orange-300" /></div>
           </div>
-          <div className="flex-1 min-h-0 overflow-y-auto" data-testid="chat-session-list">
+          <div className="flex-1 min-h-0 overflow-y-auto" data-testid="chat-sessions-list">
             {data.items.length === 0 && <div className="text-center text-xs text-slate-400 py-10">{tr("暫無會話")}</div>}
             {data.items.map((s) => <SessionItem key={s.id} s={s} active={s.id === activeId} onClick={() => setActiveId(s.id)} />)}
           </div>
