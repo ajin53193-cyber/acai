@@ -32,7 +32,7 @@ function OrderInfoForm({ order, callApi, onDone }) {
   const submit = async () => {
     for (const pid of Object.keys(defs)) for (const f of defs[pid].fields) if (f.required && !(vals[pid]?.[f.name] || "").trim()) return toast.error(tr("請填寫「{0}」", f.name));
     setBusy(true);
-    try { const r = await callApi({ method: "POST", url: `/orders/${order.id}/info`, data: { delivery_info: vals } }); toast.success(tr("充值資料已提交，等待人工充值")); setOpen(false); onDone(r.data); }
+    try { const r = await callApi({ method: "POST", url: `/orders/${order.id}/info`, data: { delivery_info: vals } }); toast.success(r.data.is_giftcard_order ? tr("充值資料已提交，等待系統轉贈充值") : tr("充值資料已提交，等待人工充值")); setOpen(false); onDone(r.data); }
     catch (e) { toast.error(e.response?.data?.detail || tr("提交失敗")); }
     setBusy(false);
   };
