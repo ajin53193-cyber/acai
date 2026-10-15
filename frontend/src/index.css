@@ -14,7 +14,10 @@ html, body {
 .safe-top-pad { padding-top: env(safe-area-inset-top) !important; }
 .safe-bottom-inset { padding-bottom: env(safe-area-inset-bottom); }
 .safe-bottom-pad { padding-bottom: calc(1rem + env(safe-area-inset-bottom)); }
-.safe-bottom-box { height: calc(3.5rem + env(safe-area-inset-bottom)); padding-bottom: env(safe-area-inset-bottom); }
+/* Browser: keep the bar above the (iOS 26 translucent) toolbar so Safari tints the toolbar with the page colour, not the bar's brown */
+.safe-bottom-box { height: 3.5rem; margin-bottom: env(safe-area-inset-bottom); }
+/* Home-screen app: extend the bar under the home indicator */
+html.pwa .safe-bottom-box { height: calc(3.5rem + env(safe-area-inset-bottom)); padding-bottom: env(safe-area-inset-bottom); margin-bottom: 0; }
 @media (max-width: 767px) {
     .safe-bottom-offset { margin-bottom: env(safe-area-inset-bottom); }
 }
