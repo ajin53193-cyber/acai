@@ -160,7 +160,6 @@ export default function WalletTopUp() {
             {busy ? tr("處理中…") : isUsdt ? tr("前往 USDT 收銀台") : tr("立即充值")}
           </button>
         </div>
-        {!isUsdt && selected && <div className="mt-2 text-right text-[11px] text-slate-400" data-testid="topup-footnote">{["stripe", "paypal"].includes(selected.provider) ? tr("將跳轉至安全收銀台，付款完成後自動入帳") : tr("轉帳後請於充值記錄上傳憑證，人工核對後入帳")}</div>}
       </div>
     </Panel>
   );
