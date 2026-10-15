@@ -250,7 +250,7 @@ export default function Header() {
           </div>
         )}
       </div>
-      <A2HSTip pathname={pathname} onOpen={() => { setA2hsSrc("auto"); setA2hs(true); }} />
+      <A2HSTip pathname={pathname} onOpen={() => { setA2hsSrc("popup"); setA2hs(true); }} />
       {a2hs && <AddToHomeDialog source={a2hsSrc} onClose={() => setA2hs(false)} />}
     </header>
     </>
