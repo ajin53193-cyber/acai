@@ -1,0 +1,32 @@
+# 宝塔「网站」反向代理示例
+# 前端走打包后的静态文件，/api 反代到后端 FastAPI(8001)。
+# 在宝塔面板：网站 -> 你的站点 -> 配置文件，把 server 块参考下面调整。
+
+server {
+    listen 80;
+    server_name your-domain.com;
+
+    # 前端静态文件目录（frontend 执行 yarn build 后生成的 build 目录）
+    root  C:/wwwroot/gogo589/frontend/build;
+    index index.html;
+
+    # 单页应用（SPA）路由回退：刷新/深链都回到 index.html
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+
+    # 后端 API：所有 /api 前缀转发到 FastAPI
+    location /api/ {
+        proxy_pass http://127.0.0.1:8001;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_read_timeout 180s;
+        client_max_body_size 20m;   # 允许图片上传
+    }
+}
+
+# HTTPS：在宝塔站点「SSL」里一键申请 Let's Encrypt 证书并开启强制 HTTPS 即可，
+# 宝塔会自动补上 443 的 server 块与证书配置。
