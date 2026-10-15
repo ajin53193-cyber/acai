@@ -371,10 +371,10 @@ function OrdersInner() {
                 <div className="flex gap-3">
                   <button
                     data-testid="order-detail-view-orders"
-                    onClick={() => setDetail(null)}
+                    onClick={() => { setDetail(null); navigate("/orders"); }}
                     className="flex-1 h-11 rounded-full bg-white border border-orange-300 text-orange-500 font-semibold text-sm"
                   >
-                    {tr("查看訂單")}
+                    {tr("訂單列表")}
                   </button>
                   <button
                     data-testid="order-detail-home-btn"
