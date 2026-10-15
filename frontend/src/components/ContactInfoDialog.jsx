@@ -46,8 +46,8 @@ export function ContactInfoDialog({ initial, onSaved, onClose }) {
               </button>
             ))}
           </div>
-          <div className="flex gap-2">
-            <select data-testid="contact-info-type" value={form.contact_type} onChange={(e) => setForm({ ...form, contact_type: e.target.value })} className={`${inp} w-[110px] shrink-0 px-3`}>{TYPES.map((t) => <option key={t}>{t}</option>)}</select>
+          <div className="flex flex-col gap-2 w-full">
+            <select data-testid="contact-info-type" value={form.contact_type} onChange={(e) => setForm({ ...form, contact_type: e.target.value })} className={`${inp} px-4`}>{TYPES.map((t) => <option key={t}>{t}</option>)}</select>
             <input data-testid="contact-info-contact" value={form.contact} onChange={(e) => setForm({ ...form, contact: e.target.value })} placeholder={tr("請輸入聯絡方式")} className={inp} />
           </div>
           <button data-testid="contact-info-save" onClick={save} disabled={busy} className="w-full h-11 md:h-12 rounded-full bg-orange-500 hover:bg-orange-600 text-white font-bold disabled:opacity-60 transition-colors">{busy ? tr("儲存中…") : tr("儲存並繼續")}</button>
