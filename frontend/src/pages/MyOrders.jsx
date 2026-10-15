@@ -1,10 +1,9 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
-import { Copy, Package, Check, Gift, Share2, Search, X } from "lucide-react";
+import { Copy, Package, Check, Gift, Search, X } from "lucide-react";
 import { toast } from "sonner";
 import { useApi } from "@/lib/api";
 import { celebrate } from "@/lib/celebrate";
-import { makeGiftShareBlob } from "@/lib/giftShareImage";
 import { useCart } from "@/context/CartContext";
 import { Panel, SubTabs } from "@/pages/account/AccountLayout";
 import { useCurrency } from "@/context/CurrencyContext";
@@ -160,11 +159,8 @@ function OrdersInner() {
     toast.success(tr("已複製"));
   };
 
-  const [shareTarget, setShareTarget] = useState(null);
-  const [shareBusy, setShareBusy] = useState(false);
   const [celebrateInfo, setCelebrateInfo] = useState(null);
   const [query, setQuery] = useState("");
-  const [blessing, setBlessing] = useState("");
 
   const channelOf = (order) => {
     const keys = order?.delivery_info ? Object.values(order.delivery_info).flatMap((f) => Object.keys(f)) : [];
@@ -176,40 +172,6 @@ function OrdersInner() {
     setCelebrateInfo({ msg: tr("禮品卡已轉贈到您的{0}賬戶！", channelOf(order)), img: giftCardImageFor(order) });
     setTimeout(() => setCelebrateInfo(null), 4800);
   };
-
-  useEffect(() => {
-    if (!shareTarget) return;
-    let cancelled = false;
-    (async () => {
-      try {
-        const blob = await makeGiftShareBlob(shareTarget, {
-          brand: `gogo589 · ${tr("禮品卡")}`,
-          sub: tr("轉贈成功 · 交易號"),
-          note: tr("請憑此交易號核銷，並妥善保管"),
-          blessing: (shareTarget.blessing || "").trim(),
-        });
-        if (cancelled || !blob) throw new Error("blob");
-        const file = new File([blob], `giftcard-${shareTarget.trade_no}.png`, { type: "image/png" });
-        if (navigator.canShare && navigator.canShare({ files: [file] })) {
-          await navigator.share({ files: [file], title: tr("禮品卡交易號"), text: tr("您的禮品卡交易號：") + shareTarget.trade_no });
-        } else {
-          const url = URL.createObjectURL(blob);
-          const a = document.createElement("a");
-          a.href = url;
-          a.download = file.name;
-          a.click();
-          setTimeout(() => URL.revokeObjectURL(url), 1000);
-          toast.success(tr("圖片已儲存，可轉發給收禮人"));
-        }
-      } catch (e) {
-        if (!/AbortError/.test(e?.name || "")) toast.error(tr("生成圖片失敗，請重試"));
-      }
-      if (!cancelled) { setShareBusy(false); setShareTarget(null); }
-    })();
-    return () => { cancelled = true; };
-  }, [shareTarget]);
-
-  const shareGift = (g, blessingText) => { setShareBusy(true); setShareTarget({ ...g, blessing: blessingText || "" }); };
 
   const payNow = async (order) => {
     setPaying(true);
@@ -289,10 +251,7 @@ function OrdersInner() {
                       {o.gift_trade_nos.map((g, i) => (
                         <div key={i} className="mt-2 flex items-center justify-between gap-2 rounded-xl bg-white/70 px-2.5 py-2">
                           <span className="font-mono text-base md:text-lg tracking-wider text-slate-800 break-all" data-testid={`order-gift-trade-no-${o.id}-${i}`}>{g.trade_no}</span>
-                          <div className="flex shrink-0 items-center gap-1.5">
-                          <button onClick={() => copy(g.trade_no)} data-testid={`order-gift-trade-copy-${o.id}-${i}`} className="inline-flex items-center gap-1 text-orange-500 text-sm font-semibold hover:text-orange-600"><Copy className="h-4 w-4" />{tr("複製")}</button>
-                          <button onClick={() => shareGift(g)} disabled={shareBusy} data-testid={`order-gift-share-${o.id}-${i}`} className="inline-flex items-center gap-1 text-orange-500 text-sm font-semibold hover:text-orange-600"><Share2 className="h-4 w-4" />{tr("分享")}</button>
-                        </div>
+                          <button onClick={() => copy(g.trade_no)} data-testid={`order-gift-trade-copy-${o.id}-${i}`} className="shrink-0 inline-flex items-center gap-1 text-orange-500 text-sm font-semibold hover:text-orange-600"><Copy className="h-4 w-4" />{tr("複製")}</button>
                         </div>
                       ))}
                     </div>
@@ -373,23 +332,11 @@ function OrdersInner() {
                     <div className="pointer-events-none absolute inset-0 [background-image:radial-gradient(rgba(255,255,255,0.8)_1.5px,transparent_1.5px)] [background-size:15px_15px]" />
                     <div className="relative">
                       <div className="font-cute text-lg text-orange-600 mb-2.5 flex items-center gap-1.5"><span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-orange-500 text-white shadow-sm"><Gift className="h-3.5 w-3.5" /></span>{tr("轉贈成功 · 交易號")}</div>
-                      <div className="mb-2.5">
-                        <input
-                          data-testid="order-gift-blessing-input"
-                          value={blessing}
-                          onChange={(e) => setBlessing(e.target.value.slice(0, 40))}
-                          placeholder={tr("寫句祝福語一起送出（選填）")}
-                          className="w-full h-10 rounded-xl bg-white/80 border border-orange-200 px-3 text-sm outline-none focus:ring-2 focus:ring-orange-300 placeholder:text-slate-400"
-                        />
-                      </div>
                       <div className="space-y-2">
                         {detail.gift_trade_nos.map((g, i) => (
                           <div key={i} className="flex items-center justify-between gap-2 rounded-xl bg-white/70 px-3 py-2.5">
                             <div className="min-w-0"><div className="font-mono text-base tracking-wider text-slate-800 break-all">{g.trade_no}</div><div className="text-[11px] text-slate-500 mt-0.5">{g.product_name} {g.spec_label}</div></div>
-                          <div className="flex shrink-0 items-center gap-1.5">
-                            <button onClick={() => copy(g.trade_no)} className="inline-flex items-center gap-1 rounded-full bg-white px-2.5 py-1.5 text-orange-500 text-xs font-semibold shadow-sm hover:text-orange-600"><Copy className="h-3.5 w-3.5" />{tr("複製")}</button>
-                            <button onClick={() => shareGift(g, blessing)} disabled={shareBusy} data-testid="order-gift-share" className="inline-flex items-center gap-1 rounded-full bg-orange-500 px-2.5 py-1.5 text-white text-xs font-semibold shadow-sm hover:bg-orange-600 disabled:opacity-60"><Share2 className="h-3.5 w-3.5" />{shareBusy ? tr("生成中…") : tr("分享")}</button>
-                          </div>
+                            <button onClick={() => copy(g.trade_no)} data-testid="order-gift-copy" className="shrink-0 inline-flex items-center gap-1 rounded-full bg-orange-500 px-3 py-1.5 text-white text-xs font-semibold shadow-sm hover:bg-orange-600"><Copy className="h-3.5 w-3.5" />{tr("複製")}</button>
                           </div>
                         ))}
                       </div>
