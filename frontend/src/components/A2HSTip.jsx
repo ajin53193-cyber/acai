@@ -19,7 +19,7 @@ export function A2HSTip({ onOpen, pathname }) {
   if (!show) return null;
   const dismiss = (days) => { localStorage.setItem(KEY, String(Date.now() + days * DAY)); setShow(false); };
   return (
-    <div data-testid="a2hs-tip" className="md:hidden fixed left-3 right-[4.75rem] z-[45] animate-gt-pop" style={{ bottom: "calc(4.5rem + env(safe-area-inset-bottom))" }}>
+    <div data-testid="a2hs-tip" className="md:hidden fixed left-3 right-[4.75rem] vp-bottom z-[45] animate-gt-pop" style={{ bottom: "calc(4.5rem + env(safe-area-inset-bottom))" }}>
       <div className="rounded-2xl bg-white shadow-[0_12px_32px_-12px_rgba(232,121,42,0.45),0_2px_8px_rgba(0,0,0,0.08)] border border-orange-100 px-3.5 py-3 flex items-center gap-3">
         <span className="h-10 w-10 shrink-0 rounded-xl bg-gradient-to-br from-[#F0872E] to-[#F6A04A] text-white flex items-center justify-center"><Smartphone className="h-5 w-5" /></span>
         <div className="min-w-0 flex-1">

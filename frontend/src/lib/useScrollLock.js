@@ -19,7 +19,7 @@ const followers = new Set();
 let savedScrollY = 0;
 let savedStyles = null;
 let listening = false;
-const FOLLOW_PROPS = ["top", "bottom", "height", "maxHeight", "overflowY"];
+const FOLLOW_PROPS = ["top", "bottom", "height", "max-height", "overflow-y"];
 
 function anchorToVisualViewport() {
   if (activeLocks.size === 0) return;
@@ -28,19 +28,20 @@ function anchorToVisualViewport() {
   if (!vv) return;
   const shifted = vv.offsetTop > 1 || document.documentElement.clientHeight - vv.height > 60;
   followers.forEach(({ el, side }) => {
-    if (!shifted) { FOLLOW_PROPS.forEach((p) => { el.style[p] = ""; }); return; }
-    el.style.maxHeight = `${vv.height}px`;
-    el.style.overflowY = "auto";
+    if (!shifted) { FOLLOW_PROPS.forEach((p) => el.style.removeProperty(p)); return; }
+    const set = (k, v) => el.style.setProperty(k, v, "important");
+    set("max-height", `${vv.height}px`);
+    set("overflow-y", "auto");
     if (side === "center") {
-      el.style.top = `${vv.offsetTop + vv.height / 2}px`;
+      set("top", `${vv.offsetTop + vv.height / 2}px`);
     } else if (side === "bottom") {
       const h = Math.min(el.offsetHeight, vv.height);
-      el.style.bottom = "auto";
-      el.style.top = `${vv.offsetTop + vv.height - h}px`;
+      set("bottom", "auto");
+      set("top", `${vv.offsetTop + vv.height - h}px`);
     } else {
-      el.style.bottom = "auto";
-      el.style.top = `${vv.offsetTop}px`;
-      if (side === "left" || side === "right") el.style.height = `${vv.height}px`;
+      set("bottom", "auto");
+      set("top", `${vv.offsetTop}px`);
+      if (side === "left" || side === "right") set("height", `${vv.height}px`);
     }
   });
 }
@@ -115,7 +116,7 @@ export function ScrollLock({ side = "center" }) {
     const f = { el, side };
     followers.add(f);
     anchorToVisualViewport();
-    return () => { followers.delete(f); FOLLOW_PROPS.forEach((p) => { el.style[p] = ""; }); };
+    return () => { followers.delete(f); FOLLOW_PROPS.forEach((p) => el.style.removeProperty(p)); };
   }, [side]);
   return <span ref={marker} hidden data-scroll-lock-marker="" />;
 }

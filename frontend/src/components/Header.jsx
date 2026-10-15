@@ -173,7 +173,7 @@ export default function Header() {
         {/* 所有服務 mega menu */}
         {servicesOpen && (
           <>
-            <div className="fixed inset-0 z-30" onClick={() => setServicesOpen(false)} />
+            <div className="fixed inset-0 vp-fill z-30" onClick={() => setServicesOpen(false)} />
             <div className="absolute left-0 right-0 top-full z-40 px-4">
               <div className="max-w-5xl mx-auto bg-white rounded-2xl shadow-2xl border border-orange-100 p-6 mt-1">
                 <div className="grid grid-cols-4 sm:grid-cols-5 lg:grid-cols-6 gap-x-4 gap-y-6">
@@ -202,7 +202,7 @@ export default function Header() {
 
         {/* Mobile search + nav */}
         {mobileNav && (
-          <div className="md:hidden fixed inset-0 z-50" data-testid="mobile-drawer">
+          <div className="md:hidden fixed inset-0 vp-fill z-50" data-testid="mobile-drawer">
             <div className="absolute inset-0 bg-black/30" onClick={() => setMobileNav(false)} />
             <div className="absolute left-0 top-0 bottom-0 w-[73%] max-w-[320px] bg-white rounded-r-3xl shadow-2xl overflow-y-auto" style={{ paddingTop: "env(safe-area-inset-top)" }}>
               <div className="flex items-center justify-between px-5 pt-5 pb-4">
