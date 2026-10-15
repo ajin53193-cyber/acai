@@ -366,13 +366,19 @@ function OrdersInner() {
                   <OrderInfoForm order={detail} callApi={callApi} onDone={(o) => { setDetail(o); load(); }} />
                 )}
                 {/* Account info */}
+                {detail.status === "cancelled" && detail.admin_note && (
+                  <div data-testid="order-cancel-reason" className="rounded-2xl bg-red-50 border border-red-200 px-4 py-3">
+                    <div className="text-sm font-bold text-red-600">{tr("訂單已取消")}</div>
+                    <div className="text-xs text-red-500 mt-1 leading-5">{tr("原因：")}{detail.admin_note}</div>
+                  </div>
+                )}
                 {(Object.keys(detail.delivery_info || {}).length > 0 || detail.recharge_note || detail.admin_note) && (
                 <div className="bg-white rounded-2xl p-4 text-sm space-y-2 shadow-[0_6px_20px_-12px_rgba(232,121,42,0.35)]" data-testid="order-detail-info">
                   {detail.delivery_info && Object.values(detail.delivery_info).flatMap((f) => Object.entries(f)).map(([k, v]) => (
                     <div key={k} className="flex justify-between gap-3"><span className="text-slate-400 shrink-0">{k}</span><span className="text-slate-700 text-right break-all">{k.includes(tr("密碼")) ? "••••••" : v}</span></div>
                   ))}
                   {detail.recharge_note && <div className="flex justify-between"><span className="text-slate-400">{tr("備註")}</span><span className="text-slate-700">{detail.recharge_note}</span></div>}
-                  {detail.admin_note && <div className="flex justify-between"><span className="text-slate-400">{tr("客服備註")}</span><span className="text-emerald-600">{detail.admin_note}</span></div>}
+                  {detail.admin_note && detail.status !== "cancelled" && <div className="flex justify-between"><span className="text-slate-400">{tr("客服備註")}</span><span className="text-emerald-600">{detail.admin_note}</span></div>}
                 </div>
                 )}
 

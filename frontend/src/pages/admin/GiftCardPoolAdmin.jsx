@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Trash2, Search, Upload } from "lucide-react";
 import { toast } from "sonner";
 import { Switch } from "@/components/ui/switch";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { tr } from "@/i18n";
 import { Head, Card, Btn, Input, Field, Table, Pill, fmt } from "./ui";
 
@@ -72,18 +73,42 @@ export function GiftCardOrdersAdmin({ callApi }) {
   const [sel, setSel] = useState([]);
   const load = useCallback(() => callApi({ method: "GET", url: "/admin/giftcard/orders", params: { status, q } }).then((r) => { setData(r.data); setSel([]); }).catch(() => toast.error(tr("載入失敗"))), [callApi, status, q]);
   useEffect(() => { load(); }, [load]);
-  const act = async (kind, ids) => {
+  const [ask, setAsk] = useState(null);
+  const ACT_UI = {
+    cancel: { title: tr("取消訂單"), desc: tr("將取消 {0} 筆訂單，款項退回用戶餘額並恢復庫存。取消原因會顯示在用戶的訂單詳情中。"), label: tr("取消原因（用戶可見）"), presets: [tr("號碼有誤且無法聯繫到您，款項已退回餘額"), tr("該帳號暫不支持轉贈，款項已退回餘額"), tr("庫存不足，款項已退回餘額"), tr("應您的要求取消訂單")], confirm: tr("確認取消並退款"), danger: true },
+    reject: { title: tr("駁回充值資料"), desc: tr("用戶需重新填寫轉贈帳號，不退款。駁回原因會顯示給用戶。"), label: tr("駁回原因（用戶可見）"), presets: [tr("轉贈帳號有誤，請重新填寫"), tr("帳號未開通 AlipayHK，請更換帳號"), tr("帳號格式不正確，請填寫 8 位手機號")], confirm: tr("確認駁回"), danger: true },
+    supplement: { title: tr("補號並重審"), desc: tr("將把這些訂單填寫的號碼加入號碼庫並重新自動審核。"), label: "", presets: [], confirm: tr("確認補號"), danger: false },
+  };
+  const act = (kind, ids) => {
     if (!ids.length) return toast.error(tr("請先勾選訂單"));
-    let reason = "";
-    if (kind === "reject") { reason = window.prompt(tr("駁回原因（用戶將看到）"), tr("轉贈帳號有誤，請重新填寫")); if (reason === null) return; }
-    if (kind === "cancel" && !window.confirm(tr("確定取消 {0} 筆訂單？將退回餘額並恢復庫存。", ids.length))) return;
-    if (kind === "supplement" && !window.confirm(tr("將把這些訂單填寫的號碼加入號碼庫並重新自動審核，確定？"))) return;
-    try { const r = await callApi({ method: "POST", url: `/admin/giftcard/orders/${kind}`, data: { ids, reason } }); toast.success(tr("已處理 {0} 筆", r.data.done)); load(); window.dispatchEvent(new Event("admin-badge-refresh")); }
+    if (ACT_UI[kind]) return setAsk({ kind, ids, reason: ACT_UI[kind].presets[0] || "" });
+    run(kind, ids, "");
+  };
+  const run = async (kind, ids, reason) => {
+    try { const r = await callApi({ method: "POST", url: `/admin/giftcard/orders/${kind}`, data: { ids, reason } }); toast.success(tr("已處理 {0} 筆", r.data.done)); setAsk(null); load(); window.dispatchEvent(new Event("admin-badge-refresh")); }
     catch (e) { toast.error(e.response?.data?.detail || tr("操作失敗")); }
   };
   const allIds = data.rows.map((o) => o.id);
   return (
     <div data-testid="giftcard-orders-admin">
+      {ask && (() => { const u = ACT_UI[ask.kind]; return (
+        <Dialog open onOpenChange={() => setAsk(null)}>
+          <DialogContent className="max-w-md bg-white rounded-3xl" data-testid="gco-act-dialog">
+            <DialogHeader><DialogTitle className="font-head text-lg">{u.title}</DialogTitle><DialogDescription className="text-slate-500">{u.desc.replace("{0}", ask.ids.length)}</DialogDescription></DialogHeader>
+            {u.label && (
+              <div className="space-y-2">
+                <div className="text-xs font-semibold text-slate-600">{u.label}</div>
+                <div className="flex flex-wrap gap-1.5">{u.presets.map((t) => <button key={t} data-testid="gco-act-preset" onClick={() => setAsk({ ...ask, reason: t })} className={`rounded-full px-3 py-1 text-xs ${ask.reason === t ? "bg-orange-500 text-white" : "bg-orange-50 text-orange-700 hover:bg-orange-100"}`}>{t}</button>)}</div>
+                <textarea data-testid="gco-act-reason" value={ask.reason} onChange={(e) => setAsk({ ...ask, reason: e.target.value })} rows={3} className="w-full rounded-xl bg-slate-100 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-orange-300" placeholder={tr("輸入原因…")} />
+              </div>
+            )}
+            <DialogFooter className="gap-2">
+              <Btn kind="ghost" onClick={() => setAsk(null)}>{tr("返回")}</Btn>
+              <Btn data-testid="gco-act-confirm" kind={u.danger ? "danger" : undefined} onClick={() => { if (u.label && !ask.reason.trim()) return toast.error(tr("請填寫原因")); run(ask.kind, ask.ids, ask.reason.trim()); }}>{u.confirm}</Btn>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      ); })()}
       <Head title={tr("禮品卡訂單管理")} sub={tr("未命中號碼庫的訂單需人工完成（自動生成交易號）/ 駁回（用戶重填，不退款）/ 取消（退款並恢復庫存）。支持多選批量操作。")} />
       <Card className="p-3 mb-3 flex flex-wrap items-center gap-2">
         {TABS.map(([k, l]) => <button key={k} data-testid={`gco-tab-${k || "all"}`} onClick={() => setStatus(k)} className={`h-8 px-3 rounded-lg text-xs font-semibold ${status === k ? "bg-orange-500 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"}`}>{tr(l)}{k && data.counts[k] ? ` (${data.counts[k]})` : ""}</button>)}
