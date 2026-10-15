@@ -1197,6 +1197,7 @@ async def _ensure_payment_methods():
     if await db.payment_methods.count_documents({}) == 0:
         for i, m in enumerate(DEFAULT_PAYMENT_METHODS):
             await db.payment_methods.insert_one({"id": new_id(), **m, "config": {}, "min_usd": 50, "max_usd": 10000, "fee_percent": 0, "sort_order": i + 1, "active": True, "created_at": now_iso()})
+        await _ensure_stripe_methods()
         return
     for i, m in enumerate(DEFAULT_PAYMENT_METHODS):
         upd = {"sort_order": i + 1}
@@ -1204,6 +1205,29 @@ async def _ensure_payment_methods():
             upd["category"] = "usdt"
         await db.payment_methods.update_one({"name": m["name"], "image": {"$in": ["", None]}}, {"$set": {"image": m["image"], **upd}})
     await db.payment_methods.update_many({"provider": "crypto", "category": "ewallet"}, {"$set": {"category": "usdt"}})
+    await _ensure_stripe_methods()
+
+
+async def _ensure_stripe_methods():
+    """Idempotently wire the Stripe-enabled payment methods (card / Google Pay / Link / PIX) with per-method Stripe types."""
+    await db.payment_methods.update_one({"name": "信用卡 / VISA / MasterCard"}, {"$set": {"config.stripe_methods": "card"}})
+    # Repurpose the old combined wallet entry into a dedicated Google Pay option (Apple Pay is disabled on this account)
+    await db.payment_methods.update_one({"name": "Apple Pay / Google Pay"}, {"$set": {
+        "name": "Google Pay", "image": "/payments/google-pay.svg", "category": "ewallet",
+        "description": "使用 Google Pay 快速付款，付款後即時入帳。", "config.stripe_methods": "card"}})
+    extras = [
+        {"name": "Link", "image": "/payments/link.svg", "description": "使用 Stripe Link 綁定的卡片一鍵付款，安全快速。",
+         "config": {"stripe_methods": "link,card"}},
+        {"name": "PIX", "image": "/payments/pix.svg", "description": "巴西 PIX 即時支付，掃描 QR Code 付款後自動入帳（以巴西雷亞爾 BRL 結算）。",
+         "config": {"stripe_methods": "pix", "stripe_currency": "brl"}},
+    ]
+    for e in extras:
+        if await db.payment_methods.find_one({"name": e["name"]}):
+            continue
+        n = await db.payment_methods.count_documents({})
+        await db.payment_methods.insert_one({"id": new_id(), "name": e["name"], "category": "ewallet", "provider": "stripe",
+            "image": e["image"], "description": e["description"], "config": e["config"],
+            "min_usd": 50, "max_usd": 10000, "fee_percent": 0, "sort_order": n + 1, "active": True, "created_at": now_iso()})
 
 
 def _channel_no(mid: str) -> str:

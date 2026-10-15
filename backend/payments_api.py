@@ -60,6 +60,31 @@ def _stripe(request: Request) -> StripeCheckout:
     return StripeCheckout(api_key=key, webhook_url=f"{_public_base(request)}/api/webhook/stripe")
 
 
+_FX_CACHE: dict = {}
+
+
+async def _fx_rate(code: str) -> float:
+    """USD -> `code` rate (how many `code` per 1 USD). DB currency first, else live API, cached 1h."""
+    import time
+    code = (code or "USD").upper()
+    if code == "USD":
+        return 1.0
+    cur = await db.currencies.find_one({"code": code}, {"_id": 0, "rate_to_usd": 1})
+    if cur and cur.get("rate_to_usd"):
+        return float(cur["rate_to_usd"])
+    c = _FX_CACHE.get(code)
+    if c and time.time() - c[1] < 3600:
+        return c[0]
+    try:
+        async with httpx.AsyncClient(timeout=15) as cl:
+            r = await cl.get("https://open.er-api.com/v6/latest/USD")
+        rate = float((r.json().get("rates") or {})[code])
+    except Exception:
+        raise HTTPException(status_code=503, detail=f"匯率取得失敗（{code}），請稍後再試")
+    _FX_CACHE[code] = (rate, time.time())
+    return rate
+
+
 def _paypal_cfg(cfg: dict) -> dict:
     """DB config wins; blank fields fall back to PAYPAL_* env."""
     cfg = cfg or {}
@@ -136,10 +161,16 @@ async def topup_checkout(body: CheckoutIn, request: Request, member: dict = Depe
     cancel = f"{origin}/account/wallet/topup?cancelled={tid}"
     if provider == "stripe":
         sc = _stripe(request)
+        methods = [s.strip() for s in (cfg.get("stripe_methods") or "card").split(",") if s.strip()] or ["card"]
+        pay_currency = (cfg.get("stripe_currency") or "usd").lower()
+        pay_value = float(doc["pay_amount"])
+        if pay_currency != "usd":
+            pay_value = round(pay_value * await _fx_rate(pay_currency), 2)
         session = await sc.create_checkout_session(CheckoutSessionRequest(
-            amount=float(doc["pay_amount"]), currency="usd", success_url=success + "&session_id={CHECKOUT_SESSION_ID}", cancel_url=cancel,
-            metadata={"topup_id": tid, "user_id": member["user_id"], "kind": "wallet_topup"}))
-        doc.update({"session_id": session.session_id, "pay_url": session.url, "expires_at": (datetime.now(timezone.utc) + timedelta(hours=24)).isoformat()})
+            amount=pay_value, currency=pay_currency, success_url=success + "&session_id={CHECKOUT_SESSION_ID}", cancel_url=cancel,
+            metadata={"topup_id": tid, "user_id": member["user_id"], "kind": "wallet_topup"}, payment_methods=methods))
+        doc.update({"session_id": session.session_id, "pay_url": session.url, "pay_currency": pay_currency, "pay_local": pay_value,
+                    "expires_at": (datetime.now(timezone.utc) + timedelta(hours=24)).isoformat()})
     elif provider == "paypal":
         order = await _paypal(cfg, "POST", "/v2/checkout/orders", {
             "intent": "CAPTURE",
