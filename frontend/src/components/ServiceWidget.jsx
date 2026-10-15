@@ -174,7 +174,7 @@ export default function ServiceWidget() {
               <div className="flex items-end gap-2">
                 <label className="h-10 w-10 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center cursor-pointer text-slate-500 shrink-0" title={tr("發送圖片")}><ImagePlus className="h-5 w-5" /><input data-testid="service-chat-image" type="file" accept="image/*" className="hidden" onChange={(e) => setFile(e.target.files?.[0] || null)} /></label>
                 <textarea ref={inputRef} data-testid="service-chat-input" value={text} onChange={(e) => setText(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); } }} rows={1} placeholder={tr("輸入訊息…")} className="flex-1 min-h-[40px] max-h-28 rounded-2xl bg-slate-100 px-3.5 py-2.5 text-base md:text-sm outline-none focus:ring-2 focus:ring-orange-300 resize-none" />
-                <button data-testid="service-chat-send" onClick={send} disabled={busy || (!text.trim() && !file)} className="h-10 w-10 rounded-full bg-gradient-to-r from-[#F0872E] to-[#E8792A] text-white flex items-center justify-center disabled:opacity-50 shrink-0">{busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}</button>
+                <button data-testid="service-chat-send" onClick={() => send()} disabled={busy || (!text.trim() && !file)} className="h-10 w-10 rounded-full bg-gradient-to-r from-[#F0872E] to-[#E8792A] text-white flex items-center justify-center disabled:opacity-50 shrink-0">{busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}</button>
               </div>
             </div>
           </div>
