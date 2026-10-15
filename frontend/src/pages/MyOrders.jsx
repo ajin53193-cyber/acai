@@ -391,8 +391,8 @@ function OrdersInner() {
       </Sheet>
 
       {celebrateInfo && (
-        <div className="fixed inset-0 z-[9998] flex items-start justify-center pt-20 px-4 pointer-events-none" data-testid="order-celebrate-overlay">
-          <div className="animate-gt-pop pointer-events-auto max-w-xs w-full rounded-3xl border border-orange-200 bg-white/95 backdrop-blur px-5 py-5 text-center shadow-[0_20px_50px_-20px_rgba(232,121,42,0.7)]">
+        <div className="fixed inset-0 z-[9998] flex items-center justify-center px-6 bg-black/35 backdrop-blur-sm" data-testid="order-celebrate-overlay" onClick={() => setCelebrateInfo(null)}>
+          <div className="animate-gt-pop max-w-xs w-full rounded-3xl border border-orange-200 bg-white px-5 py-5 text-center shadow-[0_24px_60px_-20px_rgba(0,0,0,0.5)]" onClick={(e) => e.stopPropagation()}>
             {celebrateInfo.img ? (
               <div className="mb-3 relative w-full overflow-hidden rounded-xl ring-1 ring-black/5 shadow-md animate-gt-float" style={{ aspectRatio: "1.586" }}>
                 <img src={celebrateInfo.img} alt="" className="absolute inset-0 h-full w-full object-cover" />
@@ -403,6 +403,7 @@ function OrdersInner() {
               </div>
             )}
             <div className="font-cute text-lg text-orange-600 leading-7">{celebrateInfo.msg}</div>
+            <button onClick={() => setCelebrateInfo(null)} data-testid="order-celebrate-close" className="mt-4 h-9 px-6 rounded-full bg-gradient-to-r from-orange-500 to-amber-500 text-white text-sm font-bold shadow-md shadow-orange-200/70">{tr("好的")}</button>
           </div>
         </div>
       )}

@@ -236,8 +236,10 @@ function Carousel({ children, testid }) {
     const el = ref.current;
     if (!el) return;
     const measure = () => {
-      const per = el.clientWidth < 500 ? 3 : el.clientWidth < 768 ? 4 : 6;
-      setCardW((el.clientWidth - GAP * (per - 1)) / per);
+      const cw = el.clientWidth;
+      if (!cw) { requestAnimationFrame(measure); return; }
+      const per = cw < 500 ? 3 : cw < 768 ? 4 : 6;
+      setCardW(Math.max(80, (cw - GAP * (per - 1)) / per));
     };
     measure();
     const ro = new ResizeObserver(measure);
