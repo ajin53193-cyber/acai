@@ -479,7 +479,7 @@ async def get_reviews(product_id: Optional[str] = None):
     return await db.reviews.find(query, {"_id": 0}).sort("created_at", -1).to_list(500)
 
 
-TRACK_EVENTS = {"a2hs_tip_shown", "a2hs_tip_open", "a2hs_tip_close", "a2hs_dialog_open", "pwa_launch"}
+TRACK_EVENTS = {"a2hs_tip_shown", "a2hs_tip_open", "a2hs_tip_close", "a2hs_dialog_open", "pwa_launch", "vp_debug"}
 
 
 class TrackIn(BaseModel):
@@ -487,6 +487,7 @@ class TrackIn(BaseModel):
     source: str = ""
     path: str = ""
     standalone: bool = False
+    meta: Optional[dict] = None
 
 
 @api_router.post("/track")
@@ -496,7 +497,8 @@ async def track_event(body: TrackIn, request: Request):
     ua = request.headers.get("user-agent", "")
     platform = "ios" if re.search(r"iPhone|iPad|iPod", ua) else "android" if "Android" in ua else "other"
     await db.events.insert_one({"id": new_id(), "event": body.event, "source": body.source[:40], "path": body.path[:120],
-                                "standalone": body.standalone, "platform": platform, "created_at": now_iso()})
+                                "standalone": body.standalone, "platform": platform, "meta": body.meta if body.event == "vp_debug" else None,
+                                "ua": ua[:200] if body.event == "vp_debug" else None, "created_at": now_iso()})
     return {"ok": True}
 
 
@@ -504,7 +506,7 @@ async def track_event(body: TrackIn, request: Request):
 async def admin_a2hs_stats(days: int = 30, admin: dict = Depends(require_role("admin"))):
     days = max(1, min(days, 365))
     since = (datetime.now(timezone.utc) - timedelta(days=days - 1)).strftime("%Y-%m-%d")
-    match = {"event": {"$in": list(TRACK_EVENTS)}, "created_at": {"$gte": since}}
+    match = {"event": {"$in": [e for e in TRACK_EVENTS if e != "vp_debug"]}, "created_at": {"$gte": since}}
     by_event = {r["_id"]: r["n"] for r in await db.events.aggregate([{"$match": match}, {"$group": {"_id": "$event", "n": {"$sum": 1}}}]).to_list(10)}
     by_platform = {r["_id"]: r["n"] for r in await db.events.aggregate([{"$match": {**match, "event": "a2hs_dialog_open"}}, {"$group": {"_id": "$platform", "n": {"$sum": 1}}}]).to_list(5)}
     by_source = {r["_id"] or "-": r["n"] for r in await db.events.aggregate([{"$match": {**match, "event": "a2hs_dialog_open"}}, {"$group": {"_id": "$source", "n": {"$sum": 1}}}]).to_list(10)}

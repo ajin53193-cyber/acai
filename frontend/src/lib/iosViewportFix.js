@@ -12,6 +12,20 @@ let lastW = window.innerWidth;
 let timer = null;
 let attempt = 0;
 let probe = null;
+let debugSent = 0;
+
+function debug(stage) {
+  if (debugSent >= 40) return;
+  debugSent += 1;
+  const vv = window.visualViewport;
+  const root = document.getElementById("root");
+  const body = JSON.stringify({ event: "vp_debug", source: stage, path: window.location.pathname, standalone: !!standalone, meta: {
+    ih: window.innerHeight, iw: window.innerWidth, vvH: vv ? Math.round(vv.height) : null, vvTop: vv ? Math.round(vv.offsetTop) : null, vvScale: vv ? +vv.scale.toFixed(2) : null,
+    screenH: window.screen.height, screenW: window.screen.width, maxVH, expected: expectedHeight(), stuck: isStuck(), kb: keyboardOpen(), attempt,
+    clientH: document.documentElement.clientHeight, docH: document.documentElement.scrollHeight, rootH: root ? Math.round(root.getBoundingClientRect().height) : null,
+    bodyPos: document.body.style.position, scrollY: Math.round(window.scrollY), active: document.activeElement?.tagName || "" } });
+  try { fetch(`${process.env.REACT_APP_BACKEND_URL}/api/track`, { method: "POST", headers: { "Content-Type": "application/json" }, body, keepalive: true }); } catch {}
+}
 
 function expectedHeight() {
   if (!standalone) return maxVH;
@@ -55,8 +69,10 @@ const STRATEGIES = [
 ];
 
 export function healViewport() {
-  if (document.hidden || keyboardOpen() || !isStuck()) { attempt = 0; return; }
-  if (attempt >= STRATEGIES.length * 2) return;
+  if (document.hidden || keyboardOpen() || !isStuck()) { if (attempt) debug("healed"); attempt = 0; return; }
+  if (attempt === STRATEGIES.length * 2) { debug("gave_up"); attempt += 1; return; }
+  if (attempt > STRATEGIES.length * 2) return;
+  if (attempt === 0) debug("heal_start");
   const y = window.scrollY;
   STRATEGIES[attempt % STRATEGIES.length]();
   if (window.scrollY !== y) window.scrollTo(0, y);
@@ -77,7 +93,10 @@ function onResize() {
 }
 
 if (isIOS) {
+  setTimeout(() => debug("load"), 1500);
   window.addEventListener("resize", onResize);
+  window.visualViewport?.addEventListener("resize", () => { if (keyboardOpen()) debug("kb_open"); });
+  document.addEventListener("focusin", () => setTimeout(() => debug("focusin"), 600), true);
   window.addEventListener("orientationchange", () => { setTimeout(() => { lastW = window.innerWidth; maxVH = window.innerHeight; }, 300); });
   document.addEventListener("focusout", (e) => {
     const t = e.target;
