@@ -63,14 +63,14 @@ export default function ServiceWidget() {
       )}
       {showTop && (
         <button data-testid="back-to-top" onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
-          className="fixed bottom-[9.5rem] right-4 md:bottom-24 md:right-6 z-50 h-14 w-14 safe-bottom-offset rounded-full bg-white/90 shadow-xl flex items-center justify-center text-orange-500 hover:bg-white">
+          className="fixed bottom-[9.5rem] right-4 md:bottom-24 md:right-6 z-40 h-14 w-14 safe-bottom-offset rounded-full bg-white/90 shadow-xl flex items-center justify-center text-orange-500 hover:bg-white">
           <ArrowUpToLine className="h-6 w-6" strokeWidth={2.5} />
         </button>
       )}
       <button
         data-testid="service-widget-trigger"
         onClick={() => setOpen((v) => !v)}
-        className="fixed bottom-20 right-4 md:bottom-6 md:right-6 z-50 h-14 w-14 safe-bottom-offset rounded-full bg-white/90 md:bg-gradient-to-br md:from-[#F0872E] md:to-[#E8792A] text-orange-500 md:text-white shadow-xl flex items-center justify-center hover:scale-105 transition-transform"
+        className="fixed bottom-20 right-4 md:bottom-6 md:right-6 z-40 h-14 w-14 safe-bottom-offset rounded-full bg-white/90 md:bg-gradient-to-br md:from-[#F0872E] md:to-[#E8792A] text-orange-500 md:text-white shadow-xl flex items-center justify-center hover:scale-105 transition-transform"
       >
         {open ? <X className="h-6 w-6" /> : <Headphones className="h-6 w-6" />}
       </button>
