@@ -49,3 +49,5 @@
 - (2026-06) 礼品卡：顾客端固定 90s 倒计时（gift_countdown_at），实际完成 `gift_dispatch_at` 在后台「自動完成延遲區間」内随机（默认 0.5~1.0 分钟 = 30~60s，须早于倒计时）；新增 `_dispatch_giftcard_at` 精确定时任务在倒计时归零时立即完成（20s 轮询为兜底，`gift_dispatching` 原子抢占防重复发货）；前端倒计时期间每 3s 轮询、归零后每 2s。转赠成功弹窗按钮改「查看訂單」，不再自动关闭/点遮罩关闭。礼品卡订单提交资料提示改「等待系統轉贈充值」。
 
 - (2026-06) 修复：手机简体/英文界面提交充值资料报「請填寫所有必填的充值資料」——公共商品 API 会本地化 delivery_fields 的 name（繁→简/英），前端按本地化标签作 key，后端按原名校验失败。`submit_order_info` 现将简体/繁体/英文/code 别名映射回原字段名。手机网页端「添加輕量版桌面 App」海报弹窗（A2HSTip.jsx，每次打开都弹，文字区白底、按钮无箭头、顶部 Logo），桌面图标换为用户提供的 gogo589 Logo（icons/apple-touch-icon.png, app-icon-512.png, app-logo.png）。
+
+- (2026-06) 礼品卡「自动转赠失败」流程：号码未命中号码库时不再直接转人工，而是照常显示 90s 倒计时「系統轉贈中」，30~60s 后（`gift_fail_at` + `_fail_giftcard_at` 定时任务，`_sweep_giftcard_failures` 20s 兜底）把订单置为 status=paid、info_submitted=false、info_rejected=true、gift_auto_failed=true、reason=「系統自動轉贈失敗，請重新提交 AlipayHK 帳號進行人工轉贈」，前端自动展开表单并显示红色提示；再次提交若仍未命中则直接 gift_manual 转人工（toast「等待人工轉贈」），命中则走自动流程。

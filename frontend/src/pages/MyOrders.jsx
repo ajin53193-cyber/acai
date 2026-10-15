@@ -17,6 +17,7 @@ function OrderInfoForm({ order, callApi, onDone }) {
   const [defs, setDefs] = useState({});
   const [vals, setVals] = useState(order.delivery_info || {});
   const [open, setOpen] = useState(order.info_submitted === false);
+  useEffect(() => { if (order.info_submitted === false && order.info_rejected) setOpen(true); }, [order.info_submitted, order.info_rejected]);
   const [busy, setBusy] = useState(false);
   const [profile, setProfile] = useState(null);
   useEffect(() => { callApi({ method: "GET", url: "/me/profile" }).then((r) => setProfile(r.data.profile || {})).catch(() => setProfile({})); }, [callApi]);
@@ -32,7 +33,7 @@ function OrderInfoForm({ order, callApi, onDone }) {
   const submit = async () => {
     for (const pid of Object.keys(defs)) for (const f of defs[pid].fields) if (f.required && !(vals[pid]?.[f.name] || "").trim()) return toast.error(tr("請填寫「{0}」", f.name));
     setBusy(true);
-    try { const r = await callApi({ method: "POST", url: `/orders/${order.id}/info`, data: { delivery_info: vals } }); toast.success(r.data.is_giftcard_order ? tr("充值資料已提交，等待系統轉贈充值") : tr("充值資料已提交，等待人工充值")); setOpen(false); onDone(r.data); }
+    try { const r = await callApi({ method: "POST", url: `/orders/${order.id}/info`, data: { delivery_info: vals } }); toast.success(r.data.is_giftcard_order ? (r.data.gift_manual ? tr("充值資料已提交，等待人工轉贈") : tr("充值資料已提交，等待系統轉贈充值")) : tr("充值資料已提交，等待人工充值")); setOpen(false); onDone(r.data); }
     catch (e) { toast.error(e.response?.data?.detail || tr("提交失敗")); }
     setBusy(false);
   };
@@ -44,7 +45,7 @@ function OrderInfoForm({ order, callApi, onDone }) {
   return (
     <div className="rounded-2xl border border-orange-300 bg-white p-4 text-sm space-y-3 shadow-[0_6px_20px_-12px_rgba(232,121,42,0.35)]" data-testid="order-info-form">
       <div className="font-bold text-slate-900">{tr("請填寫充值資料")}<span className="text-orange-500">{tr("，提交後開始人工充值")}</span></div>
-      {order.info_rejected && <div data-testid="order-info-reject-reason" className="rounded-lg bg-red-50 border border-red-200 text-red-600 text-xs px-3 py-2">{tr("平台駁回：")}{order.info_reject_reason}{tr("，請重新填寫後提交")}</div>}
+      {order.info_rejected && <div data-testid="order-info-reject-reason" className="rounded-lg bg-red-50 border border-red-200 text-red-600 text-xs px-3 py-2 font-semibold">{order.gift_auto_failed ? order.info_reject_reason : <>{tr("平台駁回：")}{order.info_reject_reason}{tr("，請重新填寫後提交")}</>}</div>}
       <div className="text-[11px] text-slate-500">{tr("提交後將無法自行修改，請務必核對無誤")}</div>
       {Object.entries(defs).map(([pid, d]) => (
         <div key={pid} className="space-y-2">

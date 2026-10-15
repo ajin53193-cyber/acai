@@ -1769,5 +1769,6 @@
   "寫句祝福語一起送出（選填）": "Add a blessing message (optional)",
   "訂單列表": "Order List",
   "好的": "OK",
-  "充值資料已提交，等待系統轉贈充值": "Top-up info submitted, the system is transferring your gift card"
+  "充值資料已提交，等待系統轉贈充值": "Top-up info submitted, the system is transferring your gift card",
+  "充值資料已提交，等待人工轉贈": "Top-up info submitted, our team will transfer the gift card manually"
 }

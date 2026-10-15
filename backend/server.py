@@ -1914,10 +1914,48 @@ async def _gift_auto_review(o: dict) -> dict:
         upd["gift_dispatch_at"] = (datetime.now(timezone.utc) + timedelta(seconds=delay)).isoformat()
         upd["gift_countdown_at"] = (datetime.now(timezone.utc) + timedelta(seconds=90)).isoformat()
         asyncio.create_task(_dispatch_giftcard_at(o["id"], delay))
-    else:
+    elif not o.get("gift_auto_failed"):
+        # First miss: show the normal transferring screen, then reveal "auto transfer failed" after 30-60s
+        lo, hi = int(float(cfg["auto_delay_min"]) * 60), int(float(cfg["auto_delay_max"]) * 60)
+        delay = lo + (secrets.randbelow(hi - lo + 1) if hi > lo else 0)
+        upd["gift_countdown_at"] = (datetime.now(timezone.utc) + timedelta(seconds=90)).isoformat()
+        upd["gift_fail_at"] = (datetime.now(timezone.utc) + timedelta(seconds=delay)).isoformat()
+        upd["gift_manual"] = False
         await db.orders.update_one({"id": o["id"]}, {"$unset": {"gift_dispatch_at": 1}})
+        asyncio.create_task(_fail_giftcard_at(o["id"], delay))
+    else:
+        await db.orders.update_one({"id": o["id"]}, {"$unset": {"gift_dispatch_at": 1, "gift_fail_at": 1, "gift_countdown_at": 1}})
         asyncio.create_task(giftcard_api.op_log("system", f"⚠️ 禮品卡自動審核未匹配，已轉人工 · 訂單 {o.get('order_no', '')}", 202))
     return upd
+
+
+GIFT_AUTO_FAIL_MSG = "系統自動轉贈失敗，請重新提交 AlipayHK 帳號進行人工轉贈"
+
+
+async def _mark_giftcard_auto_failed(order_id: str) -> bool:
+    r = await db.orders.find_one_and_update(
+        {"id": order_id, "status": "processing", "gift_auto_failed": {"$ne": True}, "giftcards_dispatched": {"$ne": True}},
+        {"$set": {"gift_auto_failed": True, "status": "paid", "info_submitted": False, "info_rejected": True, "info_reject_reason": GIFT_AUTO_FAIL_MSG, "needManual": True},
+         "$unset": {"gift_countdown_at": 1, "gift_fail_at": 1},
+         "$push": {"timeline": {"status": "paid", "at": now_iso(), "by": "system", "note": "自動轉贈失敗，開放重新提交帳號轉人工"}}},
+        projection={"_id": 0, "order_no": 1})
+    if r:
+        asyncio.create_task(giftcard_api.op_log("system", f"⚠️ 禮品卡自動轉贈失敗（號碼未命中），已通知顧客重新提交 · 訂單 {r.get('order_no', '')}", 202))
+    return bool(r)
+
+
+async def _fail_giftcard_at(order_id: str, delay: int):
+    await asyncio.sleep(max(0, delay) + 0.5)
+    try:
+        await _mark_giftcard_auto_failed(order_id)
+    except Exception as e:
+        logger.warning(f"giftcard auto-fail failed: {e}")
+
+
+async def _sweep_giftcard_failures():
+    now = datetime.now(timezone.utc).isoformat()
+    async for d in db.orders.find({"gift_fail_at": {"$lte": now}, "gift_auto_failed": {"$ne": True}, "status": "processing"}, {"_id": 0, "id": 1}):
+        await _mark_giftcard_auto_failed(d["id"])
 
 
 async def _order_has_giftcard(o: dict) -> bool:
@@ -1958,6 +1996,7 @@ async def _giftcard_dispatch_loop():
     while True:
         try:
             await auto_dispatch_giftcards()
+            await _sweep_giftcard_failures()
         except Exception as e:
             logger.warning(f"giftcard auto dispatch failed: {e}")
         await asyncio.sleep(20)
