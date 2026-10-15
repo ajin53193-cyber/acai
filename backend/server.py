@@ -2418,8 +2418,9 @@ class GiftBulkIn(BaseModel):
 
 GIFT_STATUS_Q = {
     "need_info": {"status": "paid", "info_submitted": {"$ne": True}},
-    "processing": {"status": "processing"},
+    "processing": {"status": "processing", "gift_manual": {"$ne": True}},
     "manual": {"status": "processing", "gift_manual": True},
+    "auto_failed": {"status": "paid", "gift_auto_failed": True, "info_submitted": {"$ne": True}},
     "completed": {"status": "completed", "redeemed": {"$ne": True}},
     "redeemed": {"redeemed": True},
     "cancelled": {"status": "cancelled"},

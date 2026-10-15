@@ -61,8 +61,8 @@ export function GiftCardPoolAdmin({ callApi }) {
   );
 }
 
-const TABS = [["", "全部"], ["need_info", "待填資料"], ["processing", "系統轉贈中"], ["manual", "未命中·待人工"], ["completed", "已完成"], ["redeemed", "已核銷"], ["cancelled", "已取消"]];
-const stateOf = (o) => o.redeemed ? ["已核銷", "violet"] : o.status === "completed" ? ["已完成", "emerald"] : o.status === "cancelled" ? ["已取消", "slate"] : o.status === "processing" ? (o.gift_manual ? ["未命中·待人工", "red"] : ["系統轉贈中", "amber"]) : o.status === "paid" ? (o.info_rejected ? ["已駁回·待重填", "red"] : (o.info_submitted === false || !Object.keys(o.delivery_info || {}).length) ? ["待填資料", "sky"] : ["已付款·待人工", "amber"]) : [o.status, "slate"];
+const TABS = [["", "全部"], ["need_info", "待填資料"], ["processing", "系統轉贈中"], ["auto_failed", "自動轉贈失敗·待重填"], ["manual", "未命中·待人工"], ["completed", "已完成"], ["redeemed", "已核銷"], ["cancelled", "已取消"]];
+const stateOf = (o) => o.redeemed ? ["已核銷", "violet"] : o.status === "completed" ? ["已完成", "emerald"] : o.status === "cancelled" ? ["已取消", "slate"] : o.status === "processing" ? (o.gift_manual ? ["未命中·待人工", "red"] : ["系統轉贈中", "amber"]) : o.status === "paid" ? (o.gift_auto_failed && o.info_submitted === false ? ["自動轉贈失敗·待重填", "red"] : o.info_rejected ? ["已駁回·待重填", "red"] : (o.info_submitted === false || !Object.keys(o.delivery_info || {}).length) ? ["待填資料", "sky"] : ["已付款·待人工", "amber"]) : [o.status, "slate"];
 const infoText = (o) => Object.values(o.delivery_info || {}).flatMap((d) => Object.entries(d || {})).filter(([, v]) => v).map(([k, v]) => `${k}: ${v}`).join("，") || "-";
 
 export function GiftCardOrdersAdmin({ callApi }) {
