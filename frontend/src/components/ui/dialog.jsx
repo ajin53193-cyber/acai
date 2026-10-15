@@ -3,6 +3,7 @@ import * as DialogPrimitive from "@radix-ui/react-dialog"
 import { X } from "lucide-react"
 
 import { cn } from "@/lib/utils"
+import { ScrollLock } from "@/lib/useScrollLock"
 
 const Dialog = DialogPrimitive.Root
 
@@ -23,7 +24,8 @@ const DialogOverlay = React.forwardRef(({ className, ...props }, ref) => (
 ))
 DialogOverlay.displayName = DialogPrimitive.Overlay.displayName
 
-const DialogContent = React.forwardRef(({ className, children, hideClose, ...props }, ref) => (
+const DialogContent = React.forwardRef(({ className, children, hideClose, ...props }, ref) => {
+  return (
   <DialogPortal>
     <DialogOverlay />
     <DialogPrimitive.Content
@@ -33,6 +35,7 @@ const DialogContent = React.forwardRef(({ className, children, hideClose, ...pro
         className
       )}
       {...props}>
+      <ScrollLock />
       {children}
       {!hideClose && (
         <DialogPrimitive.Close
@@ -43,7 +46,8 @@ const DialogContent = React.forwardRef(({ className, children, hideClose, ...pro
       )}
     </DialogPrimitive.Content>
   </DialogPortal>
-))
+  );
+})
 DialogContent.displayName = DialogPrimitive.Content.displayName
 
 const DialogHeader = ({

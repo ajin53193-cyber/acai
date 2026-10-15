@@ -12,7 +12,6 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 import { publicApi } from "@/lib/api";
 import { tr } from "@/i18n";
 import { ContactInfoDialog, profileComplete } from "@/components/ContactInfoDialog";
-import { useScrollLock } from "@/lib/useScrollLock";
 
 function OrderInfoForm({ order, callApi, onDone }) {
   const [defs, setDefs] = useState({});
@@ -137,7 +136,6 @@ function OrdersInner() {
   const [detail, setDetail] = useState(null);
   const [paying, setPaying] = useState(false);
   const { addItem } = useCart();
-  useScrollLock(!!detail);
 
   const load = useCallback(() => {
     setLoading(true);

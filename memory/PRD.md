@@ -31,6 +31,7 @@
 - P2 彻底移除遗留 clerk_auth.py 与 Clerk UI（确认自建 Auth 100% 接管后）。
 
 ## 关键信息
+- 全站模态滚动锁定：`/app/frontend/src/lib/useScrollLock.js` 导出 `<ScrollLock/>`，已内置进 dialog.jsx / sheet.jsx / alert-dialog.jsx 的 Radix `*Primitive.Content` 内部（仅弹窗真正打开时挂载）。打开任意 Dialog/Sheet/AlertDialog 时 body 变 `position:fixed` 冻结背景，修复 iOS/手机桌面版点击输入框整页上移的 bug。vaul Drawer 自带锁定，勿叠加。切勿把锁挂在 Content 外层包装组件（会被 CartDrawer/AuthModal 无条件渲染而首屏锁死）。
 - Admin Login: /admin/login | admin@gogo589.com | Gg589!kVTEyEy16n | TOTP Secret 2FAI3HWF6WYDNSQC7DNSUGKZ4HWQBMOH
 - 角标：前端 /admin/me 每 30s 轮询 { badge: { manual } }。
 - 倒计时：GiftTransferring 依赖 order.gift_dispatch_at / info_submitted_at / is_giftcard_order。
