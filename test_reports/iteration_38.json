@@ -1,0 +1,36 @@
+{
+  "summary": "Iteration 38 — Admin Reviews redesign (backend + E2E UI), mobile shopping flow smoke test (home → product → cart drawer → checkout), and A2HS first-visit tip on iPhone UA. Backend: 14/14 pytest cases passed covering list/filter/counts, create, PATCH visible/reply, PUT edit, bulk show/hide/delete, auth guards (missing Bearer and missing X-Admin-Token both rejected). Frontend admin E2E: login via /admin/login (password + TOTP) worked, 評價管理 page loads with 3 stat cards (total=464, hidden, no_reply=312), table renders rows, load-more, search filter, rating filter (30 results for 5★), visible filter, create → reply → toggle visible → edit → bulk hide/show → delete all exercised. Mobile shopping flow on 390×844: product detail opens, spec select, product-reviews tab visible, add-to-cart opens CartDrawer, qty +, cart-checkout-btn navigates to /checkout (login gate expected), body position style reset after sheet close (no scroll lock leak), 0 console errors / 0 page errors across the flow. A2HS tip appears after ~4s on iPhone UA, open button opens dialog and dismisses tip, reload keeps it dismissed via localStorage, clearing a2hs_tip_until re-shows it, close button also dismisses.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Admin console (any page)", "issues": ["React hydration warning in console: 'In HTML, <span> cannot be a child of <option>'. Not from ReviewsAdmin (its <option> contents are plain text) — likely from another admin page's <select>. Non-blocking but should be investigated."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_reviews_admin.py",
+    "/app/test_reports/pytest/reviews_admin.xml"
+  ],
+  "action_items": [
+    "(Optional) Hunt down the admin <select> that renders <span> inside <option> to silence the React 19 hydration warning."
+  ],
+  "critical_code_review_comments": [
+    "server.py admin_list_reviews.no_reply counter correctly excludes empty-content rows ({\"content\": {\"$ne\": \"\"}}).",
+    "admin_patch_review sets replied_at = now_iso() on reply, '' when cleared — good.",
+    "admin_bulk_reviews validates action whitelist {show, hide, delete}; returns 400 on invalid.",
+    "ReviewsAdmin.jsx state is correctly reset to page 1 on filter change (setShown(PAGE) via effect).",
+    "A2HSTip.jsx reads navigator.userAgent / standalone at module scope — correct for client bundle; non-iOS/non-Android UA skips cleanly.",
+    "iosViewportFix.js attaches listeners only when isIOS === true, confirming no side effects on non-iOS UA (per request).",
+    "useScrollLock.reconcile restores body.position/top/width to saved values and scrollTo(savedScrollY) after last lock releases — verified in E2E: body style is empty after CartDrawer closes."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_reviews_admin.py (new)"
+  ],
+  "success_rate": {"backend": "100% (14/14)", "frontend": "100% of exercised flows"},
+  "test_credentials": "Admin admin+clerk_test@shop.com / Gogo589!Admin#7x2Q + TOTP via Mongo admin_2fa secret (/tmp/totp_secret written). Member not needed (checkout gate hit before login).",
+  "seed_data_creation": "All TEST_QA_UITester / TEST_QA_tester reviews were deleted at end of each test (both backend bulk delete and frontend UI delete).",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Backend regression file for reviews admin lives at /app/backend/tests/test_reviews_admin.py. TOTP secret for user_3Kc4MDW67YZmA1ym1sGkaMiLVwK is DNY74VQQI3454NAKX3XW7INOIG4UCTQA (also /tmp/totp_secret). Mint JWT via /app/tests/mint_token.py <uid> and X-Admin-Token via admin_api._sign({'uid': uid}, ttl)."
+}
