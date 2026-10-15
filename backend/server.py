@@ -1871,22 +1871,26 @@ async def submit_order_info(order_id: str, body: OrderInfoIn, member: dict = Dep
         raise HTTPException(status_code=400, detail="此訂單已在處理中，無法修改資料")
     if o.get("info_submitted") and not o.get("info_rejected"):
         raise HTTPException(status_code=400, detail="充值資料已提交，如需修改請聯繫客服，待平台駁回後再重新填寫")
-    merged = {**(o.get("delivery_info") or {}), **body.delivery_info}
     prods = {it["product_id"]: (await db.products.find_one({"id": it["product_id"]}, {"_id": 0, "delivery_fields": 1}) or {}) for it in o["items"]}
-    # Field labels reach the client localized (zh-CN / en); map them back to the canonical field name.
-    for pid, p in prods.items():
-        vals = merged.get(pid)
+    # Field labels reach the client localized (zh-CN / en); map submitted keys back to the canonical field name first.
+    incoming = {}
+    for pid, vals in (body.delivery_info or {}).items():
         if not isinstance(vals, dict):
             continue
-        for f in p.get("delivery_fields") or []:
-            name = f["name"]
-            if name in vals:
-                continue
-            aliases = {to_simplified(name), to_traditional(name), translator.en.get(name, ""), f.get("code", "")}
-            for k in list(vals.keys()):
-                if k in aliases or to_traditional(k) == to_traditional(name):
-                    vals[name] = vals.pop(k)
+        fields = (prods.get(pid) or {}).get("delivery_fields") or []
+        fixed = {}
+        for k, v in vals.items():
+            canon = k
+            for f in fields:
+                name = f["name"]
+                if k == name or k in {to_simplified(name), to_traditional(name), translator.en.get(name, ""), f.get("code", "")} or to_traditional(k) == to_traditional(name):
+                    canon = name
                     break
+            fixed[canon] = v
+        incoming[pid] = fixed
+    merged = {**(o.get("delivery_info") or {})}
+    for pid, vals in incoming.items():
+        merged[pid] = {**(merged.get(pid) or {}), **vals}
     tmp = {**o, "delivery_info": merged}
     if not _info_complete(tmp, prods):
         raise HTTPException(status_code=400, detail="請填寫所有必填的充值資料")
@@ -1904,7 +1908,7 @@ async def _gift_auto_review(o: dict) -> dict:
     """Compare submitted values with the number pool; schedule auto-complete on hit, else queue for manual."""
     cfg = await giftcard_api.get_settings()
     vals = [v for f in (o.get("delivery_info") or {}).values() for v in (f or {}).values() if str(v or "").strip()]
-    hit = await giftcard_api.pool_hit(vals) if cfg.get("auto_review_enabled", True) else None
+    hit = None if o.get("gift_auto_failed") else (await giftcard_api.pool_hit(vals) if cfg.get("auto_review_enabled", True) else None)
     upd = {"status": "processing", "is_giftcard_order": True, "gift_auto_hit": bool(hit), "gift_manual": not hit,
            "autoReview": "matched" if hit else ("unmatched" if cfg.get("auto_review_enabled", True) else "disabled"), "needManual": not hit, "matchedKey": (hit or {}).get("key", ""),
            "timeline": o.get("timeline", []) + [{"status": "processing", "at": now_iso(), "by": "system", "note": f"號碼庫命中 {hit['key']}，排定自動完成" if hit else "未命中號碼庫，待人工處理"}]}
