@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Smartphone, X, ChevronRight } from "lucide-react";
 import { tr } from "@/i18n";
+import { track } from "@/lib/track";
 
 const KEY = "a2hs_tip_until";
 const DAY = 86400000;
@@ -12,7 +13,7 @@ export function A2HSTip({ onOpen, pathname }) {
   useEffect(() => {
     if (!isMobile || standalone || pathname.startsWith("/admin")) return;
     if (+(localStorage.getItem(KEY) || 0) > Date.now()) return;
-    const t = setTimeout(() => setShow(true), 4000);
+    const t = setTimeout(() => { setShow(true); track("a2hs_tip_shown", "tip"); }, 4000);
     return () => clearTimeout(t);
   }, [pathname]);
   if (!show) return null;
@@ -25,8 +26,8 @@ export function A2HSTip({ onOpen, pathname }) {
           <div className="text-sm font-bold text-slate-900 truncate">{tr("加到手機桌面")}</div>
           <div className="text-xs text-slate-500 truncate">{tr("像 App 一樣一鍵打開")}</div>
         </div>
-        <button data-testid="a2hs-tip-open" onClick={() => { dismiss(30); onOpen(); }} className="h-9 shrink-0 rounded-full bg-orange-500 text-white text-xs font-bold px-3 flex items-center gap-0.5">{tr("查看教學")}<ChevronRight className="h-3.5 w-3.5" /></button>
-        <button data-testid="a2hs-tip-close" aria-label={tr("關閉")} onClick={() => dismiss(7)} className="h-7 w-7 shrink-0 -mr-1 rounded-full text-slate-400 flex items-center justify-center"><X className="h-4 w-4" /></button>
+        <button data-testid="a2hs-tip-open" onClick={() => { track("a2hs_tip_open", "tip"); dismiss(30); onOpen(); }} className="h-9 shrink-0 rounded-full bg-orange-500 text-white text-xs font-bold px-3 flex items-center gap-0.5">{tr("查看教學")}<ChevronRight className="h-3.5 w-3.5" /></button>
+        <button data-testid="a2hs-tip-close" aria-label={tr("關閉")} onClick={() => { track("a2hs_tip_close", "tip"); dismiss(7); }} className="h-7 w-7 shrink-0 -mr-1 rounded-full text-slate-400 flex items-center justify-center"><X className="h-4 w-4" /></button>
       </div>
     </div>
   );

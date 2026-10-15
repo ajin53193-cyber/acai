@@ -479,6 +479,51 @@ async def get_reviews(product_id: Optional[str] = None):
     return await db.reviews.find(query, {"_id": 0}).sort("created_at", -1).to_list(500)
 
 
+TRACK_EVENTS = {"a2hs_tip_shown", "a2hs_tip_open", "a2hs_tip_close", "a2hs_dialog_open", "pwa_launch"}
+
+
+class TrackIn(BaseModel):
+    event: str
+    source: str = ""
+    path: str = ""
+    standalone: bool = False
+
+
+@api_router.post("/track")
+async def track_event(body: TrackIn, request: Request):
+    if body.event not in TRACK_EVENTS:
+        raise HTTPException(status_code=400, detail="Unknown event")
+    ua = request.headers.get("user-agent", "")
+    platform = "ios" if re.search(r"iPhone|iPad|iPod", ua) else "android" if "Android" in ua else "other"
+    await db.events.insert_one({"id": new_id(), "event": body.event, "source": body.source[:40], "path": body.path[:120],
+                                "standalone": body.standalone, "platform": platform, "created_at": now_iso()})
+    return {"ok": True}
+
+
+@api_router.get("/admin/a2hs/stats")
+async def admin_a2hs_stats(days: int = 30, admin: dict = Depends(require_role("admin"))):
+    days = max(1, min(days, 365))
+    since = (datetime.now(timezone.utc) - timedelta(days=days - 1)).strftime("%Y-%m-%d")
+    match = {"event": {"$in": list(TRACK_EVENTS)}, "created_at": {"$gte": since}}
+    by_event = {r["_id"]: r["n"] for r in await db.events.aggregate([{"$match": match}, {"$group": {"_id": "$event", "n": {"$sum": 1}}}]).to_list(10)}
+    by_platform = {r["_id"]: r["n"] for r in await db.events.aggregate([{"$match": {**match, "event": "a2hs_dialog_open"}}, {"$group": {"_id": "$platform", "n": {"$sum": 1}}}]).to_list(5)}
+    by_source = {r["_id"] or "-": r["n"] for r in await db.events.aggregate([{"$match": {**match, "event": "a2hs_dialog_open"}}, {"$group": {"_id": "$source", "n": {"$sum": 1}}}]).to_list(10)}
+    series = {}
+    for i in range(days):
+        d = (datetime.now(timezone.utc) - timedelta(days=days - 1 - i)).strftime("%Y-%m-%d")
+        series[d] = {"date": d, "dialog_open": 0, "pwa_launch": 0}
+    async for r in db.events.aggregate([{"$match": {**match, "event": {"$in": ["a2hs_dialog_open", "pwa_launch"]}}},
+                                        {"$group": {"_id": {"d": {"$substr": ["$created_at", 0, 10]}, "e": "$event"}, "n": {"$sum": 1}}}]):
+        row = series.get(r["_id"]["d"])
+        if row:
+            row["dialog_open" if r["_id"]["e"] == "a2hs_dialog_open" else "pwa_launch"] = r["n"]
+    shown, opened = by_event.get("a2hs_tip_shown", 0), by_event.get("a2hs_tip_open", 0)
+    return {"days": days, "tip_shown": shown, "tip_open": opened, "tip_close": by_event.get("a2hs_tip_close", 0),
+            "tip_ctr": round(opened / shown * 100, 1) if shown else 0,
+            "dialog_open": by_event.get("a2hs_dialog_open", 0), "pwa_launch": by_event.get("pwa_launch", 0),
+            "by_platform": by_platform, "by_source": by_source, "series": list(series.values())}
+
+
 @api_router.get("/promos/public")
 async def public_promos():
     docs = await db.promos.find({"active": True}, {"_id": 0, "code": 1, "discount_type": 1, "value": 1, "min_order_usd": 1, "expires_at": 1}).to_list(50)
@@ -2762,10 +2807,40 @@ async def admin_delete_promo(promo_id: str, admin: dict = Depends(require_role("
     return {"ok": True}
 
 
+BAD_REVIEW_COND = {"rating": {"$lte": 2}, "handled": {"$ne": True}, "$or": [{"reply": ""}, {"reply": {"$exists": False}}]}
+DEFAULT_REPLY_TEMPLATES = [
+    "感謝您的支持與評價！期待再次為您服務 🧡",
+    "謝謝您的回饋，很高興這次充值順利到帳，有任何需要隨時聯繫客服。",
+    "非常抱歉造成您的不便，我們已安排客服優先跟進，請留意站內訊息或聯絡方式，會盡快協助處理。",
+    "感謝您的寶貴意見，我們會持續優化到帳速度與服務體驗。",
+    "若充值過程中遇到任何問題，歡迎隨時透過客服聯繫我們，我們會第一時間為您處理。",
+]
+
+
+@api_router.get("/admin/reviews/templates")
+async def admin_review_templates(admin: dict = Depends(require_role("admin"))):
+    doc = await db.settings.find_one({"key": "review_reply_templates"}, {"_id": 0})
+    return {"items": (doc or {}).get("items") or DEFAULT_REPLY_TEMPLATES}
+
+
+@api_router.put("/admin/reviews/templates")
+async def admin_save_review_templates(body: dict, admin: dict = Depends(require_role("admin"))):
+    items = [str(x).strip() for x in (body.get("items") or []) if str(x).strip()][:30]
+    await db.settings.update_one({"key": "review_reply_templates"}, {"$set": {"items": items}}, upsert=True)
+    return {"items": items}
+
+
+@api_router.get("/admin/badges")
+async def admin_badges(admin: dict = Depends(require_role("admin"))):
+    base = await giftcard_api.gift_base_cond()
+    return {"giftcard-orders": await db.orders.count_documents({**base, "status": "processing", "gift_manual": True}),
+            "reviews": await db.reviews.count_documents(BAD_REVIEW_COND)}
+
+
 @api_router.get("/admin/reviews")
-async def admin_list_reviews(product_id: str = "", q: str = "", visible: str = "", rating: int = 0,
+async def admin_list_reviews(product_id: str = "", q: str = "", visible: str = "", rating: int = 0, bad: int = 0,
                              admin: dict = Depends(require_role("admin"))):
-    query = {}
+    query = dict(BAD_REVIEW_COND) if bad else {}
     if product_id:
         query["product_id"] = product_id
     if visible in ("true", "false"):
@@ -2774,17 +2849,19 @@ async def admin_list_reviews(product_id: str = "", q: str = "", visible: str = "
         query["rating"] = rating
     if q.strip():
         rx = {"$regex": re.escape(q.strip()), "$options": "i"}
-        query["$or"] = [{"author": rx}, {"content": rx}, {"reply": rx}]
+        query = {"$and": [query, {"$or": [{"author": rx}, {"content": rx}, {"reply": rx}]}]} if query else {"$or": [{"author": rx}, {"content": rx}, {"reply": rx}]}
     rows = await db.reviews.find(query, {"_id": 0}).sort("created_at", -1).to_list(2000)
     counts = {"total": await db.reviews.count_documents({}),
               "hidden": await db.reviews.count_documents({"visible": False}),
-              "no_reply": await db.reviews.count_documents({"$or": [{"reply": ""}, {"reply": {"$exists": False}}], "content": {"$ne": ""}})}
+              "no_reply": await db.reviews.count_documents({"$or": [{"reply": ""}, {"reply": {"$exists": False}}], "content": {"$ne": ""}}),
+              "bad": await db.reviews.count_documents(BAD_REVIEW_COND)}
     return {"items": rows, "counts": counts}
 
 
 class ReviewPatch(BaseModel):
     visible: Optional[bool] = None
     reply: Optional[str] = None
+    handled: Optional[bool] = None
 
 
 @api_router.patch("/admin/reviews/{review_id}")

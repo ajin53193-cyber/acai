@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { track } from "@/lib/track";
 import { X, Smartphone } from "lucide-react";
 import { tr } from "@/i18n";
 
@@ -7,7 +8,8 @@ const TABS = [
   ["android", "Android / Chrome", "/videos/desktop-android.mp4", [tr("點擊 Chrome 右上角「⋮」選單"), tr("選擇「加到主畫面」"), tr("點擊「新增」即可在桌面看到 gogo589 圖示")]],
 ];
 
-export function AddToHomeDialog({ onClose }) {
+export function AddToHomeDialog({ onClose, source = "unknown" }) {
+  useEffect(() => { track("a2hs_dialog_open", source); }, [source]);
   const [tab, setTab] = useState(/iPhone|iPad|iPod/i.test(navigator.userAgent) ? "ios" : "android");
   const [, label, src, steps] = TABS.find((t) => t[0] === tab);
   return (

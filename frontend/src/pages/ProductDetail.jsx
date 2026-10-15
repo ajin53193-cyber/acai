@@ -340,7 +340,7 @@ export default function ProductDetail() {
         )}
       </div>
 
-      {a2hs && <AddToHomeDialog onClose={() => setA2hs(false)} />}
+      {a2hs && <AddToHomeDialog source="detail-banner" onClose={() => setA2hs(false)} />}
 
       {/* Mobile sticky bar */}
       <div className="fixed bottom-0 left-0 right-0 bg-white rounded-t-3xl px-4 pt-3 pb-4 z-30 flex items-center gap-3 md:hidden safe-bottom-pad shadow-[0_-8px_30px_-12px_rgba(0,0,0,0.15)]">

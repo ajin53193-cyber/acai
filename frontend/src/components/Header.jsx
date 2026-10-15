@@ -51,6 +51,7 @@ export default function Header() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [mobileNav, setMobileNav] = useState(false);
   const [a2hs, setA2hs] = useState(false);
+  const [a2hsSrc, setA2hsSrc] = useState("drawer");
   const [servicesOpen, setServicesOpen] = useState(false);
 
   useEffect(() => {
@@ -218,7 +219,7 @@ export default function Header() {
                     </button>
                   );
                 })}
-                <button data-testid="drawer-a2hs" onClick={() => { setMobileNav(false); setA2hs(true); }} className="flex flex-col items-center gap-2.5">
+                <button data-testid="drawer-a2hs" onClick={() => { setMobileNav(false); setA2hsSrc("drawer"); setA2hs(true); }} className="flex flex-col items-center gap-2.5">
                   <span className="h-[62px] w-[62px] rounded-[18px] bg-gradient-to-br from-orange-400 to-orange-500 text-white flex items-center justify-center shadow-sm"><LayoutGrid className="h-7 w-7" strokeWidth={1.9} /></span>
                   <span className="text-[13px] text-slate-700">{tr("新增桌面")}</span>
                 </button>
@@ -233,8 +234,8 @@ export default function Header() {
           </div>
         )}
       </div>
-      <A2HSTip pathname={pathname} onOpen={() => setA2hs(true)} />
-      {a2hs && <AddToHomeDialog onClose={() => setA2hs(false)} />}
+      <A2HSTip pathname={pathname} onOpen={() => { setA2hsSrc("tip"); setA2hs(true); }} />
+      {a2hs && <AddToHomeDialog source={a2hsSrc} onClose={() => setA2hs(false)} />}
     </header>
   );
 }

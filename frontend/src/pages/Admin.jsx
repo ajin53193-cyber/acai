@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Show, useUser } from "@clerk/react";
 import { LayoutDashboard, Package, ShoppingBag, Star, DollarSign, Tag, Users, Plus, Pencil, Trash2, X, Loader2, ArrowLeft, TrendingUp, Clock, ShieldAlert, Settings, CreditCard, ArrowUp, ArrowDown, ImagePlus, Wallet, BadgeCheck, MessageSquare, Globe, Bell, Megaphone, LayoutGrid, Gift, ShieldCheck, ChevronDown, Construction } from "lucide-react";
@@ -138,12 +138,18 @@ function AdminInner() {
   const [open, setOpen] = useState(MENU.filter((m) => m.defaultOpen).map((m) => m.key));
   const [me, setMe] = useState(null);
   const [badges, setBadges] = useState({});
+  const badBadgeRef = useRef(null);
   const toggle = (k) => setOpen((o) => (o.includes(k) ? o.filter((x) => x !== k) : [...o, k]));
   const go = (k) => { setSection(k); const grp = MENU.find((m) => m.items.some(([ik]) => ik === k)); if (grp) setOpen((o) => (o.includes(grp.key) ? o : [...o, grp.key])); };
 
   useEffect(() => { callApi({ method: "GET", url: "/admin/me" }).then((r) => setMe(r.data)).catch(() => setMe({ is_super: true, permissions: [] })); }, [callApi]);
   useEffect(() => {
-    const tick = () => callApi({ method: "GET", url: "/admin/giftcard/badge" }).then((r) => setBadges({ "giftcard-orders": r.data.manual || 0 })).catch(() => {});
+    const tick = () => callApi({ method: "GET", url: "/admin/badges" }).then((r) => {
+      setBadges(r.data);
+      const prev = badBadgeRef.current;
+      if (prev !== null && (r.data.reviews || 0) > prev) toast.warning(tr("有 {0} 則新的差評待處理", r.data.reviews - prev), { description: tr("前往「商品評論」查看並回覆"), duration: 8000 });
+      badBadgeRef.current = r.data.reviews || 0;
+    }).catch(() => {});
     tick();
     const onRefresh = () => tick();
     window.addEventListener("admin-badge-refresh", onRefresh);

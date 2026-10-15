@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { TrendingUp, TrendingDown, ShoppingBag, Wallet, Users, Package, Clock, Landmark, BadgeCheck, MessageSquare, ArrowRight } from "lucide-react";
+import { TrendingUp, TrendingDown, ShoppingBag, Wallet, Users, Package, Clock, Landmark, BadgeCheck, MessageSquare, ArrowRight, Star, Smartphone } from "lucide-react";
 import { AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend } from "recharts";
 import { toast } from "sonner";
 import { Card, Head, Pill, fmt } from "@/pages/admin/ui";
@@ -29,13 +29,42 @@ const Kpi = ({ icon: Icon, label, value, sub, color, testId }) => (
   </Card>
 );
 
-const Todo = ({ icon: Icon, label, n, onClick, testId }) => (
-  <button data-testid={testId} onClick={onClick} className={`flex items-center gap-3 rounded-xl border px-4 py-3 text-left transition-colors ${n > 0 ? "bg-orange-50 border-orange-200 hover:bg-orange-100" : "bg-white border-slate-200 hover:border-orange-200"}`}>
-    <Icon className={`h-5 w-5 ${n > 0 ? "text-orange-500" : "text-slate-400"}`} />
-    <div className="flex-1"><div className="text-xs text-slate-500">{label}</div><div className={`font-head text-lg font-bold ${n > 0 ? "text-orange-600" : "text-slate-800"}`}>{n}</div></div>
+const Todo = ({ icon: Icon, label, n, onClick, testId, alert }) => (
+  <button data-testid={testId} onClick={onClick} className={`flex items-center gap-3 rounded-xl border px-4 py-3 text-left transition-colors ${n > 0 ? (alert ? "bg-red-50 border-red-200 hover:bg-red-100 animate-pulse" : "bg-orange-50 border-orange-200 hover:bg-orange-100") : "bg-white border-slate-200 hover:border-orange-200"}`}>
+    <Icon className={`h-5 w-5 ${n > 0 ? (alert ? "text-red-500" : "text-orange-500") : "text-slate-400"}`} />
+    <div className="flex-1"><div className="text-xs text-slate-500">{label}</div><div className={`font-head text-lg font-bold ${n > 0 ? (alert ? "text-red-600" : "text-orange-600") : "text-slate-800"}`}>{n}</div></div>
     <ArrowRight className="h-4 w-4 text-slate-300" />
   </button>
 );
+
+const SOURCE_LABEL = { tip: tr("首訪提示條"), drawer: tr("側欄選單"), "detail-banner": tr("商品頁橫幅"), carousel: tr("輪播圖"), unknown: tr("其他") };
+function A2HSStats({ callApi, days }) {
+  const [a, setA] = useState(null);
+  useEffect(() => { callApi({ method: "GET", url: `/admin/a2hs/stats?days=${days}` }).then((r) => setA(r.data)).catch(() => {}); }, [callApi, days]);
+  if (!a) return null;
+  const series = a.series.map((r) => ({ ...r, label: r.date.slice(5) }));
+  const stats = [[tr("提示條曝光"), a.tip_shown, "a2hs-stat-shown"], [tr("提示條點擊"), a.tip_open, "a2hs-stat-open"], [tr("點擊率"), `${a.tip_ctr}%`, "a2hs-stat-ctr"], [tr("教學彈窗打開"), a.dialog_open, "a2hs-stat-dialog"], [tr("桌面 App 啟動次數"), a.pwa_launch, "a2hs-stat-launch"]];
+  return (
+    <Card className="p-5 mb-4" data-testid="a2hs-stats">
+      <div className="flex items-center justify-between mb-3"><div className="font-semibold text-slate-800 flex items-center gap-2"><Smartphone className="h-4 w-4 text-orange-500" />{tr("「添加到桌面」引導成效")}</div><span className="text-xs text-slate-400">{tr("近 {0} 天", a.days)}</span></div>
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-4">
+        {stats.map(([l, v, t]) => <div key={t} data-testid={t} className="rounded-xl bg-slate-50 px-4 py-3"><div className="text-xs text-slate-500">{l}</div><div className="font-head text-xl font-bold text-slate-900">{v}</div></div>)}
+      </div>
+      <div className="grid xl:grid-cols-3 gap-4">
+        <div className="xl:col-span-2">
+          <ResponsiveContainer width="100%" height={160}>
+            <BarChart data={series}><CartesianGrid strokeDasharray="3 3" stroke="#eef2f7" /><XAxis dataKey="label" tick={{ fontSize: 10 }} minTickGap={20} /><YAxis tick={{ fontSize: 11 }} width={28} allowDecimals={false} /><Tooltip /><Legend />
+              <Bar dataKey="dialog_open" name={tr("教學打開")} fill="#f97316" radius={[4, 4, 0, 0]} /><Bar dataKey="pwa_launch" name={tr("App 啟動")} fill="#10b981" radius={[4, 4, 0, 0]} /></BarChart>
+          </ResponsiveContainer>
+        </div>
+        <div className="text-xs space-y-3">
+          <div><div className="font-semibold text-slate-700 mb-1">{tr("教學來源")}</div>{Object.keys(a.by_source).length === 0 ? <div className="text-slate-400">{tr("暫無資料")}</div> : Object.entries(a.by_source).sort((x, y) => y[1] - x[1]).map(([k, v]) => <div key={k} className="flex justify-between py-0.5"><span className="text-slate-600">{SOURCE_LABEL[k] || k}</span><b className="text-slate-800">{v}</b></div>)}</div>
+          <div><div className="font-semibold text-slate-700 mb-1">{tr("平台")}</div>{Object.keys(a.by_platform).length === 0 ? <div className="text-slate-400">{tr("暫無資料")}</div> : Object.entries(a.by_platform).map(([k, v]) => <div key={k} className="flex justify-between py-0.5"><span className="text-slate-600 uppercase">{k}</span><b className="text-slate-800">{v}</b></div>)}</div>
+        </div>
+      </div>
+    </Card>
+  );
+}
 
 export function DashboardAdmin({ callApi, go }) {
   const [days, setDays] = useState(30);
@@ -58,7 +87,8 @@ export function DashboardAdmin({ callApi, go }) {
         <Kpi testId="kpi-users" icon={Users} color="bg-violet-500" label={tr("新增用戶")} value={c.new_users} sub={<Delta cur={c.new_users} prev={p.new_users} />} />
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-7 gap-3 mb-6">
+      <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-8 gap-3 mb-6">
+        <Todo testId="todo-bad-reviews" alert icon={Star} label={tr("差評待處理 (1-2★)")} n={t.bad_reviews || 0} onClick={() => { sessionStorage.setItem("reviews_preset", "bad"); go("reviews"); }} />
         <Todo testId="todo-dispatch" icon={Clock} label={tr("待處理訂單")} n={t.pending_dispatch} onClick={() => go("orders")} />
         <Todo testId="todo-topups" icon={Landmark} label={tr("待審核充值")} n={t.pending_topup_reviews} onClick={() => go("topups")} />
         <Todo testId="todo-verif" icon={BadgeCheck} label={tr("待審核認證")} n={t.pending_verifications} onClick={() => go("verifications")} />
@@ -120,6 +150,8 @@ export function DashboardAdmin({ callApi, go }) {
           </>)}
         </Card>
       </div>
+
+      <A2HSStats callApi={callApi} days={days} />
 
       <div className="grid xl:grid-cols-3 gap-4">
         <Card className="p-5 xl:col-span-2" data-testid="recent-orders">

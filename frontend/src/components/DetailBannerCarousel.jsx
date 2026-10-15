@@ -49,7 +49,7 @@ export function DetailBannerCarousel() {
           </div>
         )}
       </div>
-      {a2hs && <AddToHomeDialog onClose={() => setA2hs(false)} />}
+      {a2hs && <AddToHomeDialog source="carousel" onClose={() => setA2hs(false)} />}
     </>
   );
 }

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Plus, Pencil, Trash2, MessageSquareReply, Star, Eye, EyeOff, Search } from "lucide-react";
+import { Plus, Pencil, Trash2, MessageSquareReply, Star, Eye, EyeOff, Search, AlertTriangle, CheckCircle2, Settings2, X } from "lucide-react";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Switch } from "@/components/ui/switch";
@@ -15,7 +15,9 @@ const Stars = ({ n }) => <span className="inline-flex gap-0.5">{Array.from({ len
 export function ReviewsAdmin({ callApi }) {
   const [data, setData] = useState({ items: [], counts: {} });
   const [products, setProducts] = useState([]);
-  const [filter, setFilter] = useState({ product_id: "", q: "", visible: "", rating: 0 });
+  const [filter, setFilter] = useState(() => { const bad = sessionStorage.getItem("reviews_preset") === "bad"; sessionStorage.removeItem("reviews_preset"); return { product_id: "", q: "", visible: "", rating: 0, bad: bad ? 1 : 0 }; });
+  const [templates, setTemplates] = useState([]);
+  const [tplEdit, setTplEdit] = useState(null);
   const [q, setQ] = useState("");
   const [shown, setShown] = useState(PAGE);
   const [picked, setPicked] = useState([]);
@@ -26,6 +28,7 @@ export function ReviewsAdmin({ callApi }) {
   const load = useCallback(() => callApi({ method: "GET", url: "/admin/reviews", params: filter }).then((r) => { setData(r.data); setPicked([]); }).catch(() => toast.error(tr("載入失敗"))), [callApi, filter]);
   useEffect(() => { load(); }, [load]);
   useEffect(() => { publicApi.get("/products").then((r) => setProducts(r.data)).catch(() => {}); }, []);
+  useEffect(() => { callApi({ method: "GET", url: "/admin/reviews/templates" }).then((r) => setTemplates(r.data.items)).catch(() => {}); }, [callApi]);
   useEffect(() => { const t = setTimeout(() => setFilter((f) => ({ ...f, q })), 350); return () => clearTimeout(t); }, [q]);
   useEffect(() => { setShown(PAGE); }, [filter]);
 
@@ -59,6 +62,11 @@ export function ReviewsAdmin({ callApi }) {
     try { const r = await callApi({ method: "POST", url: "/admin/reviews/bulk", data: { ids: picked, action } }); toast.success(tr("已處理 {0} 則", r.data.count)); load(); }
     catch (e) { toast.error(e.response?.data?.detail || tr("操作失敗")); }
   };
+  const saveTemplates = async () => {
+    const items = tplEdit.map((t) => t.trim()).filter(Boolean);
+    try { const r = await callApi({ method: "PUT", url: "/admin/reviews/templates", data: { items } }); setTemplates(r.data.items); setTplEdit(null); toast.success(tr("話術模板已儲存")); }
+    catch (e) { toast.error(e.response?.data?.detail || tr("儲存失敗")); }
+  };
   const sendReply = async () => {
     setBusy(true);
     await patch(replying.id, { reply: replying.reply.trim() }, replying.reply.trim() ? tr("已回覆") : tr("已清除回覆"));
@@ -73,11 +81,16 @@ export function ReviewsAdmin({ callApi }) {
       <Head title={tr("評價管理")} sub={tr("審核前台顯示、回覆顧客評價。隱藏的評價不會出現在商品頁。")}
         right={<Btn data-testid="review-add-btn" onClick={() => setEditing({ ...EMPTY, product_id: products[0]?.id || "" })}><Plus className="h-4 w-4 inline -mt-0.5 mr-1" />{tr("新增評價")}</Btn>} />
 
-      <div className="grid grid-cols-3 gap-3 mb-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
         {[[tr("全部評價"), c.total, "review-stat-total"], [tr("已隱藏"), c.hidden, "review-stat-hidden"], [tr("待回覆"), c.no_reply, "review-stat-noreply"]].map(([l, v, t]) => (
           <Card key={t} className="px-4 py-3" data-testid={t}><div className="text-xs text-slate-500">{l}</div><div className="font-head text-2xl font-bold text-slate-900">{v ?? "-"}</div></Card>
         ))}
+        <button data-testid="review-stat-bad" onClick={() => setFilter({ ...filter, bad: filter.bad ? 0 : 1 })} className={`text-left rounded-2xl border px-4 py-3 transition-colors ${filter.bad ? "bg-red-500 border-red-500 text-white" : c.bad > 0 ? "bg-red-50 border-red-200 hover:bg-red-100" : "bg-white border-slate-200"}`}>
+          <div className={`text-xs flex items-center gap-1 ${filter.bad ? "text-red-100" : "text-red-500"}`}><AlertTriangle className="h-3.5 w-3.5" />{tr("差評待處理 (1-2★)")}</div>
+          <div className={`font-head text-2xl font-bold ${filter.bad ? "text-white" : "text-red-600"}`}>{c.bad ?? "-"}</div>
+        </button>
       </div>
+      {!!filter.bad && <div className="mb-3 flex items-center gap-2 rounded-xl bg-red-50 border border-red-100 px-4 py-2 text-sm text-red-700" data-testid="review-bad-banner"><AlertTriangle className="h-4 w-4" />{tr("目前只顯示未回覆、未標記處理的 1-2 星差評；回覆或標記已處理後會自動移出。")}<button className="ml-auto text-xs underline" onClick={() => setFilter({ ...filter, bad: 0 })}>{tr("顯示全部")}</button></div>}
 
       <Card className="p-3 mb-3 flex flex-wrap items-center gap-2">
         <div className="relative flex-1 min-w-[200px]"><Search className="h-4 w-4 text-slate-400 absolute left-3 top-2.5" /><Input data-testid="review-search" className="w-full pl-9" placeholder={tr("搜尋作者 / 內容 / 回覆")} value={q} onChange={(e) => setQ(e.target.value)} /></div>
@@ -113,7 +126,9 @@ export function ReviewsAdmin({ callApi }) {
               <tr key={r.id} data-testid={`review-row-${r.id}`} className={`align-top hover:bg-orange-50/40 ${r.visible === false ? "opacity-60" : ""}`}>
                 <td className="px-4 py-3"><input type="checkbox" data-testid={`review-pick-${r.id}`} checked={picked.includes(r.id)} onChange={() => togglePick(r.id)} /></td>
                 <td className="px-4 py-3 min-w-[260px]">
-                  <div className="flex items-center gap-2 flex-wrap"><span className="font-semibold text-slate-800">{r.author}</span><Stars n={r.rating} />{r.area && <span className="text-[11px] text-slate-400">{r.area}</span>}</div>
+                  <div className="flex items-center gap-2 flex-wrap"><span className="font-semibold text-slate-800">{r.author}</span><Stars n={r.rating} />{r.area && <span className="text-[11px] text-slate-400">{r.area}</span>}
+                    {r.rating <= 2 && !r.reply && !r.handled && <span data-testid={`review-bad-flag-${r.id}`} className="inline-flex items-center gap-0.5 rounded-full bg-red-100 text-red-600 px-2 py-0.5 text-[11px] font-semibold"><AlertTriangle className="h-3 w-3" />{tr("差評待處理")}</span>}
+                    {r.rating <= 2 && r.handled && !r.reply && <span className="inline-flex items-center gap-0.5 rounded-full bg-emerald-100 text-emerald-700 px-2 py-0.5 text-[11px] font-semibold"><CheckCircle2 className="h-3 w-3" />{tr("已處理")}</span>}</div>
                   <p className="text-slate-700 mt-1 whitespace-pre-wrap break-words">{r.content || <span className="italic text-slate-400">{tr("未填寫評價內容")}</span>}</p>
                   {r.reply && <div className="mt-2 rounded-lg bg-orange-50 px-3 py-1.5 text-xs text-slate-600" data-testid={`review-reply-${r.id}`}><span className="font-semibold text-orange-500">{tr("客服回覆：")}</span>{r.reply}</div>}
                 </td>
@@ -121,6 +136,7 @@ export function ReviewsAdmin({ callApi }) {
                 <td className="px-4 py-3 text-xs text-slate-500 whitespace-nowrap">{fmt(r.created_at)}</td>
                 <td className="px-4 py-3"><Switch data-testid={`review-toggle-${r.id}`} checked={r.visible !== false} onCheckedChange={(v) => patch(r.id, { visible: v })} /></td>
                 <td className="px-4 py-3 whitespace-nowrap">
+                  {r.rating <= 2 && !r.reply && !r.handled && <button data-testid={`review-handled-${r.id}`} title={tr("標記已處理")} onClick={() => patch(r.id, { handled: true }, tr("已標記為已處理"))} className="p-1.5 text-slate-400 hover:text-emerald-600"><CheckCircle2 className="h-4 w-4" /></button>}
                   <button data-testid={`review-reply-btn-${r.id}`} title={tr("回覆")} onClick={() => setReplying({ id: r.id, reply: r.reply || "", author: r.author, content: r.content })} className="p-1.5 text-slate-400 hover:text-orange-500"><MessageSquareReply className="h-4 w-4" /></button>
                   <button data-testid={`review-edit-${r.id}`} title={tr("編輯")} onClick={() => setEditing({ ...EMPTY, ...r })} className="p-1.5 text-slate-400 hover:text-orange-500"><Pencil className="h-4 w-4" /></button>
                   <button data-testid={`review-delete-${r.id}`} title={tr("刪除")} onClick={() => del(r)} className="p-1.5 text-slate-400 hover:text-red-500"><Trash2 className="h-4 w-4" /></button>
@@ -160,10 +176,35 @@ export function ReviewsAdmin({ callApi }) {
           <DialogContent className="max-w-md bg-white" data-testid="review-reply-form">
             <DialogHeader><DialogTitle>{tr("回覆評價")}</DialogTitle></DialogHeader>
             <div className="rounded-xl bg-slate-50 px-3 py-2 text-sm"><div className="font-semibold text-slate-800">{replying.author}</div><p className="text-slate-600 mt-0.5">{replying.content || <span className="italic text-slate-400">{tr("未填寫評價內容")}</span>}</p></div>
+            <div className="flex items-center justify-between"><span className="text-xs font-semibold text-slate-500">{tr("快捷話術（點擊填入）")}</span><button data-testid="review-tpl-manage" onClick={() => setTplEdit([...templates])} className="text-xs text-orange-600 inline-flex items-center gap-1"><Settings2 className="h-3.5 w-3.5" />{tr("管理模板")}</button></div>
+            <div className="flex flex-wrap gap-1.5" data-testid="review-tpl-list">
+              {templates.length === 0 && <span className="text-xs text-slate-400">{tr("尚無模板，點「管理模板」新增")}</span>}
+              {templates.map((t, i) => <button key={i} data-testid={`review-tpl-${i}`} title={t} onClick={() => setReplying({ ...replying, reply: t })} className="max-w-full truncate rounded-full bg-orange-50 hover:bg-orange-100 text-orange-700 px-3 py-1 text-xs text-left">{t}</button>)}
+            </div>
             <textarea data-testid="review-reply-input" autoFocus className="w-full min-h-[100px] rounded-lg bg-slate-100 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-orange-300" placeholder={tr("輸入客服回覆，顧客會在商品頁看到")} value={replying.reply} onChange={(e) => setReplying({ ...replying, reply: e.target.value })} />
             <DialogFooter>
               <Btn kind="ghost" onClick={() => setReplying(null)}>{tr("取消")}</Btn>
               <Btn data-testid="review-reply-save" onClick={sendReply} disabled={busy}>{tr("送出回覆")}</Btn>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
+      {tplEdit && (
+        <Dialog open onOpenChange={() => setTplEdit(null)}>
+          <DialogContent className="max-w-lg bg-white" data-testid="review-tpl-form">
+            <DialogHeader><DialogTitle>{tr("快捷話術模板")}</DialogTitle></DialogHeader>
+            <div className="space-y-2 max-h-[55vh] overflow-y-auto pr-1">
+              {tplEdit.map((t, i) => (
+                <div key={i} className="flex items-start gap-2">
+                  <textarea data-testid={`review-tpl-edit-${i}`} value={t} onChange={(e) => setTplEdit(tplEdit.map((x, j) => (j === i ? e.target.value : x)))} rows={2} className="flex-1 rounded-lg bg-slate-100 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-orange-300" />
+                  <button data-testid={`review-tpl-remove-${i}`} onClick={() => setTplEdit(tplEdit.filter((_, j) => j !== i))} className="mt-2 text-slate-400 hover:text-red-500"><X className="h-4 w-4" /></button>
+                </div>
+              ))}
+              <Btn kind="ghost" data-testid="review-tpl-add" onClick={() => setTplEdit([...tplEdit, ""])}><Plus className="h-3.5 w-3.5 inline -mt-0.5 mr-1" />{tr("新增一條")}</Btn>
+            </div>
+            <DialogFooter>
+              <Btn kind="ghost" onClick={() => setTplEdit(null)}>{tr("取消")}</Btn>
+              <Btn data-testid="review-tpl-save" onClick={saveTemplates}>{tr("儲存模板")}</Btn>
             </DialogFooter>
           </DialogContent>
         </Dialog>
