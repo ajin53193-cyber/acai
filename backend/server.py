@@ -24,6 +24,7 @@ import giftcard_api
 import secrets
 import cms_api
 import payments_api
+import chat_api
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -2909,6 +2910,7 @@ async def admin_save_review_templates(body: dict, admin: dict = Depends(require_
 async def admin_badges(admin: dict = Depends(require_role("admin"))):
     base = await giftcard_api.gift_base_cond()
     return {"giftcard-orders": await db.orders.count_documents({**base, "status": "processing", "gift_manual": True}),
+            "chat-sessions": await db.chat_sessions.count_documents({"unread_admin": {"$gt": 0}}),
             "reviews": await db.reviews.count_documents(BAD_REVIEW_COND)}
 
 
@@ -3275,6 +3277,9 @@ payments_api.upload_b64 = _upload_b64
 payments_api.new_id = new_id
 payments_api.now_iso = now_iso
 app.include_router(payments_api.router)
+chat_api.db = db
+chat_api.upload_b64 = _upload_b64
+app.include_router(chat_api.router)
 app.include_router(giftcard_api.router, prefix="/api")
 app.include_router(giftcard_api.ext_router, prefix="/api")
 app.include_router(admin_api.router)

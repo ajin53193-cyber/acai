@@ -1529,7 +1529,7 @@ async def admin_activity_center_put(body: ActivityCenterIn, admin: dict = Depend
 # ================= 系統配置：RBAC / 管理員 / 操作日誌 / 集成配置 =================
 ALL_PERMISSIONS = [
     "overview", "sales-analysis", "download-reports",
-    "members", "user-tags", "member-assets", "blacklist", "user-logs", "verifications", "user-batch", "feedback", "user-reports",
+    "members", "user-tags", "member-assets", "blacklist", "user-logs", "verifications", "user-batch", "feedback", "user-reports", "chat-sessions",
     "products", "categories", "reviews",
     "giftcard-list", "giftcard-pool", "giftcard-orders", "giftcard-new", "giftcard-trade-query", "giftcard-api", "giftcard-report",
     "home-decoration", "banners", "recommendations", "promos", "notifications", "announcements",

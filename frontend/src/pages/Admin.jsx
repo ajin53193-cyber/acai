@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Show, useUser } from "@clerk/react";
-import { LayoutDashboard, Package, ShoppingBag, Star, DollarSign, Tag, Users, Plus, Pencil, Trash2, X, Loader2, ArrowLeft, TrendingUp, Clock, ShieldAlert, Settings, CreditCard, ArrowUp, ArrowDown, ImagePlus, Wallet, BadgeCheck, MessageSquare, Globe, Bell, Megaphone, LayoutGrid, Gift, ShieldCheck, ChevronDown, Construction, PanelLeftClose, PanelLeftOpen } from "lucide-react";
+import { LayoutDashboard, Package, ShoppingBag, Star, DollarSign, Tag, Users, Plus, Pencil, Trash2, X, Loader2, ArrowLeft, TrendingUp, Clock, ShieldAlert, Settings, CreditCard, ArrowUp, ArrowDown, ImagePlus, Wallet, BadgeCheck, MessageSquare, Globe, Bell, Megaphone, LayoutGrid, Gift, ShieldCheck, ChevronDown, Construction, PanelLeftClose, PanelLeftOpen, Headphones, Volume2, VolumeX } from "lucide-react";
 import { toast } from "sonner";
 import { useApi, publicApi } from "@/lib/api";
 import { STATUS_LABELS, STATUS_ORDER, StatusBadge } from "@/lib/status";
@@ -36,6 +36,8 @@ import { AdminsAdmin } from "@/pages/admin/AdminsAdmin";
 import { RolesAdmin } from "@/pages/admin/RolesAdmin";
 import { OperationLogsAdmin } from "@/pages/admin/OperationLogsAdmin";
 import { OrderSettlementAdmin } from "@/pages/admin/OrderSettlementAdmin";
+import { ChatAdmin } from "@/pages/admin/ChatAdmin";
+import { loadSoundPrefs, saveSoundPrefs, playAlert, unlockAudio } from "@/lib/adminSounds";
 import { ReconciliationAdmin } from "@/pages/admin/ReconciliationAdmin";
 import { FinanceReportsAdmin } from "@/pages/admin/FinanceReportsAdmin";
 import { SalesAnalysisAdmin } from "@/pages/admin/SalesAnalysisAdmin";
@@ -47,6 +49,7 @@ import { tr } from "@/i18n";
 const MENU = [
   { key: "dashboard", g: tr("儀表盤"), icon: LayoutDashboard, defaultOpen: true, items: [["overview", tr("數據概覽")], ["sales-analysis", tr("銷售分析")], ["download-reports", tr("下載報表")]] },
   { key: "users", g: tr("用戶管理"), icon: Users, defaultOpen: true, items: [["members", tr("用戶列表")], ["user-tags", tr("用戶標籤")], ["member-assets", tr("會員資產")], ["blacklist", tr("黑名單管理")], ["user-logs", tr("用戶日誌")], ["verifications", tr("用戶認證")], ["user-batch", tr("用戶批量操作")], ["feedback", tr("用戶反饋")], ["user-reports", tr("用戶報表統計")]] },
+  { key: "support", g: tr("客服"), icon: Headphones, defaultOpen: true, items: [["chat-sessions", tr("客服會話")]] },
   { key: "products", g: tr("商品管理"), icon: Package, items: [["products", tr("商品列表")], ["categories", tr("商品分類")], ["reviews", tr("商品評論")]] },
   { key: "giftcards", g: tr("禮品卡"), icon: Gift, items: [["giftcard-list", tr("禮品卡列表")], ["giftcard-pool", tr("號碼庫")], ["giftcard-orders", tr("訂單管理")], ["giftcard-new", tr("添加禮品卡")], ["giftcard-trade-query", tr("交易號查詢")], ["giftcard-api", tr("核銷接口API")], ["giftcard-report", tr("稽核報表")]] },
   { key: "ops", g: tr("運營管理"), icon: Megaphone, items: [["home-decoration", tr("首頁裝修")], ["activities", tr("新聞 & 促銷")], ["banners", tr("輪播圖管理")], ["recommendations", tr("推薦位管理")], ["promos", tr("優惠券管理")], ["notifications", tr("消息中心")], ["announcements", tr("公告管理")]] },
@@ -146,6 +149,7 @@ const PAGES = {
   admins: (p) => <AdminsAdmin {...p} />,
   roles: (p) => <RolesAdmin {...p} />,
   "operation-logs": (p) => <OperationLogsAdmin {...p} />,
+  "chat-sessions": (p) => <ChatAdmin {...p} />,
   "sms-config": (p) => <IntegrationConfigAdmin group="sms" title={tr("短信配置")} sub={tr("大狗 / SUBMAIL 短信網關配置")} canTest {...p} />,
   "email-config": (p) => <IntegrationConfigAdmin group="email" title={tr("郵箱配置")} sub={tr("SMTP 寄信配置")} canTest {...p} />,
   "oauth-config": (p) => <IntegrationConfigAdmin group="oauth" title={tr("授權配置")} sub={tr("Google OAuth 登入配置")} {...p} />,
@@ -153,6 +157,60 @@ const PAGES = {
 
 const MAX_TABS = 12;
 const readTabs = () => { try { const t = JSON.parse(localStorage.getItem("admin_tabs") || "[]"); return Array.isArray(t) ? t.filter((k) => SECTION_LABEL[k]) : []; } catch { return []; } };
+
+function SoundControl() {
+  const [prefs, setPrefs] = useState(loadSoundPrefs);
+  const [open, setOpen] = useState(false);
+  const update = (p) => { const n = { ...prefs, ...p }; setPrefs(n); saveSoundPrefs(n); };
+  useEffect(() => { if (!open) return; const h = () => setOpen(false); window.addEventListener("click", h); return () => window.removeEventListener("click", h); }, [open]);
+  return (
+    <div className="relative self-center ml-2 shrink-0" onClick={(e) => e.stopPropagation()}>
+      <button data-testid="admin-sound-toggle" title={prefs.enabled ? tr("聲音提醒：開") : tr("聲音提醒：關")} onClick={() => { unlockAudio(); setOpen((o) => !o); }}
+        className={`h-8 w-8 rounded-lg flex items-center justify-center transition-colors ${prefs.enabled ? "text-orange-500 hover:bg-orange-50" : "text-slate-400 hover:bg-slate-100"}`}>
+        {prefs.enabled ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
+      </button>
+      {open && (
+        <div data-testid="admin-sound-panel" className="absolute right-0 top-10 z-50 w-64 rounded-xl bg-white shadow-xl border border-slate-200 p-3.5 text-slate-700">
+          <label className="flex items-center justify-between text-sm font-semibold"><span>{tr("聲音提醒")}</span><Switch data-testid="admin-sound-enabled" checked={prefs.enabled} onCheckedChange={(v) => { unlockAudio(); update({ enabled: v }); }} /></label>
+          <div className="mt-3 text-xs text-slate-500">{tr("音量")} {Math.round(prefs.volume * 100)}%</div>
+          <input data-testid="admin-sound-volume" type="range" min="0" max="1" step="0.05" value={prefs.volume} onChange={(e) => update({ volume: +e.target.value })} className="w-full accent-orange-500" />
+          <div className="mt-3 text-xs text-slate-500">{tr("試聽")}</div>
+          <div className="mt-1.5 grid grid-cols-3 gap-1.5">
+            {[["order", tr("新訂單")], ["topup", tr("充值審核")], ["chat", tr("客服訊息")]].map(([k, l]) => <button key={k} data-testid={`admin-sound-test-${k}`} onClick={() => playAlert(k, { ...prefs, enabled: true })} className="h-8 rounded-lg bg-slate-100 hover:bg-orange-50 hover:text-orange-600 text-[11px] font-semibold">{l}</button>)}
+          </div>
+          <div className="mt-3 text-[10px] text-slate-400 leading-relaxed">{tr("支付成功的新訂單、提交憑證待審核的充值、客服新訊息會分別以不同提示音提醒。瀏覽器需在頁面點擊過一次後才會發聲。")}</div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Polls /admin/alerts; plays a distinct sound + toast per event type (orders paid / topup proofs / chat messages).
+function useAdminAlerts(callApi, go) {
+  const sinceRef = useRef(null);
+  useEffect(() => {
+    const unlock = () => unlockAudio();
+    window.addEventListener("pointerdown", unlock, { once: true });
+    const tick = async () => {
+      try {
+        const r = await callApi({ method: "GET", url: `/admin/alerts?since=${encodeURIComponent(sinceRef.current || "")}` });
+        const d = r.data;
+        if (sinceRef.current) {
+          const prefs = loadSoundPrefs();
+          const fire = (kind, n, title, desc, section) => { if (!n) return; playAlert(kind, prefs); toast(title, { description: desc, duration: 10000, action: { label: tr("查看"), onClick: () => go(section) } }); };
+          fire("order", d.orders.length, tr("新訂單：{0} 筆已支付", d.orders.length), d.orders.slice(0, 3).map((o) => `#${o.order_no || o.id.slice(0, 8)} $${o.total_usd}`).join("、"), "orders");
+          fire("topup", d.topups.length, tr("充值審核：{0} 筆新憑證", d.topups.length), d.topups.slice(0, 3).map((t) => `${t.method_name || t.provider || ""} $${t.amount_usd}`).join("、"), "topups");
+          fire("chat", d.chats.length, tr("客服：{0} 則新訊息", d.chats.length), d.chats.slice(0, 2).map((c) => c.text || tr("[圖片]")).join(" / "), "chat-sessions");
+          if (d.chats.length) window.dispatchEvent(new Event("admin-badge-refresh"));
+        }
+        sinceRef.current = d.now;
+      } catch {}
+    };
+    tick();
+    const id = setInterval(tick, 8000);
+    return () => { clearInterval(id); window.removeEventListener("pointerdown", unlock); };
+  }, [callApi, go]);
+}
 
 function TabBar({ tabs, section, onSelect, onClose, onCloseOthers, onCloseAll }) {
   const [menu, setMenu] = useState(null);
@@ -171,6 +229,7 @@ function TabBar({ tabs, section, onSelect, onClose, onCloseOthers, onCloseAll })
         );
       })}
       {tabs.length > 1 && <button data-testid="admin-tabs-close-all" onClick={onCloseAll} className="ml-auto self-center shrink-0 h-7 px-2.5 rounded-md text-[11px] text-slate-400 hover:text-red-500 hover:bg-red-50">{tr("關閉全部")}</button>}
+      <div className={`flex items-center shrink-0 ${tabs.length > 1 ? "" : "ml-auto"}`}><SoundControl /></div>
       {menu && (
         <div data-testid="admin-tab-context-menu" className="fixed z-50 w-36 rounded-lg bg-white shadow-xl border border-slate-200 py-1 text-[13px] text-slate-700" style={{ left: menu.x, top: menu.y }}>
           <button className="w-full text-left px-3 py-1.5 hover:bg-slate-100" onClick={() => onClose(menu.k)}>{tr("關閉")}</button>
@@ -208,6 +267,9 @@ function AdminInner() {
   const badBadgeRef = useRef(null);
   const toggle = (k) => setOpen((o) => (o.includes(k) ? o.filter((x) => x !== k) : [...o, k]));
   const go = (k) => { setSection(k); const grp = MENU.find((m) => m.items.some(([ik]) => ik === k)); if (grp) setOpen((o) => (o.includes(grp.key) ? o : [...o, grp.key])); };
+  const goRef = useRef(go); goRef.current = go;
+  const goStable = useCallback((k) => goRef.current(k), []);
+  useAdminAlerts(callApi, goStable);
 
   useEffect(() => { callApi({ method: "GET", url: "/admin/me" }).then((r) => setMe(r.data)).catch(() => setMe({ is_super: true, permissions: [] })); }, [callApi]);
   useEffect(() => {
@@ -236,7 +298,7 @@ function AdminInner() {
   return (
     <div className="admin-light min-h-screen bg-slate-950 text-slate-200 flex">
       {/* Sidebar */}
-      <aside data-testid="admin-sidebar" data-collapsed={collapsed ? "1" : "0"} className={`${collapsed ? "w-16" : "w-56 md:w-64"} bg-slate-900 border-r border-slate-800 flex flex-col shrink-0 sticky top-0 h-screen transition-[width] duration-200`}>
+      <aside data-testid="admin-sidebar" data-collapsed={collapsed ? "1" : "0"} className={`${collapsed ? "w-16" : "w-56 md:w-64"} bg-slate-900 border-r border-slate-800 flex flex-col shrink-0 sticky top-0 h-screen z-40 transition-[width] duration-200`}>
         <div className={`h-16 flex items-center gap-2 border-b border-slate-800 shrink-0 ${collapsed ? "justify-center px-0" : "px-4"}`}>
           <div className="h-8 w-8 rounded-lg bg-orange-500 flex items-center justify-center text-white font-black shrink-0">G</div>
           {!collapsed && <div className="min-w-0 flex-1"><span className="font-head font-bold text-white block leading-tight">{tr("管理後台")}</span>{me && <span className="text-[10px] text-slate-400 truncate block" data-testid="admin-me-role">{me.role_name || (me.is_super ? tr("超級管理員") : tr("管理員"))}</span>}</div>}

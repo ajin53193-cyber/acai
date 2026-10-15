@@ -1,0 +1,42 @@
+{
+  "summary": "Frontend-only test of new collapsible sidebar + multi-tab workspace in /admin. Logged in via Clerk admin+clerk_test@shop.com + TOTP (admin console). All 7 required behaviours functionally work (tabs add on nav click, URL ?s= syncs, panels stay mounted so filter/search text is preserved when switching, close-all appears only with >1 tabs, right-click context menu with 關閉/關閉其他/關閉全部 works, reload restores LS admin_tabs and ?s= active tab, sidebar collapse persists via LS admin_sidebar_collapsed and width ~64px with labels hidden, hover flyout appears). Two issues found: (1) HIGH – flyout from collapsed sidebar is overlapped by main-content cards and intercepts pointer events, breaking clicks on items past the first row; (2) MINOR – context-menu/close tooltip renders '关闭' (Simplified) while sibling buttons render '關閉其他'/'關閉全部' (Traditional) — i18n inconsistency in tr() table.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "Admin collapsed sidebar flyout (NavGroup collapsed branch, Admin.jsx ~L67-85)",
+        "issue": "When sidebar is collapsed and user hovers admin-group-<key>, the flyout container (left-full z-50) is painted behind the <main> content. Main-content cards (e.g., member-stat-total) intercept pointer events, so most flyout items are unclickable. Playwright click on admin-nav-members from flyout failed with 'subtree intercepts pointer events' because the member-stat-total card sits over the flyout at y≈193. Root cause: <aside> uses sticky positioning (its own stacking context) but has no z-index, while sibling <main> paints after it in DOM order with equal effective z. Only the first flyout row (above the stat cards) is reachable.",
+        "selector": "[data-testid=admin-group-users] -> [data-testid=admin-nav-members] (hover flyout)",
+        "priority": "HIGH"
+      },
+      {
+        "component": "TabBar context menu (Admin.jsx L174-180) and tab close tooltip (L168)",
+        "issue": "Mixed Simplified+Traditional Chinese: first context-menu button and X-icon title render '关闭' (Simplified) while '關閉其他' / '關閉全部' remain Traditional. Spec requires 關閉/關閉其他/關閉全部. Issue is in the i18n table mapping for tr('關閉').",
+        "selector": "[data-testid=admin-tab-context-menu] button:first-child",
+        "priority": "MINOR"
+      }
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Admin collapsed sidebar", "issues": ["Flyout rendered behind main-content cards due to missing z-index on <aside> or portal fallback"]}
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [
+    "Fix collapsed-sidebar flyout z-index: add `z-30`/`z-40` (or `relative z-30`) to <aside data-testid=\"admin-sidebar\"> in Admin.jsx L239 so its sticky stacking context sits above <main>, OR render the hover flyout in a portal with fixed positioning. Verify by hovering admin-group-users while sidebar is collapsed on the Members page and clicking admin-nav-member-assets (behind the stat cards).",
+    "Fix tr('關閉') translation entry so it stays Traditional like its siblings (關閉/關閉其他/關閉全部) — affects admin-tab-context-menu first item and admin-tab-close-<k> tooltip."
+  ],
+  "critical_code_review_comments": [
+    "Admin.jsx is 463 lines but imports ~35 subpages and defines TabBar+Currencies+Promos+PaymentLogos inline — consider splitting the inline Currencies/Promos/PaymentLogos components out of Admin.jsx to keep it a pure shell.",
+    "NavGroup collapsed flyout uses CSS :hover (group-hover) only — no keyboard focus trigger, so keyboard navigation cannot open the flyout. Minor a11y gap.",
+    "closeOthers / closeAll don't preserve the previously-mounted non-closed panels' state intentionally; that's fine. But closeTab's active-switch math uses `tabs.indexOf(k)` before setTabs — if the closed tab was last, index drops; works but worth a comment.",
+    "pushUrl uses history.pushState for every setSection — switching between already-open tabs via click also pushes a new history entry (confirmed by browser back navigating between tabs). Acceptable, matches spec 'browser back/forward switch tabs'."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a (skipped)", "frontend": "85% (6/7 scenarios fully pass; collapsed flyout clickability blocked by z-index bug)"},
+  "test_credentials": "admin+clerk_test@shop.com / Gogo589!Admin#7x2Q + TOTP from /tmp/totp_secret (python3 -c \"import pyotp;print(pyotp.TOTP(open('/tmp/totp_secret').read().strip()).now())\")",
+  "seed_data_creation": "none",
+  "retest_needed": true,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Admin shell multi-tab + collapsible sidebar functionally works. After E1 fixes the flyout z-index, re-verify by: login → /admin → click admin-sidebar-toggle → go to members (via flyout) → hover admin-group-users → click admin-nav-member-assets (which sits behind the stat cards area). Also verify the tr('關閉') label fix in the context menu."
+}
