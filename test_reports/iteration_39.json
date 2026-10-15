@@ -1,0 +1,38 @@
+{
+  "summary": "Round 39 — Review reply templates, bad-review notifications, and A2HS tracking/stats. Backend: 16/16 pytest cases passed covering templates GET/PUT (default 5 items, persist new, empty→defaults fallback), bad-review counts/filter/badges/dashboard totals, PATCH handled & reply both move items out of bad list and are reversible, /api/track event whitelist (400 on unknown, 200 on all 5 known events, iOS UA → platform=ios), /api/admin/a2hs/stats shape (tip_shown/tip_open/tip_close/tip_ctr/dialog_open/pwa_launch/by_platform/by_source/series×30), tip_ctr == round(open/shown*100,1), admin-token guard. Admin UI E2E (1920×1080, admin+clerk_test@shop.com + TOTP): sidebar admin-nav-badge-reviews='1', todo-bad-reviews card shown on dashboard-admin and navigates to review-bad-banner, review-stat-bad toggles filter on/off, review-bad-flag-{id} + review-handled-{id} rendered on the 1★ row, reply dialog opens with 5 review-tpl-* chips, click chip fills review-tpl-* text into review-reply-input exactly, review-tpl-manage opens review-tpl-form with 5 defaults, review-tpl-add + fill + review-tpl-save persists and re-opening shows the new entry, review-tpl-remove-{i} + save restores. A2HS stats card renders a2hs-stat-shown/open/ctr/dialog/launch and reacts to dash-range-7/30/90. Mobile iPhone UA E2E (390×844, localStorage a2hs_tip_until cleared): a2hs-tip appeared after ~5s and fired POST /api/track event=a2hs_tip_shown, tip-open fired a2hs_tip_open + a2hs_dialog_open(source=tip), drawer-a2hs fired a2hs_dialog_open(source=drawer). Clean-up: templates restored (empty save → GET returns defaults), test bad reviews deleted, no leftover TEST_ data.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {"flow": "A2HS dialog_open tracking", "issue": "Each dialog-open interaction fires 2 POST /api/track events (duplicate a2hs_dialog_open). Visible in both tip-open and drawer-a2hs paths. Likely React 18 StrictMode double-effect in dev build; will inflate tip_open/dialog_open/pwa_launch counts in /api/admin/a2hs/stats and tip_ctr math. Consider firing track() outside useEffect or guarding with a ref so counts stay accurate in dev (prod should be fine without StrictMode).", "affected_selectors": ["[data-testid=\"a2hs-tip-open\"]", "[data-testid=\"drawer-a2hs\"]"]}
+    ],
+    "design_issues": [
+      {"screen": "Admin ReviewsAdmin rating <select>", "issues": ["React hydration warning persists from iter_38: <span> inside <option>. Caused by dev wrapper injecting x-source <span style={display:'contents'}> into static <option> array children in ReviewsAdmin.jsx line ~104. Non-blocking (dev-only), but still noisy."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_reviews_round39.py",
+    "/app/test_reports/pytest/round39.xml"
+  ],
+  "action_items": [
+    "(Optional) Debounce track() calls or move out of effect to avoid double-firing under React StrictMode (will double-count a2hs stats in preview).",
+    "(Carryover from iter_38) Hunt down the admin <option> hydration warning (ReviewsAdmin rating select array)."
+  ],
+  "critical_code_review_comments": [
+    "server.py BAD_REVIEW_COND reused for /admin/badges, /admin/reviews counts.bad, /admin/reviews?bad=1 filter and admin_api.dashboard totals.bad_reviews — single source of truth, good.",
+    "admin_save_review_templates trims items, drops empties, caps at 30 — safe. Empty list falls back to defaults on GET via `(doc or {}).get('items') or DEFAULT_REPLY_TEMPLATES` — intentional and documented.",
+    "ReviewPatch.handled: Optional[bool] correctly treated as patch-only field (not stripped like reply). admin_patch_review also sets replied_at='' when reply cleared — bad list recomputes correctly.",
+    "/api/track enforces TRACK_EVENTS whitelist and truncates source[:40]/path[:120] — guard against abuse. platform detection iPhone|iPad|iPod → ios OK.",
+    "a2hs/stats uses $substr on created_at (ISO string) for date grouping — works because now_iso() emits 'YYYY-MM-DD…'. Fine but relies on string-sortable UTC timestamps; document it.",
+    "DashboardAdmin uses sessionStorage 'reviews_preset'='bad' to cross-page communicate — ReviewsAdmin reads it on mount; works but a URL query param would be more robust for deep-linking.",
+    "A2HSTip reads navigator at module scope and track() fires inside useEffect without a guard; React 18 StrictMode will cause 2× dispatch — observed in preview."
+  ],
+  "updated_files": ["/app/backend/tests/test_reviews_round39.py (new)"],
+  "success_rate": {"backend": "100% (16/16)", "frontend": "100% of exercised flows"},
+  "test_credentials": "Admin admin+clerk_test@shop.com / Gogo589!Admin#7x2Q + TOTP from Mongo admin_2fa secret DNY74VQQI3454NAKX3XW7INOIG4UCTQA (user_3Kc4MDW67YZmA1ym1sGkaMiLVwK).",
+  "seed_data_creation": "Backend tests created & deleted bad reviews (TEST_bad_r39, TEST_bad_tmp) via /api/admin/reviews. Templates were overwritten to [] during cleanup which GET falls back to DEFAULT_REPLY_TEMPLATES (5 items).",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Regression tests live at /app/backend/tests/test_reviews_round39.py and test_reviews_admin.py. One pre-existing 1★ review on the Apple iTunes HK giftcard product keeps counts.bad=1 and admin-nav-badge-reviews='1' at rest — expected per prompt. Admin login flow via /admin/login uses pure backend /admin/auth/login + /admin/auth/totp (not Clerk UI), so headless automation works end-to-end.",
+  "rca of the issue": "N/A — no regressions. Only minor observations: (a) duplicate a2hs track POSTs under React StrictMode (preview-only), (b) existing <option>/<span> hydration warning in ReviewsAdmin (dev-wrapper artifact, carried over)."
+}

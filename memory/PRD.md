@@ -39,6 +39,7 @@
 - (2026-06) 评价管理重做：`/app/frontend/src/pages/admin/ReviewsAdmin.jsx`（统计卡、搜索/商品/显示/评分过滤、新增/编辑、客服回复、显示开关、批量显示/隐藏/删除、分页加载）。后端 `GET /api/admin/reviews` 返回 `{items, counts}` 并支持 `q/product_id/visible/rating`；新增 `PATCH /api/admin/reviews/{id}` (visible/reply→replied_at) 与 `POST /api/admin/reviews/bulk`；Review 模型加 `reply/area`。测试 iteration_38 全通过。
 - (2026-06) 安装引导：`/app/frontend/src/components/A2HSTip.jsx` 挂在 Header，手机 UA 且非 standalone、非 /admin 时首页加载 4s 后出现底部提示条，点「查看教學」打开 AddToHomeDialog（30 天不再提示），关闭 7 天不再提示（localStorage `a2hs_tip_until`）。
 - (2026-06) 手机端购物主流程体检（详情→加购→购物车抽屉→结账）通过，无 console 报错、无滚动锁泄漏。
+- (2026-06) 评价增强（iteration_39 全通过）：① 快捷话术模板 `GET/PUT /api/admin/reviews/templates`（settings key `review_reply_templates`，默认 5 条），回复弹窗一键填入 + 管理模板弹窗；② 差评提醒：`BAD_REVIEW_COND`（≤2 星、无 reply、handled!=true），`GET /api/admin/badges` 驱动侧栏徽标（Admin.jsx 30s 轮询，数量上升时 toast.warning），仪表盘 `todo-bad-reviews` 红色待办卡 → 跳转评价管理并预置 bad 过滤（sessionStorage `reviews_preset`），行内「標記已處理」PATCH handled；③ A2HS 埋点：`POST /api/track`（白名单 a2hs_tip_shown/open/close, a2hs_dialog_open, pwa_launch；`lib/track.js` standalone 启动时每会话记一次 pwa_launch），`GET /api/admin/a2hs/stats?days=` 驱动仪表盘「添加到桌面引導成效」卡（曝光/点击/CTR/教学打开/App 启动、来源、平台、日序列）。AddToHomeDialog 用 ref 防 StrictMode 双触发。
 - Admin Login: /admin/login | admin@gogo589.com | Gg589!kVTEyEy16n | TOTP Secret 2FAI3HWF6WYDNSQC7DNSUGKZ4HWQBMOH
 - 角标：前端 /admin/me 每 30s 轮询 { badge: { manual } }。
 - 倒计时：GiftTransferring 依赖 order.gift_dispatch_at / info_submitted_at / is_giftcard_order。
