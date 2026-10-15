@@ -18,8 +18,18 @@ const CONFIG_FIELDS = {
   crypto: [["base_url", tr("網關 API 網址（留空用系統預設）")], ["api_key", tr("網關 API Key")], ["api_secret", tr("網關 API Secret")], ["merchant_id", tr("網路（TRC20）")]],
   other: [["account_info", tr("收款帳戶資訊（顯示給用戶）")]],
 };
+const STRIPE_TYPES = [
+  ["card", tr("信用卡 / Apple Pay / Google Pay")],
+  ["link,card", "Link"],
+  ["pix", tr("PIX（巴西 · 以 BRL 結算）")],
+  ["alipay", tr("支付寶 Alipay")],
+  ["klarna", "Klarna（先買後付）"],
+  ["afterpay_clearpay", "Afterpay / Clearpay"],
+  ["boleto", tr("Boleto（巴西 · 需帳戶啟用）")],
+];
+const STRIPE_BRL = ["pix", "boleto"];
 const PROVIDER_HINT = {
-  stripe: tr("Stripe 密鑰由系統 Secrets（STRIPE_API_KEY）統一管理，無需在此填寫；收銀台自動支援信用卡、Apple Pay、Google Pay，付款成功後自動入帳。"),
+  stripe: tr("Stripe 密鑰由系統 Secrets（STRIPE_API_KEY）統一管理，無需在此填寫；請在下方選擇此按鈕對應的 Stripe 付款類型，付款成功後自動入帳。該類型須已在 Stripe 後台對你的帳戶開放。"),
   paypal: tr("請至 developer.paypal.com 建立應用取得 Client ID / Secret；此處留空則使用系統 Secrets（PAYPAL_CLIENT_ID / PAYPAL_CLIENT_SECRET / PAYPAL_ENV）。沙盒用於測試，正式環境請切換為 live。用戶付款返回後自動入帳；亦可在 PayPal 後台設定 Webhook（網址：/api/webhook/paypal，事件 CHECKOUT.ORDER.APPROVED、PAYMENT.CAPTURE.COMPLETED）並填入 Webhook ID。"),
   manual: tr("用戶會看到以上收款資訊與專屬轉帳碼，上傳轉帳憑證後由後台「充值訂單」審核入帳。"),
 };
@@ -134,6 +144,16 @@ function MethodForm({ f, setF, onSave, onClose, onTest, onDelete }) {
             <div><label className="text-xs text-slate-500 font-medium">{tr("支付對接")}</label>
               <select data-testid="pm-form-provider" className={inp} value={f.provider} onChange={(e) => set("provider", e.target.value)}>{Object.entries(PROVIDERS).map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select></div>
             {PROVIDER_HINT[f.provider] && <div className="col-span-2 text-[11px] text-slate-500 bg-orange-50 border border-orange-100 rounded-lg px-3 py-2">{PROVIDER_HINT[f.provider]}</div>}
+            {f.provider === "stripe" && (
+              <div><label className="text-xs text-slate-500 font-medium">{tr("Stripe 付款類型")}</label>
+                <select data-testid="pm-form-stripe-type" className={inp}
+                  value={f.config.stripe_methods || "card"}
+                  onChange={(e) => { const v = e.target.value; const base = v.split(",")[0]; setF((p) => ({ ...p, config: { ...p.config, stripe_methods: v, stripe_currency: STRIPE_BRL.includes(base) ? "brl" : "" } })); }}>
+                  {STRIPE_TYPES.map(([k, l]) => <option key={k} value={k}>{l}</option>)}
+                </select>
+                {STRIPE_BRL.includes((f.config.stripe_methods || "card").split(",")[0]) && <div className="mt-1 text-[11px] text-amber-600">{tr("此方式僅支援巴西雷亞爾（BRL），系統會自動依匯率把充值金額換算為 BRL 收款。")}</div>}
+              </div>
+            )}
             {f.id && ["paypal", "stripe"].includes(f.provider) && <button type="button" data-testid={`pm-test-${f.id}`} onClick={() => onTest(f)} className="h-9 px-3.5 rounded-lg bg-sky-500 hover:bg-sky-600 text-white text-xs font-semibold flex items-center gap-1.5 transition-colors"><Plug className="h-3.5 w-3.5" />{tr("測試連線（使用已儲存的參數）")}</button>}
             <div className="grid grid-cols-2 gap-3">
               {(CONFIG_FIELDS[f.provider] || []).map(([k, l]) => (
