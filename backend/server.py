@@ -814,7 +814,7 @@ async def dispatch_giftcards(order: dict):
         if not p or not p.get("is_giftcard"):
             continue
         for _ in range(int(it.get("quantity") or 1)):
-            nos.append({"trade_no": _gen_gift_trade_no(), "product_name": it.get("product_name", ""), "spec_label": it.get("spec_label", "")})
+            nos.append({"trade_no": _gen_gift_trade_no(), "product_name": it.get("product_name", ""), "spec_label": it.get("spec_label", ""), "image": it.get("image", "")})
     if nos:
         await db.orders.update_one({"id": order["id"]}, {"$set": {"giftcards_dispatched": True, "gift_trade_nos": nos, "gift_trade_no": nos[0]["trade_no"], "is_giftcard_order": True}})
         await giftcard_api.create_txns(order, nos)

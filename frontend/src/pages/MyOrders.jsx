@@ -113,6 +113,18 @@ function GiftTransferring({ order, onRefresh, callApi, onCelebrate }) {
 
 const FILTERS = [["all", tr("全部")], ...Object.entries(STATUS_LABELS)];
 
+const HKD_CARD_AMOUNTS = { 200: 1, 500: 1, 1000: 1, 5000: 1, 8000: 1 };
+function giftCardImageFor(order) {
+  for (const it of (order?.items || [])) {
+    const m = String(it.spec_label || "").match(/(\d[\d,]*)\s*HKD/i);
+    if (m) {
+      const amt = parseInt(m[1].replace(/,/g, ""), 10);
+      if (HKD_CARD_AMOUNTS[amt]) return `/giftcards/hkd-${amt}.png`;
+    }
+  }
+  return "";
+}
+
 
 function OrdersInner() {
   const callApi = useApi();
@@ -150,7 +162,7 @@ function OrdersInner() {
 
   const [shareTarget, setShareTarget] = useState(null);
   const [shareBusy, setShareBusy] = useState(false);
-  const [celebrateMsg, setCelebrateMsg] = useState(null);
+  const [celebrateInfo, setCelebrateInfo] = useState(null);
   const [query, setQuery] = useState("");
   const [blessing, setBlessing] = useState("");
 
@@ -161,8 +173,8 @@ function OrdersInner() {
     return k.replace(/\s*(帳號|账号|账户|帐号|钱包|錢包|wallet|account|ID)\s*$/i, "").trim() || k;
   };
   const showCelebration = (order) => {
-    setCelebrateMsg(tr("禮品卡已轉贈到您的{0}賬戶！", channelOf(order)));
-    setTimeout(() => setCelebrateMsg(null), 4200);
+    setCelebrateInfo({ msg: tr("禮品卡已轉贈到您的{0}賬戶！", channelOf(order)), img: giftCardImageFor(order) });
+    setTimeout(() => setCelebrateInfo(null), 4800);
   };
 
   useEffect(() => {
@@ -431,13 +443,19 @@ function OrdersInner() {
         </SheetContent>
       </Sheet>
 
-      {celebrateMsg && (
-        <div className="fixed inset-0 z-[9998] flex items-start justify-center pt-24 px-4 pointer-events-none" data-testid="order-celebrate-overlay">
-          <div className="animate-gt-pop pointer-events-auto max-w-sm w-full rounded-3xl border border-orange-200 bg-white/95 backdrop-blur px-5 py-4 text-center shadow-[0_20px_50px_-20px_rgba(232,121,42,0.7)]">
-            <div className="mx-auto mb-2 h-14 w-14 rounded-full overflow-hidden ring-2 ring-white shadow-md animate-gt-float">
-              <img src="/giftbox-disc.png" alt="" className="h-full w-full object-cover scale-[1.08]" />
-            </div>
-            <div className="font-cute text-lg text-orange-600 leading-7">{celebrateMsg}</div>
+      {celebrateInfo && (
+        <div className="fixed inset-0 z-[9998] flex items-start justify-center pt-20 px-4 pointer-events-none" data-testid="order-celebrate-overlay">
+          <div className="animate-gt-pop pointer-events-auto max-w-xs w-full rounded-3xl border border-orange-200 bg-white/95 backdrop-blur px-5 py-5 text-center shadow-[0_20px_50px_-20px_rgba(232,121,42,0.7)]">
+            {celebrateInfo.img ? (
+              <div className="mb-3 relative w-full overflow-hidden rounded-xl ring-1 ring-black/5 shadow-md animate-gt-float" style={{ aspectRatio: "1.586" }}>
+                <img src={celebrateInfo.img} alt="" className="absolute inset-0 h-full w-full object-cover" />
+              </div>
+            ) : (
+              <div className="mx-auto mb-3 h-16 w-16 rounded-full overflow-hidden ring-2 ring-white shadow-md animate-gt-float">
+                <img src="/giftbox-disc.png" alt="" className="h-full w-full object-cover scale-[1.08]" />
+              </div>
+            )}
+            <div className="font-cute text-lg text-orange-600 leading-7">{celebrateInfo.msg}</div>
           </div>
         </div>
       )}
