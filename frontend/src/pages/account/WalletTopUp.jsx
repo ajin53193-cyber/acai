@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { Plus, Check, ChevronLeft } from "lucide-react";
+import { Check, ChevronLeft } from "lucide-react";
 import { toast } from "sonner";
 import { useApi, publicApi } from "@/lib/api";
 import { useCurrency } from "@/context/CurrencyContext";
@@ -157,7 +157,7 @@ export default function WalletTopUp() {
             {selected && <span className="text-xs text-slate-400">· {selected.name}</span>}
           </div>
           <button data-testid="topup-submit" onClick={topup} disabled={busy} className="h-12 px-10 rounded-full bg-orange-500 hover:bg-orange-600 text-white font-bold flex items-center justify-center gap-2 disabled:opacity-60 transition-colors">
-            <Plus className="h-4 w-4" />{busy ? tr("處理中…") : isUsdt ? tr("前往 USDT 收銀台") : tr("立即充值")}
+            {busy ? tr("處理中…") : isUsdt ? tr("前往 USDT 收銀台") : tr("立即充值")}
           </button>
         </div>
         {!isUsdt && selected && <div className="mt-2 text-right text-[11px] text-slate-400" data-testid="topup-footnote">{["stripe", "paypal"].includes(selected.provider) ? tr("將跳轉至安全收銀台，付款完成後自動入帳") : tr("轉帳後請於充值記錄上傳憑證，人工核對後入帳")}</div>}

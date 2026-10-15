@@ -180,7 +180,7 @@ async def topup_checkout(body: CheckoutIn, request: Request, member: dict = Depe
             if pay_currency == "usd" and methods != ["card"] and ("card" in methods or "link" in methods):
                 session = await _mk(["card"])
             else:
-                raise HTTPException(status_code=502, detail="此支付方式暫時無法使用，請稍後再試或改用其他付款方式")
+                raise HTTPException(status_code=400, detail="此支付方式暫時無法使用（Stripe 帳戶尚未完成啟用或該方式暫不支援），請稍後再試或改用信用卡 / Link 付款")
         doc.update({"session_id": session.session_id, "pay_url": session.url, "pay_currency": pay_currency, "pay_local": pay_value,
                     "expires_at": (datetime.now(timezone.utc) + timedelta(hours=24)).isoformat()})
     elif provider == "paypal":
