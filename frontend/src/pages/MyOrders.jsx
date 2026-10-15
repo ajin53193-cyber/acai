@@ -68,7 +68,7 @@ function OrderInfoForm({ order, callApi, onDone }) {
 }
 
 function GiftTransferring({ order, onRefresh, callApi, onCelebrate }) {
-  const end = order.gift_dispatch_at ? new Date(order.gift_dispatch_at).getTime() : 0;
+  const end = order.gift_countdown_at ? new Date(order.gift_countdown_at).getTime() : (order.gift_dispatch_at ? new Date(order.gift_dispatch_at).getTime() : 0);
   const [left, setLeft] = useState(() => (end ? Math.max(0, end - Date.now()) : 0));
   const giftRef = useRef(null);
   useEffect(() => {
@@ -259,14 +259,14 @@ function OrdersInner() {
                 )}
                 <div className="mt-3 md:mt-4 pt-3 border-t border-slate-200/70 flex items-center justify-center md:justify-end gap-2.5 md:gap-2">
                   {o.status === "pending_payment" && <button data-testid={`order-delete-${o.id}`} onClick={() => removeOrder(o)} className="h-8 md:h-9 px-4 rounded-full bg-white max-md:bg-slate-100 text-slate-600 text-xs hover:bg-orange-50 hover:text-orange-500 whitespace-nowrap">{tr("刪除訂單")}</button>}
-                  <button data-testid={`order-reorder-${o.id}`} onClick={() => reorder(o)} className="h-8 md:h-9 px-4 rounded-full bg-slate-900 text-white text-xs hover:bg-slate-800 whitespace-nowrap">{tr("再來一單")}</button>
+                  <button data-testid={`order-reorder-${o.id}`} onClick={() => reorder(o)} className="h-9 md:h-10 px-5 rounded-full bg-white border border-orange-200 text-orange-600 text-xs md:text-sm font-semibold shadow-sm hover:bg-orange-50 transition-colors whitespace-nowrap">{tr("再來一單")}</button>
                   {o.status === "paid" && o.info_submitted === false && (
-                    <button data-testid={`order-fill-${o.id}`} onClick={() => setDetail(o)} className="h-8 md:h-9 px-4 rounded-full bg-amber-500 text-white text-xs font-semibold hover:bg-amber-600 whitespace-nowrap">{tr("填寫充值資料")}</button>
+                    <button data-testid={`order-fill-${o.id}`} onClick={() => setDetail(o)} className="h-9 md:h-10 px-5 rounded-full bg-gradient-to-r from-orange-500 to-amber-500 text-white text-xs md:text-sm font-bold shadow-md shadow-orange-200/70 hover:brightness-105 transition whitespace-nowrap">{tr("填寫充值資料")}</button>
                   )}
                   {o.status === "pending_payment" ? (
-                    <button data-testid={`order-pay-${o.id}`} onClick={() => payNow(o)} disabled={paying} className="h-8 md:h-9 px-4 rounded-full bg-orange-500 text-white text-xs font-semibold hover:bg-orange-600 whitespace-nowrap">{tr("去付款")}</button>
+                    <button data-testid={`order-pay-${o.id}`} onClick={() => payNow(o)} disabled={paying} className="h-9 md:h-10 px-5 rounded-full bg-gradient-to-r from-orange-500 to-amber-500 text-white text-xs md:text-sm font-bold shadow-md shadow-orange-200/70 hover:brightness-105 transition disabled:opacity-60 whitespace-nowrap">{tr("去付款")}</button>
                   ) : (
-                    <button data-testid={`order-detail-${o.id}`} onClick={() => setDetail(o)} className="h-8 md:h-9 px-4 rounded-full bg-orange-500 text-white text-xs font-semibold hover:bg-orange-600 whitespace-nowrap">{tr("查看詳情")}</button>
+                    <button data-testid={`order-detail-${o.id}`} onClick={() => setDetail(o)} className="h-9 md:h-10 px-5 rounded-full bg-gradient-to-r from-orange-500 to-amber-500 text-white text-xs md:text-sm font-bold shadow-md shadow-orange-200/70 hover:brightness-105 transition whitespace-nowrap">{tr("查看詳情")}</button>
                   )}
                 </div>
               </div>

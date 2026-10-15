@@ -1844,8 +1844,9 @@ async def _gift_auto_review(o: dict) -> dict:
            "autoReview": "matched" if hit else ("unmatched" if cfg.get("auto_review_enabled", True) else "disabled"), "needManual": not hit, "matchedKey": (hit or {}).get("key", ""),
            "timeline": o.get("timeline", []) + [{"status": "processing", "at": now_iso(), "by": "system", "note": f"號碼庫命中 {hit['key']}，排定自動完成" if hit else "未命中號碼庫，待人工處理"}]}
     if hit:
-        lo, hi = int(cfg["auto_delay_min"]) * 60, int(cfg["auto_delay_max"]) * 60
+        lo, hi = int(float(cfg["auto_delay_min"]) * 60), int(float(cfg["auto_delay_max"]) * 60)
         upd["gift_dispatch_at"] = (datetime.now(timezone.utc) + timedelta(seconds=lo + (secrets.randbelow(hi - lo + 1) if hi > lo else 0))).isoformat()
+        upd["gift_countdown_at"] = (datetime.now(timezone.utc) + timedelta(seconds=90)).isoformat()
     else:
         await db.orders.update_one({"id": o["id"]}, {"$unset": {"gift_dispatch_at": 1}})
         asyncio.create_task(giftcard_api.op_log("system", f"⚠️ 禮品卡自動審核未匹配，已轉人工 · 訂單 {o.get('order_no', '')}", 202))

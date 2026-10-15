@@ -42,7 +42,7 @@ def phone_match(a: str, b: str) -> bool:
     return bool(a and b) and (a == b or (len(a) >= 8 and len(b) >= 8 and a[-8:] == b[-8:]))
 
 
-DEFAULT_SETTINGS = {"auto_review_enabled": True, "auto_delay_min": 2, "auto_delay_max": 5, "api_key": ""}
+DEFAULT_SETTINGS = {"auto_review_enabled": True, "auto_delay_min": 0.5, "auto_delay_max": 1.5, "api_key": ""}
 
 
 async def get_settings() -> dict:
@@ -109,8 +109,8 @@ def _amount_from_label(label: str) -> float:
 # ----------------------------- settings -----------------------------
 class SettingsIn(BaseModel):
     auto_review_enabled: bool = True
-    auto_delay_min: int = 2
-    auto_delay_max: int = 5
+    auto_delay_min: float = 0.5
+    auto_delay_max: float = 1.5
 
 
 @router.get("/settings")
@@ -121,7 +121,7 @@ async def settings_get(admin: dict = Depends(admin_api.current_admin)):
 @router.put("/settings")
 async def settings_put(body: SettingsIn, admin: dict = Depends(admin_api.current_admin)):
     cur = await get_settings()
-    lo, hi = max(0, body.auto_delay_min), max(0, body.auto_delay_max)
+    lo, hi = max(0.0, round(float(body.auto_delay_min), 2)), max(0.0, round(float(body.auto_delay_max), 2))
     if hi < lo:
         lo, hi = hi, lo
     val = {**cur, "auto_review_enabled": body.auto_review_enabled, "auto_delay_min": lo, "auto_delay_max": hi}
