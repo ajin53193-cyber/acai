@@ -166,9 +166,21 @@ async def topup_checkout(body: CheckoutIn, request: Request, member: dict = Depe
         pay_value = float(doc["pay_amount"])
         if pay_currency != "usd":
             pay_value = round(pay_value * await _fx_rate(pay_currency), 2)
-        session = await sc.create_checkout_session(CheckoutSessionRequest(
-            amount=pay_value, currency=pay_currency, success_url=success + "&session_id={CHECKOUT_SESSION_ID}", cancel_url=cancel,
-            metadata={"topup_id": tid, "user_id": member["user_id"], "kind": "wallet_topup"}, payment_methods=methods))
+
+        async def _mk(pm_types):
+            return await sc.create_checkout_session(CheckoutSessionRequest(
+                amount=pay_value, currency=pay_currency, success_url=success + "&session_id={CHECKOUT_SESSION_ID}", cancel_url=cancel,
+                metadata={"topup_id": tid, "user_id": member["user_id"], "kind": "wallet_topup"}, payment_methods=pm_types))
+
+        try:
+            session = await _mk(methods)
+        except Exception as e:
+            logger.warning("stripe checkout failed (%s): %s", methods, str(e)[-200:])
+            # Link / wallet methods ride on top of card checkout; fall back to card so the user can still pay
+            if pay_currency == "usd" and methods != ["card"] and ("card" in methods or "link" in methods):
+                session = await _mk(["card"])
+            else:
+                raise HTTPException(status_code=502, detail="此支付方式暫時無法使用，請稍後再試或改用其他付款方式")
         doc.update({"session_id": session.session_id, "pay_url": session.url, "pay_currency": pay_currency, "pay_local": pay_value,
                     "expires_at": (datetime.now(timezone.utc) + timedelta(hours=24)).isoformat()})
     elif provider == "paypal":
