@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Show, useUser } from "@clerk/react";
-import { LayoutDashboard, Package, ShoppingBag, Star, DollarSign, Tag, Users, Plus, Pencil, Trash2, X, Loader2, ArrowLeft, TrendingUp, Clock, ShieldAlert, Settings, CreditCard, ArrowUp, ArrowDown, ImagePlus, Wallet, BadgeCheck, MessageSquare, Globe, Bell, Megaphone, LayoutGrid, Gift, ShieldCheck, ChevronDown, Construction } from "lucide-react";
+import { LayoutDashboard, Package, ShoppingBag, Star, DollarSign, Tag, Users, Plus, Pencil, Trash2, X, Loader2, ArrowLeft, TrendingUp, Clock, ShieldAlert, Settings, CreditCard, ArrowUp, ArrowDown, ImagePlus, Wallet, BadgeCheck, MessageSquare, Globe, Bell, Megaphone, LayoutGrid, Gift, ShieldCheck, ChevronDown, Construction, PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import { toast } from "sonner";
 import { useApi, publicApi } from "@/lib/api";
 import { STATUS_LABELS, STATUS_ORDER, StatusBadge } from "@/lib/status";
@@ -61,9 +61,28 @@ const inputCls = "w-full h-10 rounded-lg bg-slate-800 border border-slate-700 px
 
 const Badge = ({ n, testId }) => (n > 0 ? <span data-testid={testId} className="ml-auto shrink-0 min-w-[18px] h-[18px] px-1.5 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center leading-none">{n > 99 ? "99+" : n}</span> : null);
 
-const NavGroup = ({ gkey, g, Icon, items, section, setSection, open, toggle, badges = {} }) => {
+const NavGroup = ({ gkey, g, Icon, items, section, setSection, open, toggle, badges = {}, collapsed }) => {
   const active = items.some(([k]) => k === section);
   const groupBadge = items.reduce((s, [k]) => s + (badges[k] || 0), 0);
+  if (collapsed) return (
+    <div className="relative group">
+      <button data-testid={`admin-group-${gkey}`} title={g} className={`relative w-full h-10 flex items-center justify-center rounded-lg transition-colors ${active ? "bg-orange-500 text-white" : "text-slate-600 hover:bg-slate-100"}`}>
+        <Icon className="h-[18px] w-[18px]" />
+        {groupBadge > 0 && <span className="absolute top-1 right-1 h-2 w-2 rounded-full bg-red-500" />}
+      </button>
+      <div className="hidden group-hover:block absolute left-full top-0 pl-2 z-50">
+        <div className="w-44 rounded-xl bg-white shadow-xl border border-slate-200 py-1.5 admin-flyout">
+          <div className="px-3 py-1.5 text-[11px] font-bold text-slate-400 uppercase tracking-wide">{g}</div>
+          {items.map(([k, label]) => (
+            <a key={k} href={`/admin?s=${k}`} data-testid={`admin-nav-${k}`} onClick={(e) => { if (e.metaKey || e.ctrlKey || e.shiftKey || e.button === 1) return; e.preventDefault(); setSection(k); }}
+              className={`flex items-center gap-2 mx-1.5 rounded-md px-2.5 py-1.5 text-[13px] transition-colors ${section === k ? "bg-orange-500 text-white font-semibold" : "text-slate-600 hover:bg-slate-100"}`}>
+              <span className="truncate">{label}</span><Badge n={badges[k] || 0} testId={`admin-nav-badge-${k}`} />
+            </a>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
   return (
     <div>
       <button data-testid={`admin-group-${gkey}`} onClick={toggle}
@@ -132,12 +151,57 @@ const PAGES = {
   "oauth-config": (p) => <IntegrationConfigAdmin group="oauth" title={tr("授權配置")} sub={tr("Google OAuth 登入配置")} {...p} />,
 };
 
+const MAX_TABS = 12;
+const readTabs = () => { try { const t = JSON.parse(localStorage.getItem("admin_tabs") || "[]"); return Array.isArray(t) ? t.filter((k) => SECTION_LABEL[k]) : []; } catch { return []; } };
+
+function TabBar({ tabs, section, onSelect, onClose, onCloseOthers, onCloseAll }) {
+  const [menu, setMenu] = useState(null);
+  useEffect(() => { if (!menu) return; const h = () => setMenu(null); window.addEventListener("click", h); window.addEventListener("scroll", h, true); return () => { window.removeEventListener("click", h); window.removeEventListener("scroll", h, true); }; }, [menu]);
+  return (
+    <div data-testid="admin-tabbar" className="sticky top-0 z-30 flex items-stretch gap-1 px-3 h-11 bg-white border-b border-slate-200 overflow-x-auto admin-tabbar">
+      {tabs.map((k) => {
+        const active = k === section;
+        return (
+          <div key={k} data-testid={`admin-tab-${k}`} role="tab" aria-selected={active} onClick={() => onSelect(k)} onContextMenu={(e) => { e.preventDefault(); setMenu({ k, x: e.clientX, y: e.clientY }); }}
+            className={`group/tab flex items-center gap-1.5 self-end h-9 pl-3.5 pr-1.5 rounded-t-lg text-[13px] cursor-pointer select-none whitespace-nowrap border border-b-0 transition-colors ${active ? "bg-orange-50 border-orange-200 text-orange-600 font-semibold" : "bg-slate-50 border-slate-200 text-slate-500 hover:bg-slate-100 hover:text-slate-800"}`}>
+            <span>{SECTION_LABEL[k] || k}</span>
+            <button data-testid={`admin-tab-close-${k}`} onClick={(e) => { e.stopPropagation(); onClose(k); }} title={tr("關閉")}
+              className={`h-5 w-5 rounded-full flex items-center justify-center transition-colors ${active ? "text-orange-400 hover:bg-orange-200 hover:text-orange-700" : "text-slate-400 opacity-0 group-hover/tab:opacity-100 hover:bg-slate-200 hover:text-slate-700"}`}><X className="h-3 w-3" /></button>
+          </div>
+        );
+      })}
+      {tabs.length > 1 && <button data-testid="admin-tabs-close-all" onClick={onCloseAll} className="ml-auto self-center shrink-0 h-7 px-2.5 rounded-md text-[11px] text-slate-400 hover:text-red-500 hover:bg-red-50">{tr("關閉全部")}</button>}
+      {menu && (
+        <div data-testid="admin-tab-context-menu" className="fixed z-50 w-36 rounded-lg bg-white shadow-xl border border-slate-200 py-1 text-[13px] text-slate-700" style={{ left: menu.x, top: menu.y }}>
+          <button className="w-full text-left px-3 py-1.5 hover:bg-slate-100" onClick={() => onClose(menu.k)}>{tr("關閉")}</button>
+          <button className="w-full text-left px-3 py-1.5 hover:bg-slate-100" onClick={() => onCloseOthers(menu.k)}>{tr("關閉其他")}</button>
+          <button className="w-full text-left px-3 py-1.5 hover:bg-slate-100" onClick={onCloseAll}>{tr("關閉全部")}</button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function AdminInner() {
   const callApi = useApi();
-  const [section, setSectionState] = useState(() => new URLSearchParams(window.location.search).get("s") || "overview");
-  // URL-addressable sections so admins can open several pages in separate tabs (right-click / Cmd+click on the menu)
-  const setSection = useCallback((k) => { setSectionState(k); const u = new URL(window.location.href); u.searchParams.set("s", k); window.history.pushState({}, "", u); }, []);
-  useEffect(() => { const onPop = () => setSectionState(new URLSearchParams(window.location.search).get("s") || "overview"); window.addEventListener("popstate", onPop); return () => window.removeEventListener("popstate", onPop); }, []);
+  const initialSection = new URLSearchParams(window.location.search).get("s") || "overview";
+  const [section, setSectionState] = useState(initialSection);
+  // Multi-tab workspace: every visited section stays mounted as a tab (state preserved) until closed.
+  const [tabs, setTabs] = useState(() => { const t = readTabs(); return t.includes(initialSection) ? t : [...t, initialSection].slice(-MAX_TABS); });
+  useEffect(() => { localStorage.setItem("admin_tabs", JSON.stringify(tabs)); }, [tabs]);
+  const [collapsed, setCollapsed] = useState(() => localStorage.getItem("admin_sidebar_collapsed") === "1");
+  const toggleCollapsed = () => setCollapsed((c) => { localStorage.setItem("admin_sidebar_collapsed", c ? "0" : "1"); return !c; });
+  const pushUrl = (k) => { const u = new URL(window.location.href); u.searchParams.set("s", k); window.history.pushState({}, "", u); };
+  const setSection = useCallback((k) => { setSectionState(k); setTabs((t) => (t.includes(k) ? t : [...t, k].slice(-MAX_TABS))); pushUrl(k); }, []);
+  useEffect(() => { const onPop = () => { const k = new URLSearchParams(window.location.search).get("s") || "overview"; setSectionState(k); setTabs((t) => (t.includes(k) ? t : [...t, k].slice(-MAX_TABS))); }; window.addEventListener("popstate", onPop); return () => window.removeEventListener("popstate", onPop); }, []);
+  const closeTab = (k) => {
+    const next = tabs.filter((x) => x !== k);
+    if (!next.length) next.push("overview");
+    setTabs(next);
+    if (k === section) { const i = Math.min(tabs.indexOf(k), next.length - 1); setSectionState(next[Math.max(0, i)]); pushUrl(next[Math.max(0, i)]); }
+  };
+  const closeOthers = (k) => { setTabs([k]); setSectionState(k); pushUrl(k); };
+  const closeAll = () => { setTabs(["overview"]); setSectionState("overview"); pushUrl("overview"); };
   const [open, setOpen] = useState(MENU.filter((m) => m.defaultOpen).map((m) => m.key));
   const [me, setMe] = useState(null);
   const [badges, setBadges] = useState({});
@@ -167,35 +231,40 @@ function AdminInner() {
 
   useEffect(() => { if (me && !allowed(section)) { const first = visibleMenu[0]?.items[0]?.[0] || "security"; setSection(first); } }, [me]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const render = allowed(section) ? (PAGES[section] || ((p) => <Soon title={SECTION_LABEL[section]} {...p} />)) : (() => <div className="text-slate-400 text-sm">{tr("無此模組權限")}</div>);
+  const renderPage = (k) => (allowed(k) ? (PAGES[k] || ((p) => <Soon title={SECTION_LABEL[k]} {...p} />)) : (() => <div className="text-slate-400 text-sm">{tr("無此模組權限")}</div>))({ callApi, go });
 
   return (
     <div className="admin-light min-h-screen bg-slate-950 text-slate-200 flex">
       {/* Sidebar */}
-      <aside className="w-56 md:w-64 bg-slate-900 border-r border-slate-800 flex flex-col shrink-0 sticky top-0 h-screen">
-        <div className="h-16 flex items-center gap-2 px-4 border-b border-slate-800 shrink-0">
-          <div className="h-8 w-8 rounded-lg bg-orange-500 flex items-center justify-center text-white font-black">G</div>
-          <div className="min-w-0"><span className="font-head font-bold text-white block leading-tight">{tr("管理後台")}</span>{me && <span className="text-[10px] text-slate-400 truncate block" data-testid="admin-me-role">{me.role_name || (me.is_super ? tr("超級管理員") : tr("管理員"))}</span>}</div>
+      <aside data-testid="admin-sidebar" data-collapsed={collapsed ? "1" : "0"} className={`${collapsed ? "w-16" : "w-56 md:w-64"} bg-slate-900 border-r border-slate-800 flex flex-col shrink-0 sticky top-0 h-screen transition-[width] duration-200`}>
+        <div className={`h-16 flex items-center gap-2 border-b border-slate-800 shrink-0 ${collapsed ? "justify-center px-0" : "px-4"}`}>
+          <div className="h-8 w-8 rounded-lg bg-orange-500 flex items-center justify-center text-white font-black shrink-0">G</div>
+          {!collapsed && <div className="min-w-0 flex-1"><span className="font-head font-bold text-white block leading-tight">{tr("管理後台")}</span>{me && <span className="text-[10px] text-slate-400 truncate block" data-testid="admin-me-role">{me.role_name || (me.is_super ? tr("超級管理員") : tr("管理員"))}</span>}</div>}
+          {!collapsed && <button data-testid="admin-sidebar-toggle" onClick={toggleCollapsed} title={tr("收起導航")} className="h-8 w-8 rounded-lg flex items-center justify-center text-slate-400 hover:bg-slate-100 hover:text-slate-700 shrink-0"><PanelLeftClose className="h-4 w-4" /></button>}
         </div>
-        <nav className="flex-1 py-3 space-y-0.5 px-2 overflow-y-auto">
-          {visibleMenu.map((m) => <NavGroup key={m.key} gkey={m.key} g={m.g} Icon={m.icon} items={m.items} section={section} setSection={go} open={open.includes(m.key)} toggle={() => toggle(m.key)} badges={badges} />)}
+        {collapsed && <button data-testid="admin-sidebar-toggle" onClick={toggleCollapsed} title={tr("展開導航")} className="mx-auto mt-2 h-8 w-10 rounded-lg flex items-center justify-center text-slate-400 hover:bg-slate-100 hover:text-slate-700 shrink-0"><PanelLeftOpen className="h-4 w-4" /></button>}
+        <nav className={`flex-1 py-3 space-y-0.5 px-2 ${collapsed ? "overflow-visible" : "overflow-y-auto"}`}>
+          {visibleMenu.map((m) => <NavGroup key={m.key} gkey={m.key} g={m.g} Icon={m.icon} items={m.items} section={section} setSection={go} open={open.includes(m.key)} toggle={() => toggle(m.key)} badges={badges} collapsed={collapsed} />)}
           <div className="pt-2 mt-2 border-t border-slate-800">
             {LEAVES.map(([k, label, Icon]) => (
-              <a key={k} href={`/admin?s=${k}`} data-testid={`admin-nav-${k}`} onClick={(e) => { if (e.metaKey || e.ctrlKey || e.shiftKey || e.button === 1) return; e.preventDefault(); setSection(k); }}
-                className={`w-full flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-semibold transition-colors ${section === k ? "bg-orange-500 text-white" : "text-slate-600 hover:bg-slate-100"}`}>
-                <Icon className="h-4 w-4 shrink-0" /><span className="truncate">{label}</span>
+              <a key={k} href={`/admin?s=${k}`} data-testid={`admin-nav-${k}`} title={label} onClick={(e) => { if (e.metaKey || e.ctrlKey || e.shiftKey || e.button === 1) return; e.preventDefault(); setSection(k); }}
+                className={`w-full flex items-center gap-2.5 rounded-lg text-sm font-semibold transition-colors ${collapsed ? "justify-center h-10 px-0" : "px-3 py-2"} ${section === k ? "bg-orange-500 text-white" : "text-slate-600 hover:bg-slate-100"}`}>
+                <Icon className={collapsed ? "h-[18px] w-[18px]" : "h-4 w-4 shrink-0"} />{!collapsed && <span className="truncate">{label}</span>}
               </a>
             ))}
           </div>
         </nav>
-        <button data-testid="admin-logout" onClick={() => { localStorage.removeItem("admin_token"); window.location.href = "/admin/login"; }} className="flex items-center gap-2 px-4 py-2.5 text-xs text-slate-500 hover:text-red-500 border-t border-slate-800 shrink-0"><ShieldAlert className="h-4 w-4" /> <span>{tr("登出後台")}</span></button>
-        <Link to="/" className="flex items-center gap-2 px-4 py-3 text-xs text-slate-500 hover:text-white border-t border-slate-800 shrink-0">
-          <ArrowLeft className="h-4 w-4" /> <span>{tr("返回商城")}</span>
+        <button data-testid="admin-logout" title={tr("登出後台")} onClick={() => { localStorage.removeItem("admin_token"); window.location.href = "/admin/login"; }} className={`flex items-center gap-2 py-2.5 text-xs text-slate-500 hover:text-red-500 border-t border-slate-800 shrink-0 ${collapsed ? "justify-center" : "px-4"}`}><ShieldAlert className="h-4 w-4" /> {!collapsed && <span>{tr("登出後台")}</span>}</button>
+        <Link to="/" title={tr("返回商城")} className={`flex items-center gap-2 py-3 text-xs text-slate-500 hover:text-white border-t border-slate-800 shrink-0 ${collapsed ? "justify-center" : "px-4"}`}>
+          <ArrowLeft className="h-4 w-4" /> {!collapsed && <span>{tr("返回商城")}</span>}
         </Link>
       </aside>
 
-      <main className="flex-1 min-w-0 p-4 md:p-8 overflow-x-hidden">
-        {render({ callApi, go })}
+      <main className="flex-1 min-w-0 flex flex-col overflow-x-hidden">
+        <TabBar tabs={tabs} section={section} onSelect={(k) => { setSectionState(k); pushUrl(k); }} onClose={closeTab} onCloseOthers={closeOthers} onCloseAll={closeAll} />
+        <div className="flex-1 p-4 md:p-8">
+          {tabs.map((k) => <div key={k} data-testid={`admin-tab-panel-${k}`} className={k === section ? "" : "hidden"}>{renderPage(k)}</div>)}
+        </div>
       </main>
     </div>
   );
