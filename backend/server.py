@@ -1896,8 +1896,10 @@ async def _gift_auto_review(o: dict) -> dict:
            "timeline": o.get("timeline", []) + [{"status": "processing", "at": now_iso(), "by": "system", "note": f"號碼庫命中 {hit['key']}，排定自動完成" if hit else "未命中號碼庫，待人工處理"}]}
     if hit:
         lo, hi = int(float(cfg["auto_delay_min"]) * 60), int(float(cfg["auto_delay_max"]) * 60)
-        upd["gift_dispatch_at"] = (datetime.now(timezone.utc) + timedelta(seconds=lo + (secrets.randbelow(hi - lo + 1) if hi > lo else 0))).isoformat()
-        upd["gift_countdown_at"] = (datetime.now(timezone.utc) + timedelta(seconds=90)).isoformat()
+        delay = lo + (secrets.randbelow(hi - lo + 1) if hi > lo else 0)
+        upd["gift_dispatch_at"] = (datetime.now(timezone.utc) + timedelta(seconds=delay)).isoformat()
+        upd["gift_countdown_at"] = upd["gift_dispatch_at"]
+        asyncio.create_task(_dispatch_giftcard_at(o["id"], delay))
     else:
         await db.orders.update_one({"id": o["id"]}, {"$unset": {"gift_dispatch_at": 1}})
         asyncio.create_task(giftcard_api.op_log("system", f"⚠️ 禮品卡自動審核未匹配，已轉人工 · 訂單 {o.get('order_no', '')}", 202))
@@ -1915,7 +1917,11 @@ async def auto_dispatch_giftcards(only_order_id: str = "") -> int:
     if only_order_id:
         q["id"] = only_order_id
     n = 0
-    async for o in db.orders.find(q, {"_id": 0}):
+    ids = [d["id"] async for d in db.orders.find(q, {"_id": 0, "id": 1})]
+    for oid in ids:
+        o = await db.orders.find_one_and_update({**q, "id": oid, "gift_dispatching": {"$ne": True}}, {"$set": {"gift_dispatching": True}}, projection={"_id": 0})
+        if not o:
+            continue
         nos = await dispatch_giftcards(o)
         tl = o.get("timeline", []) + [{"status": "completed", "at": now_iso(), "by": "system"}]
         await db.orders.update_one({"id": o["id"]}, {"$set": {"status": "completed", "completed_at": now_iso(), "timeline": tl, "confirmed_by": "system"}})
@@ -1923,6 +1929,15 @@ async def auto_dispatch_giftcards(only_order_id: str = "") -> int:
         _notify_completed(o, nos)
         n += 1
     return n
+
+
+async def _dispatch_giftcard_at(order_id: str, delay: int):
+    """Fire the auto-complete exactly when the customer's countdown hits zero (the 20s loop is only a fallback)."""
+    await asyncio.sleep(max(0, delay) + 0.5)
+    try:
+        await auto_dispatch_giftcards(only_order_id=order_id)
+    except Exception as e:
+        logger.warning(f"giftcard precise dispatch failed: {e}")
 
 
 async def _giftcard_dispatch_loop():

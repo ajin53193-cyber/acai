@@ -72,19 +72,25 @@ function GiftTransferring({ order, onRefresh, callApi, onCelebrate }) {
   const [left, setLeft] = useState(() => (end ? Math.max(0, end - Date.now()) : 0));
   const giftRef = useRef(null);
   useEffect(() => {
-    const t = setInterval(() => setLeft(end ? Math.max(0, end - Date.now()) : 0), 1000);
-    const poll = setInterval(() => callApi({ method: "GET", url: `/orders/${order.id}` }).then((r) => {
-      if (r.data.status !== "processing") {
-        if (r.data.status === "completed") {
-          const rect = giftRef.current?.getBoundingClientRect();
-          const origin = rect ? { x: (rect.left + rect.width / 2) / window.innerWidth, y: (rect.top + rect.height / 2) / window.innerHeight } : undefined;
-          celebrate(origin);
-          onCelebrate?.(r.data);
-        }
-        onRefresh(r.data);
+    let stopped = false;
+    const check = () => callApi({ method: "GET", url: `/orders/${order.id}` }).then((r) => {
+      if (stopped || r.data.status === "processing") return;
+      if (r.data.status === "completed") {
+        const rect = giftRef.current?.getBoundingClientRect();
+        const origin = rect ? { x: (rect.left + rect.width / 2) / window.innerWidth, y: (rect.top + rect.height / 2) / window.innerHeight } : undefined;
+        celebrate(origin);
+        onCelebrate?.(r.data);
       }
-    }).catch(() => {}), 10000);
-    return () => { clearInterval(t); clearInterval(poll); };
+      onRefresh(r.data);
+    }).catch(() => {});
+    let lastPoll = Date.now();
+    const t = setInterval(() => {
+      const l = end ? Math.max(0, end - Date.now()) : 0;
+      setLeft(l);
+      const interval = l <= 0 ? 2000 : 10000;
+      if (Date.now() - lastPoll >= interval) { lastPoll = Date.now(); check(); }
+    }, 1000);
+    return () => { stopped = true; clearInterval(t); };
   }, [end, order.id]); // eslint-disable-line react-hooks/exhaustive-deps
   const total = end && order.info_submitted_at ? Math.max(1, end - new Date(order.info_submitted_at).getTime()) : 1;
   const pct = end ? Math.min(100, Math.round(((total - left) / total) * 100)) : 60;
