@@ -37,7 +37,7 @@ const Todo = ({ icon: Icon, label, n, onClick, testId, alert }) => (
   </button>
 );
 
-const SOURCE_LABEL = { tip: tr("首訪提示條"), drawer: tr("側欄選單"), "detail-banner": tr("商品頁橫幅"), carousel: tr("輪播圖"), unknown: tr("其他") };
+const SOURCE_LABEL = { auto: tr("首訪自動彈窗"), tip: tr("首訪提示條"), drawer: tr("側欄選單"), "detail-banner": tr("商品頁橫幅"), carousel: tr("輪播圖"), unknown: tr("其他") };
 function A2HSStats({ callApi, days }) {
   const [a, setA] = useState(null);
   useEffect(() => { callApi({ method: "GET", url: `/admin/a2hs/stats?days=${days}` }).then((r) => setA(r.data)).catch(() => {}); }, [callApi, days]);
