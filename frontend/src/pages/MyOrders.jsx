@@ -37,13 +37,7 @@ function OrderInfoForm({ order, callApi, onDone }) {
     catch (e) { toast.error(e.response?.data?.detail || tr("提交失敗")); }
     setBusy(false);
   };
-  if (order.info_submitted !== false && order.is_giftcard_order && order.status === "processing" && order.gift_manual) return (
-    <div data-testid="order-gift-manual" className="w-full rounded-3xl border border-orange-200/70 bg-gradient-to-b from-[#FFE6CC] via-[#FFF1E2] to-white px-4 py-6 text-center">
-      <div className="mx-auto h-20 w-20 rounded-full overflow-hidden ring-2 ring-white/70 shadow-[0_6px_16px_-6px_rgba(232,121,42,0.6)] animate-gt-float"><img src="/giftbox-disc.png" alt="" className="h-full w-full object-cover scale-[1.08]" /></div>
-      <div className="mt-4 font-head text-lg font-bold text-orange-600">{tr("等待人工轉贈")}</div>
-      <div className="text-[13px] text-orange-900/60 mt-2 leading-6 px-2">{tr("帳號已提交，客服正在為您人工轉贈，預計 30 分鐘內完成。完成後交易號會顯示在此處。")}</div>
-    </div>
-  );
+  if (order.info_submitted !== false && order.is_giftcard_order && order.status === "processing" && order.gift_manual) return <GiftManualWaiting />;
   if (order.info_submitted !== false && order.is_giftcard_order && order.status === "processing") return <GiftTransferring order={order} onRefresh={onDone} callApi={callApi} />;
   if (order.info_submitted !== false) return <div data-testid="order-info-locked" className="w-full rounded-xl bg-orange-50 text-orange-600 text-xs px-3 py-2.5 text-center">{tr("充值資料已提交，等待人工處理；如帳號有誤將由平台駁回後開放修改")}</div>;
   if (!open) return <button data-testid="order-info-edit" onClick={() => setOpen(true)} className="w-full h-10 rounded-xl border border-orange-300 text-orange-600 text-sm font-semibold hover:bg-orange-50">{tr("填寫充值資料")}</button>;
@@ -71,6 +65,16 @@ function OrderInfoForm({ order, callApi, onDone }) {
         </div>
       ))}
       <button data-testid="order-info-submit" onClick={submit} disabled={busy} className="w-full h-11 rounded-full bg-orange-500 text-white font-bold hover:bg-orange-600 disabled:opacity-60">{busy ? tr("提交中…") : tr("提交充值資料")}</button>
+    </div>
+  );
+}
+
+function GiftManualWaiting() {
+  return (
+    <div data-testid="order-gift-manual" className="w-full rounded-3xl border border-orange-200/70 bg-gradient-to-b from-[#FFE6CC] via-[#FFF1E2] to-white px-4 py-6 text-center">
+      <div className="mx-auto h-20 w-20 rounded-full overflow-hidden ring-2 ring-white/70 shadow-[0_6px_16px_-6px_rgba(232,121,42,0.6)] animate-gt-float"><img src="/giftbox-disc.png" alt="" className="h-full w-full object-cover scale-[1.08]" /></div>
+      <div className="mt-4 font-head text-lg font-bold text-orange-600">{tr("等待人工轉贈")}</div>
+      <div className="text-[13px] text-orange-900/60 mt-2 leading-6 px-2">{tr("帳號已提交，客服正在為您人工轉贈，預計 30 分鐘內完成。完成後交易號會顯示在此處。")}</div>
     </div>
   );
 }
@@ -336,7 +340,8 @@ function OrdersInner() {
                   ))}
                 </div>
 
-                {detail.is_giftcard_order && detail.status === "processing" && (
+                {detail.is_giftcard_order && detail.status === "processing" && detail.gift_manual && <GiftManualWaiting />}
+                {detail.is_giftcard_order && detail.status === "processing" && !detail.gift_manual && (
                   <GiftTransferring order={detail} callApi={callApi} onCelebrate={showCelebration} onRefresh={(o) => { setDetail(o); load(); }} />
                 )}
 
