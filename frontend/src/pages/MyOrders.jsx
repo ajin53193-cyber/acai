@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
-import { Copy, Package, Check, Gift, Search, X } from "lucide-react";
+import { Copy, Package, Check, CheckCircle2, Gift, Search, X } from "lucide-react";
 import { toast } from "sonner";
 import { useApi } from "@/lib/api";
 import { celebrate } from "@/lib/celebrate";
@@ -392,18 +392,22 @@ function OrdersInner() {
 
       {celebrateInfo && (
         <div className="fixed inset-0 z-[9998] flex items-center justify-center px-6 bg-black/35 backdrop-blur-sm" data-testid="order-celebrate-overlay" onClick={() => setCelebrateInfo(null)}>
-          <div className="animate-gt-pop max-w-xs w-full rounded-3xl border border-orange-200 bg-white px-5 py-5 text-center shadow-[0_24px_60px_-20px_rgba(0,0,0,0.5)]" onClick={(e) => e.stopPropagation()}>
-            {celebrateInfo.img ? (
-              <div className="mb-3 relative w-full overflow-hidden rounded-xl ring-1 ring-black/5 shadow-md animate-gt-float" style={{ aspectRatio: "1.586" }}>
-                <img src={celebrateInfo.img} alt="" className="absolute inset-0 h-full w-full object-cover" />
-              </div>
-            ) : (
-              <div className="mx-auto mb-3 h-16 w-16 rounded-full overflow-hidden ring-2 ring-white shadow-md animate-gt-float">
-                <img src="/giftbox-disc.png" alt="" className="h-full w-full object-cover scale-[1.08]" />
-              </div>
-            )}
-            <div className="font-cute text-lg text-orange-600 leading-7">{celebrateInfo.msg}</div>
-            <button onClick={() => setCelebrateInfo(null)} data-testid="order-celebrate-close" className="mt-4 h-9 px-6 rounded-full bg-gradient-to-r from-orange-500 to-amber-500 text-white text-sm font-bold shadow-md shadow-orange-200/70">{tr("好的")}</button>
+          <div className="animate-gt-pop max-w-xs w-full rounded-[28px] bg-[#FFF4EA] [background-image:radial-gradient(rgba(255,255,255,0.9)_1.5px,transparent_1.5px)] [background-size:18px_18px] p-2 shadow-[0_24px_60px_-20px_rgba(232,121,42,0.55)]" onClick={(e) => e.stopPropagation()}>
+            <div className="rounded-[22px] bg-white px-5 pt-5 pb-5 text-center">
+              <div className="inline-flex items-center gap-1.5 rounded-full bg-[#FDEBD9] text-orange-500 px-3 py-1 text-xs font-bold mb-3"><CheckCircle2 className="h-3.5 w-3.5" />{tr("轉贈成功")}</div>
+              {celebrateInfo.img ? (
+                <div className="mb-4 relative w-full overflow-hidden rounded-2xl ring-1 ring-black/5 shadow-md animate-gt-float" style={{ aspectRatio: "1.586" }}>
+                  <img src={celebrateInfo.img} alt="" className="absolute inset-0 h-full w-full object-cover" />
+                </div>
+              ) : (
+                <div className="mx-auto mb-4 h-20 w-20 rounded-full overflow-hidden ring-4 ring-[#FDEBD9] shadow-md animate-gt-float">
+                  <img src="/giftbox-disc.png" alt="" className="h-full w-full object-cover scale-[1.08]" />
+                </div>
+              )}
+              <div className="font-head text-base md:text-lg font-bold text-slate-900 leading-relaxed">{celebrateInfo.msg}</div>
+              <div className="text-xs text-slate-500 mt-1.5">{tr("交易號已顯示在訂單詳情，可隨時查看")}</div>
+              <button onClick={() => setCelebrateInfo(null)} data-testid="order-celebrate-close" className="mt-5 w-full h-11 rounded-full bg-gradient-to-r from-[#F0872E] to-[#F6A04A] text-white text-sm font-bold shadow-[0_10px_24px_-10px_rgba(240,135,46,0.8)] active:scale-[0.98] transition-transform">{tr("好的")}</button>
+            </div>
           </div>
         </div>
       )}
