@@ -57,6 +57,9 @@ export default function ServiceWidget() {
     return () => { vvp.removeEventListener("resize", update); vvp.removeEventListener("scroll", update); setVv(null); };
   }, [open]);
 
+  // Floating window: on mobile, keep it above the on-screen keyboard and the launcher button.
+  const panelStyle = vv ? { bottom: Math.max(window.innerHeight - (vv.top + vv.height) + 12, 12), maxHeight: vv.height - 24 } : undefined;
+
   const call = useCallback(async (cfg) => {
     const token = isSignedIn ? await getToken().catch(() => null) : null;
     return axios({ ...cfg, url: `${API}${cfg.url}`, headers: { "X-Lang": API_LANG, ...(token ? { Authorization: `Bearer ${token}` } : {}) } });
@@ -123,18 +126,30 @@ export default function ServiceWidget() {
     setBusy(false);
   };
 
+  const closeWidget = useCallback(() => {
+    if (session?.id) call({ method: "POST", url: `/chat/sessions/${session.id}/close`, data: { guest_id: guestId() } }).catch(() => {});
+    setOpen(false);
+  }, [session, call]);
+
+  const endSession = async () => {
+    if (busy) return;
+    if (session?.id) await call({ method: "POST", url: `/chat/sessions/${session.id}/end`, data: { guest_id: guestId() } }).catch(() => {});
+    setSession(null); setMsgs([]); lastRef.current = ""; setUnread(0);
+  };
+
   return (
     <>
       {open && (
         <>
-          <div className="fixed inset-0 z-40 md:hidden bg-black/30" onClick={() => setOpen(false)} />
-          <div data-testid="service-widget-panel" style={vv ? { top: vv.top, height: vv.height, bottom: "auto" } : undefined} className="fixed z-50 bg-white flex flex-col overflow-hidden top-0 bottom-0 left-0 right-0 md:top-auto md:left-auto md:bottom-24 md:right-6 md:w-[380px] md:h-[560px] md:max-h-[calc(100vh-7rem)] md:rounded-2xl md:shadow-2xl md:border md:border-orange-100">
-            <div className="bg-gradient-to-r from-[#F0872E] to-[#E8792A] text-white px-4 pb-3 pt-[calc(env(safe-area-inset-top)+0.75rem)] md:pt-3 shrink-0">
+          <div className="fixed inset-0 z-40 md:hidden bg-black/30" onClick={closeWidget} />
+          <div data-testid="service-widget-panel" style={panelStyle} className="fixed z-50 bg-white flex flex-col overflow-hidden rounded-2xl shadow-2xl border border-orange-100 left-3 right-3 bottom-[5.5rem] h-[72vh] max-h-[34rem] md:left-auto md:right-6 md:bottom-24 md:w-[380px] md:h-[560px] md:max-h-[calc(100vh-7rem)]">
+            <div className="bg-gradient-to-r from-[#F0872E] to-[#E8792A] text-white px-4 py-3 shrink-0">
               <div className="flex items-center justify-between">
                 <span className="font-head font-bold flex items-center gap-2"><Headphones className="h-4 w-4" />{tr("線上客服")}</span>
                 <div className="flex items-center gap-1.5">
                   <a data-testid="service-widget-whatsapp" href={settings.whatsapp_link} target="_blank" rel="noreferrer" title={settings.cs_label} className="h-7 px-2.5 rounded-full bg-[#25D366] text-white text-[11px] font-bold flex items-center gap-1 hover:brightness-95"><MessageCircle className="h-3.5 w-3.5" />WhatsApp</a>
-                  <button data-testid="service-widget-close" onClick={() => setOpen(false)} className="h-7 w-7 rounded-full bg-white/20 hover:bg-white/30 flex items-center justify-center"><X className="h-4 w-4" /></button>
+                  {session?.id && msgs.length > 0 && <button data-testid="service-widget-end" onClick={endSession} title={tr("結束並清除此對話")} className="h-7 px-2.5 rounded-full bg-white/20 hover:bg-white/30 text-white text-[11px] font-bold flex items-center">{tr("結束")}</button>}
+                  <button data-testid="service-widget-close" onClick={closeWidget} className="h-7 w-7 rounded-full bg-white/20 hover:bg-white/30 flex items-center justify-center"><X className="h-4 w-4" /></button>
                 </div>
               </div>
               <p className="text-xs text-white/85 mt-1 flex items-center gap-1" data-testid="service-chat-status">
@@ -154,7 +169,7 @@ export default function ServiceWidget() {
               {msgs.map((m) => <Bubble key={m.id} m={m} />)}
               <div ref={bottomRef} />
             </div>
-            <div className="border-t border-slate-100 p-2.5 pb-[calc(env(safe-area-inset-bottom)+0.625rem)] md:pb-2.5 shrink-0 bg-white">
+            <div className="border-t border-slate-100 p-2.5 shrink-0 bg-white">
               {file && <div className="flex items-center gap-2 mb-2 text-xs text-slate-600"><img src={URL.createObjectURL(file)} alt="" className="h-10 w-10 rounded-lg object-cover" /><span className="truncate flex-1">{file.name}</span><button onClick={() => setFile(null)} className="text-slate-400 hover:text-red-500 px-1">✕</button></div>}
               <div className="flex items-end gap-2">
                 <label className="h-10 w-10 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center cursor-pointer text-slate-500 shrink-0" title={tr("發送圖片")}><ImagePlus className="h-5 w-5" /><input data-testid="service-chat-image" type="file" accept="image/*" className="hidden" onChange={(e) => setFile(e.target.files?.[0] || null)} /></label>
@@ -173,7 +188,7 @@ export default function ServiceWidget() {
       )}
       <button
         data-testid="service-widget-trigger"
-        onClick={() => setOpen((v) => !v)}
+        onClick={() => (open ? closeWidget() : setOpen(true))}
         className="fixed bottom-20 right-4 md:bottom-6 md:right-6 z-40 h-14 w-14 safe-bottom-offset rounded-full bg-white/90 md:bg-gradient-to-br md:from-[#F0872E] md:to-[#E8792A] text-orange-500 md:text-white shadow-xl flex items-center justify-center hover:scale-105 transition-transform"
       >
         {open ? <X className="h-6 w-6" /> : <Headphones className="h-6 w-6" />}

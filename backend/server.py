@@ -2026,6 +2026,7 @@ async def _giftcard_dispatch_loop():
         try:
             await auto_dispatch_giftcards()
             await _sweep_giftcard_failures()
+            await chat_api.sweep_closed_sessions()
         except Exception as e:
             logger.warning(f"giftcard auto dispatch failed: {e}")
         await asyncio.sleep(20)

@@ -52,6 +52,13 @@ class SessionPatch(BaseModel):
     status: str
 
 
+class EndIn(BaseModel):
+    guest_id: str = ""
+
+
+CHAT_CLOSE_TTL = 600  # auto-delete a session 10 minutes after the visitor closes the widget
+
+
 class QuickReply(BaseModel):
     q: str
     a: str
@@ -145,9 +152,9 @@ async def open_session(body: SessionIn, request: Request):
         info = await _member_info(user["user_id"])
         patch = {k: v for k, v in info.items() if v}
     if s:
-        if patch or (s.get("guest_id") != body.guest_id):
-            await db.chat_sessions.update_one({"id": s["id"]}, {"$set": {**patch, "guest_id": body.guest_id}})
-            s.update(patch)
+        upd = {**patch, "guest_id": body.guest_id, "closed_at": ""}
+        await db.chat_sessions.update_one({"id": s["id"]}, {"$set": upd})
+        s.update(upd)
         return s
     doc = {"id": uuid.uuid4().hex, "guest_id": body.guest_id, "user_id": user["user_id"] if user else "", "name": body.name[:60], "contact": body.contact[:120],
            "status": "open", "last_message": "", "last_at": now_iso(), "last_sender": "", "unread_admin": 0, "unread_user": 0, "created_at": now_iso(),
@@ -194,9 +201,9 @@ async def user_send(sid: str, body: MessageIn, request: Request):
         ans = {"id": uuid.uuid4().hex, "session_id": sid, "sender": "admin", "text": qr["a"], "image": "", "auto": True, "admin_name": "自動回覆", "created_at": now_iso()}
         await db.chat_messages.insert_one(ans)
         ans.pop("_id", None)
-        await db.chat_sessions.update_one({"id": sid}, {"$set": {"last_message": qr["a"], "last_at": ans["created_at"], "last_sender": "admin", "status": "open"}})
+        await db.chat_sessions.update_one({"id": sid}, {"$set": {"last_message": qr["a"], "last_at": ans["created_at"], "last_sender": "admin", "status": "open", "closed_at": ""}})
         return {**msg, "reply": ans}
-    await db.chat_sessions.update_one({"id": sid}, {"$set": {"last_message": text or "[圖片]", "last_at": msg["created_at"], "last_sender": "user", "status": "open"}, "$inc": {"unread_admin": 1}})
+    await db.chat_sessions.update_one({"id": sid}, {"$set": {"last_message": text or "[圖片]", "last_at": msg["created_at"], "last_sender": "user", "status": "open", "closed_at": ""}, "$inc": {"unread_admin": 1}})
     hours = await get_hours()
     if not is_online(hours):
         last = s.get("after_hours_at") or ""
@@ -214,6 +221,44 @@ async def chat_status():
     h = await get_hours()
     online = is_online(h)
     return {"online": online, "start": h["start"], "end": h["end"], "tz": h["tz"], "message": "" if online else hours_message(h)}
+
+
+@router.post("/chat/sessions/{sid}/close")
+async def user_close_session(sid: str, body: EndIn, request: Request):
+    """Visitor closed the widget: stamp closed_at so the sweeper deletes it after CHAT_CLOSE_TTL."""
+    user = _optional_user(request)
+    try:
+        s = await db.chat_sessions.find_one(await _owner_cond(sid, body.guest_id, user), {"_id": 0, "id": 1})
+    except HTTPException:
+        return {"ok": True}
+    if s:
+        await db.chat_sessions.update_one({"id": sid}, {"$set": {"closed_at": now_iso()}})
+    return {"ok": True}
+
+
+@router.post("/chat/sessions/{sid}/end")
+async def user_end_session(sid: str, body: EndIn, request: Request):
+    """Visitor tapped 結束: immediately end the conversation and delete its records."""
+    user = _optional_user(request)
+    try:
+        s = await db.chat_sessions.find_one(await _owner_cond(sid, body.guest_id, user), {"_id": 0, "id": 1})
+    except HTTPException:
+        return {"ok": True}
+    if s:
+        await db.chat_messages.delete_many({"session_id": sid})
+        await db.chat_sessions.delete_one({"id": sid})
+    return {"ok": True}
+
+
+async def sweep_closed_sessions():
+    """Delete sessions (and their messages) that the visitor closed over CHAT_CLOSE_TTL seconds ago."""
+    cutoff = (datetime.now(timezone.utc) - timedelta(seconds=CHAT_CLOSE_TTL)).isoformat()
+    stale = await db.chat_sessions.find({"closed_at": {"$gt": "", "$lte": cutoff}}, {"_id": 0, "id": 1}).to_list(500)
+    if not stale:
+        return
+    ids = [s["id"] for s in stale]
+    await db.chat_messages.delete_many({"session_id": {"$in": ids}})
+    await db.chat_sessions.delete_many({"id": {"$in": ids}})
 
 
 @router.get("/me/chat/sessions")
