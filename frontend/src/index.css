@@ -171,7 +171,7 @@ code, .font-mono {
 .gt-toast-icon-warn { background: #FEF3C7; color: #D97706; }
 
 
-#root { overflow-x: clip; }
+#root { overflow-x: clip; min-height: 100vh; }
 
 /* Admin console light theme (Kavip merchant style) — remaps legacy dark utility classes */
 .admin-light.bg-slate-950, .admin-light .bg-slate-950 { background-color: #f5f6f8 !important; }

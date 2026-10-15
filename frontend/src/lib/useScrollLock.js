@@ -3,17 +3,63 @@ import { useEffect, useRef } from "react";
 // Freezes background scroll while a fixed modal/sheet is open — applied globally
 // to every Dialog/Sheet/AlertDialog. Fixes the iOS Safari (incl. mobile "desktop
 // mode") bug where focusing an input inside a position:fixed container scrolls the
-// whole window and pushes the panel off-screen. body:position:fixed removes any
-// window-level scrollable area, so the browser scrolls the panel's internal
-// overflow container instead.
+// whole window and pushes the panel off-screen.
+//
+// Two layers of defense:
+//  1. body:position:fixed removes the window-level scrollable area.
+//  2. While locked, any layout-viewport scroll iOS still forces when the keyboard
+//     opens is immediately undone (scrollTo 0,0), and the open panel is re-anchored
+//     to the *visual* viewport (visualViewport.offsetTop/height) so the focused
+//     input is already visible above the keyboard and Safari has no reason to pan.
 //
 // IMPORTANT: Must be rendered as a CHILD of the Radix *Primitive.Content, which is
-// only mounted when the dialog is actually open (Radix Presence). Mounting the hook
-// at the wrapper level would lock scroll even while closed, because wrappers like
-// CartDrawer/AuthModal render <SheetContent>/<DialogContent> unconditionally.
+// only mounted when the dialog is actually open (Radix Presence).
 const activeLocks = new Set();
+const followers = new Set();
 let savedScrollY = 0;
 let savedStyles = null;
+let listening = false;
+const FOLLOW_PROPS = ["top", "bottom", "height", "maxHeight", "overflowY"];
+
+function anchorToVisualViewport() {
+  if (activeLocks.size === 0) return;
+  if (window.scrollY || document.documentElement.scrollTop) window.scrollTo(0, 0);
+  const vv = window.visualViewport;
+  if (!vv) return;
+  const shifted = vv.offsetTop > 1 || window.innerHeight - vv.height > 60;
+  followers.forEach(({ el, side }) => {
+    if (!shifted) { FOLLOW_PROPS.forEach((p) => { el.style[p] = ""; }); return; }
+    el.style.maxHeight = `${vv.height}px`;
+    el.style.overflowY = "auto";
+    if (side === "center") {
+      el.style.top = `${vv.offsetTop + vv.height / 2}px`;
+    } else if (side === "bottom") {
+      const h = Math.min(el.offsetHeight, vv.height);
+      el.style.bottom = "auto";
+      el.style.top = `${vv.offsetTop + vv.height - h}px`;
+    } else {
+      el.style.bottom = "auto";
+      el.style.top = `${vv.offsetTop}px`;
+      if (side === "left" || side === "right") el.style.height = `${vv.height}px`;
+    }
+  });
+}
+
+let focusTimer = null;
+function onFocusIn() {
+  clearTimeout(focusTimer);
+  focusTimer = setTimeout(anchorToVisualViewport, 350);
+}
+
+function setListening(on) {
+  if (on === listening) return;
+  listening = on;
+  const vv = window.visualViewport;
+  const m = on ? "addEventListener" : "removeEventListener";
+  window[m]("scroll", anchorToVisualViewport, { passive: true });
+  document[m]("focusin", onFocusIn);
+  if (vv) { vv[m]("resize", anchorToVisualViewport); vv[m]("scroll", anchorToVisualViewport); }
+}
 
 function reconcile() {
   const b = document.body;
@@ -25,7 +71,9 @@ function reconcile() {
     b.style.left = "0";
     b.style.right = "0";
     b.style.width = "100%";
+    setListening(true);
   } else if (activeLocks.size === 0 && savedStyles) {
+    setListening(false);
     b.style.position = savedStyles.position;
     b.style.top = savedStyles.top;
     b.style.left = savedStyles.left;
@@ -48,7 +96,17 @@ export function useScrollLock(enabled = true) {
 }
 
 // Render inside a Radix *Primitive.Content to lock background scroll only while open.
-export function ScrollLock() {
+// `side`: "center" (dialog) | "left" | "right" | "top" | "bottom" (sheet).
+export function ScrollLock({ side = "center" }) {
   useScrollLock(true);
-  return null;
+  const marker = useRef(null);
+  useEffect(() => {
+    const el = marker.current?.parentElement;
+    if (!el) return;
+    const f = { el, side };
+    followers.add(f);
+    anchorToVisualViewport();
+    return () => { followers.delete(f); FOLLOW_PROPS.forEach((p) => { el.style[p] = ""; }); };
+  }, [side]);
+  return <span ref={marker} hidden data-scroll-lock-marker="" />;
 }

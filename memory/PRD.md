@@ -32,6 +32,10 @@
 
 ## 关键信息
 - 全站模态滚动锁定：`/app/frontend/src/lib/useScrollLock.js` 导出 `<ScrollLock/>`，已内置进 dialog.jsx / sheet.jsx / alert-dialog.jsx 的 Radix `*Primitive.Content` 内部（仅弹窗真正打开时挂载）。打开任意 Dialog/Sheet/AlertDialog 时 body 变 `position:fixed` 冻结背景，修复 iOS/手机桌面版点击输入框整页上移的 bug。vaul Drawer 自带锁定，勿叠加。切勿把锁挂在 Content 外层包装组件（会被 CartDrawer/AuthModal 无条件渲染而首屏锁死）。
+- (2026-06) iOS「添加到主屏幕」PWA 键盘专项修复：用户所说「手机桌面端」= 主屏幕 PWA（standalone）。两层修复：
+  1) `useScrollLock.js` 锁定期间监听 window scroll / visualViewport resize+scroll / focusin：强制 scrollY 归 0，并把打开的 Dialog/Sheet 以内联 top/height 重新锚定到 visualViewport（`<ScrollLock side=...>`，sheet.jsx 已传 side），让输入框始终在键盘上方可见，Safari 无需再推页面。
+  2) `/app/frontend/src/lib/iosViewportFix.js`（index.js 引入）：修复 standalone 下键盘收起后 innerHeight/100dvh 永久缩小、底部 fixed 按钮条上浮的 WebKit bug——在 input/textarea focusout、vv resize、visibilitychange 后，若 innerHeight 小于基线(maxVH / screen.height) 则对 `#root` 做 display none→"" 同步 reflow 强制重新测量视口并恢复 scrollY。仅 iOS UA 生效。`#root` 已加 `min-height:100vh`。
+  均无法在 Playwright 真机复现，需用户在 iPhone 上验证（先彻底关闭 PWA 再重开以清缓存）。
 - Admin Login: /admin/login | admin@gogo589.com | Gg589!kVTEyEy16n | TOTP Secret 2FAI3HWF6WYDNSQC7DNSUGKZ4HWQBMOH
 - 角标：前端 /admin/me 每 30s 轮询 { badge: { manual } }。
 - 倒计时：GiftTransferring 依赖 order.gift_dispatch_at / info_submitted_at / is_giftcard_order。

@@ -2,6 +2,7 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import "@/index.css";
+import "@/lib/iosViewportFix";
 import App from "@/App";
 import { Toaster } from "@/components/ui/sonner";
 import { CheckCircle2, XCircle, Info, AlertTriangle } from "lucide-react";
