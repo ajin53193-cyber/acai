@@ -1,8 +1,10 @@
 import { useEffect, useState, useCallback } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
-import { Copy, Package, Check, Gift } from "lucide-react";
+import { Copy, Package, Check, Gift, Share2 } from "lucide-react";
 import { toast } from "sonner";
 import { useApi } from "@/lib/api";
+import { celebrate } from "@/lib/celebrate";
+import { makeGiftShareBlob } from "@/lib/giftShareImage";
 import { useCart } from "@/context/CartContext";
 import { Panel, SubTabs } from "@/pages/account/AccountLayout";
 import { useCurrency } from "@/context/CurrencyContext";
@@ -71,7 +73,7 @@ function GiftTransferring({ order, onRefresh, callApi }) {
   const [left, setLeft] = useState(() => (end ? Math.max(0, end - Date.now()) : 0));
   useEffect(() => {
     const t = setInterval(() => setLeft(end ? Math.max(0, end - Date.now()) : 0), 1000);
-    const poll = setInterval(() => callApi({ method: "GET", url: `/orders/${order.id}` }).then((r) => { if (r.data.status !== "processing") onRefresh(r.data); }).catch(() => {}), 10000);
+    const poll = setInterval(() => callApi({ method: "GET", url: `/orders/${order.id}` }).then((r) => { if (r.data.status !== "processing") { if (r.data.status === "completed") celebrate(); onRefresh(r.data); } }).catch(() => {}), 10000);
     return () => { clearInterval(t); clearInterval(poll); };
   }, [end, order.id]); // eslint-disable-line react-hooks/exhaustive-deps
   const total = end && order.info_submitted_at ? Math.max(1, end - new Date(order.info_submitted_at).getTime()) : 1;
@@ -135,6 +137,42 @@ function OrdersInner() {
     toast.success(tr("已複製"));
   };
 
+  const [shareTarget, setShareTarget] = useState(null);
+  const [shareBusy, setShareBusy] = useState(false);
+
+  useEffect(() => {
+    if (!shareTarget) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const blob = await makeGiftShareBlob(shareTarget, {
+          brand: `gogo589 · ${tr("禮品卡")}`,
+          sub: tr("轉贈成功 · 交易號"),
+          note: tr("請憑此交易號核銷，並妥善保管"),
+        });
+        if (cancelled || !blob) throw new Error("blob");
+        const file = new File([blob], `giftcard-${shareTarget.trade_no}.png`, { type: "image/png" });
+        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+          await navigator.share({ files: [file], title: tr("禮品卡交易號"), text: tr("您的禮品卡交易號：") + shareTarget.trade_no });
+        } else {
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.href = url;
+          a.download = file.name;
+          a.click();
+          setTimeout(() => URL.revokeObjectURL(url), 1000);
+          toast.success(tr("圖片已儲存，可轉發給收禮人"));
+        }
+      } catch (e) {
+        if (!/AbortError/.test(e?.name || "")) toast.error(tr("生成圖片失敗，請重試"));
+      }
+      if (!cancelled) { setShareBusy(false); setShareTarget(null); }
+    })();
+    return () => { cancelled = true; };
+  }, [shareTarget]);
+
+  const shareGift = (g) => { setShareBusy(true); setShareTarget(g); };
+
   const payNow = async (order) => {
     setPaying(true);
     try {
@@ -195,7 +233,10 @@ function OrdersInner() {
                       {o.gift_trade_nos.map((g, i) => (
                         <div key={i} className="mt-2 flex items-center justify-between gap-2 rounded-xl bg-white/70 px-2.5 py-2">
                           <span className="font-mono text-base md:text-lg tracking-wider text-slate-800 break-all" data-testid={`order-gift-trade-no-${o.id}-${i}`}>{g.trade_no}</span>
-                          <button onClick={() => copy(g.trade_no)} data-testid={`order-gift-trade-copy-${o.id}-${i}`} className="shrink-0 inline-flex items-center gap-1 text-orange-500 text-sm font-semibold hover:text-orange-600"><Copy className="h-4 w-4" />{tr("複製")}</button>
+                          <div className="flex shrink-0 items-center gap-1.5">
+                          <button onClick={() => copy(g.trade_no)} data-testid={`order-gift-trade-copy-${o.id}-${i}`} className="inline-flex items-center gap-1 text-orange-500 text-sm font-semibold hover:text-orange-600"><Copy className="h-4 w-4" />{tr("複製")}</button>
+                          <button onClick={() => shareGift(g)} disabled={shareBusy} data-testid={`order-gift-share-${o.id}-${i}`} className="inline-flex items-center gap-1 text-orange-500 text-sm font-semibold hover:text-orange-600"><Share2 className="h-4 w-4" />{tr("分享")}</button>
+                        </div>
                         </div>
                       ))}
                     </div>
@@ -280,7 +321,10 @@ function OrdersInner() {
                         {detail.gift_trade_nos.map((g, i) => (
                           <div key={i} className="flex items-center justify-between gap-2 rounded-xl bg-white/70 px-3 py-2.5">
                             <div className="min-w-0"><div className="font-mono text-base tracking-wider text-slate-800 break-all">{g.trade_no}</div><div className="text-[11px] text-slate-500 mt-0.5">{g.product_name} {g.spec_label}</div></div>
-                            <button onClick={() => copy(g.trade_no)} className="shrink-0 inline-flex items-center gap-1 text-orange-500 text-sm font-semibold hover:text-orange-600"><Copy className="h-4 w-4" />{tr("複製")}</button>
+                          <div className="flex shrink-0 items-center gap-1.5">
+                            <button onClick={() => copy(g.trade_no)} className="inline-flex items-center gap-1 rounded-full bg-white px-2.5 py-1.5 text-orange-500 text-xs font-semibold shadow-sm hover:text-orange-600"><Copy className="h-3.5 w-3.5" />{tr("複製")}</button>
+                            <button onClick={() => shareGift(g)} disabled={shareBusy} data-testid="order-gift-share" className="inline-flex items-center gap-1 rounded-full bg-orange-500 px-2.5 py-1.5 text-white text-xs font-semibold shadow-sm hover:bg-orange-600 disabled:opacity-60"><Share2 className="h-3.5 w-3.5" />{shareBusy ? tr("生成中…") : tr("分享")}</button>
+                          </div>
                           </div>
                         ))}
                       </div>

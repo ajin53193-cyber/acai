@@ -95,7 +95,7 @@ function AuthModal({ open, onOpenChange, initialView = "login" }) {
   };
 
   async function sendCode() {
-    if (!siLoaded) return;
+    if (!siLoaded) return toast.error(tr("登入服務載入中，請稍候再試"));
     if (!identifier) return toast.error(tab === "phone" ? tr("請輸入手機號碼") : tr("請輸入信箱"));
     const phoneFull = toE164(dialCode, identifier);
     if (tab === "phone" && !isValidPhone(phoneFull))
@@ -114,7 +114,7 @@ function AuthModal({ open, onOpenChange, initialView = "login" }) {
 
   async function submit() {
     if (!agree) return toast.error(tr("請先勾選同意條款與條件"));
-    if (!siLoaded) return;
+    if (!siLoaded) return toast.error(tr("登入服務載入中，請稍候再試"));
     setLoading(true);
     try {
       if (tab === "account") {
