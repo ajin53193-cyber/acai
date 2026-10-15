@@ -75,11 +75,11 @@ const NavGroup = ({ gkey, g, Icon, items, section, setSection, open, toggle, bad
       {open && (
         <div className="mt-0.5 mb-1 ml-3.5 pl-3 border-l border-slate-200 space-y-0.5">
           {items.map(([k, label]) => (
-            <button key={k} data-testid={`admin-nav-${k}`} onClick={() => setSection(k)}
+            <a key={k} href={`/admin?s=${k}`} data-testid={`admin-nav-${k}`} onClick={(e) => { if (e.metaKey || e.ctrlKey || e.shiftKey || e.button === 1) return; e.preventDefault(); setSection(k); }}
               className={`w-full flex items-center gap-2 rounded-md px-2.5 py-1.5 text-[13px] transition-colors ${section === k ? "bg-orange-500 text-white font-semibold" : "text-slate-500 hover:bg-slate-100 hover:text-slate-800"}`}>
               <span className="truncate">{label}</span>
               <Badge n={badges[k] || 0} testId={`admin-nav-badge-${k}`} />
-            </button>
+            </a>
           ))}
         </div>
       )}
@@ -134,7 +134,10 @@ const PAGES = {
 
 function AdminInner() {
   const callApi = useApi();
-  const [section, setSection] = useState("overview");
+  const [section, setSectionState] = useState(() => new URLSearchParams(window.location.search).get("s") || "overview");
+  // URL-addressable sections so admins can open several pages in separate tabs (right-click / Cmd+click on the menu)
+  const setSection = useCallback((k) => { setSectionState(k); const u = new URL(window.location.href); u.searchParams.set("s", k); window.history.pushState({}, "", u); }, []);
+  useEffect(() => { const onPop = () => setSectionState(new URLSearchParams(window.location.search).get("s") || "overview"); window.addEventListener("popstate", onPop); return () => window.removeEventListener("popstate", onPop); }, []);
   const [open, setOpen] = useState(MENU.filter((m) => m.defaultOpen).map((m) => m.key));
   const [me, setMe] = useState(null);
   const [badges, setBadges] = useState({});
@@ -178,14 +181,14 @@ function AdminInner() {
           {visibleMenu.map((m) => <NavGroup key={m.key} gkey={m.key} g={m.g} Icon={m.icon} items={m.items} section={section} setSection={go} open={open.includes(m.key)} toggle={() => toggle(m.key)} badges={badges} />)}
           <div className="pt-2 mt-2 border-t border-slate-800">
             {LEAVES.map(([k, label, Icon]) => (
-              <button key={k} data-testid={`admin-nav-${k}`} onClick={() => setSection(k)}
+              <a key={k} href={`/admin?s=${k}`} data-testid={`admin-nav-${k}`} onClick={(e) => { if (e.metaKey || e.ctrlKey || e.shiftKey || e.button === 1) return; e.preventDefault(); setSection(k); }}
                 className={`w-full flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-semibold transition-colors ${section === k ? "bg-orange-500 text-white" : "text-slate-600 hover:bg-slate-100"}`}>
                 <Icon className="h-4 w-4 shrink-0" /><span className="truncate">{label}</span>
-              </button>
+              </a>
             ))}
           </div>
         </nav>
-        <button data-testid="admin-logout" onClick={() => { sessionStorage.removeItem("admin_token"); window.location.href = "/admin/login"; }} className="flex items-center gap-2 px-4 py-2.5 text-xs text-slate-500 hover:text-red-500 border-t border-slate-800 shrink-0"><ShieldAlert className="h-4 w-4" /> <span>{tr("登出後台")}</span></button>
+        <button data-testid="admin-logout" onClick={() => { localStorage.removeItem("admin_token"); window.location.href = "/admin/login"; }} className="flex items-center gap-2 px-4 py-2.5 text-xs text-slate-500 hover:text-red-500 border-t border-slate-800 shrink-0"><ShieldAlert className="h-4 w-4" /> <span>{tr("登出後台")}</span></button>
         <Link to="/" className="flex items-center gap-2 px-4 py-3 text-xs text-slate-500 hover:text-white border-t border-slate-800 shrink-0">
           <ArrowLeft className="h-4 w-4" /> <span>{tr("返回商城")}</span>
         </Link>
@@ -315,9 +318,9 @@ export default function Admin() {
 
   useEffect(() => {
     if (!isLoaded) return;
-    if (!isSignedIn || !sessionStorage.getItem("admin_token")) { navigate("/admin/login", { replace: true }); return; }
+    if (!isSignedIn || !localStorage.getItem("admin_token")) { navigate("/admin/login", { replace: true }); return; }
     callApi({ method: "GET", url: "/me" }).then((r) => setRole(r.data.role)).catch(() => setRole("member"));
-    callApi({ method: "GET", url: "/admin/notifications" }).catch((e) => { if (e.response?.status === 401) { sessionStorage.removeItem("admin_token"); navigate("/admin/login", { replace: true }); } });
+    callApi({ method: "GET", url: "/admin/notifications" }).catch((e) => { if (e.response?.status === 401) { localStorage.removeItem("admin_token"); navigate("/admin/login", { replace: true }); } });
   }, [isLoaded, isSignedIn, callApi, navigate]);
 
   if (!isLoaded || (isSignedIn && role === null)) return <div className="min-h-screen bg-slate-950 flex items-center justify-center"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>;

@@ -122,7 +122,7 @@ export function GiftCardOrdersAdmin({ callApi }) {
         <Btn data-testid="gco-bulk-cancel" kind="ghost" onClick={() => act("cancel", sel)}>{tr("取消訂單")}</Btn>
       </Card>
       <Card className="overflow-hidden">
-        <Table testId="gco-table" cols={[<input key="all" type="checkbox" checked={sel.length > 0 && sel.length === allIds.length} onChange={(e) => setSel(e.target.checked ? allIds : [])} className="h-4 w-4 accent-orange-500" />, tr("訂單號 / 時間"), tr("用戶"), tr("商品"), tr("轉贈資料"), tr("金額"), tr("交易號"), tr("狀態"), tr("操作")]} rows={data.rows} empty={tr("暫無禮品卡訂單")} render={(o) => {
+        <Table testId="gco-table" stickyLast cols={[<input key="all" type="checkbox" checked={sel.length > 0 && sel.length === allIds.length} onChange={(e) => setSel(e.target.checked ? allIds : [])} className="h-4 w-4 accent-orange-500" />, tr("訂單號 / 時間"), tr("用戶"), tr("商品"), tr("轉贈資料"), tr("金額"), tr("交易號"), tr("狀態"), tr("操作")]} rows={data.rows} empty={tr("暫無禮品卡訂單")} render={(o) => {
           const [lbl, tone] = stateOf(o);
           return (
             <tr key={o.id} data-testid={`gco-row-${o.id}`} className="hover:bg-slate-50 align-top">
@@ -130,16 +130,16 @@ export function GiftCardOrdersAdmin({ callApi }) {
               <td className="px-4 py-3 whitespace-nowrap"><div className="font-mono text-xs font-semibold text-slate-800">{o.order_no}</div><div className="text-[11px] text-slate-400">{fmt(o.created_at)}</div>{o.gift_dispatch_at && o.status === "processing" && <div className="text-[10px] text-amber-600">{tr("預計完成")} {fmt(o.gift_dispatch_at)}</div>}{o.matchedKey && <div className="text-[10px] text-emerald-600">{tr("命中")} {o.matchedKey}</div>}</td>
               <td className="px-4 py-3 whitespace-nowrap"><div className="font-head font-bold text-xs text-slate-800">{o.account_no}</div><div className="text-[11px] text-slate-400 truncate max-w-[150px]">{o.user_email}</div></td>
               <td className="px-4 py-3 min-w-[170px]">{(o.items || []).map((i, k) => <div key={k} className="text-xs"><span className="text-slate-800">{i.product_name}</span><br /><span className="text-slate-400">{i.spec_label} ×{i.quantity}</span></div>)}</td>
-              <td className="px-4 py-3 text-xs text-slate-600 max-w-[200px] break-all">{infoText(o)}{o.info_rejected && o.status === "paid" && <div className="text-[10px] text-red-500 mt-1">{tr("駁回：{0}", o.info_reject_reason)}</div>}</td>
+              <td className="px-4 py-3 text-xs text-slate-600 max-w-[200px] min-w-[150px] break-all">{infoText(o)}{o.info_rejected && o.status === "paid" && <div className="text-[10px] text-red-500 mt-1">{tr("駁回：{0}", o.info_reject_reason)}</div>}</td>
               <td className="px-4 py-3 whitespace-nowrap font-semibold text-orange-600">USD {(+o.total_usd || 0).toFixed(2)}</td>
               <td className="px-4 py-3">{(o.gift_trade_nos || []).length === 0 ? <span className="text-xs text-slate-400">-</span> : o.gift_trade_nos.map((g, i) => <div key={i} className="font-mono text-[11px] text-violet-700" data-testid={`gco-trade-${o.id}-${i}`}>{g.trade_no}</div>)}</td>
               <td className="px-4 py-3 whitespace-nowrap"><Pill tone={tone}>{tr(lbl)}</Pill></td>
               <td className="px-4 py-3 whitespace-nowrap">
-                {["paid", "processing"].includes(o.status) && <div className="flex flex-col gap-1">
-                  <button data-testid={`gco-complete-${o.id}`} onClick={() => act("complete", [o.id])} className="text-xs font-semibold text-emerald-600 hover:underline text-left">{tr("完成")}</button>
-                  {o.gift_manual && <button data-testid={`gco-supplement-${o.id}`} onClick={() => act("supplement", [o.id])} className="text-xs font-semibold text-violet-600 hover:underline text-left">{tr("補號並重審")}</button>}
-                  <button data-testid={`gco-reject-${o.id}`} onClick={() => act("reject", [o.id])} className="text-xs font-semibold text-amber-600 hover:underline text-left">{tr("駁回")}</button>
-                  <button data-testid={`gco-cancel-${o.id}`} onClick={() => act("cancel", [o.id])} className="text-xs font-semibold text-red-500 hover:underline text-left">{tr("取消")}</button>
+                {["paid", "processing"].includes(o.status) && <div className="grid grid-cols-2 gap-1.5 w-[150px]">
+                  <button data-testid={`gco-complete-${o.id}`} onClick={() => act("complete", [o.id])} className="h-7 rounded-lg bg-emerald-50 text-emerald-700 text-xs font-semibold hover:bg-emerald-100">{tr("完成")}</button>
+                  <button data-testid={`gco-reject-${o.id}`} onClick={() => act("reject", [o.id])} className="h-7 rounded-lg bg-amber-50 text-amber-700 text-xs font-semibold hover:bg-amber-100">{tr("駁回")}</button>
+                  {o.gift_manual && <button data-testid={`gco-supplement-${o.id}`} onClick={() => act("supplement", [o.id])} className="h-7 rounded-lg bg-violet-50 text-violet-700 text-xs font-semibold hover:bg-violet-100">{tr("補號重審")}</button>}
+                  <button data-testid={`gco-cancel-${o.id}`} onClick={() => act("cancel", [o.id])} className="h-7 rounded-lg bg-red-50 text-red-600 text-xs font-semibold hover:bg-red-100">{tr("取消")}</button>
                 </div>}
               </td>
             </tr>

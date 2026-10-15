@@ -51,3 +51,5 @@
 - (2026-06) 修复：手机简体/英文界面提交充值资料报「請填寫所有必填的充值資料」——公共商品 API 会本地化 delivery_fields 的 name（繁→简/英），前端按本地化标签作 key，后端按原名校验失败。`submit_order_info` 现将简体/繁体/英文/code 别名映射回原字段名。手机网页端「添加輕量版桌面 App」海报弹窗（A2HSTip.jsx，每次打开都弹，文字区白底、按钮无箭头、顶部 Logo），桌面图标换为用户提供的 gogo589 Logo（icons/apple-touch-icon.png, app-icon-512.png, app-logo.png）。
 
 - (2026-06) 礼品卡「自动转赠失败」流程：号码未命中号码库时不再直接转人工，而是照常显示 90s 倒计时「系統轉贈中」，30~60s 后（`gift_fail_at` + `_fail_giftcard_at` 定时任务，`_sweep_giftcard_failures` 20s 兜底）把订单置为 status=paid、info_submitted=false、info_rejected=true、gift_auto_failed=true、reason=「系統自動轉贈失敗，請重新提交 AlipayHK 帳號進行人工轉贈」，前端自动展开表单并显示红色提示；再次提交若仍未命中则直接 gift_manual 转人工（toast「等待人工轉贈」），命中则走自动流程。
+
+- (2026-06) 后台：礼品卡订单管理操作列改为 2 列胶囊按钮并 sticky 固定在右侧（ui.jsx Table 新增 stickyLast）；取消/驳回/补号改为平台风格 Dialog + 原因预设 + 必填原因，取消原因写入 order.admin_note 并在前台订单详情显示红色「訂單已取消 — 原因」；新增 `auto_failed` 页签；`processing` 页签排除 gift_manual。后台菜单改为 `/admin?s=<section>` 可寻址链接（右键/Cmd+点击可新标签打开，popstate 同步）。

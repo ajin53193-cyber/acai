@@ -16,7 +16,7 @@ export function FinanceReportsAdmin({ callApi }) {
   const [data] = useLoad(callApi, `/admin/reports?days=${days}`, [days]);
   const exportCsv = async () => {
     const token = await getToken();
-    const r = await fetch(`${API}/admin/reports?days=${days}&format=csv`, { headers: { Authorization: `Bearer ${token}`, "X-Admin-Token": sessionStorage.getItem("admin_token") || "" } });
+    const r = await fetch(`${API}/admin/reports?days=${days}&format=csv`, { headers: { Authorization: `Bearer ${token}`, "X-Admin-Token": localStorage.getItem("admin_token") || "" } });
     const blob = await r.blob();
     const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = `finance_report_${days}d.csv`; a.click();
   };

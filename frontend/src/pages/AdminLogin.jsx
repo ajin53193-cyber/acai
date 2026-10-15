@@ -34,7 +34,7 @@ export default function AdminLogin() {
     setBusy(true);
     try {
       const r = await publicApi.post("/admin/auth/totp", { pre_token: pre.pre_token, code: code.trim() });
-      sessionStorage.setItem("admin_token", r.data.admin_token);
+      localStorage.setItem("admin_token", r.data.admin_token);
       if (session) await signOut({ redirectUrl: null }).catch(() => {});
       if (!isLoaded) throw new Error(tr("請稍候再試"));
       const si = await signIn.create({ strategy: "ticket", ticket: r.data.ticket });

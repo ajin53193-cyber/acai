@@ -10,10 +10,10 @@ export const Btn = ({ children, kind = "primary", className = "", ...p }) => {
 };
 export const Input = (p) => <input {...p} className={`h-9 rounded-lg bg-slate-100 px-3 text-sm outline-none focus:ring-2 focus:ring-orange-300 placeholder:text-slate-400 ${p.className || ""}`} />;
 export const Pill = ({ children, tone = "slate" }) => <span className={`inline-block rounded-full px-2 py-0.5 text-[11px] font-semibold bg-${tone}-100 text-${tone}-600`}>{children}</span>;
-export const Table = ({ cols, rows, render, empty, testId }) => (
-  <Card className="overflow-x-auto">
+export const Table = ({ cols, rows, render, empty, testId, stickyLast = false }) => (
+  <Card className={`overflow-x-auto ${stickyLast ? "[&_td:last-child]:sticky [&_td:last-child]:right-0 [&_td:last-child]:bg-white [&_td:last-child]:shadow-[-8px_0_12px_-10px_rgba(0,0,0,0.25)]" : ""}`}>
     <table className="w-full text-sm" data-testid={testId}>
-      <thead><tr className="text-left text-xs text-slate-500 border-b border-slate-200 bg-slate-50/70">{cols.map((c, i) => <th key={typeof c === "string" ? c : i} className="px-4 py-3 font-semibold whitespace-nowrap">{c}</th>)}</tr></thead>
+      <thead><tr className="text-left text-xs text-slate-500 border-b border-slate-200 bg-slate-50/70">{cols.map((c, i) => <th key={typeof c === "string" ? c : i} className={`px-4 py-3 font-semibold whitespace-nowrap ${stickyLast && i === cols.length - 1 ? "sticky right-0 bg-slate-50" : ""}`}>{c}</th>)}</tr></thead>
       <tbody className="divide-y divide-slate-100">{rows.length === 0 ? <tr><td colSpan={cols.length} className="px-4 py-10 text-center text-slate-400">{empty || tr("暫無資料")}</td></tr> : rows.map(render)}</tbody>
     </table>
   </Card>

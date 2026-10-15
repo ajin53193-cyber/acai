@@ -20,7 +20,7 @@ export function OperationLogsAdmin({ callApi }) {
   const exportCsv = async () => {
     try {
       const token = await getToken();
-      const r = await fetch(`${API}/admin/operation-logs/export?q=${encodeURIComponent(q)}`, { headers: { Authorization: `Bearer ${token}`, "X-Admin-Token": sessionStorage.getItem("admin_token") || "" } });
+      const r = await fetch(`${API}/admin/operation-logs/export?q=${encodeURIComponent(q)}`, { headers: { Authorization: `Bearer ${token}`, "X-Admin-Token": localStorage.getItem("admin_token") || "" } });
       const blob = await r.blob();
       const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "operation_logs.csv"; a.click();
     } catch { toast.error(tr("匯出失敗")); }
