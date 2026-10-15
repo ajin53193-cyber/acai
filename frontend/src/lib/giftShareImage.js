@@ -40,13 +40,25 @@ export async function makeGiftShareBlob(g, labels, imgUrl = "/giftbox-disc.png")
   tmp.font = "17px 'JetBrains Mono', monospace";
   const tradeLines = wrapMono(tmp, g.trade_no || "", W - 2 * pad - 36);
 
+  const blessing = (labels.blessing || "").trim();
+  let blessLines = [];
+  if (blessing) {
+    tmp.font = "16px 'ZCOOL KuaiLe', sans-serif";
+    blessLines = wrapMono(tmp, `“${blessing}”`, W - 2 * pad - 28);
+  }
+
   const titleY = 46, discTop = 72, discSize = 112;
   const subY = discTop + discSize + 30;
   const tnoTop = subY + 16, lineH = 28;
   const tnoH = tradeLines.length * lineH + 24;
   const meta = [g.product_name, g.spec_label].filter(Boolean).join(" ");
   const metaY = tnoTop + tnoH + 24;
-  const noteY = metaY + (meta ? 28 : 6);
+
+  const blessLineH = 25;
+  const blessTop = metaY + (meta ? 14 : -4);
+  const blessH = blessing ? blessLines.length * blessLineH + 24 : 0;
+
+  const noteY = (blessing ? blessTop + blessH + 24 : metaY + (meta ? 28 : 6));
   const H = noteY + 30;
 
   const canvas = document.createElement("canvas");
@@ -106,6 +118,15 @@ export async function makeGiftShareBlob(g, labels, imgUrl = "/giftbox-disc.png")
     ctx.fillStyle = "#64748b";
     ctx.font = "13px 'Noto Sans TC', sans-serif";
     ctx.fillText(meta, W / 2, metaY);
+  }
+
+  if (blessing) {
+    roundRect(ctx, pad, blessTop, W - 2 * pad, blessH, 14);
+    ctx.fillStyle = "rgba(249,115,22,0.08)";
+    ctx.fill();
+    ctx.fillStyle = "#c2410c";
+    ctx.font = "16px 'ZCOOL KuaiLe', sans-serif";
+    blessLines.forEach((ln, i) => ctx.fillText(ln, W / 2, blessTop + 24 + i * blessLineH));
   }
 
   ctx.fillStyle = "rgba(124,45,18,0.55)";

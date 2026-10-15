@@ -1,6 +1,6 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
-import { Copy, Package, Check, Gift, Share2 } from "lucide-react";
+import { Copy, Package, Check, Gift, Share2, Search, X } from "lucide-react";
 import { toast } from "sonner";
 import { useApi } from "@/lib/api";
 import { celebrate } from "@/lib/celebrate";
@@ -68,12 +68,23 @@ function OrderInfoForm({ order, callApi, onDone }) {
   );
 }
 
-function GiftTransferring({ order, onRefresh, callApi }) {
+function GiftTransferring({ order, onRefresh, callApi, onCelebrate }) {
   const end = order.gift_dispatch_at ? new Date(order.gift_dispatch_at).getTime() : 0;
   const [left, setLeft] = useState(() => (end ? Math.max(0, end - Date.now()) : 0));
+  const giftRef = useRef(null);
   useEffect(() => {
     const t = setInterval(() => setLeft(end ? Math.max(0, end - Date.now()) : 0), 1000);
-    const poll = setInterval(() => callApi({ method: "GET", url: `/orders/${order.id}` }).then((r) => { if (r.data.status !== "processing") { if (r.data.status === "completed") celebrate(); onRefresh(r.data); } }).catch(() => {}), 10000);
+    const poll = setInterval(() => callApi({ method: "GET", url: `/orders/${order.id}` }).then((r) => {
+      if (r.data.status !== "processing") {
+        if (r.data.status === "completed") {
+          const rect = giftRef.current?.getBoundingClientRect();
+          const origin = rect ? { x: (rect.left + rect.width / 2) / window.innerWidth, y: (rect.top + rect.height / 2) / window.innerHeight } : undefined;
+          celebrate(origin);
+          onCelebrate?.(r.data);
+        }
+        onRefresh(r.data);
+      }
+    }).catch(() => {}), 10000);
     return () => { clearInterval(t); clearInterval(poll); };
   }, [end, order.id]); // eslint-disable-line react-hooks/exhaustive-deps
   const total = end && order.info_submitted_at ? Math.max(1, end - new Date(order.info_submitted_at).getTime()) : 1;
@@ -88,7 +99,7 @@ function GiftTransferring({ order, onRefresh, callApi }) {
             <circle cx="18" cy="18" r="16.5" fill="none" stroke="#ffe0bf" strokeWidth="2.5" />
             <circle cx="18" cy="18" r="16.5" fill="none" stroke="#f97316" strokeWidth="2.5" strokeLinecap="round" strokeDasharray={`${pct} 100`} pathLength="100" className="transition-all duration-700" />
           </svg>
-          <div className="absolute inset-[7px] rounded-full overflow-hidden ring-2 ring-white/70 shadow-[0_6px_16px_-6px_rgba(232,121,42,0.6)] animate-gt-float">
+          <div ref={giftRef} className="absolute inset-[7px] rounded-full overflow-hidden ring-2 ring-white/70 shadow-[0_6px_16px_-6px_rgba(232,121,42,0.6)] animate-gt-float">
             <img src="/giftbox-disc.png" alt="" className="h-full w-full object-cover scale-[1.08]" />
           </div>
         </div>
@@ -139,6 +150,20 @@ function OrdersInner() {
 
   const [shareTarget, setShareTarget] = useState(null);
   const [shareBusy, setShareBusy] = useState(false);
+  const [celebrateMsg, setCelebrateMsg] = useState(null);
+  const [query, setQuery] = useState("");
+  const [blessing, setBlessing] = useState("");
+
+  const channelOf = (order) => {
+    const keys = order?.delivery_info ? Object.values(order.delivery_info).flatMap((f) => Object.keys(f)) : [];
+    const k = keys.find((x) => /(帳號|账号|账户|帐号|ID|账号|钱包|錢包|wallet|account)/i.test(x)) || keys[0];
+    if (!k) return "Alipay HK";
+    return k.replace(/\s*(帳號|账号|账户|帐号|钱包|錢包|wallet|account|ID)\s*$/i, "").trim() || k;
+  };
+  const showCelebration = (order) => {
+    setCelebrateMsg(tr("禮品卡已轉贈到您的{0}賬戶！", channelOf(order)));
+    setTimeout(() => setCelebrateMsg(null), 4200);
+  };
 
   useEffect(() => {
     if (!shareTarget) return;
@@ -149,6 +174,7 @@ function OrdersInner() {
           brand: `gogo589 · ${tr("禮品卡")}`,
           sub: tr("轉贈成功 · 交易號"),
           note: tr("請憑此交易號核銷，並妥善保管"),
+          blessing: (shareTarget.blessing || "").trim(),
         });
         if (cancelled || !blob) throw new Error("blob");
         const file = new File([blob], `giftcard-${shareTarget.trade_no}.png`, { type: "image/png" });
@@ -171,7 +197,7 @@ function OrdersInner() {
     return () => { cancelled = true; };
   }, [shareTarget]);
 
-  const shareGift = (g) => { setShareBusy(true); setShareTarget(g); };
+  const shareGift = (g, blessingText) => { setShareBusy(true); setShareTarget({ ...g, blessing: blessingText || "" }); };
 
   const payNow = async (order) => {
     setPaying(true);
@@ -194,16 +220,34 @@ function OrdersInner() {
   const reorder = (o) => { o.items.forEach((it) => addItem({ id: it.product_id, name: it.product_name, image: it.image }, { id: it.spec_id, label: it.spec_label, price_usd: it.unit_price_usd }, it.quantity)); navigate("/checkout"); };
   const KAVIP_LABELS = { all: tr("全部"), pending_payment: tr("未付款"), awaiting_info: tr("等待填寫資料"), waiting: tr("等待中"), completed: tr("已完成") };
 
+  const q = query.trim().toLowerCase();
+  const visibleOrders = q
+    ? orders.filter((o) => (o.order_no || "").toLowerCase().includes(q) || (o.gift_trade_nos || []).some((g) => (g.trade_no || "").toLowerCase().includes(q)))
+    : orders;
+
   return (
     <Panel title={tr("我的訂單")} testId="orders-page">
       <SubTabs tabs={Object.entries(KAVIP_LABELS)} value={filter} onChange={setFilter} testPrefix="order-filter" />
+      <div className="mt-3 mb-4 relative max-w-sm">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+        <input
+          data-testid="order-search-input"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder={tr("搜尋交易號 / 訂單編號")}
+          className="w-full h-10 rounded-full bg-white border border-orange-200 pl-9 pr-9 text-sm outline-none focus:ring-2 focus:ring-orange-300 placeholder:text-slate-400 shadow-sm"
+        />
+        {query && (
+          <button data-testid="order-search-clear" onClick={() => setQuery("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-orange-500"><X className="h-4 w-4" /></button>
+        )}
+      </div>
       {loading ? (
         <div className="grid md:grid-cols-2 gap-5">{[0, 1, 2, 3].map((i) => <div key={i} className="h-56 rounded-2xl bg-slate-100 animate-pulse" />)}</div>
-      ) : orders.length === 0 ? (
-        <div className="py-20 text-center text-slate-400" data-testid="orders-empty">{tr("無數據")}</div>
+      ) : visibleOrders.length === 0 ? (
+        <div className="py-20 text-center text-slate-400" data-testid="orders-empty">{q ? tr("找不到符合的訂單") : tr("無數據")}</div>
       ) : (
         <div className="grid md:grid-cols-2 gap-5">
-          {orders.map((o) => {
+          {visibleOrders.map((o) => {
             const it = o.items[0];
             const fields = o.delivery_info ? Object.values(o.delivery_info).flatMap((f) => Object.entries(f)) : [];
             return (
@@ -309,7 +353,7 @@ function OrdersInner() {
                 </div>
 
                 {detail.is_giftcard_order && detail.status === "processing" && (
-                  <GiftTransferring order={detail} callApi={callApi} onRefresh={(o) => { setDetail(o); load(); }} />
+                  <GiftTransferring order={detail} callApi={callApi} onCelebrate={showCelebration} onRefresh={(o) => { setDetail(o); load(); }} />
                 )}
 
                 {detail.status === "completed" && (detail.gift_trade_nos || []).length > 0 && (
@@ -317,13 +361,22 @@ function OrdersInner() {
                     <div className="pointer-events-none absolute inset-0 [background-image:radial-gradient(rgba(255,255,255,0.8)_1.5px,transparent_1.5px)] [background-size:15px_15px]" />
                     <div className="relative">
                       <div className="font-cute text-lg text-orange-600 mb-2.5 flex items-center gap-1.5"><span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-orange-500 text-white shadow-sm"><Gift className="h-3.5 w-3.5" /></span>{tr("轉贈成功 · 交易號")}</div>
+                      <div className="mb-2.5">
+                        <input
+                          data-testid="order-gift-blessing-input"
+                          value={blessing}
+                          onChange={(e) => setBlessing(e.target.value.slice(0, 40))}
+                          placeholder={tr("寫句祝福語一起送出（選填）")}
+                          className="w-full h-10 rounded-xl bg-white/80 border border-orange-200 px-3 text-sm outline-none focus:ring-2 focus:ring-orange-300 placeholder:text-slate-400"
+                        />
+                      </div>
                       <div className="space-y-2">
                         {detail.gift_trade_nos.map((g, i) => (
                           <div key={i} className="flex items-center justify-between gap-2 rounded-xl bg-white/70 px-3 py-2.5">
                             <div className="min-w-0"><div className="font-mono text-base tracking-wider text-slate-800 break-all">{g.trade_no}</div><div className="text-[11px] text-slate-500 mt-0.5">{g.product_name} {g.spec_label}</div></div>
                           <div className="flex shrink-0 items-center gap-1.5">
                             <button onClick={() => copy(g.trade_no)} className="inline-flex items-center gap-1 rounded-full bg-white px-2.5 py-1.5 text-orange-500 text-xs font-semibold shadow-sm hover:text-orange-600"><Copy className="h-3.5 w-3.5" />{tr("複製")}</button>
-                            <button onClick={() => shareGift(g)} disabled={shareBusy} data-testid="order-gift-share" className="inline-flex items-center gap-1 rounded-full bg-orange-500 px-2.5 py-1.5 text-white text-xs font-semibold shadow-sm hover:bg-orange-600 disabled:opacity-60"><Share2 className="h-3.5 w-3.5" />{shareBusy ? tr("生成中…") : tr("分享")}</button>
+                            <button onClick={() => shareGift(g, blessing)} disabled={shareBusy} data-testid="order-gift-share" className="inline-flex items-center gap-1 rounded-full bg-orange-500 px-2.5 py-1.5 text-white text-xs font-semibold shadow-sm hover:bg-orange-600 disabled:opacity-60"><Share2 className="h-3.5 w-3.5" />{shareBusy ? tr("生成中…") : tr("分享")}</button>
                           </div>
                           </div>
                         ))}
@@ -377,6 +430,17 @@ function OrdersInner() {
           )}
         </SheetContent>
       </Sheet>
+
+      {celebrateMsg && (
+        <div className="fixed inset-0 z-[9998] flex items-start justify-center pt-24 px-4 pointer-events-none" data-testid="order-celebrate-overlay">
+          <div className="animate-gt-pop pointer-events-auto max-w-sm w-full rounded-3xl border border-orange-200 bg-white/95 backdrop-blur px-5 py-4 text-center shadow-[0_20px_50px_-20px_rgba(232,121,42,0.7)]">
+            <div className="mx-auto mb-2 h-14 w-14 rounded-full overflow-hidden ring-2 ring-white shadow-md animate-gt-float">
+              <img src="/giftbox-disc.png" alt="" className="h-full w-full object-cover scale-[1.08]" />
+            </div>
+            <div className="font-cute text-lg text-orange-600 leading-7">{celebrateMsg}</div>
+          </div>
+        </div>
+      )}
     </Panel>
   );
 }

@@ -25,10 +25,11 @@ function chime() {
   } catch (e) { /* audio blocked, ignore */ }
 }
 
-export function celebrate() {
+export function celebrate(origin) {
+  const o = origin && typeof origin.x === "number" ? origin : { x: 0.5, y: 0.58 };
   const colors = ["#f97316", "#fb923c", "#fdba74", "#fbbf24", "#fff7ed"];
-  confetti({ particleCount: 90, spread: 72, startVelocity: 42, origin: { y: 0.55 }, colors, scalar: 0.9, zIndex: 9999 });
-  setTimeout(() => confetti({ particleCount: 45, angle: 60, spread: 55, origin: { x: 0, y: 0.65 }, colors, zIndex: 9999 }), 160);
-  setTimeout(() => confetti({ particleCount: 45, angle: 120, spread: 55, origin: { x: 1, y: 0.65 }, colors, zIndex: 9999 }), 160);
+  confetti({ particleCount: 110, spread: 90, startVelocity: 45, origin: o, colors, scalar: 1, zIndex: 9999 });
+  setTimeout(() => confetti({ particleCount: 55, angle: 55, spread: 70, startVelocity: 40, origin: o, colors, zIndex: 9999 }), 150);
+  setTimeout(() => confetti({ particleCount: 55, angle: 125, spread: 70, startVelocity: 40, origin: o, colors, zIndex: 9999 }), 150);
   chime();
 }

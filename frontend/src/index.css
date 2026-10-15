@@ -63,6 +63,13 @@ code, .font-mono {
 }
 .animate-gt-float { animation: gt-float 2.4s ease-in-out infinite; }
 
+@keyframes gt-pop {
+    0% { transform: scale(0.8) translateY(-8px); opacity: 0; }
+    60% { transform: scale(1.04) translateY(0); opacity: 1; }
+    100% { transform: scale(1) translateY(0); opacity: 1; }
+}
+.animate-gt-pop { animation: gt-pop 0.45s cubic-bezier(0.22, 1, 0.36, 1) both; }
+
 @layer base {
     :root {
         --background: 36 40% 99%;

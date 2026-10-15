@@ -6,6 +6,9 @@
 
 ## 已实现（截至 2026-06）
 - 前端：首页、分类、商品详情、购物车、结账、用户账户、多货币。
+- [2026-06] 礼花升级：转赠完成瞬间 confetti 从礼物盒图标位置迸发（giftRef getBoundingClientRect → 归一化 origin），并弹出庆祝浮层「禮品卡已轉贈到您的{channel}賬戶！」（channel 由 delivery_info 字段名动态推导，默认 Alipay HK），4.2s 自动消失。celebrate(origin) 支持自定义迸发点。
+- [2026-06] 分享图自定义祝福语：详情交易号卡新增祝福语输入框（上限 40 字），生成的分享图中以橙色浅底框展示祝福语（动态高度+自动换行）。
+- [2026-06] 我的订单按交易号/订单编号搜索：列表顶部搜索框客户端过滤（匹配 order_no 或 gift_trade_nos[].trade_no），带清除按钮与空态提示。
 - [2026-06] 礼品卡交易号一键分享/生成图片：Canvas 2D 绘制品牌分享卡（gogo589 礼品卡 + 礼物盒插画 + 交易号 + 商品名 + 核销提示），支持 Web Share（移动端）与 PNG 下载（桌面端）。文件 /app/frontend/src/lib/giftShareImage.js，MyOrders 列表卡与详情卡均有「分享」按钮。注：改用 Canvas 而非 html-to-image（后者在无头/部分浏览器 foreignObject 导出空白）。
 - [2026-06] 到账提醒：转赠完成（倒计时轮询检测到 completed）瞬间触发橙色礼花 confetti + Web Audio 合成三音符提示音（无音频资源，轻量）。文件 /app/frontend/src/lib/celebrate.js。
 - [2026-06] 修复旧版 Clerk 登录失败无提示：AuthModal submit()/sendCode() 在 !siLoaded 时静默 return，现加 toast「登入服務載入中，請稍候再試」。
