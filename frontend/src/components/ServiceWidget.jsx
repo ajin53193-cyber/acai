@@ -43,7 +43,19 @@ export default function ServiceWidget() {
   const openRef = useRef(false); openRef.current = open;
   const bottomRef = useRef(null);
   const inputRef = useRef(null);
+  const [vv, setVv] = useState(null);
   useScrollLock(open && window.innerWidth < 768);
+
+  // iOS keyboard: fixed panels don't shrink for the on-screen keyboard; track the visual viewport so the input stays visible.
+  useEffect(() => {
+    const vvp = window.visualViewport;
+    if (!open || !vvp || window.innerWidth >= 768) { setVv(null); return; }
+    const update = () => { setVv({ top: vvp.offsetTop, height: vvp.height }); bottomRef.current?.scrollIntoView({ block: "end" }); };
+    update();
+    vvp.addEventListener("resize", update);
+    vvp.addEventListener("scroll", update);
+    return () => { vvp.removeEventListener("resize", update); vvp.removeEventListener("scroll", update); setVv(null); };
+  }, [open]);
 
   const call = useCallback(async (cfg) => {
     const token = isSignedIn ? await getToken().catch(() => null) : null;
@@ -116,7 +128,7 @@ export default function ServiceWidget() {
       {open && (
         <>
           <div className="fixed inset-0 z-40 md:hidden bg-black/30" onClick={() => setOpen(false)} />
-          <div data-testid="service-widget-panel" className="fixed z-50 bg-white flex flex-col overflow-hidden top-0 bottom-0 left-0 right-0 md:top-auto md:left-auto md:bottom-24 md:right-6 md:w-[380px] md:h-[560px] md:max-h-[calc(100vh-7rem)] md:rounded-2xl md:shadow-2xl md:border md:border-orange-100">
+          <div data-testid="service-widget-panel" style={vv ? { top: vv.top, height: vv.height, bottom: "auto" } : undefined} className="fixed z-50 bg-white flex flex-col overflow-hidden top-0 bottom-0 left-0 right-0 md:top-auto md:left-auto md:bottom-24 md:right-6 md:w-[380px] md:h-[560px] md:max-h-[calc(100vh-7rem)] md:rounded-2xl md:shadow-2xl md:border md:border-orange-100">
             <div className="bg-gradient-to-r from-[#F0872E] to-[#E8792A] text-white px-4 pb-3 pt-[calc(env(safe-area-inset-top)+0.75rem)] md:pt-3 shrink-0">
               <div className="flex items-center justify-between">
                 <span className="font-head font-bold flex items-center gap-2"><Headphones className="h-4 w-4" />{tr("線上客服")}</span>
