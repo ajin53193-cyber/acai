@@ -17,6 +17,8 @@ html, body {
 /* Browser: keep the bar above the (iOS 26 translucent) toolbar so Safari tints the toolbar with the page colour, not the bar's brown */
 .safe-bottom-box { height: 3.5rem; margin-bottom: env(safe-area-inset-bottom); }
 /* Home-screen app: extend the bar under the home indicator */
+/* Mobile browser: float the bar slightly above the edge so Safari's toolbar tints from the page background, not the bar */
+html:not(.pwa) [data-testid="mobile-register-bar"] { left: 12px; right: 12px; bottom: 10px; border-radius: 16px; margin-bottom: 0; box-shadow: 0 10px 24px -12px rgba(90, 58, 34, 0.55); }
 /* While any modal is open the bar is behind the overlay anyway; hide it so Safari's translucent toolbar can't pick up its brown */
 body.gt-scroll-locked [data-testid="mobile-register-bar"] { visibility: hidden; }
 html.pwa .safe-bottom-box { height: calc(3.5rem + env(safe-area-inset-bottom)); padding-bottom: env(safe-area-inset-bottom); margin-bottom: 0; }
