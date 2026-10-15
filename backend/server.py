@@ -1873,6 +1873,20 @@ async def submit_order_info(order_id: str, body: OrderInfoIn, member: dict = Dep
         raise HTTPException(status_code=400, detail="充值資料已提交，如需修改請聯繫客服，待平台駁回後再重新填寫")
     merged = {**(o.get("delivery_info") or {}), **body.delivery_info}
     prods = {it["product_id"]: (await db.products.find_one({"id": it["product_id"]}, {"_id": 0, "delivery_fields": 1}) or {}) for it in o["items"]}
+    # Field labels reach the client localized (zh-CN / en); map them back to the canonical field name.
+    for pid, p in prods.items():
+        vals = merged.get(pid)
+        if not isinstance(vals, dict):
+            continue
+        for f in p.get("delivery_fields") or []:
+            name = f["name"]
+            if name in vals:
+                continue
+            aliases = {to_simplified(name), to_traditional(name), translator.en.get(name, ""), f.get("code", "")}
+            for k in list(vals.keys()):
+                if k in aliases or to_traditional(k) == to_traditional(name):
+                    vals[name] = vals.pop(k)
+                    break
     tmp = {**o, "delivery_info": merged}
     if not _info_complete(tmp, prods):
         raise HTTPException(status_code=400, detail="請填寫所有必填的充值資料")
