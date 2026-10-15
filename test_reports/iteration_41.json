@@ -1,0 +1,47 @@
+{
+  "summary": "Full-stack test of live customer-service chat + admin alert feed + round-40 regressions. Backend: 16/16 pytest cases pass (public chat sessions, quick-reply chip auto-reply with unread_admin NOT incremented, text messages increment unread_admin, 404 on wrong guest_id, 400 on invalid guest, public quick-replies returns q-only, admin quick-replies GET/PUT with empty-list fallback to defaults, admin sessions filter+counts, GET admin messages resets unread_admin, admin POST increments unread_user, PATCH status (open/handled/400), /api/admin/badges includes chat-sessions, /api/admin/alerts without since → empty+now, with past since → includes user chat message and excludes auto messages). Frontend storefront: widget trigger opens panel (desktop + mobile full-screen top:0 bottom:0 left:0 right:0), quick-reply chip creates 2 bubbles (question + instant auto-answer), text send works. Frontend admin: Clerk+TOTP login OK, 客服會話 lists 5 open sessions with chat-unread badges, sidebar admin-nav-badge-chat-sessions shows unread count (3), opening thread clears unread, admin reply right-aligned orange works (chat-msg-* bubble appears), chat-admin-quick-0 fills input with answer text, mark-handled → handled filter → reopen flow works, quick-reply modal add/save persists (new item visible after reopen) and remove/save restores defaults. Sound control panel opens, enable toggle & volume slider & 3 test buttons all work, prefs persist to localStorage admin_sound. Alert feed verified end-to-end: sent a storefront chat message from a second tab → within ~10s admin received sonner toast '客服：1 条新消息' + message text + '查看' action. Regression (iteration_40 fixes): collapsed sidebar flyout now clickable for lower item admin-nav-member-assets (previous HIGH bug fixed). Tab context-menu i18n in zh-CN now renders '关闭 / 关闭其他 / 关闭全部' consistently (prev MINOR fixed). No console errors on admin pages.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "ChatAdmin Thread Bubble",
+        "issue": "Admin thread message bubbles use data-testid='chat-msg-<id>' while storefront ServiceWidget uses 'chat-bubble-<id>'. Spec names 'chat-bubble-<id>' as the bubble testid. Inconsistency between storefront vs admin. Admin render still works but tests looking for chat-bubble-* on admin will not match.",
+        "selector": "[data-testid^='chat-msg-'] vs expected [data-testid^='chat-bubble-']",
+        "priority": "MINOR"
+      },
+      {
+        "component": "ChatAdmin QuickRepliesModal save ordering (potential)",
+        "issue": "Observed in one UI run: starting from 4 default items, Add + save → reopen showed only 4 items with the new TEST_UI_Q41 at position Q1 (expected 5 items with new one at the end). May be a benign reorder (new item prepended) or one default was dropped. Reproduced once; backend PUT returns full list via get_quick_replies() with no dedup, so re-ordering must be happening client-side or on fetch. Worth a quick look.",
+        "selector": "[data-testid='chat-quick-modal']",
+        "priority": "MINOR"
+      }
+    ],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_chat_alerts_round41.py",
+    "/app/test_reports/pytest/round41_chat.xml"
+  ],
+  "action_items": [
+    "Align admin thread Bubble data-testid: change 'chat-msg-<id>' to 'chat-bubble-<id>' in /app/frontend/src/pages/admin/ChatAdmin.jsx L29 to match spec and storefront convention.",
+    "Verify QuickRepliesModal add-then-save keeps all N+1 items in the stored order (open modal with 4 defaults, click chat-quick-add, fill last q/a, save, reopen → should show 5 items with new one at the end)."
+  ],
+  "critical_code_review_comments": [
+    "chat_api.py _owner_cond is fine but builds $or only when guest_id is present AND user is logged in — safe but worth adding a user_id-only cond branch for logged-in users without any guest cookie.",
+    "chat_api.admin_send sets unread_admin=0 inside the same $set as $inc:unread_user — behaviour is good (admin reply implicitly clears their own unread count) but could be documented.",
+    "SessionIn.name/contact are not length-validated beyond the slice; the slice truncation prevents abuse. OK.",
+    "ChatAdmin.jsx QuickRepliesModal filter in backend drops items whose q or a is blank — frontend allows saving a half-filled new row and the item will silently vanish server-side. Consider disabling save or marking invalid rows in UI.",
+    "Admin thread polling every 3s + session list polling every 5s + /admin/alerts every 8s — three overlapping intervals create constant traffic while admin panel is open; consider SSE/WS or at least pausing when document.hidden."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_chat_alerts_round41.py"
+  ],
+  "success_rate": {"backend": "100% (16/16)", "frontend": "~95% (all primary flows pass; two MINOR issues above)"},
+  "test_credentials": "Admin: admin+clerk_test@shop.com / Gogo589!Admin#7x2Q, TOTP = python3 -c 'import pyotp;print(pyotp.TOTP(open(\"/tmp/totp_secret\").read().strip()).now())'",
+  "seed_data_creation": "During tests created TEST41_* chat sessions + a few storefront UI sessions ('e2e41', 'bubble check 41', 'alert-feed-ui-test41', 'manual hello e2e41'). All cleaned up at end of run; chat_quick_replies setting reset to default (DEFAULT_QUICK returned by GET).",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Backend test file /app/backend/tests/test_chat_alerts_round41.py works but must be invoked with -o addopts= to disable xdist (session_id fixture is module-scoped and tests across TestPublicChat/TestAdminChat classes share state). Alert feed polling works. Known MINOR: admin thread uses chat-msg-<id> (not chat-bubble-<id>). Admin console TOTP code expires every 30s — regenerate right before admin-totp-submit.",
+  "rca of the issue": "N/A — no bugs blocking; two MINOR items reported above."
+}

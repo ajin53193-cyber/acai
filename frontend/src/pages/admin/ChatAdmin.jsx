@@ -26,7 +26,7 @@ function SessionItem({ s, active, onClick }) {
 function Bubble({ m }) {
   const mine = m.sender === "admin";
   return (
-    <div className={`flex ${mine ? "justify-end" : "justify-start"}`} data-testid={`chat-msg-${m.id}`}>
+    <div className={`flex ${mine ? "justify-end" : "justify-start"}`} data-testid={`chat-bubble-${m.id}`}>
       <div className={`max-w-[75%] rounded-2xl px-3.5 py-2 text-sm shadow-sm ${mine ? "bg-orange-500 text-white rounded-br-md" : "bg-white text-slate-800 border border-slate-200 rounded-bl-md"}`}>
         {m.image && <a href={m.image} target="_blank" rel="noreferrer"><img src={m.image} alt="" className="rounded-lg max-h-56 mb-1.5 object-contain" /></a>}
         {m.text && <div className="whitespace-pre-wrap break-words">{m.text}</div>}
