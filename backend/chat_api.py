@@ -1,7 +1,7 @@
 """Live customer-service chat (guest or signed-in) + admin alert feed."""
 import re
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from typing import Optional
 
 from fastapi import APIRouter, HTTPException, Depends, Request
@@ -59,6 +59,44 @@ class QuickReply(BaseModel):
 
 class QuickRepliesIn(BaseModel):
     items: list[QuickReply]
+
+
+class HoursIn(BaseModel):
+    enabled: bool = False
+    start: str = "09:00"
+    end: str = "23:00"
+    tz: int = 8
+    message: str = ""
+
+
+DEFAULT_HOURS = {"enabled": False, "start": "09:00", "end": "23:00", "tz": 8,
+                 "message": "您好，目前為非工作時段（客服時間 {start}–{end}，UTC+{tz}）。您的留言已收到，客服上線後會第一時間回覆您；充值類問題系統會自動處理，請耐心等候。"}
+
+
+async def get_hours() -> dict:
+    doc = await db.settings.find_one({"key": "chat_hours"}, {"_id": 0})
+    return {**DEFAULT_HOURS, **((doc or {}).get("value") or {})}
+
+
+def _hm(s: str) -> int:
+    try:
+        h, m = s.split(":")
+        return int(h) * 60 + int(m)
+    except Exception:
+        return 0
+
+
+def is_online(h: dict) -> bool:
+    if not h.get("enabled"):
+        return True
+    now = datetime.now(timezone(timedelta(hours=int(h.get("tz", 8)))))
+    cur = now.hour * 60 + now.minute
+    s, e = _hm(h.get("start", "09:00")), _hm(h.get("end", "23:00"))
+    return s <= cur < e if s <= e else (cur >= s or cur < e)
+
+
+def hours_message(h: dict) -> str:
+    return (h.get("message") or DEFAULT_HOURS["message"]).replace("{start}", h.get("start", "")).replace("{end}", h.get("end", "")).replace("{tz}", str(h.get("tz", 8)))
 
 
 DEFAULT_QUICK = [
@@ -159,7 +197,31 @@ async def user_send(sid: str, body: MessageIn, request: Request):
         await db.chat_sessions.update_one({"id": sid}, {"$set": {"last_message": qr["a"], "last_at": ans["created_at"], "last_sender": "admin", "status": "open"}})
         return {**msg, "reply": ans}
     await db.chat_sessions.update_one({"id": sid}, {"$set": {"last_message": text or "[圖片]", "last_at": msg["created_at"], "last_sender": "user", "status": "open"}, "$inc": {"unread_admin": 1}})
+    hours = await get_hours()
+    if not is_online(hours):
+        last = s.get("after_hours_at") or ""
+        if not last or (datetime.now(timezone.utc) - datetime.fromisoformat(last)).total_seconds() > 6 * 3600:
+            ans = {"id": uuid.uuid4().hex, "session_id": sid, "sender": "admin", "text": hours_message(hours), "image": "", "auto": True, "admin_name": "自動回覆", "created_at": now_iso()}
+            await db.chat_messages.insert_one(ans)
+            ans.pop("_id", None)
+            await db.chat_sessions.update_one({"id": sid}, {"$set": {"after_hours_at": ans["created_at"]}})
+            return {**msg, "reply": ans}
     return msg
+
+
+@router.get("/chat/status")
+async def chat_status():
+    h = await get_hours()
+    online = is_online(h)
+    return {"online": online, "start": h["start"], "end": h["end"], "tz": h["tz"], "message": "" if online else hours_message(h)}
+
+
+@router.get("/me/chat/sessions")
+async def my_sessions(request: Request, guest_id: str = "", user: dict = Depends(require_user)):
+    ors = [{"user_id": user["user_id"]}]
+    if guest_id and GUEST_RX.match(guest_id):
+        ors.append({"guest_id": guest_id})
+    return await db.chat_sessions.find({"$or": ors, "last_message": {"$ne": ""}}, {"_id": 0}).sort("last_at", -1).to_list(50)
 
 
 @router.get("/chat/quick-replies")
@@ -177,6 +239,49 @@ async def admin_save_quick_replies(body: QuickRepliesIn, admin: dict = Depends(c
     items = [{"q": i.q.strip()[:100], "a": i.a.strip()[:1000]} for i in body.items if i.q.strip() and i.a.strip()][:12]
     await db.settings.update_one({"key": "chat_quick_replies"}, {"$set": {"items": items}}, upsert=True)
     return await get_quick_replies()
+
+
+@router.get("/admin/chat/hours")
+async def admin_get_hours(admin: dict = Depends(current_admin)):
+    h = await get_hours()
+    return {**h, "online_now": is_online(h)}
+
+
+@router.put("/admin/chat/hours")
+async def admin_save_hours(body: HoursIn, admin: dict = Depends(current_admin)):
+    if not re.match(r"^\d{2}:\d{2}$", body.start) or not re.match(r"^\d{2}:\d{2}$", body.end):
+        raise HTTPException(status_code=400, detail="時間格式需為 HH:MM")
+    val = {"enabled": body.enabled, "start": body.start, "end": body.end, "tz": max(-12, min(14, body.tz)), "message": body.message.strip()[:600]}
+    await db.settings.update_one({"key": "chat_hours"}, {"$set": {"value": val}}, upsert=True)
+    h = await get_hours()
+    return {**h, "online_now": is_online(h)}
+
+
+ORDER_PROJ = {"_id": 0, "id": 1, "order_no": 1, "status": 1, "total_usd": 1, "items.product_name": 1, "items.spec_label": 1, "items.quantity": 1,
+              "created_at": 1, "paid_at": 1, "delivery_info": 1, "user_email": 1, "admin_note": 1, "gift_manual": 1, "gift_auto_failed": 1, "info_submitted": 1}
+
+
+@router.get("/admin/chat/sessions/{sid}/context")
+async def admin_session_context(sid: str, admin: dict = Depends(current_admin)):
+    s = await db.chat_sessions.find_one({"id": sid}, {"_id": 0})
+    if not s:
+        raise HTTPException(status_code=404, detail="session not found")
+    if not s.get("user_id"):
+        return {"member": None, "orders": [], "topups": []}
+    uid = s["user_id"]
+    u = await db.users.find_one({"user_id": uid}, {"_id": 0, "user_id": 1, "email": 1, "name": 1, "phone": 1, "wallet_balance_usd": 1, "created_at": 1, "banned": 1}) or {"user_id": uid}
+    orders = await db.orders.find({"user_id": uid}, ORDER_PROJ).sort("created_at", -1).to_list(5)
+    topups = await db.topup_orders.find({"user_id": uid}, {"_id": 0, "id": 1, "amount_usd": 1, "status": 1, "provider": 1, "method_name": 1, "created_at": 1, "proof_at": 1}).sort("created_at", -1).to_list(3)
+    return {"member": {**u, "orders_total": await db.orders.count_documents({"user_id": uid})}, "orders": orders, "topups": topups}
+
+
+@router.get("/admin/chat/orders")
+async def admin_chat_order_lookup(q: str = "", admin: dict = Depends(current_admin)):
+    q = q.strip()
+    if len(q) < 4:
+        return []
+    rx = {"$regex": re.escape(q), "$options": "i"}
+    return await db.orders.find({"$or": [{"order_no": rx}, {"user_email": rx}, {"id": rx}]}, ORDER_PROJ).sort("created_at", -1).to_list(8)
 
 
 # ----------------------------- admin -----------------------------

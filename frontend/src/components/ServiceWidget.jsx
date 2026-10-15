@@ -6,7 +6,7 @@ import { publicApi, API } from "@/lib/api";
 import { useScrollLock } from "@/lib/useScrollLock";
 import { tr, API_LANG } from "@/i18n";
 
-export const openService = () => window.dispatchEvent(new Event("open-service"));
+export const openService = (session) => window.dispatchEvent(new CustomEvent("open-service", { detail: session ? { session } : null }));
 
 const guestId = () => { let g = localStorage.getItem("chat_guest_id"); if (!g) { g = `g${Math.random().toString(36).slice(2, 10)}${Date.now().toString(36)}`; localStorage.setItem("chat_guest_id", g); } return g; };
 const readFile = (f) => new Promise((res) => { const r = new FileReader(); r.onload = () => res({ image_b64: r.result, image_name: f.name }); r.readAsDataURL(f); });
@@ -38,6 +38,7 @@ export default function ServiceWidget() {
   const [busy, setBusy] = useState(false);
   const [unread, setUnread] = useState(0);
   const [quick, setQuick] = useState([]);
+  const [status, setStatus] = useState({ online: true });
   const lastRef = useRef("");
   const openRef = useRef(false); openRef.current = open;
   const bottomRef = useRef(null);
@@ -68,12 +69,13 @@ export default function ServiceWidget() {
   }, [call]);
 
   useEffect(() => {
-    const on = () => setOpen(true);
+    const on = (e) => { const s = e.detail?.session; if (s) { setSession(s); setMsgs([]); lastRef.current = ""; } setOpen(true); };
     const onScroll = () => setShowTop(window.scrollY > 400);
     window.addEventListener("open-service", on);
     window.addEventListener("scroll", onScroll, { passive: true });
     publicApi.get("/settings").then((r) => setSettings(r.data)).catch(() => {});
     publicApi.get("/chat/quick-replies").then((r) => setQuick(r.data)).catch(() => {});
+    publicApi.get("/chat/status").then((r) => setStatus(r.data)).catch(() => {});
     return () => { window.removeEventListener("open-service", on); window.removeEventListener("scroll", onScroll); };
   }, []);
 
@@ -123,7 +125,9 @@ export default function ServiceWidget() {
                   <button data-testid="service-widget-close" onClick={() => setOpen(false)} className="h-7 w-7 rounded-full bg-white/20 hover:bg-white/30 flex items-center justify-center"><X className="h-4 w-4" /></button>
                 </div>
               </div>
-              <p className="text-xs text-white/85 mt-1 flex items-center gap-1"><Clock className="h-3 w-3" />{tr("7×24 小時人工客服，充值問題即時處理")}</p>
+              <p className="text-xs text-white/85 mt-1 flex items-center gap-1" data-testid="service-chat-status">
+                {status.online ? <><span className="h-2 w-2 rounded-full bg-emerald-300 inline-block" />{tr("客服在線 · 7×24 小時人工客服，充值問題即時處理")}</> : <><Clock className="h-3 w-3" />{tr("非工作時段（客服時間 {0}–{1}），留言後上線即回覆", status.start, status.end)}</>}
+              </p>
             </div>
             <div className="flex-1 min-h-0 overflow-y-auto p-3 space-y-2.5" data-testid="service-chat-messages">
               <div className="flex justify-start">

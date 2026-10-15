@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
-import { Headphones, ImagePlus, Send, CheckCircle2, RotateCcw, Search, User, Smartphone, Loader2, MessageSquareText } from "lucide-react";
+import { Headphones, ImagePlus, Send, CheckCircle2, RotateCcw, Search, User, Smartphone, Loader2, MessageSquareText, Package, Clock } from "lucide-react";
 import { tr } from "@/i18n";
-import { Head, Card, Pill, fmt, Modal, Btn, Input } from "./ui";
+import { Switch } from "@/components/ui/switch";
+import { Head, Card, Pill, fmt, Modal, Btn, Input, Field } from "./ui";
 
 const readFile = (f) => new Promise((res) => { const r = new FileReader(); r.onload = () => res({ image_b64: r.result, image_name: f.name }); r.readAsDataURL(f); });
 const who = (s) => s.name || s.contact || `${tr("訪客")} ${(s.guest_id || "").slice(0, 6)}`;
@@ -59,6 +60,81 @@ function QuickRepliesModal({ callApi, onClose, onSaved }) {
   );
 }
 
+const ORDER_STATUS = { pending_payment: [tr("待支付"), "slate"], paid: [tr("已支付"), "sky"], processing: [tr("充值中"), "amber"], shipped: [tr("已發貨"), "violet"], completed: [tr("已完成"), "emerald"], exception: [tr("異常"), "red"], cancelled: [tr("已取消"), "slate"] };
+const TOPUP_STATUS = { pending: tr("待付款"), reviewing: tr("審核中"), paid: tr("已到帳"), rejected: tr("已駁回"), expired: tr("已過期"), failed: tr("失敗") };
+
+function OrderCard({ o, onInsert }) {
+  const [label, tone] = ORDER_STATUS[o.status] || [o.status, "slate"];
+  const summary = `${tr("訂單")} ${o.order_no}：${label}`;
+  return (
+    <div className="rounded-xl border border-slate-200 bg-white p-2.5 text-xs" data-testid={`chat-ctx-order-${o.id}`}>
+      <div className="flex items-center gap-2"><span className="font-mono font-semibold text-slate-700 truncate">{o.order_no}</span><Pill tone={tone}>{label}</Pill><span className="ml-auto font-bold text-slate-800">${Number(o.total_usd || 0).toFixed(2)}</span></div>
+      <div className="text-slate-500 mt-1 truncate">{(o.items || []).map((it) => `${it.product_name}${it.spec_label ? ` · ${it.spec_label}` : ""}×${it.quantity || 1}`).join("，")}</div>
+      {o.delivery_info && <div className="text-slate-400 mt-0.5 truncate">{Object.entries(o.delivery_info).map(([k, v]) => `${k}: ${v}`).join("；")}</div>}
+      <div className="flex items-center gap-2 mt-1 text-[10px] text-slate-400"><span>{fmt(o.created_at)}</span>{o.gift_manual && <span className="text-amber-600">{tr("人工轉贈")}</span>}{o.gift_auto_failed && <span className="text-red-500">{tr("自動失敗")}</span>}<button data-testid={`chat-ctx-insert-${o.id}`} onClick={() => onInsert(summary)} className="ml-auto text-orange-500 hover:underline">{tr("填入回覆")}</button></div>
+    </div>
+  );
+}
+
+function ContextPanel({ callApi, session, onInsert }) {
+  const [ctx, setCtx] = useState(null);
+  const [q, setQ] = useState("");
+  const [found, setFound] = useState([]);
+  useEffect(() => { setCtx(null); callApi({ method: "GET", url: `/admin/chat/sessions/${session.id}/context` }).then((r) => setCtx(r.data)).catch(() => setCtx({ member: null, orders: [], topups: [] })); }, [callApi, session.id]);
+  useEffect(() => { if (q.trim().length < 4) { setFound([]); return; } const t = setTimeout(() => callApi({ method: "GET", url: `/admin/chat/orders?q=${encodeURIComponent(q.trim())}` }).then((r) => setFound(r.data)).catch(() => {}), 350); return () => clearTimeout(t); }, [q, callApi]);
+  const m = ctx?.member;
+  return (
+    <div className="w-72 shrink-0 border-l border-slate-200 bg-slate-50/60 flex flex-col min-h-0" data-testid="chat-context-panel">
+      <div className="px-3.5 py-3 border-b border-slate-200 text-xs font-bold text-slate-700 flex items-center gap-1.5"><Package className="h-3.5 w-3.5 text-orange-500" />{tr("用戶與訂單")}</div>
+      <div className="flex-1 min-h-0 overflow-y-auto p-3 space-y-3">
+        {!ctx && <div className="text-center py-6"><Loader2 className="h-4 w-4 animate-spin inline text-orange-500" /></div>}
+        {ctx && (m ? (
+          <div className="rounded-xl bg-white border border-slate-200 p-3 text-xs space-y-1" data-testid="chat-ctx-member">
+            <div className="font-semibold text-slate-800 truncate">{m.name || m.email || m.user_id}</div>
+            {m.email && <div className="text-slate-500 truncate">{m.email}</div>}
+            {m.phone && <div className="text-slate-500">{m.phone}</div>}
+            <div className="flex items-center justify-between pt-1"><span className="text-slate-400">{tr("錢包餘額")}</span><b className="text-slate-800">${Number(m.wallet_balance_usd || 0).toFixed(2)}</b></div>
+            <div className="flex items-center justify-between"><span className="text-slate-400">{tr("訂單總數")}</span><b className="text-slate-800">{m.orders_total}</b></div>
+            {m.banned && <Pill tone="red">{tr("已停用")}</Pill>}
+          </div>
+        ) : <div className="rounded-xl bg-white border border-dashed border-slate-300 p-3 text-xs text-slate-500">{tr("訪客會話（未登入），無法自動關聯訂單。可在下方以訂單號 / 信箱查詢。")}</div>)}
+        {ctx && ctx.orders.length > 0 && <div><div className="text-[11px] font-bold text-slate-500 mb-1.5">{tr("最近訂單")}</div><div className="space-y-2">{ctx.orders.map((o) => <OrderCard key={o.id} o={o} onInsert={onInsert} />)}</div></div>}
+        {ctx && ctx.topups.length > 0 && <div><div className="text-[11px] font-bold text-slate-500 mb-1.5">{tr("最近充值")}</div><div className="space-y-1.5">{ctx.topups.map((t) => <div key={t.id} className="rounded-xl border border-slate-200 bg-white p-2.5 text-xs flex items-center gap-2" data-testid={`chat-ctx-topup-${t.id}`}><span className="font-bold text-slate-800">${Number(t.amount_usd).toFixed(2)}</span><span className="text-slate-500 truncate">{t.method_name || t.provider}</span><span className="ml-auto text-slate-500">{TOPUP_STATUS[t.status] || t.status}</span></div>)}</div></div>}
+        <div>
+          <div className="text-[11px] font-bold text-slate-500 mb-1.5">{tr("查詢訂單")}</div>
+          <input data-testid="chat-ctx-search" value={q} onChange={(e) => setQ(e.target.value)} placeholder={tr("訂單號 / 信箱（至少 4 字）")} className="w-full h-9 rounded-lg bg-white border border-slate-200 px-3 text-xs outline-none focus:ring-2 focus:ring-orange-300" />
+          {found.length > 0 && <div className="space-y-2 mt-2">{found.map((o) => <OrderCard key={o.id} o={o} onInsert={onInsert} />)}</div>}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function HoursModal({ callApi, onClose }) {
+  const [h, setH] = useState(null);
+  useEffect(() => { callApi({ method: "GET", url: "/admin/chat/hours" }).then((r) => setH(r.data)).catch(() => setH({ enabled: false, start: "09:00", end: "23:00", tz: 8, message: "" })); }, [callApi]);
+  const save = async () => {
+    try { await callApi({ method: "PUT", url: "/admin/chat/hours", data: h }); toast.success(tr("已儲存")); onClose(); }
+    catch (e) { toast.error(e.response?.data?.detail || tr("儲存失敗")); }
+  };
+  return (
+    <Modal title={tr("工作時段與自動回覆")} onClose={onClose} testId="chat-hours-modal" footer={<><Btn kind="ghost" onClick={onClose}>{tr("取消")}</Btn><Btn data-testid="chat-hours-save" onClick={save} disabled={!h}>{tr("儲存")}</Btn></>}>
+      {!h ? <div className="text-center py-6"><Loader2 className="h-5 w-5 animate-spin inline text-orange-500" /></div> : (
+        <>
+          <label className="flex items-center justify-between text-sm font-semibold"><span>{tr("啟用非工作時段自動回覆")}</span><Switch data-testid="chat-hours-enabled" checked={h.enabled} onCheckedChange={(v) => setH({ ...h, enabled: v })} /></label>
+          <div className="grid grid-cols-3 gap-2">
+            <Field label={tr("開始")}><Input data-testid="chat-hours-start" type="time" value={h.start} onChange={(e) => setH({ ...h, start: e.target.value })} className="w-full" /></Field>
+            <Field label={tr("結束")}><Input data-testid="chat-hours-end" type="time" value={h.end} onChange={(e) => setH({ ...h, end: e.target.value })} className="w-full" /></Field>
+            <Field label={tr("時區 UTC+")}><Input data-testid="chat-hours-tz" type="number" value={h.tz} onChange={(e) => setH({ ...h, tz: +e.target.value })} className="w-full" /></Field>
+          </div>
+          <Field label={tr("自動回覆內容（可用 {start} {end} {tz} 佔位）")}><textarea data-testid="chat-hours-message" value={h.message} onChange={(e) => setH({ ...h, message: e.target.value })} rows={4} className="w-full rounded-lg bg-slate-100 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-orange-300 resize-none" /></Field>
+          <div className="text-xs text-slate-500">{tr("用戶在工作時段外發送訊息時，系統會自動回覆一次（同一會話 6 小時內不重複）。目前狀態：")}<b className={h.online_now ? "text-emerald-600" : "text-amber-600"}>{h.online_now ? tr("客服在線") : tr("非工作時段")}</b></div>
+        </>
+      )}
+    </Modal>
+  );
+}
+
 function Thread({ callApi, session, onChanged, quick }) {
   const [msgs, setMsgs] = useState([]);
   const [text, setText] = useState("");
@@ -94,7 +170,8 @@ function Thread({ callApi, session, onChanged, quick }) {
   const setStatus = async (status) => { await callApi({ method: "PATCH", url: `/admin/chat/sessions/${sid}`, data: { status } }); toast.success(status === "handled" ? tr("已標記為已處理") : tr("已重新開啟")); onChanged(); };
 
   return (
-    <div className="flex flex-col h-full min-h-0">
+    <div className="flex h-full min-h-0">
+    <div className="flex flex-col flex-1 min-w-0 min-h-0">
       <div className="flex items-center gap-3 px-4 py-3 border-b border-slate-200 bg-white">
         <div className="min-w-0 flex-1">
           <div className="font-semibold text-slate-900 truncate" data-testid="chat-thread-title">{who(session)}</div>
@@ -119,6 +196,8 @@ function Thread({ callApi, session, onChanged, quick }) {
         </div>
       </div>
     </div>
+    <ContextPanel callApi={callApi} session={session} onInsert={(t) => setText((p) => (p ? `${p}\n${t}` : t))} />
+    </div>
   );
 }
 
@@ -129,6 +208,7 @@ export function ChatAdmin({ callApi }) {
   const [activeId, setActiveId] = useState(null);
   const [quick, setQuick] = useState([]);
   const [showQuick, setShowQuick] = useState(false);
+  const [showHours, setShowHours] = useState(false);
   useEffect(() => { callApi({ method: "GET", url: "/admin/chat/quick-replies" }).then((r) => setQuick(r.data)).catch(() => {}); }, [callApi]);
   const load = useCallback(() => callApi({ method: "GET", url: `/admin/chat/sessions?status=${status}&q=${encodeURIComponent(q)}` }).then((r) => setData(r.data)).catch(() => {}), [callApi, status, q]);
   useEffect(() => { load(); const id = setInterval(load, 5000); return () => clearInterval(id); }, [load]);
@@ -137,8 +217,9 @@ export function ChatAdmin({ callApi }) {
   const c = data.counts;
   return (
     <div className="flex flex-col h-[calc(100vh-7.5rem)] min-h-[520px]">
-      <Head title={tr("客服會話")} sub={tr("前台「線上客服」實時聊天；新訊息會有聲音提醒。")} right={<><Pill tone="orange">{tr("處理中 {0}", c.open || 0)}</Pill><Pill tone="red">{tr("未讀 {0}", c.unread || 0)}</Pill><Pill tone="emerald">{tr("已處理 {0}", c.handled || 0)}</Pill><Btn kind="ghost" data-testid="chat-quick-manage" onClick={() => setShowQuick(true)} className="flex items-center gap-1"><MessageSquareText className="h-3.5 w-3.5" />{tr("快捷回覆設定")}</Btn></>} />
+      <Head title={tr("客服會話")} sub={tr("前台「線上客服」實時聊天；新訊息會有聲音提醒。")} right={<><Pill tone="orange">{tr("處理中 {0}", c.open || 0)}</Pill><Pill tone="red">{tr("未讀 {0}", c.unread || 0)}</Pill><Pill tone="emerald">{tr("已處理 {0}", c.handled || 0)}</Pill><Btn kind="ghost" data-testid="chat-quick-manage" onClick={() => setShowQuick(true)} className="flex items-center gap-1"><MessageSquareText className="h-3.5 w-3.5" />{tr("快捷回覆設定")}</Btn><Btn kind="ghost" data-testid="chat-hours-manage" onClick={() => setShowHours(true)} className="flex items-center gap-1"><Clock className="h-3.5 w-3.5" />{tr("工作時段")}</Btn></>} />
       {showQuick && <QuickRepliesModal callApi={callApi} onClose={() => setShowQuick(false)} onSaved={setQuick} />}
+      {showHours && <HoursModal callApi={callApi} onClose={() => setShowHours(false)} />}
       <Card className="flex-1 min-h-0 flex overflow-hidden" data-testid="chat-admin">
         <div className="w-80 shrink-0 border-r border-slate-200 flex flex-col min-h-0">
           <div className="p-3 border-b border-slate-200 space-y-2">

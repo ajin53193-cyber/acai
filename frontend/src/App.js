@@ -21,6 +21,7 @@ import MyAccount from "@/pages/account/MyAccount";
 import MyVerify from "@/pages/account/MyVerify";
 import MyCoupons from "@/pages/account/MyCoupons";
 import HelpCenter from "@/pages/account/HelpCenter";
+import ChatHistory from "@/pages/account/ChatHistory";
 import MyWallet from "@/pages/account/MyWallet";
 import WalletTopUp from "@/pages/account/WalletTopUp";
 import WalletTransactions from "@/pages/account/WalletTransactions";
@@ -88,6 +89,7 @@ function App() {
                     <Route path="/account/verify" element={<MyVerify />} />
                     <Route path="/account/coupons" element={<MyCoupons />} />
                     <Route path="/account/help" element={<HelpCenter />} />
+                    <Route path="/account/chat" element={<ChatHistory />} />
                   </Route>
                   <Route path="/sign-in/*" element={<AuthRedirect />} />
                   <Route path="/sign-up/*" element={<AuthRedirect />} />

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { Show, useClerk } from "@clerk/react";
-import { UserRound, ClipboardList, ShieldCheck, Ticket, CircleHelp, LogOut, Wallet } from "lucide-react";
+import { UserRound, ClipboardList, ShieldCheck, Ticket, CircleHelp, LogOut, Wallet, Headphones } from "lucide-react";
 import { useAuthModal } from "@/components/auth/AuthModal";
 import { tr } from "@/i18n";
 
@@ -11,6 +11,7 @@ const NAV = [
   ["/orders", tr("我的訂單"), ClipboardList],
   ["/account/verify", tr("我的認證"), ShieldCheck],
   ["/account/coupons", tr("我的優惠券"), Ticket],
+  ["/account/chat", tr("客服對話"), Headphones],
   ["/account/help", tr("幫助中心"), CircleHelp],
 ];
 
