@@ -189,7 +189,7 @@ function AuthModal({ open, onOpenChange, initialView = "login" }) {
         <DialogTitle className="sr-only">{tr("登入")}</DialogTitle>
         {/* mobile top bar */}
         <div className="md:hidden flex items-center justify-between px-4 pt-3 pb-3 bg-white">
-          <button onClick={close} data-testid="auth-home" className="flex items-center gap-1.5 h-9 px-4 rounded-full bg-[#FDEBD9] text-orange-500 text-sm font-medium"><Home className="h-4 w-4" />{tr("首頁")}</button>
+          <button onClick={close} data-testid="auth-home" className="flex items-center gap-1.5 h-9 px-4 rounded-full bg-[#FDEBD9] text-orange-500 text-sm font-medium outline-none focus:outline-none focus-visible:outline-none"><Home className="h-4 w-4" />{tr("首頁")}</button>
           <button onClick={close} data-testid="auth-close" className="h-8 w-8 -mt-3 rounded-full bg-[#FDEBD9] text-orange-500 flex items-center justify-center"><X className="h-5 w-5" /></button>
         </div>
         <div className="md:hidden flex items-center gap-2 bg-[#FCE7D2] px-4 py-2.5 text-sm font-bold text-orange-500"><Gift className="h-4 w-4" />{tr("新用戶註冊最高領9%優惠券")}</div>
