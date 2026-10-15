@@ -41,7 +41,7 @@ function OrderInfoForm({ order, callApi, onDone }) {
     <div data-testid="order-gift-manual" className="w-full rounded-3xl border border-orange-200/70 bg-gradient-to-b from-[#FFE6CC] via-[#FFF1E2] to-white px-4 py-6 text-center">
       <div className="mx-auto h-20 w-20 rounded-full overflow-hidden ring-2 ring-white/70 shadow-[0_6px_16px_-6px_rgba(232,121,42,0.6)] animate-gt-float"><img src="/giftbox-disc.png" alt="" className="h-full w-full object-cover scale-[1.08]" /></div>
       <div className="mt-4 font-head text-lg font-bold text-orange-600">{tr("等待人工轉贈")}</div>
-      <div className="text-[13px] text-orange-900/60 mt-2 leading-6 px-2">{tr("帳號已提交，客服將盡快為您人工轉贈，完成後交易號會顯示在此處，請留意訂單狀態。")}</div>
+      <div className="text-[13px] text-orange-900/60 mt-2 leading-6 px-2">{tr("帳號已提交，客服正在為您人工轉贈，預計 30 分鐘內完成。完成後交易號會顯示在此處。")}</div>
     </div>
   );
   if (order.info_submitted !== false && order.is_giftcard_order && order.status === "processing") return <GiftTransferring order={order} onRefresh={onDone} callApi={callApi} />;

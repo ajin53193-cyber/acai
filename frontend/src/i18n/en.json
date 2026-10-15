@@ -1770,5 +1770,7 @@
   "訂單列表": "Order List",
   "好的": "OK",
   "充值資料已提交，等待系統轉贈充值": "Top-up info submitted, the system is transferring your gift card",
-  "充值資料已提交，等待人工轉贈": "Top-up info submitted, our team will transfer the gift card manually"
+  "充值資料已提交，等待人工轉贈": "Top-up info submitted, our team will transfer the gift card manually",
+  "等待人工轉贈": "Awaiting manual transfer",
+  "帳號已提交，客服正在為您人工轉贈，預計 30 分鐘內完成。完成後交易號會顯示在此處。": "Account submitted. Our team is transferring your gift card manually, usually within 30 minutes. The transaction number will appear here once done."
 }
