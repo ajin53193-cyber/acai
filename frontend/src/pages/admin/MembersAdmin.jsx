@@ -38,10 +38,12 @@ function WalletAdjust({ uid, balance, callApi, onDone }) {
   return (
     <Card className="p-4 mt-4" data-testid="member-wallet-adjust">
       <div className="flex items-center justify-between mb-3"><div className="font-semibold text-slate-800 text-sm">{tr("餘額調整")}</div><div className="flex gap-1.5">{Object.entries(KIND_LABEL).map(([k, l]) => <button key={k} data-testid={`wallet-kind-${k}`} onClick={() => setKind(k)} className={`h-8 px-3 rounded-full text-xs font-semibold ${kind === k ? (k === "debit" ? "bg-red-500 text-white" : "bg-emerald-500 text-white") : "bg-slate-100 text-slate-500"}`}>{l}</button>)}</div></div>
-      <div className="grid grid-cols-[110px_1fr_auto] gap-2">
-        <Input data-testid="wallet-adjust-amount" type="number" min="0.01" step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder={tr("金額 USD")} />
-        <Input data-testid="wallet-adjust-note" value={note} onChange={(e) => setNote(e.target.value)} placeholder={tr("備註（會顯示在會員的交易紀錄）")} />
-        <Btn kind={kind === "debit" ? "danger" : "ok"} data-testid="wallet-adjust-submit" onClick={submit} disabled={busy}>{busy ? tr("處理中…") : tr("確認{0}", KIND_LABEL[kind])}</Btn>
+      <div className="space-y-2">
+        <div className="grid grid-cols-2 gap-2">
+          <Input data-testid="wallet-adjust-amount" type="number" min="0.01" step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder={tr("金額 USD")} />
+          <Input data-testid="wallet-adjust-note" value={note} onChange={(e) => setNote(e.target.value)} placeholder={tr("備註（選填）")} />
+        </div>
+        <Btn kind={kind === "debit" ? "danger" : "ok"} className="w-full" data-testid="wallet-adjust-submit" onClick={submit} disabled={busy}>{busy ? tr("處理中…") : tr("確認{0}", KIND_LABEL[kind])}</Btn>
       </div>
     </Card>
   );
