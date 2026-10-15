@@ -228,7 +228,7 @@ function CheckoutInner() {
         </div>
       </div>
 
-      <div className="md:hidden fixed inset-x-0 bottom-0 vp-bottom z-30 bg-white rounded-t-3xl px-5 pt-3 pb-4 safe-bottom-pad flex items-center justify-between gap-4 shadow-[0_-8px_30px_-12px_rgba(0,0,0,0.15)]" data-testid="checkout-mobile-bar">
+      <div className="md:hidden fixed inset-x-0 bottom-0 z-30 bg-white rounded-t-3xl px-5 pt-3 pb-4 safe-bottom-pad flex items-center justify-between gap-4 shadow-[0_-8px_30px_-12px_rgba(0,0,0,0.15)]" data-testid="checkout-mobile-bar">
         <div>
           <div className="text-sm text-slate-700">{tr("支付總額:")}</div>
           <div className="font-head text-xl font-extrabold text-orange-500" data-testid="checkout-mobile-total">{format(totalUsd)}</div>

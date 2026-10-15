@@ -277,7 +277,7 @@ function OrdersInner() {
 
       {/* Detail drawer */}
       <Sheet open={!!detail} onOpenChange={(v) => !v && setDetail(null)}>
-        <SheetContent className="w-full sm:max-w-md h-full overflow-y-auto bg-[#FFF4EA] border-l-0 [background-image:radial-gradient(rgba(255,255,255,0.9)_1.5px,transparent_1.5px)] [background-size:18px_18px]" data-testid="order-detail-drawer">
+        <SheetContent className="w-full sm:max-w-md overflow-y-auto bg-[#FFF4EA] border-l-0 [background-image:radial-gradient(rgba(255,255,255,0.9)_1.5px,transparent_1.5px)] [background-size:18px_18px]" data-testid="order-detail-drawer">
           {detail && (
             <>
               <SheetHeader>
@@ -391,7 +391,7 @@ function OrdersInner() {
       </Sheet>
 
       {celebrateInfo && (
-        <div className="fixed inset-0 vp-fill z-[9998] flex items-center justify-center px-6 bg-black/35 backdrop-blur-sm" data-testid="order-celebrate-overlay" onClick={() => setCelebrateInfo(null)}>
+        <div className="fixed inset-0 z-[9998] flex items-center justify-center px-6 bg-black/35 backdrop-blur-sm" data-testid="order-celebrate-overlay" onClick={() => setCelebrateInfo(null)}>
           <div className="animate-gt-pop max-w-xs w-full rounded-3xl border border-orange-200 bg-white px-5 py-5 text-center shadow-[0_24px_60px_-20px_rgba(0,0,0,0.5)]" onClick={(e) => e.stopPropagation()}>
             {celebrateInfo.img ? (
               <div className="mb-3 relative w-full overflow-hidden rounded-xl ring-1 ring-black/5 shadow-md animate-gt-float" style={{ aspectRatio: "1.586" }}>

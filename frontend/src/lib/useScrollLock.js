@@ -67,13 +67,13 @@ function reconcile() {
   if (activeLocks.size > 0 && !savedStyles) {
     savedScrollY = window.scrollY;
     const h = document.documentElement;
-    savedStyles = { position: b.style.position, top: b.style.top, left: b.style.left, right: b.style.right, width: b.style.width, height: b.style.height, overflow: b.style.overflow, htmlOverflow: h.style.overflow };
+    savedStyles = { position: b.style.position, top: b.style.top, left: b.style.left, right: b.style.right, width: b.style.width, bottom: b.style.bottom, overflow: b.style.overflow, htmlOverflow: h.style.overflow };
     b.style.position = "fixed";
     b.style.top = `-${savedScrollY}px`;
     b.style.left = "0";
     b.style.right = "0";
     b.style.width = "100%";
-    b.style.height = "100%";
+    b.style.bottom = "0";
     b.style.overflow = "hidden";
     h.style.overflow = "hidden";
     b.classList.add("gt-scroll-locked");
@@ -86,7 +86,7 @@ function reconcile() {
     b.style.left = savedStyles.left;
     b.style.right = savedStyles.right;
     b.style.width = savedStyles.width;
-    b.style.height = savedStyles.height;
+    b.style.bottom = savedStyles.bottom;
     b.style.overflow = savedStyles.overflow;
     document.documentElement.style.overflow = savedStyles.htmlOverflow;
     savedStyles = null;

@@ -30,8 +30,8 @@ export default function ServiceWidget() {
     <>
       {open && (
         <>
-          <div className="fixed inset-0 vp-fill z-40 md:hidden bg-black/30" onClick={() => setOpen(false)} />
-          <div data-testid="service-widget-panel" className="fixed bottom-24 vp-bottom right-4 md:bottom-24 md:right-6 z-50 w-[320px] safe-bottom-offset max-w-[calc(100vw-2rem)] bg-white rounded-2xl shadow-2xl border border-orange-100 overflow-hidden">
+          <div className="fixed inset-0 z-40 md:hidden bg-black/30" onClick={() => setOpen(false)} />
+          <div data-testid="service-widget-panel" className="fixed bottom-24 right-4 md:bottom-24 md:right-6 z-50 w-[320px] safe-bottom-offset max-w-[calc(100vw-2rem)] bg-white rounded-2xl shadow-2xl border border-orange-100 overflow-hidden">
             <div className="bg-gradient-to-r from-[#F0872E] to-[#E8792A] text-white p-4">
               <div className="flex items-center justify-between">
                 <span className="font-head font-bold flex items-center gap-2"><Headphones className="h-4 w-4" />{tr("線上客服")}</span>
@@ -63,14 +63,14 @@ export default function ServiceWidget() {
       )}
       {showTop && (
         <button data-testid="back-to-top" onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
-          className="fixed bottom-[9.5rem] vp-bottom right-4 md:bottom-24 md:right-6 z-40 h-14 w-14 safe-bottom-offset rounded-full bg-white/90 shadow-xl flex items-center justify-center text-orange-500 hover:bg-white">
+          className="fixed bottom-[9.5rem] right-4 md:bottom-24 md:right-6 z-40 h-14 w-14 safe-bottom-offset rounded-full bg-white/90 shadow-xl flex items-center justify-center text-orange-500 hover:bg-white">
           <ArrowUpToLine className="h-6 w-6" strokeWidth={2.5} />
         </button>
       )}
       <button
         data-testid="service-widget-trigger"
         onClick={() => setOpen((v) => !v)}
-        className="fixed bottom-20 vp-bottom right-4 md:bottom-6 md:right-6 z-40 h-14 w-14 safe-bottom-offset rounded-full bg-white/90 md:bg-gradient-to-br md:from-[#F0872E] md:to-[#E8792A] text-orange-500 md:text-white shadow-xl flex items-center justify-center hover:scale-105 transition-transform"
+        className="fixed bottom-20 right-4 md:bottom-6 md:right-6 z-40 h-14 w-14 safe-bottom-offset rounded-full bg-white/90 md:bg-gradient-to-br md:from-[#F0872E] md:to-[#E8792A] text-orange-500 md:text-white shadow-xl flex items-center justify-center hover:scale-105 transition-transform"
       >
         {open ? <X className="h-6 w-6" /> : <Headphones className="h-6 w-6" />}
       </button>

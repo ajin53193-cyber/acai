@@ -14,7 +14,7 @@ export function AddToHomeDialog({ onClose, source = "unknown" }) {
   const [tab, setTab] = useState(/iPhone|iPad|iPod/i.test(navigator.userAgent) ? "ios" : "android");
   const [, label, src, steps] = TABS.find((t) => t[0] === tab);
   return (
-    <div data-testid="a2hs-dialog" className="fixed inset-0 vp-fill z-[70] bg-black/50 flex items-center justify-center p-5" onClick={onClose}>
+    <div data-testid="a2hs-dialog" className="fixed inset-0 z-[70] bg-black/50 flex items-center justify-center p-5" onClick={onClose}>
       <div className="bg-white w-full max-w-sm md:max-w-md rounded-3xl p-5 shadow-2xl max-h-[92vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-3">
           <h3 className="text-base font-bold text-slate-900 flex items-center gap-2"><Smartphone className="h-5 w-5 text-orange-500" />{tr("新增到桌面")}</h3>
