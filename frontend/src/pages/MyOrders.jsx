@@ -281,7 +281,7 @@ function OrdersInner() {
       )}
 
       {/* Detail drawer */}
-      <Sheet open={!!detail} onOpenChange={(v) => !v && setDetail(null)}>
+      <Sheet open={!!detail} onOpenChange={(v) => !v && !celebrateInfo && setDetail(null)}>
         <SheetContent className="w-full sm:max-w-md overflow-y-auto bg-[#FFF4EA] border-l-0 [background-image:radial-gradient(rgba(255,255,255,0.9)_1.5px,transparent_1.5px)] [background-size:18px_18px]" data-testid="order-detail-drawer">
           {detail && (
             <>
@@ -396,7 +396,7 @@ function OrdersInner() {
       </Sheet>
 
       {celebrateInfo && (
-        <div className="fixed inset-0 z-[9998] flex items-center justify-center px-6 bg-black/35 backdrop-blur-sm" data-testid="order-celebrate-overlay">
+        <div className="fixed inset-0 -bottom-24 pb-24 z-[9998] flex items-center justify-center px-6 bg-black/35 backdrop-blur-sm pointer-events-auto" data-testid="order-celebrate-overlay">
           <div className="animate-gt-pop max-w-xs w-full rounded-[28px] bg-[#FFF4EA] [background-image:radial-gradient(rgba(255,255,255,0.9)_1.5px,transparent_1.5px)] [background-size:18px_18px] p-2 shadow-[0_24px_60px_-20px_rgba(232,121,42,0.55)]" onClick={(e) => e.stopPropagation()}>
             <div className="rounded-[22px] bg-white px-5 pt-5 pb-5 text-center">
               <div className="inline-flex items-center gap-1.5 rounded-full bg-[#FDEBD9] text-orange-500 px-3 py-1 text-xs font-bold mb-3"><CheckCircle2 className="h-3.5 w-3.5" />{tr("轉贈成功")}</div>
