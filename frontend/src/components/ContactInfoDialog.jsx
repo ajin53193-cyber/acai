@@ -3,6 +3,7 @@ import { Check, X } from "lucide-react";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { useApi } from "@/lib/api";
+import { useScrollLock } from "@/lib/useScrollLock";
 import { tr } from "@/i18n";
 
 export const TYPES = [tr("微信"), "Telegram", "WhatsApp", "LINE", "QQ"];
@@ -13,6 +14,7 @@ export function ContactInfoDialog({ initial, onSaved, onClose }) {
   const callApi = useApi();
   const [form, setForm] = useState({ name: "", gender: "male", contact_type: TYPES[0], contact: "", ...(initial || {}) });
   const [busy, setBusy] = useState(false);
+  useScrollLock(true);
   useEffect(() => { if (initial) setForm((f) => ({ ...f, ...initial })); }, [initial]);
 
   const save = async () => {
