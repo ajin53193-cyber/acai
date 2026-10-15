@@ -42,7 +42,7 @@ def phone_match(a: str, b: str) -> bool:
     return bool(a and b) and (a == b or (len(a) >= 8 and len(b) >= 8 and a[-8:] == b[-8:]))
 
 
-DEFAULT_SETTINGS = {"auto_review_enabled": True, "auto_delay_min": 0.5, "auto_delay_max": 1.5, "api_key": ""}
+DEFAULT_SETTINGS = {"auto_review_enabled": True, "auto_delay_min": 0.5, "auto_delay_max": 1.0, "api_key": ""}
 
 
 async def get_settings() -> dict:
@@ -110,7 +110,7 @@ def _amount_from_label(label: str) -> float:
 class SettingsIn(BaseModel):
     auto_review_enabled: bool = True
     auto_delay_min: float = 0.5
-    auto_delay_max: float = 1.5
+    auto_delay_max: float = 1.0
 
 
 @router.get("/settings")

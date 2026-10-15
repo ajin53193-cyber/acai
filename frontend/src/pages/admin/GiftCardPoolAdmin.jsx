@@ -35,7 +35,7 @@ export function GiftCardPoolAdmin({ callApi }) {
         </Card>
         <Card className="p-4">
           <div className="flex items-center justify-between mb-3"><span className="text-sm font-semibold text-slate-700">{tr("禮品卡自動審核")}</span>{cfg && <Switch data-testid="gcp-auto-enabled" checked={!!cfg.auto_review_enabled} onCheckedChange={(v) => saveCfg({ auto_review_enabled: v })} />}</div>
-          <div className="text-xs text-slate-500 mb-2">{tr("自動完成延遲區間（分鐘）")}<span className="text-slate-400">{tr("，顧客端倒計時與實際完成時間同步；設為相同值則固定秒數")}</span></div>
+          <div className="text-xs text-slate-500 mb-2">{tr("自動完成延遲區間（分鐘）")}<span className="text-slate-400">{tr("，顧客端固定顯示 90 秒倒計時，訂單會在此區間內隨機提前完成")}</span></div>
           {cfg && <div className="flex items-center gap-2 text-sm"><Input data-testid="gcp-delay-min" type="number" step="0.5" min="0.5" max="1.5" className="w-20" value={cfg.auto_delay_min} onChange={(e) => setCfg({ ...cfg, auto_delay_min: e.target.value })} /> ~ <Input data-testid="gcp-delay-max" type="number" step="0.5" min="0.5" max="1.5" className="w-20" value={cfg.auto_delay_max} onChange={(e) => setCfg({ ...cfg, auto_delay_max: e.target.value })} /><Btn data-testid="gcp-delay-save" kind="ghost" onClick={() => saveCfg({})}>{tr("儲存")}</Btn></div>}
           <div className="text-[11px] text-slate-400 mt-2">{tr("關閉自動審核後不比對號碼庫，所有訂單直接轉人工。")}</div>
         </Card>

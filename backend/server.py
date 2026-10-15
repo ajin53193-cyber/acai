@@ -1898,7 +1898,7 @@ async def _gift_auto_review(o: dict) -> dict:
         lo, hi = int(float(cfg["auto_delay_min"]) * 60), int(float(cfg["auto_delay_max"]) * 60)
         delay = lo + (secrets.randbelow(hi - lo + 1) if hi > lo else 0)
         upd["gift_dispatch_at"] = (datetime.now(timezone.utc) + timedelta(seconds=delay)).isoformat()
-        upd["gift_countdown_at"] = upd["gift_dispatch_at"]
+        upd["gift_countdown_at"] = (datetime.now(timezone.utc) + timedelta(seconds=90)).isoformat()
         asyncio.create_task(_dispatch_giftcard_at(o["id"], delay))
     else:
         await db.orders.update_one({"id": o["id"]}, {"$unset": {"gift_dispatch_at": 1}})

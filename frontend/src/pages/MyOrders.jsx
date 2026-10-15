@@ -87,7 +87,7 @@ function GiftTransferring({ order, onRefresh, callApi, onCelebrate }) {
     const t = setInterval(() => {
       const l = end ? Math.max(0, end - Date.now()) : 0;
       setLeft(l);
-      const interval = l <= 0 ? 2000 : 10000;
+      const interval = l <= 0 ? 2000 : 3000;
       if (Date.now() - lastPoll >= interval) { lastPoll = Date.now(); check(); }
     }, 1000);
     return () => { stopped = true; clearInterval(t); };

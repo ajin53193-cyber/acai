@@ -46,4 +46,4 @@
 - 倒计时：GiftTransferring 依赖 order.gift_dispatch_at / info_submitted_at / is_giftcard_order。
 - 用户性格：极易改主意、要求极具体，大改前务必 ask_human 确认。
 
-- (2026-06) 礼品卡倒计时与实际完成同步：`gift_countdown_at = gift_dispatch_at`（后台「自動完成延遲區間」0.5~1.5 分钟随机，设相同值即固定秒数）；新增 `_dispatch_giftcard_at` 精确定时任务在倒计时归零时立即完成（20s 轮询为兜底，`gift_dispatching` 原子抢占防重复发货）；前端倒计时归零后每 2s 轮询。转赠成功弹窗按钮改「查看訂單」，不再自动关闭/点遮罩关闭。礼品卡订单提交资料提示改「等待系統轉贈充值」。
+- (2026-06) 礼品卡：顾客端固定 90s 倒计时（gift_countdown_at），实际完成 `gift_dispatch_at` 在后台「自動完成延遲區間」内随机（默认 0.5~1.0 分钟 = 30~60s，须早于倒计时）；新增 `_dispatch_giftcard_at` 精确定时任务在倒计时归零时立即完成（20s 轮询为兜底，`gift_dispatching` 原子抢占防重复发货）；前端倒计时期间每 3s 轮询、归零后每 2s。转赠成功弹窗按钮改「查看訂單」，不再自动关闭/点遮罩关闭。礼品卡订单提交资料提示改「等待系統轉贈充值」。
