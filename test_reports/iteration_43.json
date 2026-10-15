@@ -1,0 +1,24 @@
+{
+  "summary": "Frontend-only testing of the ServiceWidget floating chat per round-43 request. Verified on BOTH desktop (1920x1080) and mobile (375x812) viewports via Playwright against the live preview URL. All 6 acceptance criteria pass: (1) Guest can open panel via service-widget-trigger; service-widget-panel renders without white screen (no console errors other than Clerk dev-key warning). (2) Typing in service-chat-input + clicking service-chat-send posts message; chat-bubble-* appears inside service-chat-messages. (3) service-widget-end button is absent before messages exist and appears after first send/quick-reply; clicking it clears bubbles back to 0 and the end button itself disappears (session reset to welcome state). (4) service-widget-close hides the panel; on mobile, tapping the dark overlay also closes it. (5) service-chat-quick-0 quick reply posts the question and renders both user + auto-reply bubbles. (6) Layout: desktop panel = 380x560 at (1516,424), 16px border-radius, 24px gap from right/bottom. Mobile panel = 351x584 at (12,215), 16px rounded corners, 12px left/right padding, bottom ~12px from viewport — floating small window with margins, NOT fullscreen; input + send button both visible/usable.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "ServiceWidget.jsx L47 useScrollLock(open && window.innerWidth < 768) is evaluated once per render but window.innerWidth isn't tracked on resize — if a user rotates from portrait to landscape while the widget is open the lock state can mismatch. Minor.",
+    "L144 overlay <div onClick={closeWidget}> is only mounted on md:hidden; good. But closeWidget fires POST /chat/sessions/{sid}/close which is also called on the launcher-button close path — fine, matches spec (10-min sweep). No issue.",
+    "L151 end button visibility gate `session?.id && msgs.length > 0` — if the server returns an empty msgs list after poll but a previous session exists, the end button hides. Acceptable because endSession() depends on there being something to end; just worth noting it also hides immediately after endSession() resets msgs=[] which gives the correct UX we observed."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a (skipped per request)", "frontend": "100% (6/6 acceptance criteria)"},
+  "test_credentials": "Guest flow — no credentials needed; chat_guest_id auto-generated in localStorage.",
+  "seed_data_creation": "Two throwaway guest sessions created during live test (one desktop, one mobile). Both were terminated via the service-widget-end button in-test, so backend records were deleted by the /api/chat/sessions/{sid}/end endpoint. No residual TEST_ data.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "ServiceWidget guest flow is fully green. If re-testing: use REACT_APP_BACKEND_URL from /app/frontend/.env and viewports 1920x1080 + 375x812. The panel uses rounded-2xl + left-3/right-3/bottom-[5.5rem] on mobile and md:w-[380px] md:h-[560px] md:right-6 md:bottom-24 on desktop — both confirmed. The service-widget-end button only renders when `session?.id && msgs.length > 0`, so tests must send at least one message (or quick-reply) before asserting its presence.",
+  "rca of the issue": "N/A — no bugs found."
+}

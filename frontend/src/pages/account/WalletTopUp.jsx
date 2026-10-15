@@ -112,24 +112,6 @@ export default function WalletTopUp() {
             })}
           </div>
         )}
-        {selected && (
-          <div className="mt-4 rounded-2xl bg-white border-2 border-orange-200 overflow-hidden" data-testid="pm-description">
-            <div className="flex items-center gap-2 px-3 sm:px-4 py-2.5 bg-orange-50/70 whitespace-nowrap overflow-hidden">
-              {selected.image && <img src={selected.image} alt="" className="hidden sm:block h-6 object-contain shrink-0" />}
-              <span className="text-[13px] sm:text-[14px] font-bold text-slate-900 truncate">{selected.name}</span>
-              <span className="shrink-0 rounded-full bg-orange-100 text-orange-500 text-[10px] sm:text-[11px] font-semibold px-1.5 sm:px-2 py-0.5 leading-4">{tr("付款說明")}</span>
-              {isUsdt && <span className="shrink-0 rounded-full bg-emerald-100 text-emerald-600 text-[10px] sm:text-[11px] font-semibold px-1.5 sm:px-2 py-0.5 leading-4">{tr("鏈上自動入帳")}</span>}
-            </div>
-            <div className="px-4 py-3 text-sm">
-              <p className="text-slate-700 whitespace-pre-wrap leading-relaxed">{selected.description || tr("選擇此方式後點擊「立即充值」完成付款。")}</p>
-              <div className="mt-3 flex flex-wrap gap-2 text-[11px]">
-                <span className="rounded-md bg-slate-100 text-slate-600 px-2 py-1">{tr("單次限額")} <span className="font-head font-bold text-slate-800">USD$ {selected.min_usd ?? 50} ~ USD$ {selected.max_usd ?? 10000}</span></span>
-                <span className="rounded-md bg-slate-100 text-slate-600 px-2 py-1">{tr("手續費")} <span className="font-head font-bold text-orange-500">{selected.fee_percent > 0 ? `${selected.fee_percent}%` : tr("免手續費")}</span></span>
-                {isUsdt && <span className="rounded-md bg-slate-100 text-slate-600 px-2 py-1">{tr("匯率")} <span className="font-head font-bold text-slate-800">1 USD = 1 USDT</span></span>}
-              </div>
-            </div>
-          </div>
-        )}
 
         {pending && pending.status === "pending" && (
           <div className="mt-4 rounded-2xl bg-white border-2 border-orange-400 overflow-hidden" data-testid="usdt-pending-panel">
