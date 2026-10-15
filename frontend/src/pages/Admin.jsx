@@ -18,6 +18,7 @@ import { ActivitiesAdmin } from "@/pages/admin/ActivitiesAdmin";
 import { SiteConfigAdmin } from "@/pages/admin/SiteConfigAdmin";
 import { ProductsAdmin } from "@/pages/admin/ProductsAdmin";
 import { CategoriesAdmin } from "@/pages/admin/CategoriesAdmin";
+import { ReviewsAdmin } from "@/pages/admin/ReviewsAdmin";
 import { OrdersAdmin } from "@/pages/admin/OrdersAdmin";
 import { DashboardAdmin } from "@/pages/admin/DashboardAdmin";
 import { Soon } from "@/pages/admin/Soon";
@@ -99,7 +100,7 @@ const PAGES = {
   "user-batch": (p) => <UserBatchAdmin {...p} />,
   "user-reports": (p) => <UserReportsAdmin {...p} />,
   categories: (p) => <CategoriesAdmin {...p} />,
-  reviews: (p) => <Reviews {...p} />,
+  reviews: (p) => <ReviewsAdmin {...p} />,
   promos: (p) => <Promos {...p} />,
   notifications: (p) => <NotificationsAdmin {...p} />,
   activities: (p) => <ActivitiesAdmin {...p} />,
@@ -196,69 +197,6 @@ function SectionHeader({ title, action }) {
     <div className="flex items-center justify-between mb-5">
       <h1 className="font-head text-2xl font-bold text-white">{title}</h1>
       {action}
-    </div>
-  );
-}
-
-function Reviews({ callApi }) {
-  const [list, setList] = useState([]);
-  const [products, setProducts] = useState([]);
-  const [editing, setEditing] = useState(null);
-  const load = useCallback(() => callApi({ method: "GET", url: "/admin/reviews" }).then((r) => setList(r.data)), [callApi]);
-  useEffect(() => { load(); publicApi.get("/products").then((r) => setProducts(r.data)); }, [load]);
-
-  const save = async (d) => {
-    try {
-      if (d.id) await callApi({ method: "PUT", url: `/admin/reviews/${d.id}`, data: d });
-      else await callApi({ method: "POST", url: "/admin/reviews", data: d });
-      toast.success(tr("已儲存")); setEditing(null); load();
-    } catch { toast.error(tr("失敗")); }
-  };
-  const del = async (id) => { if (!window.confirm(tr("刪除評價？"))) return; await callApi({ method: "DELETE", url: `/admin/reviews/${id}` }); load(); };
-  const pname = (pid) => products.find((p) => p.id === pid)?.name || pid;
-
-  return (
-    <div>
-      <SectionHeader title={tr("評價管理")} action={<button data-testid="admin-add-review-btn" onClick={() => setEditing({ product_id: products[0]?.id || "", author: "", rating: 5, content: "", images: [], visible: true })} className="flex items-center gap-1.5 h-10 px-4 rounded-lg bg-primary text-white text-sm font-semibold"><Plus className="h-4 w-4" /> {tr("新增評價")}</button>} />
-      <div className="space-y-2">
-        {list.map((r) => (
-          <div key={r.id} className="bg-slate-900 rounded-xl border border-slate-800 p-3">
-            <div className="flex items-center justify-between">
-              <div className="text-sm text-white">{r.author} <span className="text-amber-400">{"★".repeat(r.rating)}</span></div>
-              <div className="flex items-center gap-1">
-                {!r.visible && <span className="text-xs text-red-400">{tr("已隱藏")}</span>}
-                <button onClick={() => setEditing(r)} className="p-1.5 text-slate-400 hover:text-primary"><Pencil className="h-4 w-4" /></button>
-                <button onClick={() => del(r.id)} className="p-1.5 text-slate-400 hover:text-red-400"><Trash2 className="h-4 w-4" /></button>
-              </div>
-            </div>
-            <div className="text-xs text-slate-500 mt-0.5">{pname(r.product_id)}</div>
-            <p className="text-sm text-slate-300 mt-1">{r.content}</p>
-          </div>
-        ))}
-      </div>
-      {editing && (
-        <Dialog open onOpenChange={() => setEditing(null)}>
-          <DialogContent className="bg-slate-900 border-slate-800 text-slate-200">
-            <DialogHeader><DialogTitle className="text-white">{editing.id ? tr("編輯評價") : tr("新增評價")}</DialogTitle></DialogHeader>
-            <div className="space-y-3">
-              <div><label className="text-xs text-slate-400">{tr("商品")}</label>
-                <select className={inputCls} value={editing.product_id} onChange={(e) => setEditing({ ...editing, product_id: e.target.value })}>
-                  {products.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-                </select></div>
-              <div className="grid grid-cols-2 gap-3">
-                <div><label className="text-xs text-slate-400">{tr("作者")}</label><input className={inputCls} value={editing.author} onChange={(e) => setEditing({ ...editing, author: e.target.value })} /></div>
-                <div><label className="text-xs text-slate-400">{tr("評分 1-5")}</label><input type="number" min="1" max="5" className={inputCls} value={editing.rating} onChange={(e) => setEditing({ ...editing, rating: +e.target.value })} /></div>
-              </div>
-              <div><label className="text-xs text-slate-400">{tr("內容")}</label><textarea className={inputCls + " h-20 py-2"} value={editing.content} onChange={(e) => setEditing({ ...editing, content: e.target.value })} /></div>
-              <label className="flex items-center gap-2 text-sm"><Switch checked={editing.visible} onCheckedChange={(v) => setEditing({ ...editing, visible: v })} /> {tr("前台顯示")}</label>
-            </div>
-            <DialogFooter>
-              <button onClick={() => setEditing(null)} className="h-10 px-4 rounded-lg border border-slate-700 text-slate-300 text-sm">{tr("取消")}</button>
-              <button onClick={() => save(editing)} className="h-10 px-5 rounded-lg bg-primary text-white text-sm font-semibold">{tr("儲存")}</button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      )}
     </div>
   );
 }

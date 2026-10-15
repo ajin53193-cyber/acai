@@ -234,6 +234,8 @@ class Review(BaseModel):
     content: str
     images: List[str] = []
     visible: bool = True
+    reply: str = ""
+    area: str = ""
     created_at: str = Field(default_factory=now_iso)
 
 
@@ -241,9 +243,11 @@ class ReviewIn(BaseModel):
     product_id: str
     author: str
     rating: int = 5
-    content: str
+    content: str = ""
     images: List[str] = []
     visible: bool = True
+    reply: str = ""
+    area: str = ""
 
 
 class Promo(BaseModel):
@@ -2759,8 +2763,54 @@ async def admin_delete_promo(promo_id: str, admin: dict = Depends(require_role("
 
 
 @api_router.get("/admin/reviews")
-async def admin_list_reviews(admin: dict = Depends(require_role("admin"))):
-    return await db.reviews.find({}, {"_id": 0}).sort("created_at", -1).to_list(500)
+async def admin_list_reviews(product_id: str = "", q: str = "", visible: str = "", rating: int = 0,
+                             admin: dict = Depends(require_role("admin"))):
+    query = {}
+    if product_id:
+        query["product_id"] = product_id
+    if visible in ("true", "false"):
+        query["visible"] = visible == "true"
+    if rating:
+        query["rating"] = rating
+    if q.strip():
+        rx = {"$regex": re.escape(q.strip()), "$options": "i"}
+        query["$or"] = [{"author": rx}, {"content": rx}, {"reply": rx}]
+    rows = await db.reviews.find(query, {"_id": 0}).sort("created_at", -1).to_list(2000)
+    counts = {"total": await db.reviews.count_documents({}),
+              "hidden": await db.reviews.count_documents({"visible": False}),
+              "no_reply": await db.reviews.count_documents({"$or": [{"reply": ""}, {"reply": {"$exists": False}}], "content": {"$ne": ""}})}
+    return {"items": rows, "counts": counts}
+
+
+class ReviewPatch(BaseModel):
+    visible: Optional[bool] = None
+    reply: Optional[str] = None
+
+
+@api_router.patch("/admin/reviews/{review_id}")
+async def admin_patch_review(review_id: str, body: ReviewPatch, admin: dict = Depends(require_role("admin"))):
+    patch = {k: v for k, v in body.model_dump().items() if v is not None}
+    if not patch:
+        raise HTTPException(status_code=400, detail="Nothing to update")
+    if "reply" in patch:
+        patch["replied_at"] = now_iso() if patch["reply"].strip() else ""
+    r = await db.reviews.find_one_and_update({"id": review_id}, {"$set": patch}, projection={"_id": 0}, return_document=ReturnDocument.AFTER)
+    if not r:
+        raise HTTPException(status_code=404, detail="Not found")
+    return r
+
+
+@api_router.post("/admin/reviews/bulk")
+async def admin_bulk_reviews(body: dict, admin: dict = Depends(require_role("admin"))):
+    ids = [str(i) for i in (body.get("ids") or [])]
+    action = body.get("action")
+    if not ids or action not in ("show", "hide", "delete"):
+        raise HTTPException(status_code=400, detail="Invalid request")
+    if action == "delete":
+        r = await db.reviews.delete_many({"id": {"$in": ids}})
+        return {"ok": True, "count": r.deleted_count}
+    r = await db.reviews.update_many({"id": {"$in": ids}}, {"$set": {"visible": action == "show"}})
+    return {"ok": True, "count": r.modified_count}
 
 
 @api_router.post("/admin/reviews")

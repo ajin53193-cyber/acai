@@ -12,6 +12,7 @@ import CurrencySelector from "@/components/CurrencySelector";
 import { openService } from "@/components/ServiceWidget";
 import { useSiteConfig } from "@/lib/siteConfig";
 import { AddToHomeDialog } from "@/components/AddToHomeDialog";
+import { A2HSTip } from "@/components/A2HSTip";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -232,6 +233,7 @@ export default function Header() {
           </div>
         )}
       </div>
+      <A2HSTip pathname={pathname} onOpen={() => setA2hs(true)} />
       {a2hs && <AddToHomeDialog onClose={() => setA2hs(false)} />}
     </header>
   );
