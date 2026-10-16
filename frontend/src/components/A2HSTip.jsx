@@ -1,17 +1,16 @@
 import { useEffect, useState } from "react";
 import { X } from "lucide-react";
 import { tr } from "@/i18n";
-import { track } from "@/lib/track";
+import { track, isStandalone } from "@/lib/track";
 
 const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-const standalone = window.navigator.standalone === true || window.matchMedia?.("(display-mode: standalone)")?.matches;
 
 // Mobile browser only: poster popup inviting the visitor to add the site to the home screen.
 export function A2HSTip({ onOpen, pathname }) {
   const [show, setShow] = useState(false);
   useEffect(() => {
-    if (!isMobile || standalone || pathname.startsWith("/admin")) return;
-    const t = setTimeout(() => { setShow(true); track("a2hs_tip_shown", "popup"); }, 3000);
+    if (!isMobile || isStandalone() || pathname.startsWith("/admin") || sessionStorage.getItem("a2hs_tip_shown")) return;
+    const t = setTimeout(() => { sessionStorage.setItem("a2hs_tip_shown", "1"); setShow(true); track("a2hs_tip_shown", "popup"); }, 3000);
     return () => clearTimeout(t);
   }, [pathname]);
   if (!show) return null;

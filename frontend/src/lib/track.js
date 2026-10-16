@@ -1,6 +1,10 @@
 import { publicApi } from "@/lib/api";
 
-export const isStandalone = () => window.navigator.standalone === true || !!window.matchMedia?.("(display-mode: standalone)")?.matches;
+if (typeof window !== "undefined" && new URLSearchParams(window.location.search).get("source") === "pwa") sessionStorage.setItem("pwa_source", "1");
+export const isStandalone = () =>
+  window.navigator.standalone === true ||
+  !!window.matchMedia?.("(display-mode: standalone), (display-mode: fullscreen), (display-mode: minimal-ui)")?.matches ||
+  sessionStorage.getItem("pwa_source") === "1";
 
 export function track(event, source = "") {
   publicApi.post("/track", { event, source, path: window.location.pathname, standalone: isStandalone() }).catch(() => {});
