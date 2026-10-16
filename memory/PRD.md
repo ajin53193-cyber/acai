@@ -34,11 +34,7 @@
 - 本机验证通过：80→301 https；443 返回 index.html；`/api/` 返回 JSON；MongoDB 本地 27017 正常（商品自动初始化）。
 - 已知：`Storage init failed: 403` — Emergent 对象存储拒绝外部服务器，图片上传不可用，需改为 OSS/S3/本地磁盘（P1）。`translate.py` 仍依赖 EMERGENT_LLM_KEY（P1）。
 
-## [2026-06] iOS 主屏幕 PWA 头部漂移 — 最终方案：App Shell 仅在真 PWA（`navigator.standalone===true` → html.pwa）生效，用户真机确认主屏幕 App 正常。之前 Safari 出问题（弹窗无图/状态栏上滑/底部黑）是因为 `isStandalone()` 把带 `?source=pwa` 的 Safari 标签页误判为 PWA；现 `lib/track.js` 在 iOS 上只信 `navigator.standalone`。Safari 浏览器 = 普通 sticky header + 窗口滚动。订单详情 Sheet 手机端 `max-sm:-bottom-24 max-sm:pb-[7.5rem]` 延伸到 Safari 工具栏下方避免工具栏采样黑色遮罩。顶部状态栏橙色 = iOS 26 Safari 采样顶部推广条颜色（非 bug）。
-### 历史：App Shell 尝试记录（已回退）
-- 根因（用户提供）：`.site-shell/.site-scroll` 类从未定义，PWA 下 fixed header + 窗口滚动，Safari overscroll/键盘导致布局视口偏移。
-- 修复：仅 `html.pwa.shell`（StoreLayout 挂载时加 `shell` 类）生效：html/body `height:100%; overflow:hidden`，body `position:fixed; inset:0`；`#root/.App/.site-shell` 高 100%；`.site-scroll` 为唯一滚动容器（flex:1, overflow-y:auto, overscroll-behavior contain, 背景图 attachment:local 并用 `--head-h` 补偿）。Header 在 PWA 下改为静态 `relative shrink-0`（去掉 fixed+spacer），用 ResizeObserver 写 `--head-h`。浏览器模式完全不变（sticky header，窗口滚动）。
-- 预览用 `?source=pwa` 模拟验证：body fixed、window.scrollY 恒 0、header top 0、滚动到底 footer 贴底无留白。
+## [2026-06] iOS 主屏幕 PWA 布局 — 最终状态：完全回退到 fork 前的稳定布局（PWA: fixed header + spacer, 窗口滚动；Safari: sticky）。App Shell（body fixed + #site-scroll）在真机 PWA 导致底部大块留白、转赠成功弹窗消失，已彻底移除，**绝对不要再尝试**。保留的安全改动：`lib/track.js` iOS 只信 `navigator.standalone`（修复 Safari 被 ?source=pwa 误判为 PWA）；转赠成功弹窗 / 充值资料核对弹窗 / 评价弹窗改为 createPortal 到 body；订单详情 Sheet 手机端 `max-sm:-bottom-24 max-sm:pb-[7.5rem]`。原始 P2 头部漂移问题仍未解决，需真机调试。
 
 ## [旧记录] iOS 主屏幕 PWA 头部漂移 — 历史（已回退 App Shell 实验）
 - 现象（用户录屏）：PWA 内下单→填充值资料（键盘）→返回首页→一滑动，头部+内容整体上移一个状态栏高度（页面比例不变，非缩放）。埋点：正常 vv.offsetTop=0；异常时 offsetTop=56（=状态栏高）。

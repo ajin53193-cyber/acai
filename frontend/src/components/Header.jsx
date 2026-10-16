@@ -66,21 +66,22 @@ export default function Header() {
   }, [isSignedIn, callApi]);
 
   const headRef = useRef(null);
+  const [headH, setHeadH] = useState(0);
   const standalone = isStandalone();
   useLayoutEffect(() => {
     const el = headRef.current;
     if (!el || !standalone) return;
-    const set = () => document.documentElement.style.setProperty("--head-h", `${el.getBoundingClientRect().height}px`);
-    const ro = new ResizeObserver(set);
+    const ro = new ResizeObserver(() => setHeadH(el.getBoundingClientRect().height));
     ro.observe(el);
-    set();
+    setHeadH(el.getBoundingClientRect().height);
     return () => ro.disconnect();
   }, [standalone]);
 
   return (
     <>
-    {/* Home-screen PWA (navigator.standalone): static header outside the #site-scroll scroller (app shell, index.css html.pwa.shell); Safari/browser: plain sticky */}
-    <header ref={headRef} data-testid="site-header" className={`${standalone ? "relative shrink-0" : "sticky top-0"} z-40 w-full bg-[#FFF4EA]`}>
+    {/* Home-screen PWA: fixed header + spacer (long-standing stable layout); browser: plain sticky */}
+    {standalone && <div style={{ height: headH }} aria-hidden="true" data-testid="header-spacer" />}
+    <header ref={headRef} data-testid="site-header" className={`${standalone ? "fixed top-0 inset-x-0" : "sticky top-0"} z-40 w-full bg-[#FFF4EA]`}>
       <div style={{ height: "env(safe-area-inset-top)" }} />
       {/* Top promo bar */}
       {cfg.top_promo.enabled !== false && cfg.top_promo.image && (
