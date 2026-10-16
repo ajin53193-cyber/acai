@@ -29,5 +29,8 @@ function debug(stage) {
 
 if (isIOS) {
   setTimeout(() => debug("load"), 1500);
+  // Record the first time iOS slides the visible area past the layout viewport (the status-bar drift, see lib/vvAnchor.js).
+  let vvSent = false;
+  window.visualViewport?.addEventListener("scroll", () => { if (!vvSent && window.visualViewport.offsetTop > 1) { vvSent = true; setTimeout(() => debug("vv_offset"), 300); } });
   new MutationObserver(() => { if (document.body.classList.contains("gt-scroll-locked")) setTimeout(() => debug("modal_open"), 500); }).observe(document.body, { attributes: true, attributeFilter: ["class"] });
 }

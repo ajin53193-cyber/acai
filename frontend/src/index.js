@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import "@/index.css";
 import "@/lib/iosViewportFix";
 import "@/lib/track";
+import "@/lib/vvAnchor";
 import "@/lib/vpDebug";
 import App from "@/App";
 import { Toaster } from "@/components/ui/sonner";

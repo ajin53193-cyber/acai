@@ -79,9 +79,9 @@ export default function Header() {
 
   return (
     <>
-    {/* Home-screen PWA: fixed header + spacer (long-standing stable layout); browser: plain sticky */}
+    {/* Home-screen PWA: fixed header + spacer, pinned to the visual viewport via --vv-top (lib/vvAnchor.js); browser: plain sticky */}
     {standalone && <div style={{ height: headH }} aria-hidden="true" data-testid="header-spacer" />}
-    <header ref={headRef} data-testid="site-header" className={`${standalone ? "fixed top-0 inset-x-0" : "sticky top-0"} z-40 w-full bg-[#FFF4EA]`}>
+    <header ref={headRef} data-testid="site-header" className={`${standalone ? "fixed top-0 inset-x-0" : "sticky top-0"} z-40 w-full bg-[#FFF4EA]`} style={standalone ? { top: "var(--vv-top, 0px)" } : undefined}>
       <div style={{ height: "env(safe-area-inset-top)" }} />
       {/* Top promo bar */}
       {cfg.top_promo.enabled !== false && cfg.top_promo.image && (

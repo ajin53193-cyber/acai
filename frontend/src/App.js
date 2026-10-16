@@ -42,9 +42,9 @@ function StoreLayout() {
   const hideFooterOnMobile = ["/product/", "/checkout", "/account", "/orders", "/article", "/info"].some((p) => pathname.startsWith(p));
   return (
     <AuthModalProvider>
-      <div className="min-h-screen flex flex-col site-bg site-shell" style={{ "--site-bg-pc": "url(/kavip-bg-pc.png)", "--site-bg-m": "url(/kavip-bg-m.png)" }}>
+      <div className="min-h-screen flex flex-col site-bg" style={{ "--site-bg-pc": "url(/kavip-bg-pc.png)", "--site-bg-m": "url(/kavip-bg-m.png)" }}>
         <Header />
-        <div id="site-scroll" className="site-scroll flex-1 flex flex-col">
+        <div id="site-scroll" className="flex-1 flex flex-col">
           <main className="flex-1">
             <Outlet />
           </main>

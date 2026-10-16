@@ -1,4 +1,4 @@
-// Home-screen PWA uses an app shell (#site-scroll scrolls, window never does); browser mode scrolls the window.
+// The window is the page scroller everywhere; #site-scroll helpers stay harmless if an inner scroller is ever reintroduced.
 export const getScroller = () => document.getElementById("site-scroll");
 
 export function scrollPageTo(opts = { top: 0 }) {
