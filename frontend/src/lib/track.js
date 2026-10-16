@@ -1,10 +1,12 @@
 import { publicApi } from "@/lib/api";
 
 if (typeof window !== "undefined" && new URLSearchParams(window.location.search).get("source") === "pwa") sessionStorage.setItem("pwa_source", "1");
+// iOS exposes navigator.standalone (true in the home-screen app, false in Safari) — trust it so a "?source=pwa" URL
+// opened in Safari can never flip the page into PWA mode. Other platforms fall back to display-mode / the start_url flag.
 export const isStandalone = () =>
-  window.navigator.standalone === true ||
-  !!window.matchMedia?.("(display-mode: standalone), (display-mode: fullscreen), (display-mode: minimal-ui)")?.matches ||
-  sessionStorage.getItem("pwa_source") === "1";
+  typeof window.navigator.standalone === "boolean"
+    ? window.navigator.standalone
+    : (!!window.matchMedia?.("(display-mode: standalone), (display-mode: fullscreen)")?.matches || sessionStorage.getItem("pwa_source") === "1");
 
 export function track(event, source = "") {
   publicApi.post("/track", { event, source, path: window.location.pathname, standalone: isStandalone() }).catch(() => {});
