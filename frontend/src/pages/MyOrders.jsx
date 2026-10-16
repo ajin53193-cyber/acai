@@ -1,5 +1,4 @@
 import { useEffect, useState, useCallback, useRef } from "react";
-import { createPortal } from "react-dom";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { Copy, Package, Check, CheckCircle2, Gift, Search, X, Star } from "lucide-react";
 import { toast } from "sonner";
@@ -80,7 +79,7 @@ function OrderInfoForm({ order, callApi, onDone }) {
 function InfoConfirm({ defs, vals, onBack, onConfirm }) {
   const rows = Object.entries(defs).flatMap(([pid, d]) => d.fields.map((f) => ({ key: `${pid}-${f.name}`, product: d.name, label: f.name, value: f.type === "password" ? "••••••" : (vals[pid]?.[f.name] || "") })));
   const multi = Object.keys(defs).length > 1;
-  return createPortal(
+  return (
         <div data-testid="order-info-confirm" className="fixed inset-0 z-[80] flex items-center justify-center bg-black/50 p-4" onClick={onBack}>
       <div className="w-full max-w-sm rounded-2xl bg-white p-5 shadow-2xl space-y-4" onClick={(e) => e.stopPropagation()}>
         <div>
@@ -100,8 +99,7 @@ function InfoConfirm({ defs, vals, onBack, onConfirm }) {
           <button data-testid="order-info-confirm-ok" onClick={onConfirm} className="flex-1 h-11 rounded-full bg-orange-500 text-white font-bold hover:bg-orange-600">{tr("確認無誤，提交")}</button>
         </div>
       </div>
-    </div>,
-    document.body
+    </div>
   );
 }
 
@@ -457,8 +455,8 @@ function OrdersInner() {
         </SheetContent>
       </Sheet>
 
-      {celebrateInfo && createPortal(
-        <div className="fixed inset-0 -bottom-24 pb-24 z-[9998] flex items-center justify-center px-6 bg-black/45 pointer-events-auto" data-testid="order-celebrate-overlay">
+      {celebrateInfo && (
+        <div className="fixed inset-0 -bottom-24 pb-24 z-[9998] flex items-center justify-center px-6 bg-black/35 backdrop-blur-sm pointer-events-auto" data-testid="order-celebrate-overlay">
           <div className="animate-gt-pop max-w-xs w-full rounded-[28px] bg-[#FFF4EA] [background-image:radial-gradient(rgba(255,255,255,0.9)_1.5px,transparent_1.5px)] [background-size:18px_18px] p-2 shadow-[0_24px_60px_-20px_rgba(232,121,42,0.55)]" onClick={(e) => e.stopPropagation()}>
             <div className="rounded-[22px] bg-white px-5 pt-5 pb-5 text-center">
               <div className="inline-flex items-center gap-1.5 rounded-full bg-[#FDEBD9] text-orange-500 px-3 py-1 text-xs font-bold mb-3"><CheckCircle2 className="h-3.5 w-3.5" />{tr("轉贈成功")}</div>
@@ -477,7 +475,7 @@ function OrdersInner() {
             </div>
           </div>
         </div>
-      , document.body)}
+      )}
     </Panel>
   );
 }

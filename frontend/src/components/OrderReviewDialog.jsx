@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { createPortal } from "react-dom";
 import { Star, ImagePlus, X, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { tr } from "@/i18n";
@@ -32,7 +31,7 @@ export function OrderReviewDialog({ order, callApi, onClose, onDone }) {
   };
   const shown = hover || rating;
 
-  return createPortal(
+  return (
     <div data-testid="order-review-dialog" className="fixed inset-0 z-[80] flex items-center justify-center bg-black/50 p-4" onClick={() => !busy && onClose()}>
       <div className="w-full max-w-sm rounded-2xl bg-white p-5 shadow-2xl space-y-4" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center gap-3">
@@ -69,8 +68,7 @@ export function OrderReviewDialog({ order, callApi, onClose, onDone }) {
           <button data-testid="order-review-submit" onClick={submit} disabled={busy} className="flex-1 h-11 rounded-full bg-orange-500 text-white font-bold hover:bg-orange-600 disabled:opacity-60 flex items-center justify-center gap-1">{busy && <Loader2 className="h-4 w-4 animate-spin" />}{busy ? tr("提交中…") : tr("提交評價")}</button>
         </div>
       </div>
-    </div>,
-    document.body
+    </div>
   );
 }
 
