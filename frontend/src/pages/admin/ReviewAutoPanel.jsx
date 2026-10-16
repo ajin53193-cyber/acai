@@ -16,7 +16,7 @@ export function ReviewAutoPanel({ callApi, products }) {
     const next = { ...cfg, ...patch };
     setCfg(next);
     try {
-      const r = await callApi({ method: "PUT", url: "/admin/reviews/auto", data: { enabled: !!next.enabled, daily_min: +next.daily_min, daily_max: +next.daily_max, product_id: next.product_id, seed_total: +next.seed_total, seed_from: next.seed_from, auto_after_days: +next.auto_after_days } });
+      const r = await callApi({ method: "PUT", url: "/admin/reviews/auto", data: { enabled: !!next.enabled, daily_min: +next.daily_min, daily_max: +next.daily_max, product_id: next.product_id, seed_total: +next.seed_total, seed_from: next.seed_from, auto_after_days: +next.auto_after_days, other_enabled: !!next.other_enabled, other_pct: +next.other_pct, other_min: +next.other_min, other_max: +next.other_max, other_text_pct: +next.other_text_pct } });
       setCfg(r.data); toast.success(tr("已儲存"));
     } catch (e) { toast.error(e.response?.data?.detail || tr("儲存失敗")); }
   };
@@ -49,7 +49,7 @@ export function ReviewAutoPanel({ callApi, products }) {
             {products.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
           </select>
         </Field>
-        <Field label={tr("每日新增區間（筆，香港時間 08:00–23:30 內隨機分佈）")}>
+        <Field label={tr("每日新增區間（筆，香港時間 08:00–23:30 內隨機分佈，調整次日生效）")}>
           <div className="flex items-center gap-2 text-sm">{num("daily_min", { min: 0 })} ~ {num("daily_max", { min: 0 })}<Btn kind="ghost" data-testid="review-auto-save-range" onClick={() => save({})}>{tr("儲存")}</Btn></div>
         </Field>
         <Field label={tr("訂單完成後 N 天未評價自動 5 星好評（所有商品）")}>
@@ -66,6 +66,19 @@ export function ReviewAutoPanel({ callApi, products }) {
         <Btn data-testid="review-auto-seed" disabled={busy || s.seeded >= cfg.seed_total} onClick={() => seed(false)}><Sparkles className="h-4 w-4 inline -mt-0.5 mr-1" />{s.seeded >= cfg.seed_total ? tr("已補齊") : tr("一鍵補齊歷史好評")}</Btn>
         {s.seeded > 0 && <button data-testid="review-auto-reseed" disabled={busy} onClick={() => seed(true)} className="text-xs text-slate-500 underline">{tr("重新生成")}</button>}
         <Btn kind="ghost" data-testid="review-auto-run-now" disabled={busy} onClick={runNow} className="ml-auto"><Play className="h-4 w-4 inline -mt-0.5 mr-1" />{tr("立即執行一次")}</Btn>
+      </div>
+      <div className="mt-3 rounded-xl border border-slate-200 px-3 py-2.5" data-testid="review-auto-other">
+        <div className="flex flex-wrap items-center gap-3 mb-2">
+          <span className="text-xs font-semibold text-slate-700">{tr("其它商品每日自動好評")}</span>
+          <Switch data-testid="review-auto-other_enabled" checked={!!cfg.other_enabled} onCheckedChange={(v) => save({ other_enabled: v })} />
+          <span className="text-xs text-slate-500">{cfg.other_enabled ? tr("啟用中") : tr("已暫停")}</span>
+          <span className="ml-auto text-xs text-slate-500" data-testid="review-auto-stat-other">{tr("今日")} <b className="text-slate-800">{s.other_done}</b> / {s.other_planned} · {tr("累計")} <b className="text-slate-800">{s.other_total}</b> · {tr("商品數")} {s.other_products}</span>
+        </div>
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-sm">
+          <span className="text-xs text-slate-500">{tr("每天隨機抽")}</span>{num("other_pct", { min: 0, max: 100 })}<span className="text-xs text-slate-500">{tr("% 的商品，每個商品")}</span>
+          {num("other_min", { min: 0 })} ~ {num("other_max", { min: 0 })}<span className="text-xs text-slate-500">{tr("條；帶文字比例")}</span>{num("other_text_pct", { min: 0, max: 100 })}<span className="text-xs text-slate-500">%（{tr("調整次日生效")}）</span>
+          <Btn kind="ghost" data-testid="review-auto-save-other" onClick={() => save({})}>{tr("儲存")}</Btn>
+        </div>
       </div>
       <div className="text-[11px] text-slate-400 mt-2">{tr("地區：香港 / 澳門 / 台灣 / 中國 / 馬來西亞 / 新加坡；帳號約六成脫敏郵箱、四成脫敏手機號；約 25% 附一句好評文字。")}</div>
     </Card>

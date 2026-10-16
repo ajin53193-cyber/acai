@@ -19,7 +19,8 @@ router = APIRouter(prefix="/api")
 HKT = timezone(timedelta(hours=8))
 KEY = "review_auto"
 DEFAULTS = {"enabled": True, "daily_min": 30, "daily_max": 100, "product_id": "", "seed_total": 1849, "seed_from": "2025-01-01",
-            "auto_after_days": 3, "last_daily_date": "", "today_plan": [], "today_done": 0}
+            "auto_after_days": 3, "last_daily_date": "", "today_plan": [], "today_done": 0,
+            "other_enabled": True, "other_pct": 30, "other_min": 1, "other_max": 2, "other_text_pct": 50, "other_date": "", "other_plan": [], "other_done": 0}
 
 AREAS = [("香港", "HK", "zh-TW", 852, 8, 34), ("澳門", "MO", "zh-TW", 853, 8, 6), ("中國台灣", "TW", "zh-TW", 886, 9, 20),
          ("中國", "CN", "zh-CN", 86, 11, 18), ("馬來西亞", "MY", "en", 60, 9, 12), ("新加坡", "SG", "en", 65, 8, 10)]
@@ -28,6 +29,11 @@ TEXTS = {
     "zh-TW": ["到帳好快，讚！", "第二次購買了，一樣順利", "幾分鐘就收到交易號，方便", "客服回覆很快，推薦", "價格比門市划算，會再買", "操作簡單，長輩都會用", "轉贈成功，朋友很開心", "穩定可靠，已回購多次", "付款後很快完成，好評", "很好用，下次還會再來", "一直都在這裡買，從沒出過問題", "速度快服務好，五星"],
     "zh-CN": ["到账很快，好评！", "已经买过好几次了，一直很稳", "几分钟就搞定，方便", "客服态度好，回复快", "比线下便宜，划算", "流程简单，推荐", "转赠成功，朋友很满意", "靠谱，回购中", "付款后秒到，赞", "好用，下次还来"],
     "en": ["Fast delivery, thanks!", "Received within minutes, great service", "Second time buying, smooth as always", "Good price and quick support", "Easy to use, highly recommended", "Worked perfectly, will buy again", "Reliable seller, 5 stars", "Quick and hassle-free"],
+}
+TEXTS_GENERIC = {
+    "zh-TW": ["充值秒到，讚！", "到帳很快，價格也划算", "第二次買了，一樣順利", "客服回覆很快，推薦", "比官方便宜不少，會再回購", "操作簡單，幾分鐘搞定", "一直在這裡充，從沒出過問題", "速度快服務好，五星", "付款後很快到帳，好評", "很好用，下次還會再來", "朋友推薦來的，果然靠譜", "匯率實惠，到帳及時"],
+    "zh-CN": ["充值秒到，好评！", "到账很快，价格也划算", "已经买过好几次了，一直很稳", "客服态度好，回复快", "比官方便宜，省了不少", "流程简单，几分钟搞定", "靠谱，回购中", "付款后秒到，赞", "好用，下次还来", "朋友推荐的，确实不错", "汇率合适，到账及时"],
+    "en": ["Top-up arrived within minutes, thanks!", "Fast and reliable, great price", "Second time buying, smooth as always", "Quick support, highly recommended", "Cheaper than official, will buy again", "Easy process, worked perfectly", "Reliable seller, 5 stars", "Quick and hassle-free", "Good rate and instant delivery"],
 }
 LETTERS = "abcdefghijklmnopqrstuvwxyz"
 
@@ -78,11 +84,11 @@ def fake_author(cc: int, ndigits: int) -> str:
     return mask_phone(str(cc) + first + "".join(random.choice("0123456789") for _ in range(ndigits - 1)), cc)
 
 
-def gen_review(product_id: str, at: datetime) -> dict:
+def gen_review(product_id: str, at: datetime, text_pct: float = 25, texts: dict = TEXTS) -> dict:
     area, country, lang, cc, nd, _ = random.choices(AREAS, weights=[a[5] for a in AREAS])[0]
     if lang == "en" and random.random() < 0.4:
         lang = "zh-CN"
-    content = random.choice(TEXTS[lang]) if random.random() < 0.25 else ""
+    content = random.choice(texts[lang]) if random.random() * 100 < text_pct else ""
     return {"id": uuid.uuid4().hex, "product_id": product_id, "author": fake_author(cc, nd), "rating": 5 if random.random() < 0.94 else 4, "content": content,
             "images": [], "visible": True, "reply": "", "area": area, "country": country, "lang": lang,
             "buy_count": random.choices([1, 2, 3, 5], weights=[70, 18, 8, 4])[0], "auto": True, "created_at": at.astimezone(timezone.utc).isoformat()}
@@ -166,9 +172,35 @@ async def order_auto_tick(cfg: dict):
         await db.orders.update_one({"id": o["id"]}, {"$set": {"reviewed": True, "review_auto": True, "review": {"rating": 5, "content": "", "images": [], "created_at": at.isoformat(), "auto": True}, "review_ids": ids}})
 
 
+async def other_tick(cfg: dict) -> bool:
+    if not cfg.get("other_enabled"):
+        return False
+    now = datetime.now(HKT)
+    today = now.strftime("%Y-%m-%d")
+    changed = False
+    if cfg.get("other_date") != today:
+        pids = [p["id"] async for p in db.products.find({"is_giftcard": {"$ne": True}, "active": {"$ne": False}, "id": {"$ne": cfg.get("product_id")}}, {"_id": 0, "id": 1})]
+        k = round(len(pids) * max(0, min(100, float(cfg.get("other_pct") or 0))) / 100)
+        lo, hi = sorted((int(cfg.get("other_min") or 1), int(cfg.get("other_max") or 2)))
+        plan = [[_rand_time_on(now).isoformat(), pid] for pid in random.sample(pids, k) for _ in range(random.randint(lo, hi))]
+        plan.sort(key=lambda x: x[0])
+        cfg.update({"other_date": today, "other_done": 0, "other_plan": plan})
+        changed = True
+    plan, done = cfg.get("other_plan") or [], int(cfg.get("other_done") or 0)
+    due = [x for x in plan[done:] if datetime.fromisoformat(x[0]) <= now]
+    if due:
+        tp = float(cfg.get("other_text_pct") or 50)
+        await db.reviews.insert_many([{**gen_review(pid, datetime.fromisoformat(t), tp, TEXTS_GENERIC), "daily_other": True} for t, pid in due])
+        cfg["other_done"] = done + len(due)
+        changed = True
+    return changed
+
+
 async def tick():
     cfg = await get_cfg()
-    if await daily_tick(cfg):
+    changed = await daily_tick(cfg)
+    changed = await other_tick(cfg) or changed
+    if changed:
         await save_cfg(cfg)
     await order_auto_tick(cfg)
 
@@ -192,6 +224,11 @@ class CfgIn(BaseModel):
     seed_total: int = 1849
     seed_from: str = "2025-01-01"
     auto_after_days: int = 3
+    other_enabled: bool = True
+    other_pct: int = 30
+    other_min: int = 1
+    other_max: int = 2
+    other_text_pct: int = 50
 
 
 async def _stats(cfg: dict) -> dict:
@@ -201,12 +238,17 @@ async def _stats(cfg: dict) -> dict:
             "daily_total": await db.reviews.count_documents({"product_id": pid, "daily": True}) if pid else 0,
             "today_planned": len(cfg.get("today_plan") or []) if cfg.get("last_daily_date") == today else 0,
             "today_done": int(cfg.get("today_done") or 0) if cfg.get("last_daily_date") == today else 0,
+            "other_planned": len(cfg.get("other_plan") or []) if cfg.get("other_date") == today else 0,
+            "other_done": int(cfg.get("other_done") or 0) if cfg.get("other_date") == today else 0,
+            "other_total": await db.reviews.count_documents({"daily_other": True}),
+            "other_products": await db.products.count_documents({"is_giftcard": {"$ne": True}, "active": {"$ne": False}}),
             "order_auto": await db.reviews.count_documents({"auto": True, "order_id": {"$exists": True}}),
             "user_reviews": await db.reviews.count_documents({"order_id": {"$exists": True}, "auto": {"$ne": True}})}
 
 
 def _public(cfg: dict) -> dict:
-    return {k: cfg[k] for k in ("enabled", "daily_min", "daily_max", "product_id", "seed_total", "seed_from", "auto_after_days", "last_daily_date")}
+    return {k: cfg[k] for k in ("enabled", "daily_min", "daily_max", "product_id", "seed_total", "seed_from", "auto_after_days", "last_daily_date",
+                                "other_enabled", "other_pct", "other_min", "other_max", "other_text_pct", "other_date")}
 
 
 @router.get("/admin/reviews/auto")
@@ -223,10 +265,12 @@ async def auto_put(body: CfgIn, admin: dict = Depends(admin_api.current_admin)):
         datetime.strptime(body.seed_from, "%Y-%m-%d")
     except ValueError:
         raise HTTPException(status_code=400, detail="日期格式錯誤")
-    if body.product_id != cfg["product_id"] or (lo, hi) != (int(cfg["daily_min"]), int(cfg["daily_max"])):
+    if body.product_id and body.product_id != cfg["product_id"]:
         cfg.update({"last_daily_date": "", "today_plan": [], "today_done": 0})
+    olo, ohi = sorted((max(0, body.other_min), max(0, body.other_max)))
     cfg.update({"enabled": body.enabled, "daily_min": lo, "daily_max": hi, "product_id": body.product_id or cfg["product_id"], "seed_total": max(0, body.seed_total),
-                "seed_from": body.seed_from, "auto_after_days": max(0, body.auto_after_days)})
+                "seed_from": body.seed_from, "auto_after_days": max(0, body.auto_after_days),
+                "other_enabled": body.other_enabled, "other_pct": max(0, min(100, body.other_pct)), "other_min": olo, "other_max": ohi, "other_text_pct": max(0, min(100, body.other_text_pct))})
     await save_cfg(cfg)
     return {**_public(cfg), "stats": await _stats(cfg)}
 

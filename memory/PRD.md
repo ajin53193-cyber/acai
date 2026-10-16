@@ -68,7 +68,9 @@
   - 管理 `GET/PUT /api/admin/reviews/auto`、`POST .../run-now`；前端 `pages/admin/ReviewAutoPanel.jsx` 嵌在 ReviewsAdmin 顶部（开关/商品/区间/N 天/补齐日期数量/一键补齐/重新生成/立即执行 + 统计）。admin reviews counts 的 `no_reply` 排除 auto。
   - 公共 `GET /api/reviews` 限 300 条；新增 `GET /api/reviews/stats?product_id=` {count, avg, areas}，ProductDetail 用其显示总数/均分/地区数，评论图片缩略图 `review-images-{id}`。
   - 用户端 MyOrders：已完成未评价订单显示「評價」按钮 → `components/OrderReviewDialog.jsx` 居中弹窗（星级/文字/≤3 图）；已评价显示 `OrderReviewBadge`。
-- patch.zip 现含 backend/server.py、backend/review_auto.py（新文件），解压后需 `pm2 restart gogo589-backend`；首次需在后台「商品評論」点「一鍵補齊歷史好評」。
+- 其它商品每日自動好評（非礼品卡、active≠False）：cfg `other_enabled/other_pct 30/other_min 1/other_max 2/other_text_pct 50/other_date/other_plan[[iso,pid]]/other_done`；每天 HKT 首次 tick 随机抽 pct% 商品，每个 1~2 条，时间 08:00–23:30 分散，文字模板 `TEXTS_GENERIC`，标 `daily_other:true`。区间/比例调整次日生效（不重置当日计划，避免重复生成）。面板 `review-auto-other`。
+- Stripe webhook 现支持 `STRIPE_WEBHOOK_SECRET` 签名校验（payments_api._stripe）；已向用户发出 Stripe Webhook / Google OAuth 回调切换到 www.gogo589.com 的操作步骤（APP_PUBLIC_URL、重定向 URI `/auth/google`）。
+- patch.zip 现含 backend/server.py、backend/review_auto.py（新文件）、backend/payments_api.py，解压后需 `pm2 restart gogo589-backend`；首次需在后台「商品評論」点「一鍵補齊歷史好評」。
 
 ## 待办 / Blocked
 - P1 自托管：storage.py 改本地磁盘/OSS/S3；translate.py 改用户自有 OpenAI Key。
