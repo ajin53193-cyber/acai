@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
-import { Copy, Package, Check, CheckCircle2, Gift, Search, X } from "lucide-react";
+import { Copy, Package, Check, CheckCircle2, Gift, Search, X, Star } from "lucide-react";
 import { toast } from "sonner";
 import { useApi } from "@/lib/api";
 import { celebrate } from "@/lib/celebrate";
@@ -12,6 +12,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 import { publicApi } from "@/lib/api";
 import { tr } from "@/i18n";
 import { ContactInfoDialog, profileComplete } from "@/components/ContactInfoDialog";
+import { OrderReviewDialog, OrderReviewBadge } from "@/components/OrderReviewDialog";
 
 function OrderInfoForm({ order, callApi, onDone }) {
   const [defs, setDefs] = useState({});
@@ -185,6 +186,7 @@ function OrdersInner() {
   const [filter, setFilter] = useState("all");
   const [loading, setLoading] = useState(true);
   const [detail, setDetail] = useState(null);
+  const [reviewing, setReviewing] = useState(null);
   const [paying, setPaying] = useState(false);
   const { addItem } = useCart();
 
@@ -307,7 +309,11 @@ function OrdersInner() {
                     </div>
                   </div>
                 )}
+                {o.status === "completed" && o.reviewed && <OrderReviewBadge review={o.review} testId={`order-review-done-${o.id}`} />}
                 <div className="mt-3 md:mt-4 pt-3 border-t border-slate-200/70 flex items-center justify-center md:justify-end gap-2.5 md:gap-2">
+                  {o.status === "completed" && !o.reviewed && (
+                    <button data-testid={`order-review-${o.id}`} onClick={() => setReviewing(o)} className="h-9 md:h-10 px-5 rounded-full bg-amber-50 border border-amber-200 text-amber-700 text-xs md:text-sm font-semibold shadow-sm hover:bg-amber-100 transition-colors whitespace-nowrap flex items-center gap-1"><Star className="h-3.5 w-3.5 fill-amber-400 text-amber-400" />{tr("評價")}</button>
+                  )}
                   {o.status === "pending_payment" && <button data-testid={`order-delete-${o.id}`} onClick={() => removeOrder(o)} className="h-8 md:h-9 px-4 rounded-full bg-white max-md:bg-slate-100 text-slate-600 text-xs hover:bg-orange-50 hover:text-orange-500 whitespace-nowrap">{tr("刪除訂單")}</button>}
                   <button data-testid={`order-reorder-${o.id}`} onClick={() => reorder(o)} className="h-9 md:h-10 px-5 rounded-full bg-white border border-orange-200 text-orange-600 text-xs md:text-sm font-semibold shadow-sm hover:bg-orange-50 transition-colors whitespace-nowrap">{tr("再來一單")}</button>
                   {o.status === "paid" && o.info_submitted === false && (
@@ -324,6 +330,8 @@ function OrdersInner() {
           })}
         </div>
       )}
+
+      {reviewing && <OrderReviewDialog order={reviewing} callApi={callApi} onClose={() => setReviewing(null)} onDone={(review) => { setOrders((os) => os.map((x) => (x.id === reviewing.id ? { ...x, reviewed: true, review } : x))); setReviewing(null); }} />}
 
       {/* Detail drawer */}
       <Sheet open={!!detail} onOpenChange={(v) => !v && !celebrateInfo && setDetail(null)}>

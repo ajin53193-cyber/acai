@@ -25,6 +25,7 @@ import secrets
 import cms_api
 import payments_api
 import chat_api
+import review_auto
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -497,7 +498,15 @@ async def get_reviews(product_id: Optional[str] = None):
     query = {"visible": True}
     if product_id:
         query["product_id"] = product_id
-    return await db.reviews.find(query, {"_id": 0}).sort("created_at", -1).to_list(500)
+    return await db.reviews.find(query, {"_id": 0}).sort("created_at", -1).to_list(300)
+
+
+@api_router.get("/reviews/stats")
+async def get_review_stats(product_id: str):
+    agg = await db.reviews.aggregate([{"$match": {"visible": True, "product_id": product_id}},
+                                      {"$group": {"_id": None, "count": {"$sum": 1}, "avg": {"$avg": "$rating"}, "areas": {"$addToSet": "$area"}}}]).to_list(1)
+    a = agg[0] if agg else {"count": 0, "avg": 0, "areas": []}
+    return {"count": a["count"], "avg": round(a["avg"] or 0, 1), "areas": len([x for x in a["areas"] if x])}
 
 
 TRACK_EVENTS = {"a2hs_tip_shown", "a2hs_tip_open", "a2hs_tip_close", "a2hs_dialog_open", "pwa_launch", "vp_debug"}
@@ -2975,7 +2984,7 @@ async def admin_list_reviews(product_id: str = "", q: str = "", visible: str = "
     rows = await db.reviews.find(query, {"_id": 0}).sort("created_at", -1).to_list(2000)
     counts = {"total": await db.reviews.count_documents({}),
               "hidden": await db.reviews.count_documents({"visible": False}),
-              "no_reply": await db.reviews.count_documents({"$or": [{"reply": ""}, {"reply": {"$exists": False}}], "content": {"$ne": ""}}),
+              "no_reply": await db.reviews.count_documents({"$or": [{"reply": ""}, {"reply": {"$exists": False}}], "content": {"$ne": ""}, "auto": {"$ne": True}}),
               "bad": await db.reviews.count_documents(BAD_REVIEW_COND)}
     return {"items": rows, "counts": counts}
 
@@ -3325,6 +3334,9 @@ app.include_router(payments_api.router)
 chat_api.db = db
 chat_api.upload_b64 = _upload_b64
 app.include_router(chat_api.router)
+review_auto.db = db
+review_auto.upload_b64 = _upload_b64
+app.include_router(review_auto.router)
 app.include_router(giftcard_api.router, prefix="/api")
 app.include_router(giftcard_api.ext_router, prefix="/api")
 app.include_router(admin_api.router)
@@ -3379,6 +3391,7 @@ async def on_startup():
     await translator.load()
     await admin_api.load_integration_settings()
     asyncio.create_task(_giftcard_dispatch_loop())
+    asyncio.create_task(review_auto.loop())
 
 
 @app.middleware("http")

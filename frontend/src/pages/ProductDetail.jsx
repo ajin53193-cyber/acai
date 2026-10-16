@@ -83,6 +83,7 @@ export default function ProductDetail() {
   const [related, setRelated] = useState([]);
   const [a2hs, setA2hs] = useState(false);
   const [reviews, setReviews] = useState([]);
+  const [rstats, setRstats] = useState(null);
   const [specId, setSpecId] = useState(null);
   const [qty, setQty] = useState(1);
   const [tab, setTab] = useState("desc");
@@ -99,6 +100,7 @@ export default function ProductDetail() {
       setRelated(r.data.related || []);
     });
     publicApi.get("/reviews", { params: { product_id: id } }).then((r) => setReviews(r.data));
+    publicApi.get("/reviews/stats", { params: { product_id: id } }).then((r) => setRstats(r.data)).catch(() => {});
   }, [id]);
 
   useEffect(() => {
@@ -245,7 +247,7 @@ export default function ProductDetail() {
 
         {/* Tabs */}
         <div className="mt-6 md:mt-8 flex items-end" data-testid="detail-tabs">
-          {[["desc", tr("產品說明")], ["reviews", tr("評價({0})", reviews.length)]].map(([k, label]) => (
+          {[["desc", tr("產品說明")], ["reviews", tr("評價({0})", rstats?.count || reviews.length)]].map(([k, label]) => (
             <button key={k} data-testid={`tab-${k}`} onClick={() => setTab(k)} className={`h-11 px-5 md:px-7 rounded-t-2xl text-[15px] md:text-base transition-colors ${tab === k ? "bg-white text-orange-500" : "text-slate-700 hover:text-orange-500"}`}>
               {label}
             </button>
@@ -292,10 +294,10 @@ export default function ProductDetail() {
             ) : (
               <>
                 <div className="flex items-center gap-4 pb-4 border-b border-dashed border-slate-200">
-                  <span className="font-head text-4xl font-extrabold text-orange-500">{(reviews.reduce((a, r) => a + r.rating, 0) / reviews.length).toFixed(1)}</span>
+                  <span className="font-head text-4xl font-extrabold text-orange-500" data-testid="review-avg">{(rstats?.avg || reviews.reduce((a, r) => a + r.rating, 0) / reviews.length).toFixed(1)}</span>
                   <div>
-                    <div className="flex gap-0.5">{Array.from({ length: 5 }).map((_, i) => <Star key={i} className={`h-4 w-4 ${i < Math.round(reviews.reduce((a, r) => a + r.rating, 0) / reviews.length) ? "fill-amber-400 text-amber-400" : "text-slate-200"}`} />)}</div>
-                    <div className="text-xs text-slate-400 mt-1">{tr("共")} {reviews.length} {tr("則評價 · 來自")} {new Set(reviews.map((r) => r.area).filter(Boolean)).size || 1} {tr("個地區")}</div>
+                    <div className="flex gap-0.5">{Array.from({ length: 5 }).map((_, i) => <Star key={i} className={`h-4 w-4 ${i < Math.round(rstats?.avg || reviews.reduce((a, r) => a + r.rating, 0) / reviews.length) ? "fill-amber-400 text-amber-400" : "text-slate-200"}`} />)}</div>
+                    <div className="text-xs text-slate-400 mt-1"><span data-testid="review-total">{tr("共")} {rstats?.count || reviews.length} {tr("則評價 · 來自")} {rstats?.areas || new Set(reviews.map((r) => r.area).filter(Boolean)).size || 1} {tr("個地區")}</span></div>
                   </div>
                 </div>
                 <div className="divide-y divide-slate-100">
@@ -317,6 +319,7 @@ export default function ProductDetail() {
                           ) : (
                             <p className="text-sm text-slate-400 mt-2 italic">{r.lang === "en" ? "Rated without comment" : r.lang === "zh-CN" ? tr("用户未填写评价内容") : tr("用戶未填寫評價內容")}</p>
                           )}
+                          {r.images?.length > 0 && <div className="mt-2 flex gap-2 flex-wrap" data-testid={`review-images-${r.id}`}>{r.images.map((u, i) => <a key={i} href={u} target="_blank" rel="noreferrer"><img src={u} alt="" className="h-20 w-20 rounded-xl object-cover bg-slate-100" /></a>)}</div>}
                           {r.reply && <div className="mt-2 rounded-xl bg-orange-50 px-3 py-2 text-xs text-slate-600"><span className="font-semibold text-orange-500">{tr("客服回覆：")}</span>{r.reply}</div>}
                         </div>
                       </div>

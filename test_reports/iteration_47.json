@@ -1,0 +1,36 @@
+{
+  "summary": "Iter47 regression — Orders admin pages merged into a Hub (禮品卡 → 訂單管理) and ALL_PERMISSIONS 'orders' key removed. Both backend (3/3 pytest) and frontend (full Playwright flow with 2FA login as admin@gogo589.com) tests pass end-to-end. MyOrders InfoConfirm centering verified via code review (items-center class on wrapper).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "verifications": {
+    "sidebar_no_admin_nav_orders": true,
+    "sidebar_has_admin_nav_giftcard_orders": true,
+    "orders_hub_admin_visible": true,
+    "default_tab_is_gift_with_white_bg": true,
+    "giftcard_orders_admin_and_gco_table_render": true,
+    "all_tab_shows_orders_admin_table_stats_search_date_export": true,
+    "switch_back_to_gift_works": true,
+    "direct_url_s_giftcard_orders_opens_hub": true,
+    "roles_modal_no_perm_orders_has_perm_giftcard_orders": true,
+    "backend_me_all_permissions_no_orders_has_giftcard_orders": true,
+    "admin_orders_list_200": true,
+    "admin_giftcard_orders_list_200": true,
+    "my_orders_info_confirm_items_center": "verified by code review of /app/frontend/src/pages/MyOrders.jsx line 82 — classes contain 'items-center justify-center' (no items-end)"
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_orders_hub_iter47.py",
+    "/app/test_reports/pytest/iter47.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "OrdersHubAdmin.jsx line 10: `useState(() => { sessionStorage.removeItem('orders-hub-tab'); return defaultTab; })` — side-effect inside useState initializer is unusual (works but prefer useEffect). Admin.jsx jump() writes 'orders-hub-tab' to sessionStorage before navigating; Admin.jsx line 141 reads it to compute defaultTab; after mount the initializer clears it. Flow works, just non-idiomatic.",
+    "Admin.jsx MENU still uses display 简/繁 depending on i18n but Chinese tests PASS; nothing to change."
+  ],
+  "updated_files": ["/app/backend/tests/test_orders_hub_iter47.py"],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "test_credentials": "admin@gogo589.com / Gg589!kVTEyEy16n + TOTP secret 2FAI3HWF6WYDNSQC7DNSUGKZ4HWQBMOH (used in UI test). admin+clerk_test@shop.com used by pytest via mint_token.py.",
+  "seed_data_creation": "None",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Backend admin tests use /app/tests/mint_token.py to mint a Clerk Bearer, then /api/admin/auth/login + /auth/totp (secret in admin_2fa). The 2FA-enrolled test admin is admin+clerk_test@shop.com (ADMIN_UID user_3Kc4MDW67YZmA1ym1sGkaMiLVwK). Owner account admin@gogo589.com is used for UI login tests; TOTP secret 2FAI3HWF6WYDNSQC7DNSUGKZ4HWQBMOH stored in admin_2fa (enabled)."
+}

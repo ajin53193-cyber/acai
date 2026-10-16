@@ -6,6 +6,7 @@ import { Switch } from "@/components/ui/switch";
 import { Btn, Input, Card, Head, Field, fmt } from "@/pages/admin/ui";
 import { publicApi } from "@/lib/api";
 import { tr } from "@/i18n";
+import { ReviewAutoPanel } from "@/pages/admin/ReviewAutoPanel";
 
 const PAGE = 30;
 const EMPTY = { product_id: "", author: "", rating: 5, content: "", images: [], visible: true, reply: "", area: "" };
@@ -80,6 +81,8 @@ export function ReviewsAdmin({ callApi }) {
     <div data-testid="reviews-admin">
       <Head title={tr("評價管理")} sub={tr("審核前台顯示、回覆顧客評價。隱藏的評價不會出現在商品頁。")}
         right={<Btn data-testid="review-add-btn" onClick={() => setEditing({ ...EMPTY, product_id: products[0]?.id || "" })}><Plus className="h-4 w-4 inline -mt-0.5 mr-1" />{tr("新增評價")}</Btn>} />
+
+      <ReviewAutoPanel callApi={callApi} products={products} />
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
         {[[tr("全部評價"), c.total, "review-stat-total"], [tr("已隱藏"), c.hidden, "review-stat-hidden"], [tr("待回覆"), c.no_reply, "review-stat-noreply"]].map(([l, v, t]) => (
