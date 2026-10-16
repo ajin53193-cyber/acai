@@ -14,6 +14,7 @@ import { useSiteConfig } from "@/lib/siteConfig";
 import { AddToHomeDialog } from "@/components/AddToHomeDialog";
 import { A2HSTip } from "@/components/A2HSTip";
 import { isStandalone } from "@/lib/track";
+import { logoTap } from "@/lib/vpDebug";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -97,7 +98,7 @@ export default function Header() {
             {mobileNav ? <X className="h-6 w-6" strokeWidth={2.5} /> : <Menu className="h-6 w-6" strokeWidth={2.5} />}
           </button>
           {/* Logo */}
-          <Link to="/" data-testid="logo-link" className="flex flex-col items-start shrink-0 leading-none">
+          <Link to="/" data-testid="logo-link" onClick={logoTap} className="flex flex-col items-start shrink-0 leading-none">
             <img src={cfg.logo.image} alt="gogo589" className="h-7 md:h-9 w-auto object-contain" />
             <div className="text-[10px] text-slate-400 font-medium mt-0.5 hidden sm:block">{tr("全球應用內購服務")}</div>
           </Link>
