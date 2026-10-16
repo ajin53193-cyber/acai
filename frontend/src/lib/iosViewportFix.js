@@ -28,6 +28,8 @@ function debug(stage) {
 }
 
 if (isIOS) {
+  // iOS ignores user-scalable=no; block pinch zoom so the page never ends up zoomed while scrolling.
+  document.addEventListener("gesturestart", (e) => e.preventDefault(), { passive: false });
   setTimeout(() => debug("load"), 1500);
   // Record the first time iOS slides the visible area past the layout viewport (the status-bar drift, see lib/vvAnchor.js).
   let vvSent = false;

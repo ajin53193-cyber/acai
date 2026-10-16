@@ -11,6 +11,8 @@
 html, body {
     background-color: #FFF4EA;
 }
+/* iOS ignores user-scalable=no: stop double-tap zoom while scrolling (pinch is blocked in lib/iosViewportFix.js) */
+html { touch-action: manipulation; }
 .safe-top-pad { padding-top: env(safe-area-inset-top) !important; }
 .safe-bottom-inset { padding-bottom: env(safe-area-inset-bottom); }
 .safe-bottom-pad { padding-bottom: calc(1rem + env(safe-area-inset-bottom)); }
