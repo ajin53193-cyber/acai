@@ -7,20 +7,24 @@ STORAGE_BASE = (os.environ.get("INTEGRATION_PROXY_URL") or "").strip() or "https
 STORAGE_URL = STORAGE_BASE.rstrip("/") + "/objstore/api/v1/storage"
 APP_NAME = "gogo589"
 storage_key = None
-LOCAL_DIR = (os.environ.get("LOCAL_STORAGE_DIR") or "").strip()
+
+
+def _local_dir() -> str:
+    return (os.environ.get("LOCAL_STORAGE_DIR") or "").strip()
 
 
 def _local_path(path: str) -> Path:
-    p = (Path(LOCAL_DIR) / path.lstrip("/")).resolve()
-    if Path(LOCAL_DIR).resolve() not in p.parents:
+    base = Path(_local_dir()).resolve()
+    p = (base / path.lstrip("/")).resolve()
+    if base not in p.parents:
         raise ValueError("invalid path")
     return p
 
 
 def init_storage(force: bool = False):
     global storage_key
-    if LOCAL_DIR:
-        Path(LOCAL_DIR).mkdir(parents=True, exist_ok=True)
+    if _local_dir():
+        Path(_local_dir()).mkdir(parents=True, exist_ok=True)
         return "local"
     if storage_key and not force:
         return storage_key
@@ -31,7 +35,7 @@ def init_storage(force: bool = False):
 
 
 def put_object(path: str, data: bytes, content_type: str) -> dict:
-    if LOCAL_DIR:
+    if _local_dir():
         p = _local_path(path)
         p.parent.mkdir(parents=True, exist_ok=True)
         p.write_bytes(data)
@@ -46,7 +50,7 @@ def put_object(path: str, data: bytes, content_type: str) -> dict:
 
 
 def get_object(path: str):
-    if LOCAL_DIR:
+    if _local_dir():
         p = _local_path(path)
         if not p.is_file():
             raise FileNotFoundError(path)

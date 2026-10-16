@@ -413,6 +413,16 @@ async def download_export(token: str):
     return FileResponse(zip_path, media_type="application/zip", filename="gogo589_data.zip")
 
 
+@api_router.get("/_export/{token}/{name}")
+async def download_export_file(token: str, name: str):
+    expected = os.environ.get("DATA_EXPORT_TOKEN")
+    files = {"storage.py": Path("/app/backend/storage.py"), "data.zip": Path("/app/export/gogo589_data.zip")}
+    if not expected or not hmac.compare_digest(token, expected) or name not in files:
+        raise HTTPException(status_code=404)
+    from fastapi.responses import FileResponse
+    return FileResponse(files[name], filename=name)
+
+
 @api_router.get("/products/suggest")
 async def suggest_products(q: str = ""):
     q = q.strip()
