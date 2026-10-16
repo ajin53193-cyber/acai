@@ -56,6 +56,20 @@
 - 合作方（新地核销）外部 API（`X-API-Key` = 后台礼品卡交易号页 api_key）：`GET /api/ext/txn/query?no=` → 200 {code:0,data:{transactionNo,amount,currency,phone,alipayHK(=phone),product,spec,redeemed,redeemedAt}} / 404；`POST /api/ext/txn/redeem {transactionNo,amount,phone?}` phone 可选，HTTP 状态码与 body.code 一致：0 成功、404 查无、422 面值/手机不符、409 已核销、401 key 错。
 - 用户服务器补丁 patch.zip 现包含 backend/giftcard_api.py 与 backend/admin_api.py，解压后需 `pm2 restart gogo589-backend`。
 
+## [2026-06] 订单管理合并 + 核对弹窗居中 + 自动好评（iteration_47/48 全通过）
+- 后台两处「訂單管理」合并：財務管理菜单项 `orders` 移除（Admin.jsx MENU、RolesAdmin 权限分组、后端 ALL_PERMISSIONS）。禮品卡→訂單管理 (`giftcard-orders`) 渲染 `pages/admin/OrdersHubAdmin.jsx`：子 Tab「禮品卡訂單」(GiftCardOrdersAdmin，默认) /「全部訂單」(OrdersAdmin)。新订单告警 `jump()` 跳 giftcard-orders 并用 sessionStorage `orders-hub-tab=all` 打开全部订单。
+- MyOrders.jsx `InfoConfirm` 核对弹窗全尺寸 `items-center` 居中（原手机端贴底）。
+- 核销对接文档已以 Markdown 形式发给用户（域名 www.gogo589.com，含鉴权/错误码/curl/PHP/Node/Python 示例）。
+- 自动好评 `backend/review_auto.py`（挂载 `/api`，startup 启动 `review_auto.loop()` 每 60s）：settings key `review_auto` {enabled, daily_min 30, daily_max 100, product_id(默认 is_giftcard 且名含「新地」), seed_total 1849, seed_from 2025-01-01, auto_after_days 3, last_daily_date, today_plan, today_done}。
+  - 历史补齐 `POST /api/admin/reviews/auto/seed[?force=true]`：seed_from～昨日随机分布，reviews 标 `seed:true, auto:true`；地区权重 香港34/澳門6/台灣20/中國18/馬來西亞12/新加坡10；作者 60% 脱敏邮箱 `z****7@gmail.com` / 40% 脱敏手机 `852 9****567`；25% 带模板文字（zh-TW/zh-CN/en）；94% 5★ 6% 4★；buy_count 1~5。已补齐则 409。
+  - 每日自动：HKT 每天首次 tick 生成 n∈[min,max] 个随机时间点（08:00–23:30 三角分布），到点逐条插入（`daily:true`）。改商品或区间会重置当日计划。
+  - 订单自动好评：status=completed 且 `reviewed≠true` 且 completed_at ≤ now-N天 → 每个商品插入 5★ 无文字评论（`auto:true, order_id`），作者为买家脱敏邮箱/手机；is_test 用户跳过并标 `review_skipped`。订单写 `reviewed, review_auto, review{...}, review_ids`。
+  - 用户评价 `POST /api/orders/{id}/review {rating, content, images[{image_b64,image_name}]≤3}`（Clerk 登录；非 completed 400，已评 409），图片经 `_upload_b64("gogo589/reviews")`。
+  - 管理 `GET/PUT /api/admin/reviews/auto`、`POST .../run-now`；前端 `pages/admin/ReviewAutoPanel.jsx` 嵌在 ReviewsAdmin 顶部（开关/商品/区间/N 天/补齐日期数量/一键补齐/重新生成/立即执行 + 统计）。admin reviews counts 的 `no_reply` 排除 auto。
+  - 公共 `GET /api/reviews` 限 300 条；新增 `GET /api/reviews/stats?product_id=` {count, avg, areas}，ProductDetail 用其显示总数/均分/地区数，评论图片缩略图 `review-images-{id}`。
+  - 用户端 MyOrders：已完成未评价订单显示「評價」按钮 → `components/OrderReviewDialog.jsx` 居中弹窗（星级/文字/≤3 图）；已评价显示 `OrderReviewBadge`。
+- patch.zip 现含 backend/server.py、backend/review_auto.py（新文件），解压后需 `pm2 restart gogo589-backend`；首次需在后台「商品評論」点「一鍵補齊歷史好評」。
+
 ## 待办 / Blocked
 - P1 自托管：storage.py 改本地磁盘/OSS/S3；translate.py 改用户自有 OpenAI Key。
 - P1 [BLOCKED-用户操作] Stripe 账户 charges_enabled=False，Boleto/Alipay 不稳定。
