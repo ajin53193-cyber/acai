@@ -96,7 +96,7 @@ function InfoConfirm({ defs, vals, onBack, onConfirm }) {
         </div>
         <div className="flex gap-3">
           <button data-testid="order-info-confirm-back" onClick={onBack} className="flex-1 h-11 rounded-full border border-slate-300 text-slate-700 font-semibold hover:bg-slate-50">{tr("返回修改")}</button>
-          <button data-testid="order-info-confirm-ok" onClick={onConfirm} className="flex-1 h-11 rounded-full bg-orange-500 text-white font-bold hover:bg-orange-600">{tr("確認無誤，提交")}</button>
+          <button data-testid="order-info-confirm-ok" onClick={onConfirm} className="flex-1 h-11 rounded-full bg-orange-500 text-white font-bold hover:bg-orange-600">{tr("確認提交")}</button>
         </div>
       </div>
     </div>
