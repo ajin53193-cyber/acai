@@ -34,6 +34,13 @@
 - 本机验证通过：80→301 https；443 返回 index.html；`/api/` 返回 JSON；MongoDB 本地 27017 正常（商品自动初始化）。
 - 已知：`Storage init failed: 403` — Emergent 对象存储拒绝外部服务器，图片上传不可用，需改为 OSS/S3/本地磁盘（P1）。`translate.py` 仍依赖 EMERGENT_LLM_KEY（P1）。
 
+## [2026-06] iOS 主屏幕 PWA 头部漂移 — 根治方案：App Shell
+- 现象（用户录屏）：PWA 内下单→填充值资料（键盘）→返回首页→一滑动，头部+内容整体上移一个状态栏高度。埋点显示 visualViewport.offsetTop=56（=状态栏高）→ WebKit 键盘后布局视口未归位。
+- 方案：`html.pwa`（track.js 在 ?source=pwa 或 standalone 时加）下 html/body/#root 固定高度 overflow:hidden，内容在 `#site-scroll`（App.js StoreLayout 包裹 main+Footer）内滚动，window 永不滚动；Header 一律 `sticky top-0`（PWA 中位于滚动区外）。浏览器模式完全不变。
+- 配套：`lib/scroller.js`（scrollPageTo / pageScrollY / onPageScroll）替换所有 window.scrollTo / scrollY（App.js 路由切换归零、ProductDetail、Category、ArticleCenter/Detail、ServiceWidget 回到顶部）。manifest 加 192 图标 + `start_url: /?source=pwa` + id/scope（安卓才会装成真 PWA）；A2HSTip 每会话只弹一次且 PWA 不弹；PagedGrid touch-action pan-x pan-y；iOS 输入框 ≥16px 防自动缩放 + gesturestart 拦截。
+- iteration_44 全通过（PWA/浏览器/桌面）。曾尝试过无效的方案：仅 fixed+spacer、offsetTop 自愈 — 勿再走回头路。
+- 用户服务器侧：补丁通过 `GET /api/_export/{DATA_EXPORT_TOKEN}/patch.zip`（整包 frontend/src + public）下发，用户 `tar -xf` 到项目根后 `yarn build`。该临时接口迁移完成后应删除。
+
 ## 待办 / Blocked
 - P1 自托管：storage.py 改本地磁盘/OSS/S3；translate.py 改用户自有 OpenAI Key。
 - P1 [BLOCKED-用户操作] Stripe 账户 charges_enabled=False，Boleto/Alipay 不稳定。
