@@ -34,7 +34,12 @@
 - 本机验证通过：80→301 https；443 返回 index.html；`/api/` 返回 JSON；MongoDB 本地 27017 正常（商品自动初始化）。
 - 已知：`Storage init failed: 403` — Emergent 对象存储拒绝外部服务器，图片上传不可用，需改为 OSS/S3/本地磁盘（P1）。`translate.py` 仍依赖 EMERGENT_LLM_KEY（P1）。
 
-## [2026-06] iOS 主屏幕 PWA 头部漂移 — 现状：未解决（已回退 App Shell 实验）
+## [2026-06] iOS 主屏幕 PWA 头部漂移 — 现状：已按用户诊断完成 App Shell（待真机验证）
+- 根因（用户提供）：`.site-shell/.site-scroll` 类从未定义，PWA 下 fixed header + 窗口滚动，Safari overscroll/键盘导致布局视口偏移。
+- 修复：仅 `html.pwa.shell`（StoreLayout 挂载时加 `shell` 类）生效：html/body `height:100%; overflow:hidden`，body `position:fixed; inset:0`；`#root/.App/.site-shell` 高 100%；`.site-scroll` 为唯一滚动容器（flex:1, overflow-y:auto, overscroll-behavior contain, 背景图 attachment:local 并用 `--head-h` 补偿）。Header 在 PWA 下改为静态 `relative shrink-0`（去掉 fixed+spacer），用 ResizeObserver 写 `--head-h`。浏览器模式完全不变（sticky header，窗口滚动）。
+- 预览用 `?source=pwa` 模拟验证：body fixed、window.scrollY 恒 0、header top 0、滚动到底 footer 贴底无留白。
+
+## [旧记录] iOS 主屏幕 PWA 头部漂移 — 历史（已回退 App Shell 实验）
 - 现象（用户录屏）：PWA 内下单→填充值资料（键盘）→返回首页→一滑动，头部+内容整体上移一个状态栏高度（页面比例不变，非缩放）。埋点：正常 vv.offsetTop=0；异常时 offsetTop=56（=状态栏高）。
 - 已尝试并无效/有副作用（勿重复）：① 浏览器模式 header 也 fixed+spacer → 状态栏颜色变化且无效，已回退；② offsetTop 自愈 scrollTo（iosViewportFix.js 仍保留，无害但无效）；③ App Shell（html.pwa 下 body overflow hidden、#site-scroll 内滚）→ 头部稳定，但壳层高度拿不到真实屏幕：height:100%/innerHeight 比屏幕少约 55~68pt（iOS 26 standalone），用 screen.height 撑高后 fixed bottom-0 底栏仍锚在 797pt（layout viewport），底部留空/底栏被截；已回退（index.css 的 html.pwa 壳层规则与 track.js 的 --app-h 已删）。
 - 当前保留：App.js 中 #site-scroll 包裹 div（无 CSS）、lib/scroller.js（scrollPageTo 等，浏览器模式等价 window.scrollTo）、Header 恢复为「PWA fixed+spacer / 浏览器 sticky」原版（commit 6f9f702）。
@@ -70,7 +75,8 @@
   - 用户端 MyOrders：已完成未评价订单显示「評價」按钮 → `components/OrderReviewDialog.jsx` 居中弹窗（星级/文字/≤3 图）；已评价显示 `OrderReviewBadge`。
 - 其它商品每日自動好評（非礼品卡、active≠False）：cfg `other_enabled/other_pct 30/other_min 1/other_max 2/other_text_pct 50/other_date/other_plan[[iso,pid]]/other_done`；每天 HKT 首次 tick 随机抽 pct% 商品，每个 1~2 条，时间 08:00–23:30 分散，文字模板 `TEXTS_GENERIC`，标 `daily_other:true`。区间/比例调整次日生效（不重置当日计划，避免重复生成）。面板 `review-auto-other`。
 - Stripe webhook 现支持 `STRIPE_WEBHOOK_SECRET` 签名校验（payments_api._stripe）；已向用户发出 Stripe Webhook / Google OAuth 回调切换到 www.gogo589.com 的操作步骤（APP_PUBLIC_URL、重定向 URI `/auth/google`）。
-- patch.zip 现含 backend/server.py、backend/review_auto.py（新文件）、backend/payments_api.py，解压后需 `pm2 restart gogo589-backend`；首次需在后台「商品評論」点「一鍵補齊歷史好評」。
+- 后台「運營管理」新增：「橫幅 / 輪播圖」(key banners，原 Soon 占位) = SiteConfigAdmin `only` 模式（top_promo/hero/promo_banners/detail_banners/announcement + 跳首頁裝修按钮）；「頁尾管理」(key footer，`pages/admin/FooterAdmin.jsx`)：页尾链接栏（settings key `footer_links`，`GET /api/footer`、`PUT /api/admin/footer`、`POST /api/admin/footer/reset`）+ 固定页面 CRUD（`GET/POST /api/admin/articles/pages`、`PUT /api/admin/articles/pages/{id}`，page:true 文章；RichEditor）。基礎設置→客服 WhatsApp 新增自訂二維碼圖片 `settings.cs_qr_image`（data:image 自动上传），Footer 有图显示图否则生成 QR。Footer 三栏改读 `/api/footer`。ALL_PERMISSIONS 增加 `footer`。iteration_49 全通过。
+- patch.zip 现含 backend/server.py、backend/review_auto.py（新文件）、backend/payments_api.py、backend/cms_api.py，解压后需 `pm2 restart gogo589-backend`；首次需在后台「商品評論」点「一鍵補齊歷史好評」。
 
 ## 待办 / Blocked
 - P1 自托管：storage.py 改本地磁盘/OSS/S3；translate.py 改用户自有 OpenAI Key。

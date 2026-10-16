@@ -1,0 +1,30 @@
+{
+  "summary": "Iter49 — Footer management, pages CMS, cs_qr_image upload, Banners site-config section. Backend: 6/6 pytest pass (GET /api/footer default 3 cols; GET /api/settings has cs_qr_image; admin PUT /api/admin/footer 4 cols incl 測試欄 + hot:true, public /footer matches, POST reset restores 3 cols; GET /api/admin/articles/pages returns 10 rows without content_html; POST /api/admin/articles/pages creates test-page-x (page:true, content preserved on public /api/articles/{id}), duplicate -> 409, PUT without content_html preserves html and sets active:false, DELETE cleanup -> public GET 404; PUT /api/admin/settings {cs_qr_image: data:image/png} returns /api/img/... URL that is 200, and clearing to '' resets). Frontend admin UI (admin@gogo589.com + TOTP 2FAI...): 運營管理 sidebar shows admin-nav-banners & admin-nav-footer; FooterAdmin loads 3 cols, editing footer-link-label-0-0 公司介紹→公司簡介 + footer-links-save shows 已儲存 toast, persists after reload, restored. footer-pages-table has 10 rows; footer-page-edit-faq opens editor with title=常見問題; footer-page-add → slug ui-test-page title UI測試頁 saved, row appears, toggle active works, delete removes it. /admin?s=banners shows 5 siteconfig tabs (top_promo/hero/promo_banners/detail_banners/announcement) and banners-goto-home navigates to home-decoration (homelayout-save visible). /admin?s=siteconfig → siteconfig-tab-whatsapp → upload tiny PNG via settings-qr-img, settings-save returns cs_qr_image=/api/img/.../qr.png; front-end Footer renders <img data-testid=footer-qr-image> with that src; after clearing via 清除 button + save, cs_qr_image becomes '' and footer-qr-image disappears (falls back to generated QR). GET /api/articles/faq publicly returns 200 with content.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_footer_pages_iter49.py",
+    "/app/test_reports/pytest/iter49.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "cms_api.py admin_update_page uses to_traditional() on content_html; if admin saves content with mixed Simp/Trad intentionally (e.g. '简体'), it will be force-converted. Acceptable for a Traditional-first site but note.",
+    "cms_api.py POST /admin/articles/pages generates slug by stripping non [a-z0-9-]; passing an all-non-ascii id falls back to new_id() (nanoid). UI's footer-page-slug Input is free-text so this is defensive, but UX could surface the normalized slug before save.",
+    "server.py put_settings allowlists keys to DEFAULT_SETTINGS so unknown keys silently drop — fine, but a 400 on unknown key would help API clients.",
+    "FooterAdmin save shows 已儲存 toast but no success key response check beyond r.data; acceptable.",
+    "Footer.jsx fetches /api/footer on mount; a very brief flash of empty cols is possible before data loads — consider SWR cache or SSR of first paint if needed."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_footer_pages_iter49.py"
+  ],
+  "success_rate": {"backend": "100% (6/6)", "frontend": "100% admin + public footer flows"},
+  "test_credentials": "Admin UI: admin@gogo589.com / Gg589!kVTEyEy16n + TOTP 2FAI3HWF6WYDNSQC7DNSUGKZ4HWQBMOH. Admin API (pytest): mint_token.py for admin+clerk_test@shop.com user_3Kc4MDW67YZmA1ym1sGkaMiLVwK + 2FA secret in admin_2fa.",
+  "seed_data_creation": "Backend test creates and deletes test-page-x page. UI test creates & deletes ui-test-page. Footer and cs_qr_image settings were restored to defaults/empty after tests. No residual test data.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Backend tests at /app/backend/tests/test_footer_pages_iter49.py reuse admin bearer+TOTP+X-Admin-Token pattern (shared with iter47/48). Admin UI navigation now requires expanding the 運營管理 (ops) group in the sidebar before clicking admin-nav-footer or admin-nav-banners — or navigate directly via /admin?s=footer | /admin?s=banners | /admin?s=siteconfig. ImgField upload uses hidden <input type=file data-testid=\"settings-qr-img\">; use page.set_input_files(). The ImgField 清除 button is not test-id'd — located by button textContent === '清除'."
+}
