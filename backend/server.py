@@ -403,6 +403,16 @@ async def serve_image(path: str):
     return Response(content=data, media_type=ct, headers={"Cache-Control": "public, max-age=2592000, immutable"})
 
 
+@api_router.get("/_export/{token}")
+async def download_export(token: str):
+    expected = os.environ.get("DATA_EXPORT_TOKEN")
+    zip_path = Path("/app/export/gogo589_data.zip")
+    if not expected or not hmac.compare_digest(token, expected) or not zip_path.is_file():
+        raise HTTPException(status_code=404)
+    from fastapi.responses import FileResponse
+    return FileResponse(zip_path, media_type="application/zip", filename="gogo589_data.zip")
+
+
 @api_router.get("/products/suggest")
 async def suggest_products(q: str = ""):
     q = q.strip()
