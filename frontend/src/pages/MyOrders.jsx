@@ -30,8 +30,13 @@ function OrderInfoForm({ order, callApi, onDone }) {
     });
   }, [order.id]); // eslint-disable-line react-hooks/exhaustive-deps
   const set = (pid, name, v) => setVals((d) => ({ ...d, [pid]: { ...(d[pid] || {}), [name]: v } }));
-  const submit = async () => {
+  const [confirming, setConfirming] = useState(false);
+  const submit = () => {
     for (const pid of Object.keys(defs)) for (const f of defs[pid].fields) if (f.required && !(vals[pid]?.[f.name] || "").trim()) return toast.error(tr("請填寫「{0}」", f.name));
+    setConfirming(true);
+  };
+  const doSubmit = async () => {
+    setConfirming(false);
     setBusy(true);
     try { const r = await callApi({ method: "POST", url: `/orders/${order.id}/info`, data: { delivery_info: vals } }); toast.success(r.data.is_giftcard_order ? (r.data.gift_manual ? tr("充值資料已提交，等待人工轉贈") : tr("充值資料已提交，等待系統轉贈充值")) : tr("充值資料已提交，等待人工充值")); setOpen(false); onDone(r.data); }
     catch (e) { toast.error(e.response?.data?.detail || tr("提交失敗")); }
@@ -65,6 +70,34 @@ function OrderInfoForm({ order, callApi, onDone }) {
         </div>
       ))}
       <button data-testid="order-info-submit" onClick={submit} disabled={busy} className="w-full h-11 rounded-full bg-orange-500 text-white font-bold hover:bg-orange-600 disabled:opacity-60">{busy ? tr("提交中…") : tr("提交充值資料")}</button>
+      {confirming && <InfoConfirm defs={defs} vals={vals} onBack={() => setConfirming(false)} onConfirm={doSubmit} />}
+    </div>
+  );
+}
+
+function InfoConfirm({ defs, vals, onBack, onConfirm }) {
+  const rows = Object.entries(defs).flatMap(([pid, d]) => d.fields.map((f) => ({ key: `${pid}-${f.name}`, product: d.name, label: f.name, value: f.type === "password" ? "••••••" : (vals[pid]?.[f.name] || "") })));
+  const multi = Object.keys(defs).length > 1;
+  return (
+    <div data-testid="order-info-confirm" className="fixed inset-0 z-[80] flex items-end sm:items-center justify-center bg-black/50 p-4" onClick={onBack}>
+      <div className="w-full max-w-sm rounded-2xl bg-white p-5 shadow-2xl space-y-4" onClick={(e) => e.stopPropagation()}>
+        <div>
+          <div className="font-bold text-slate-900 text-base">{tr("請核對充值資料")}</div>
+          <div className="text-xs text-orange-500 mt-1">{tr("提交後將無法自行修改，請務必核對無誤")}</div>
+        </div>
+        <div className="rounded-xl bg-orange-50 divide-y divide-orange-100">
+          {rows.map((r) => (
+            <div key={r.key} className="px-3 py-2.5">
+              <div className="text-[11px] text-slate-500">{multi ? `${r.product} · ` : ""}{r.label}</div>
+              <div data-testid={`order-info-confirm-${r.key}`} className="text-base font-bold text-slate-900 break-all tracking-wide">{r.value}</div>
+            </div>
+          ))}
+        </div>
+        <div className="flex gap-3">
+          <button data-testid="order-info-confirm-back" onClick={onBack} className="flex-1 h-11 rounded-full border border-slate-300 text-slate-700 font-semibold hover:bg-slate-50">{tr("返回修改")}</button>
+          <button data-testid="order-info-confirm-ok" onClick={onConfirm} className="flex-1 h-11 rounded-full bg-orange-500 text-white font-bold hover:bg-orange-600">{tr("確認無誤，提交")}</button>
+        </div>
+      </div>
     </div>
   );
 }
