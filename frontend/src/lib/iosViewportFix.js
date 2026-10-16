@@ -32,6 +32,18 @@ if (isIOS) {
   document.addEventListener("gesturestart", (e) => e.preventDefault(), { passive: false });
   document.addEventListener("gesturechange", (e) => e.preventDefault(), { passive: false });
   document.addEventListener("touchmove", (e) => { if (e.scale !== undefined && e.scale !== 1) e.preventDefault(); }, { passive: false });
+  // If the page is left zoomed (input focus / pinch), snap back to scale 1 by re-applying the viewport meta
+  const resetZoom = () => {
+    const vv = window.visualViewport;
+    const meta = document.querySelector('meta[name="viewport"]');
+    if (!vv || !meta || vv.scale <= 1.01) return;
+    const c = meta.content;
+    meta.content = c + ", minimum-scale=1";
+    requestAnimationFrame(() => { meta.content = c; });
+  };
+  document.addEventListener("focusout", () => setTimeout(resetZoom, 150));
+  document.addEventListener("touchend", () => setTimeout(resetZoom, 300), { passive: true });
+  window.visualViewport?.addEventListener("resize", () => setTimeout(resetZoom, 200));
   setTimeout(() => debug("load"), 1500);
   new MutationObserver(() => { if (document.body.classList.contains("gt-scroll-locked")) setTimeout(() => debug("modal_open"), 500); }).observe(document.body, { attributes: true, attributeFilter: ["class"] });
 }
