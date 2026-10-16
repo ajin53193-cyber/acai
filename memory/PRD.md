@@ -49,6 +49,13 @@
 - 最终保留的今日前端改动：App.js 路由切换 scrollPageTo(0) + scrollRestoration manual、#site-scroll 包裹 div（无 CSS）、lib/scroller.js、PagedGrid touch-action pan-x pan-y、manifest(192 图标/start_url ?source=pwa/id/scope)、track.js isStandalone 含 ?source=pwa、A2HSTip 每会话一次、vpDebug 面板。
 - 下一步最有希望的方向（需真机）：App Shell（window 不滚动）但壳层用 `position: fixed; inset: 0`（早前结论 inset 可铺满 912 真实屏幕），并把页面内 `fixed bottom-0` 底栏（ProductDetail/Checkout/注册条/ServiceWidget）改为壳层 flex 子元素或以壳层为包含块验证；或 status-bar-style=default 并让用户确认已重新添加图标后再评估。
 
+## [2026-06] 后台新增：管理员直建 / 测试账号 / 合作方核销 API（iteration_45/46 全通过）
+- 订单填充值资料：点「提交充值資料」先弹核对层 `order-info-confirm`（逐字段显示，返回修改 / 確認無誤，提交）再 POST。
+- `POST /api/admin/admins/create {email,password,role_id}`（超管）：Clerk 建用户 + users role=admin；前端 AdminsAdmin 新增密码框 + 「建立管理員」，保留「設為管理員」提升。
+- 测试账号：`users.is_test`；`POST /api/admin/members/create-test {email,password}`、`POST /api/admin/members/{uid}/test-flag {is_test}`；MembersAdmin 顶部「新增測試帳號」卡、「測試帳號」tab、测试 pill、详情页切换按钮。`_test_uids()` 在 `_period_stats`/`admin_dashboard` 全部查询中排除 is_test 用户（订单/充值/新用户/余额/品类/状态分布/用户总数）。
+- 合作方（新地核销）外部 API（`X-API-Key` = 后台礼品卡交易号页 api_key）：`GET /api/ext/txn/query?no=` → 200 {code:0,data:{transactionNo,amount,currency,phone,alipayHK(=phone),product,spec,redeemed,redeemedAt}} / 404；`POST /api/ext/txn/redeem {transactionNo,amount,phone?}` phone 可选，HTTP 状态码与 body.code 一致：0 成功、404 查无、422 面值/手机不符、409 已核销、401 key 错。
+- 用户服务器补丁 patch.zip 现包含 backend/giftcard_api.py 与 backend/admin_api.py，解压后需 `pm2 restart gogo589-backend`。
+
 ## 待办 / Blocked
 - P1 自托管：storage.py 改本地磁盘/OSS/S3；translate.py 改用户自有 OpenAI Key。
 - P1 [BLOCKED-用户操作] Stripe 账户 charges_enabled=False，Boleto/Alipay 不稳定。

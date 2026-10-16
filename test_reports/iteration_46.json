@@ -1,0 +1,28 @@
+{
+  "summary": "Backend + Frontend e2e for new admin features: 建立管理員 (POST /api/admin/admins/create), 設為管理員 404, 新增測試帳號 (POST /api/admin/members/create-test), member-test-toggle (POST /api/admin/members/{uid}/test-flag), dashboard exclusion of is_test users. 8/8 pytest cases pass; all 4 UI flows pass (admin create success, empty-pw toast, weak-pw 400 toast, promote 404 toast, create-test → list row with 測試 pill + 測試帳號 tab, member-test-toggle flips button text and persists).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "會員管理 top card", "issues": ["新增測試帳號 卡片沒有獨立標題框 — 建立成功無明顯視覺回饋 (toast 顯示極短/未截獲)。建議增加短暫綠色高亮或 inline 成功提示 (目前只靠 sonner toast)。"]},
+      {"screen": "管理員管理 Head.sub text", "issues": ["ZH-CN 翻譯仍混用繁體 (e.g. 密碼長度為8~32位，數字、字母、符號至少包含兩種) — 錯誤訊息顯示繁體，雖然 UI 其餘部分為簡體。"]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_admin_create_and_test_users.py", "/app/test_reports/pytest/admin_create_test_users.xml"],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "admin_api.py admin_admins_create / admin_member_create_test: 當 Clerk 建立成功但後續 db.users.update_one 失敗時，Clerk user 不會被回滾 → 可能產生孤兒 Clerk 用戶。建議 try/except 包裹並在失敗時刪除 Clerk user。",
+    "admin_api.py admin_member_create_test (line 319): 使用 skip_password_checks=True 繞過 Clerk breached-password 檢查 — 測試帳號可以用弱密碼 (但後端用 _pw_ok 自家校驗)。對 /admins/create 同樣使用 skip_password_checks — 若未來生產真實管理員，建議改以 require strong password + 不 skip。",
+    "AdminsAdmin.jsx line 41: password 欄位 type=\"text\" — 建議改 type=\"password\" (或至少提供 toggle)，避免肩視攻擊。",
+    "_test_uids() 在每個 dashboard 請求都掃一次 db.users — 若 is_test 用戶增多可做簡單記憶體快取或在 _period_stats 內改用 lookup/aggregate pipeline。"
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "100% (8/8)", "frontend": "100% (all 4 flows + 3 regressions pass)"},
+  "test_credentials": "Super admin: admin+clerk_test@shop.com / Gogo589!Admin#7x2Q + TOTP secret DNY74VQQI3454NAKX3XW7INOIG4UCTQA (uid user_3Kc4MDW67YZmA1ym1sGkaMiLVwK)",
+  "seed_data_creation": "Created several Clerk users during testing (e2e-admin-*@shop.com and e2e-test-*@shop.com). Pytest fixture cleans up its own created uids via Clerk DELETE /users/{uid}. UI-created users (via Playwright) remain and are harmless — they show up as admins/members in the console. Not deleted per workspace rules.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "To mint admin creds for backend testing: use /app/tests/mint_token.py (Clerk Backend API session+jwt) with super-admin uid user_3Kc4MDW67YZmA1ym1sGkaMiLVwK, then locally HMAC-sign the X-Admin-Token (see test_admin_create_and_test_users.py _sign_admin_token). TOTP secret for admin+clerk_test@shop.com is in Mongo admin_2fa collection. 管理員管理 page routes to /admin?s=admins and 會員管理 to /admin?s=members. 安全配置 sidebar entry is currently a 'under development' placeholder (unrelated to this task).",
+  "rca_of_the_issue": "N/A — no bugs found. All target endpoints and UI flows behave per spec."
+}
