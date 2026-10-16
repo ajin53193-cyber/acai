@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useUser } from "@clerk/react";
 import { Search, ShoppingCart, Headphones, ChevronDown, ChevronRight, Shield, Package, Menu, X, UserRound, Gift, Wallet, Home, LayoutGrid,
@@ -14,6 +14,7 @@ import { useSiteConfig } from "@/lib/siteConfig";
 import { AddToHomeDialog } from "@/components/AddToHomeDialog";
 import { A2HSTip } from "@/components/A2HSTip";
 import { logoTap } from "@/lib/vpDebug";
+import { isStandalone } from "@/lib/track";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -64,10 +65,22 @@ export default function Header() {
     callApi({ method: "GET", url: "/me" }).then((r) => setIsAdmin(r.data.role === "admin")).catch(() => setIsAdmin(false));
   }, [isSignedIn, callApi]);
 
+  const headRef = useRef(null);
+  const standalone = isStandalone();
+  useLayoutEffect(() => {
+    const el = headRef.current;
+    if (!el || !standalone) return;
+    const set = () => document.documentElement.style.setProperty("--head-h", `${el.getBoundingClientRect().height}px`);
+    const ro = new ResizeObserver(set);
+    ro.observe(el);
+    set();
+    return () => ro.disconnect();
+  }, [standalone]);
+
   return (
     <>
-    {/* Plain sticky header in both browser and home-screen PWA: the page scrolls normally (no fixed header / app shell). */}
-    <header data-testid="site-header" className="sticky top-0 z-40 w-full bg-[#FFF4EA]">
+    {/* Home-screen PWA (navigator.standalone): static header outside the #site-scroll scroller (app shell, index.css html.pwa.shell); Safari/browser: plain sticky */}
+    <header ref={headRef} data-testid="site-header" className={`${standalone ? "relative shrink-0" : "sticky top-0"} z-40 w-full bg-[#FFF4EA]`}>
       <div style={{ height: "env(safe-area-inset-top)" }} />
       {/* Top promo bar */}
       {cfg.top_promo.enabled !== false && cfg.top_promo.image && (

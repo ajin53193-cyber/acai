@@ -39,6 +39,8 @@ if (typeof window !== "undefined" && "scrollRestoration" in window.history) wind
 function StoreLayout() {
   const { pathname } = useLocation();
   useEffect(() => { scrollPageTo({ top: 0 }); }, [pathname]);
+  // Home-screen PWA app shell (html.pwa.shell): body never scrolls, #site-scroll is the only scroller. Browser mode is untouched.
+  useEffect(() => { document.documentElement.classList.add("shell"); return () => document.documentElement.classList.remove("shell"); }, []);
   const hideFooterOnMobile = ["/product/", "/checkout", "/account", "/orders", "/article", "/info"].some((p) => pathname.startsWith(p));
   return (
     <AuthModalProvider>
