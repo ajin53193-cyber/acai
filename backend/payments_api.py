@@ -57,7 +57,7 @@ def _stripe(request: Request) -> StripeCheckout:
     key = os.environ.get("STRIPE_API_KEY")
     if not key:
         raise HTTPException(status_code=503, detail="Stripe 尚未設定")
-    return StripeCheckout(api_key=key, webhook_url=f"{_public_base(request)}/api/webhook/stripe")
+    return StripeCheckout(api_key=key, webhook_secret=os.environ.get("STRIPE_WEBHOOK_SECRET") or None, webhook_url=f"{_public_base(request)}/api/webhook/stripe")
 
 
 _FX_CACHE: dict = {}
