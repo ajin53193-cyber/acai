@@ -27,6 +27,36 @@ function debug(stage) {
   try { fetch(`${process.env.REACT_APP_BACKEND_URL}/api/track`, { method: "POST", headers: { "Content-Type": "application/json" }, body, keepalive: true }); } catch {}
 }
 
+if (isIOS && standalone) {
+  // Home-screen app: after the keyboard WebKit can leave the layout viewport offset from the visual viewport
+  // (header + content drift up under the status bar on the next scroll). Re-sync whenever we detect the drift.
+  let healing = false;
+  const heal = () => {
+    const vv = window.visualViewport;
+    if (healing || !vv || Math.abs(vv.scale - 1) > 0.01) return;
+    const ae = document.activeElement;
+    if (ae && /^(INPUT|TEXTAREA|SELECT)$/.test(ae.tagName)) return;
+    if (document.body.classList.contains("gt-scroll-locked")) return;
+    const off = Math.round(vv.offsetTop);
+    if (Math.abs(off) < 1) return;
+    healing = true;
+    const y = window.scrollY;
+    window.scrollTo(0, Math.max(0, y + off));
+    requestAnimationFrame(() => {
+      if (Math.abs(vv.offsetTop) >= 1) { window.scrollTo(0, window.scrollY + 1); window.scrollTo(0, Math.max(0, window.scrollY - 1)); }
+      healing = false;
+      debug("heal_" + off);
+    });
+  };
+  let raf = 0;
+  const schedule = () => { if (!raf) raf = requestAnimationFrame(() => { raf = 0; heal(); }); };
+  window.addEventListener("scroll", schedule, { passive: true });
+  window.addEventListener("touchend", () => setTimeout(heal, 120), { passive: true });
+  document.addEventListener("focusout", () => { setTimeout(heal, 150); setTimeout(heal, 600); });
+  window.visualViewport?.addEventListener("resize", () => setTimeout(heal, 250));
+  window.visualViewport?.addEventListener("scroll", schedule);
+}
+
 if (isIOS) {
   // Safari ignores user-scalable=no: block pinch zoom (gesture events) and double-tap zoom (touch-action in CSS)
   document.addEventListener("gesturestart", (e) => e.preventDefault(), { passive: false });
