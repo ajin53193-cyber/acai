@@ -292,6 +292,38 @@ class BanIn(BaseModel):
     reason: str = ""
 
 
+class TestFlagIn(BaseModel):
+    is_test: bool = True
+
+
+@router.post("/members/{uid}/test-flag")
+async def admin_member_test_flag(uid: str, body: TestFlagIn, admin: dict = Depends(current_admin)):
+    await db.users.update_one({"user_id": uid}, {"$set": {"is_test": body.is_test}})
+    return {"ok": True, "is_test": body.is_test}
+
+
+class TestAccountIn(BaseModel):
+    email: str
+    password: str
+
+
+@router.post("/members/create-test")
+async def admin_member_create_test(body: TestAccountIn, admin: dict = Depends(current_admin)):
+    email = body.email.strip().lower()
+    if not re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", email):
+        raise HTTPException(status_code=400, detail="請輸入正確的信箱")
+    if not email_auth._pw_ok(body.password):
+        raise HTTPException(status_code=400, detail="密碼長度為8~32位，數字、字母、符號至少包含兩種")
+    if await email_auth._find_user(email):
+        raise HTTPException(status_code=409, detail="此信箱已有帳號，可直接在會員列表標記為測試帳號")
+    r = await email_auth._clerk("POST", "/users", json={"email_address": [email], "password": body.password, "skip_password_checks": True})
+    if r.status_code >= 300:
+        raise HTTPException(status_code=400, detail=(r.json().get("errors") or [{}])[0].get("long_message") or "建立失敗")
+    uid = r.json()["id"]
+    await db.users.update_one({"user_id": uid}, {"$set": {"user_id": uid, "email": email, "name": email, "role": "user", "is_test": True, "created_at": datetime.now(timezone.utc).isoformat()}}, upsert=True)
+    return {"ok": True, "user_id": uid}
+
+
 @router.post("/members/{uid}/ban")
 async def admin_member_ban(uid: str, body: BanIn = BanIn(), admin: dict = Depends(current_admin)):
     await email_auth._clerk("POST", f"/users/{uid}/ban")
@@ -1185,11 +1217,16 @@ async def admin_sms_balance(admin: dict = Depends(current_admin)):
 PAID_STATUSES = ["paid", "processing", "shipped", "completed"]
 
 
+async def _test_uids() -> list:
+    return [u["user_id"] async for u in db.users.find({"is_test": True}, {"_id": 0, "user_id": 1})]
+
+
 async def _period_stats(since: str, until: str) -> dict:
-    o = await db.orders.aggregate([{"$match": {"created_at": {"$gte": since, "$lt": until}}}, {"$group": {"_id": None, "orders": {"$sum": 1},
+    nt = {"$nin": await _test_uids()}
+    o = await db.orders.aggregate([{"$match": {"created_at": {"$gte": since, "$lt": until}, "user_id": nt}}, {"$group": {"_id": None, "orders": {"$sum": 1},
         "revenue": {"$sum": {"$cond": [{"$in": ["$status", PAID_STATUSES]}, "$total_usd", 0]}}}}]).to_list(1)
-    t = await db.topup_orders.aggregate([{"$match": {"created_at": {"$gte": since, "$lt": until}, "status": "paid"}}, {"$group": {"_id": None, "n": {"$sum": 1}, "usd": {"$sum": "$amount_usd"}}}]).to_list(1)
-    users = await db.users.count_documents({"created_at": {"$gte": since, "$lt": until}})
+    t = await db.topup_orders.aggregate([{"$match": {"created_at": {"$gte": since, "$lt": until}, "status": "paid", "user_id": nt}}, {"$group": {"_id": None, "n": {"$sum": 1}, "usd": {"$sum": "$amount_usd"}}}]).to_list(1)
+    users = await db.users.count_documents({"created_at": {"$gte": since, "$lt": until}, "is_test": {"$ne": True}})
     return {"orders": (o[0]["orders"] if o else 0), "revenue_usd": round((o[0]["revenue"] if o else 0) or 0, 2), "topups": (t[0]["n"] if t else 0), "topup_usd": round((t[0]["usd"] if t else 0) or 0, 2), "new_users": users}
 
 
@@ -1205,7 +1242,8 @@ async def admin_dashboard(days: int = 30, admin: dict = Depends(current_admin)):
         d = (now - timedelta(days=days - 1 - i)).strftime("%Y-%m-%d")
         rows[d] = {"date": d, "orders": 0, "revenue_usd": 0.0, "topup_usd": 0.0, "new_users": 0}
     product_rev: dict = {}
-    async for o in db.orders.find({"created_at": {"$gte": since}}, {"_id": 0, "created_at": 1, "status": 1, "total_usd": 1, "items": 1}):
+    nt = {"$nin": await _test_uids()}
+    async for o in db.orders.find({"created_at": {"$gte": since}, "user_id": nt}, {"_id": 0, "created_at": 1, "status": 1, "total_usd": 1, "items": 1}):
         r = rows.get(o["created_at"][:10])
         paid = o.get("status") in PAID_STATUSES
         if r:
@@ -1217,18 +1255,18 @@ async def admin_dashboard(days: int = 30, admin: dict = Depends(current_admin)):
                 p = product_rev.setdefault(it.get("product_id"), {"product_id": it.get("product_id"), "name": it.get("product_name"), "image": it.get("image", ""), "qty": 0, "revenue_usd": 0.0})
                 p["qty"] += int(it.get("quantity") or 1)
                 p["revenue_usd"] += float(it.get("unit_price_usd") or it.get("price_usd") or 0) * int(it.get("quantity") or 1)
-    async for t in db.topup_orders.find({"created_at": {"$gte": since}, "status": "paid"}, {"_id": 0, "created_at": 1, "amount_usd": 1}):
+    async for t in db.topup_orders.find({"created_at": {"$gte": since}, "status": "paid", "user_id": nt}, {"_id": 0, "created_at": 1, "amount_usd": 1}):
         r = rows.get(t["created_at"][:10])
         if r:
             r["topup_usd"] += float(t.get("amount_usd") or 0)
-    async for u in db.users.find({"created_at": {"$gte": since}}, {"_id": 0, "created_at": 1}):
+    async for u in db.users.find({"created_at": {"$gte": since}, "is_test": {"$ne": True}}, {"_id": 0, "created_at": 1}):
         r = rows.get((u.get("created_at") or "")[:10])
         if r:
             r["new_users"] += 1
-    by_status = {r["_id"]: r["n"] for r in await db.orders.aggregate([{"$group": {"_id": "$status", "n": {"$sum": 1}}}]).to_list(20)}
-    pay_mix = await db.topup_orders.aggregate([{"$match": {"status": "paid", "created_at": {"$gte": since}}}, {"$group": {"_id": {"$ifNull": ["$method_name", {"$ifNull": ["$provider", "USDT"]}]}, "n": {"$sum": 1}, "usd": {"$sum": "$amount_usd"}}}, {"$sort": {"usd": -1}}]).to_list(10)
-    wallet = await db.users.aggregate([{"$group": {"_id": None, "s": {"$sum": {"$ifNull": ["$wallet_balance_usd", 0]}}}}]).to_list(1)
-    cat_rev = await db.orders.aggregate([{"$match": {"created_at": {"$gte": since}, "status": {"$in": PAID_STATUSES}}}, {"$unwind": "$items"},
+    by_status = {r["_id"]: r["n"] for r in await db.orders.aggregate([{"$match": {"user_id": nt}}, {"$group": {"_id": "$status", "n": {"$sum": 1}}}]).to_list(20)}
+    pay_mix = await db.topup_orders.aggregate([{"$match": {"status": "paid", "created_at": {"$gte": since}, "user_id": nt}}, {"$group": {"_id": {"$ifNull": ["$method_name", {"$ifNull": ["$provider", "USDT"]}]}, "n": {"$sum": 1}, "usd": {"$sum": "$amount_usd"}}}, {"$sort": {"usd": -1}}]).to_list(10)
+    wallet = await db.users.aggregate([{"$match": {"is_test": {"$ne": True}}}, {"$group": {"_id": None, "s": {"$sum": {"$ifNull": ["$wallet_balance_usd", 0]}}}}]).to_list(1)
+    cat_rev = await db.orders.aggregate([{"$match": {"created_at": {"$gte": since}, "status": {"$in": PAID_STATUSES}, "user_id": nt}}, {"$unwind": "$items"},
         {"$lookup": {"from": "products", "localField": "items.product_id", "foreignField": "id", "as": "p"}}, {"$unwind": {"path": "$p", "preserveNullAndEmptyArrays": True}},
         {"$group": {"_id": {"$ifNull": ["$p.category", "other"]}, "usd": {"$sum": {"$multiply": [{"$ifNull": ["$items.unit_price_usd", {"$ifNull": ["$items.price_usd", 0]}]}, {"$ifNull": ["$items.quantity", 1]}]}}}}, {"$sort": {"usd": -1}}, {"$limit": 8}]).to_list(8)
     cats = {c["id"]: c["name"] for c in await db.categories.find({}, {"_id": 0, "id": 1, "name": 1}).to_list(100)}
@@ -1239,7 +1277,7 @@ async def admin_dashboard(days: int = 30, admin: dict = Depends(current_admin)):
         p["revenue_usd"] = round(p["revenue_usd"], 2)
     return {
         "days": days, "current": cur, "previous": prev,
-        "totals": {"wallet_balance_usd": round((wallet[0]["s"] if wallet else 0) or 0, 2), "users": await db.users.count_documents({}), "products": await db.products.count_documents({"active": True}),
+        "totals": {"wallet_balance_usd": round((wallet[0]["s"] if wallet else 0) or 0, 2), "users": await db.users.count_documents({"is_test": {"$ne": True}}), "products": await db.products.count_documents({"active": True}),
                    "pending_dispatch": (by_status.get("paid", 0) + by_status.get("processing", 0)), "pending_topup_reviews": await db.topup_orders.count_documents({"status": "reviewing"}),
                    "pending_verifications": await db.verifications.count_documents({"status": "pending"}), "open_feedback": await db.feedback.count_documents({"status": "open"}),
                    "bad_reviews": await db.reviews.count_documents({"rating": {"$lte": 2}, "handled": {"$ne": True}, "$or": [{"reply": ""}, {"reply": {"$exists": False}}]})},
@@ -1650,6 +1688,30 @@ async def admin_admins_list(admin: dict = Depends(require_super)):
                     "role_name": roles.get(r.get("admin_role_id"), {}).get("name", ""),
                     "twofa": bool(twofa), "is_self": r["user_id"] == admin["user_id"], "created_at": r.get("created_at", "")})
     return out
+
+
+class AdminCreateIn(BaseModel):
+    email: str
+    password: str
+    role_id: str = ""
+
+
+@router.post("/admins/create")
+async def admin_admins_create(body: AdminCreateIn, admin: dict = Depends(require_super)):
+    email = body.email.strip().lower()
+    if not re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", email):
+        raise HTTPException(status_code=400, detail="請輸入正確的信箱")
+    if not email_auth._pw_ok(body.password):
+        raise HTTPException(status_code=400, detail="密碼長度為8~32位，數字、字母、符號至少包含兩種")
+    if await email_auth._find_user(email):
+        raise HTTPException(status_code=409, detail="此信箱已有帳號，請改用「提升為管理員」")
+    r = await email_auth._clerk("POST", "/users", json={"email_address": [email], "password": body.password, "skip_password_checks": True})
+    if r.status_code >= 300:
+        raise HTTPException(status_code=400, detail=(r.json().get("errors") or [{}])[0].get("long_message") or "建立失敗")
+    uid = r.json()["id"]
+    upd = {"user_id": uid, "email": email, "name": email, "role": "admin", "admin_super": False, "admin_role_id": body.role_id or "", "created_at": datetime.now(timezone.utc).isoformat()}
+    await db.users.update_one({"user_id": uid}, {"$set": upd}, upsert=True)
+    return {"ok": True, "user_id": uid}
 
 
 @router.post("/admins/promote")

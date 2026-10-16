@@ -15,6 +15,12 @@ export function AdminsAdmin({ callApi }) {
   }, [callApi]);
   useEffect(() => { load(); }, [load]);
 
+  const [pw, setPw] = useState("");
+  const create = async () => {
+    if (!email.trim() || !pw) return toast.error(tr("請輸入信箱與密碼"));
+    try { await callApi({ method: "POST", url: "/admin/admins/create", data: { email: email.trim(), password: pw, role_id: roleId } }); toast.success(tr("管理員已建立")); setEmail(""); setPw(""); setRoleId(""); load(); }
+    catch (e) { toast.error(e.response?.data?.detail || tr("操作失敗")); }
+  };
   const promote = async () => {
     if (!email.trim()) return toast.error(tr("請輸入用戶信箱"));
     try { await callApi({ method: "POST", url: "/admin/admins/promote", data: { email: email.trim(), role_id: roleId } }); toast.success(tr("已設為管理員")); setEmail(""); setRoleId(""); load(); }
@@ -28,14 +34,17 @@ export function AdminsAdmin({ callApi }) {
     <div data-testid="admins-admin">
       <Head title={tr("管理員管理")} sub={tr("將已註冊用戶設為管理員並分配角色；超級管理員擁有全部權限")} />
       <Card className="p-4 mb-4 max-w-2xl">
-        <div className="flex items-center gap-2 text-sm font-semibold text-slate-700 mb-2"><UserPlus className="h-4 w-4 text-orange-500" />{tr("新增管理員（依信箱提升現有用戶）")}</div>
+        <div className="flex items-center gap-2 text-sm font-semibold text-slate-700 mb-2"><UserPlus className="h-4 w-4 text-orange-500" />{tr("新增管理員")}</div>
+        <div className="text-xs text-slate-500 mb-2">{tr("填寫信箱＋密碼直接建立管理員帳號；若該信箱已是註冊用戶，留空密碼並點「設為管理員」即可提升")}</div>
         <div className="flex flex-wrap gap-2">
-          <Input data-testid="admins-email" className="flex-1 min-w-[12rem]" value={email} onChange={(e) => setEmail(e.target.value)} placeholder={tr("用戶註冊信箱")} />
+          <Input data-testid="admins-email" className="flex-1 min-w-[12rem]" value={email} onChange={(e) => setEmail(e.target.value)} placeholder={tr("登入信箱")} />
+          <Input data-testid="admins-password" type="text" className="w-44" value={pw} onChange={(e) => setPw(e.target.value)} placeholder={tr("密碼（8~32位）")} />
           <select data-testid="admins-role" value={roleId} onChange={(e) => setRoleId(e.target.value)} className="h-9 rounded-lg bg-slate-100 px-3 text-sm outline-none">
             <option value="">{tr("不指定角色（全部權限）")}</option>
             {roles.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
           </select>
-          <Btn data-testid="admins-promote" onClick={promote}><UserPlus className="h-4 w-4" />{tr("設為管理員")}</Btn>
+          <Btn data-testid="admins-create" onClick={create}><UserPlus className="h-4 w-4" />{tr("建立管理員")}</Btn>
+          <Btn data-testid="admins-promote" kind="ghost" onClick={promote}>{tr("設為管理員")}</Btn>
         </div>
       </Card>
       <Table testId="admins-table" cols={[tr("管理員"), tr("角色"), tr("兩步驗證"), tr("操作")]}

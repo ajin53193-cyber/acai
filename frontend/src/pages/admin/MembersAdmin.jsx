@@ -109,6 +109,7 @@ export function MemberDetail({ uid, callApi, onClose, onChanged }) {
           <div className="grid grid-cols-2 gap-2">
             {d.banned ? <Btn kind="ok" data-testid="member-unban" onClick={() => act("unban", {}, tr("已解除封禁"))}>{tr("解封")}</Btn> : <Btn kind="danger" data-testid="member-ban" onClick={() => window.confirm(tr("確定封禁此會員？其所有登入將被登出")) && act("ban", {}, tr("已封禁"))}>{tr("封禁")}</Btn>}
             <Btn kind="ghost" data-testid="member-reset-pw" onClick={resetPw}>{tr("重置密碼")}</Btn>
+            <Btn kind={d.is_test ? "ok" : "ghost"} className="col-span-2" data-testid="member-test-toggle" onClick={() => act("test-flag", { is_test: !d.is_test }, d.is_test ? tr("已取消測試帳號標記") : tr("已標記為測試帳號，其數據不計入統計"))}>{d.is_test ? tr("取消測試帳號標記") : tr("標記為測試帳號（不計入統計）")}</Btn>
           </div>
 
           <WalletAdjust uid={uid} balance={d.balance_usd} callApi={callApi} onDone={() => { load(); onChanged(); }} />
@@ -127,7 +128,29 @@ export function MemberDetail({ uid, callApi, onClose, onChanged }) {
   );
 }
 
-const STATUS_TABS = [["", tr("全部")], ["active", tr("正常")], ["banned", tr("已封禁")]];
+const STATUS_TABS = [["", tr("全部")], ["active", tr("正常")], ["banned", tr("已封禁")], ["test", tr("測試帳號")]];
+
+function CreateTestAccount({ callApi, onDone }) {
+  const [email, setEmail] = useState("");
+  const [pw, setPw] = useState("");
+  const [busy, setBusy] = useState(false);
+  const submit = async () => {
+    if (!email.trim() || !pw) return toast.error(tr("請輸入信箱與密碼"));
+    setBusy(true);
+    try { await callApi({ method: "POST", url: "/admin/members/create-test", data: { email: email.trim(), password: pw } }); toast.success(tr("測試帳號已建立，其數據不計入統計")); setEmail(""); setPw(""); onDone(); }
+    catch (e) { toast.error(e.response?.data?.detail || tr("建立失敗")); }
+    setBusy(false);
+  };
+  return (
+    <Card className="p-3 mb-4 flex flex-wrap items-center gap-2" data-testid="create-test-account">
+      <span className="text-xs font-semibold text-slate-600">{tr("新增測試帳號")}</span>
+      <Input data-testid="test-account-email" className="w-56" value={email} onChange={(e) => setEmail(e.target.value)} placeholder={tr("登入信箱")} />
+      <Input data-testid="test-account-password" className="w-44" value={pw} onChange={(e) => setPw(e.target.value)} placeholder={tr("密碼（8~32位）")} />
+      <Btn data-testid="test-account-create" onClick={submit} disabled={busy}>{busy ? tr("建立中…") : tr("建立")}</Btn>
+      <span className="text-[11px] text-slate-400">{tr("測試帳號的訂單、充值、餘額不計入儀表板統計")}</span>
+    </Card>
+  );
+}
 
 export function MembersAdmin({ callApi }) {
   const [q, setQ] = useState("");
@@ -137,12 +160,13 @@ export function MembersAdmin({ callApi }) {
   const [stats, loadStats] = useLoad(callApi, "/admin/members/stats");
   const [data, load] = useLoad(callApi, `/admin/members?q=${encodeURIComponent(qq)}`);
   const refresh = () => { load(); loadStats(); };
-  const rows = (data || []).filter((u) => (tab === "banned" ? u.banned : tab === "active" ? !u.banned : true));
+  const rows = (data || []).filter((u) => (tab === "banned" ? u.banned : tab === "active" ? !u.banned : tab === "test" ? u.is_test : true));
 
   return (
     <div data-testid="members-admin">
       <Head title={tr("會員管理")} sub={tr("會員餘額、訂單、實名認證、封禁與密碼重置")} right={<Btn kind="ghost" data-testid="members-refresh" onClick={refresh}><RotateCw className="h-3.5 w-3.5" /></Btn>} />
 
+      <CreateTestAccount callApi={callApi} onDone={refresh} />
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
         <StatCard icon={Users} label={tr("總用戶")} value={stats?.total} tone="bg-sky-50 text-sky-600" tid="total" />
         <StatCard icon={UserCheck} label={tr("活躍用戶")} value={stats?.active} tone="bg-emerald-50 text-emerald-600" tid="active" />
@@ -177,7 +201,7 @@ export function MembersAdmin({ callApi }) {
                   <td className="px-4 py-3 text-slate-600 whitespace-nowrap">{u.order_count} / <span className="font-semibold text-slate-800">${Number(u.spent_usd || 0).toFixed(2)}</span></td>
                   <td className="px-4 py-3 font-head font-bold text-slate-900 whitespace-nowrap">${Number(u.balance_usd || 0).toFixed(2)}</td>
                   <td className="px-4 py-3 text-slate-500 whitespace-nowrap">{fmt(u.created_at)}</td>
-                  <td className="px-4 py-3">{u.banned ? <Pill tone="red">{tr("封禁")}</Pill> : <Pill tone="emerald">{tr("正常")}</Pill>}</td>
+                  <td className="px-4 py-3">{u.banned ? <Pill tone="red">{tr("封禁")}</Pill> : <Pill tone="emerald">{tr("正常")}</Pill>}{u.is_test && <Pill tone="amber">{tr("測試")}</Pill>}</td>
                   <td className="px-4 py-3"><Btn kind="ghost" data-testid={`member-view-${u.user_id}`} onClick={() => setSel(u.user_id)}>{tr("詳情")}</Btn></td>
                 </tr>
               );

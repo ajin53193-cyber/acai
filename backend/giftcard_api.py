@@ -8,6 +8,7 @@ from datetime import datetime, timedelta, timezone
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, Header, HTTPException
+from fastapi.responses import JSONResponse
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
@@ -331,18 +332,35 @@ async def redeem_admin(body: RedeemIn, admin: dict = Depends(admin_api.current_a
 
 class ExtRedeemIn(BaseModel):
     transactionNo: str
-    phone: str
     amount: float
+    phone: str = ""
+
+
+def _ext_txn(t: dict) -> dict:
+    return {"transactionNo": t["trade_no"], "amount": t.get("amount"), "currency": t.get("currency"), "phone": t.get("phone"), "alipayHK": t.get("phone"),
+            "product": t.get("product_name"), "spec": t.get("spec_label"), "redeemed": bool(t.get("redeemed")), "redeemedAt": t.get("redeemed_at", ""), "createdAt": t.get("created_at", "")}
+
+
+async def _ext_auth(x_api_key: str):
+    cfg = await get_settings()
+    if not x_api_key or x_api_key != cfg["api_key"]:
+        raise HTTPException(status_code=401, detail="無效的 API Key")
+
+
+@ext_router.get("/txn/query")
+async def query_ext(no: str = "", x_api_key: str = Header("", alias="X-API-Key")):
+    await _ext_auth(x_api_key)
+    t = await db.giftcard_txns.find_one({"trade_no": re.sub(r"\D", "", no or "")}, {"_id": 0})
+    if not t:
+        return JSONResponse(status_code=404, content={"code": 404, "message": "查無此交易號"})
+    return {"code": 0, "message": "ok", "data": _ext_txn(t)}
 
 
 @ext_router.post("/txn/redeem")
 async def redeem_ext(body: ExtRedeemIn, x_api_key: str = Header("", alias="X-API-Key")):
-    cfg = await get_settings()
-    if not x_api_key or x_api_key != cfg["api_key"]:
-        raise HTTPException(status_code=401, detail="無效的 API Key")
+    await _ext_auth(x_api_key)
     try:
-        t = await _redeem(body.transactionNo, body.phone, body.amount, "api", strict=True)
+        t = await _redeem(body.transactionNo, body.phone, body.amount, "api", strict=False)
     except HTTPException as e:
-        return {"code": e.status_code, "message": e.detail}
-    return {"code": 0, "message": "核銷成功", "data": {"transactionNo": t["trade_no"], "amount": t["amount"], "currency": t.get("currency"), "phone": t.get("phone"),
-                                                   "product": t.get("product_name"), "spec": t.get("spec_label"), "redeemedAt": t["redeemed_at"]}}
+        return JSONResponse(status_code=e.status_code, content={"code": e.status_code, "message": e.detail})
+    return {"code": 0, "message": "核銷成功", "data": _ext_txn(t)}
