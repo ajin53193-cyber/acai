@@ -79,7 +79,7 @@ function InfoConfirm({ defs, vals, onBack, onConfirm }) {
   const rows = Object.entries(defs).flatMap(([pid, d]) => d.fields.map((f) => ({ key: `${pid}-${f.name}`, product: d.name, label: f.name, value: f.type === "password" ? "••••••" : (vals[pid]?.[f.name] || "") })));
   const multi = Object.keys(defs).length > 1;
   return (
-    <div data-testid="order-info-confirm" className="fixed inset-0 z-[80] flex items-end sm:items-center justify-center bg-black/50 p-4" onClick={onBack}>
+    <div data-testid="order-info-confirm" className="fixed inset-0 z-[80] flex items-center justify-center bg-black/50 p-4" onClick={onBack}>
       <div className="w-full max-w-sm rounded-2xl bg-white p-5 shadow-2xl space-y-4" onClick={(e) => e.stopPropagation()}>
         <div>
           <div className="font-bold text-slate-900 text-base">{tr("請核對充值資料")}</div>
