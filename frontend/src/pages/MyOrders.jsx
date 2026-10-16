@@ -335,7 +335,7 @@ function OrdersInner() {
 
       {/* Detail drawer */}
       <Sheet open={!!detail} onOpenChange={(v) => !v && !celebrateInfo && setDetail(null)}>
-        <SheetContent className="w-full sm:max-w-md overflow-y-auto bg-[#FFF4EA] border-l-0 [background-image:radial-gradient(rgba(255,255,255,0.9)_1.5px,transparent_1.5px)] [background-size:18px_18px]" data-testid="order-detail-drawer">
+        <SheetContent className="w-full sm:max-w-md overflow-y-auto bg-[#FFF4EA] border-l-0 max-sm:-bottom-24 max-sm:pb-[7.5rem] [background-image:radial-gradient(rgba(255,255,255,0.9)_1.5px,transparent_1.5px)] [background-size:18px_18px]" data-testid="order-detail-drawer">
           {detail && (
             <>
               <SheetHeader>
