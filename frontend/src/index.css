@@ -186,7 +186,8 @@ code, .font-mono {
 #root { overflow-x: clip; min-height: 100vh; }
 /* Home-screen PWA app shell: window never scrolls (kills WebKit layout-viewport drift after keyboard); content scrolls in #site-scroll */
 html.pwa, html.pwa body, html.pwa #root, html.pwa .App { height: 100%; min-height: 0; overflow: hidden; overscroll-behavior: none; }
-html.pwa .site-shell { height: 100%; min-height: 0; }
+/* inset-based (not height:100%): iOS 26 standalone reports 100%/100dvh ~68px shorter than the real screen, fixed inset fills it */
+html.pwa .site-shell { position: fixed; top: 0; left: 0; right: 0; height: var(--app-h, 100%); min-height: 0; transform: translateZ(0); }
 html.pwa .site-scroll { min-height: 0; overflow-y: auto; overflow-x: hidden; -webkit-overflow-scrolling: touch; overscroll-behavior-y: contain; background-image: var(--site-bg-m); background-position: center top; background-size: 100% auto; background-repeat: no-repeat; background-attachment: local; }
 html.pwa .site-shell { background-image: none; }
 /* Beats react-remove-scroll's `.with-scroll-bars-hidden body { position: relative !important }` so the lock really freezes the window */
