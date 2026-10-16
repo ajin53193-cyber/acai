@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { scrollPageTo } from "@/lib/scroller";
 import { Link } from "react-router-dom";
 import { Percent, FileText, Sparkles } from "lucide-react";
 import { publicApi } from "@/lib/api";
@@ -45,7 +46,7 @@ export default function ArticleCenter() {
   useEffect(() => {
     setLoading(true);
     publicApi.get("/articles", { params: { page, size: PAGE_SIZE, type } }).then((r) => setData(r.data)).catch(() => {}).finally(() => setLoading(false));
-    window.scrollTo({ top: 0 });
+    scrollPageTo({ top: 0 });
   }, [page, type]);
 
   const pages = Math.max(1, Math.ceil(data.total / PAGE_SIZE));

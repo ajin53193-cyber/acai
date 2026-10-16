@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { scrollPageTo } from "@/lib/scroller";
 import { useParams, useSearchParams, Link, useNavigate } from "react-router-dom";
 import { ChevronLeft, ChevronRight, Gamepad2, Smile, MessageCircle, Gift, Search, X } from "lucide-react";
 import { publicApi } from "@/lib/api";
@@ -62,7 +63,7 @@ export default function Category() {
   const catName = q ? tr("搜尋「{0}」", q) : current?.name || tr("全部商品");
   const submitSearch = (e) => { e.preventDefault(); if (kw.trim()) navigate(`/category/all?q=${encodeURIComponent(kw.trim())}`); };
   const totalPages = Math.ceil(products.length / PER_PAGE);
-  const goPage = (n) => { setPage(n); window.scrollTo({ top: 0, behavior: "smooth" }); };
+  const goPage = (n) => { setPage(n); scrollPageTo({ top: 0, behavior: "smooth" }); };
 
   return (
     <div className="relative bg-gradient-to-b from-[#FFE3C4] via-[#FFF3E6] to-[#FFF8F1] min-h-[70vh] overflow-hidden">

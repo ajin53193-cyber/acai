@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { pageScrollY, onPageScroll, scrollPageTo } from "@/lib/scroller";
 import { useAuth } from "@clerk/react";
 import { Headphones, X, MessageCircle, Clock, ChevronRight, ArrowUpToLine, ImagePlus, Send, Loader2 } from "lucide-react";
 import axios from "axios";
@@ -85,13 +86,13 @@ export default function ServiceWidget() {
 
   useEffect(() => {
     const on = (e) => { const s = e.detail?.session; if (s) { setSession(s); setMsgs([]); lastRef.current = ""; } setOpen(true); };
-    const onScroll = () => setShowTop(window.scrollY > 400);
+    const onScroll = () => setShowTop(pageScrollY() > 400);
     window.addEventListener("open-service", on);
-    window.addEventListener("scroll", onScroll, { passive: true });
+    const offScroll = onPageScroll(onScroll);
     publicApi.get("/settings").then((r) => setSettings(r.data)).catch(() => {});
     publicApi.get("/chat/quick-replies").then((r) => setQuick(r.data)).catch(() => {});
     publicApi.get("/chat/status").then((r) => setStatus(r.data)).catch(() => {});
-    return () => { window.removeEventListener("open-service", on); window.removeEventListener("scroll", onScroll); };
+    return () => { window.removeEventListener("open-service", on); offScroll(); };
   }, []);
 
   // Returning visitor with an existing conversation: keep listening for replies in the background.
@@ -181,7 +182,7 @@ export default function ServiceWidget() {
         </>
       )}
       {showTop && (
-        <button data-testid="back-to-top" onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+        <button data-testid="back-to-top" onClick={() => scrollPageTo({ top: 0, behavior: "smooth" })}
           className="fixed bottom-[9.5rem] right-4 md:bottom-24 md:right-6 z-40 h-14 w-14 safe-bottom-offset rounded-full bg-white/90 shadow-xl flex items-center justify-center text-orange-500 hover:bg-white">
           <ArrowUpToLine className="h-6 w-6" strokeWidth={2.5} />
         </button>

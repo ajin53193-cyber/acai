@@ -1,5 +1,6 @@
 import "@/App.css";
 import { BrowserRouter, Routes, Route, Outlet, useLocation } from "react-router-dom";
+import { scrollPageTo } from "@/lib/scroller";
 import { AuthenticateWithRedirectCallback, useUser } from "@clerk/react";
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
@@ -37,16 +38,18 @@ if (typeof window !== "undefined" && "scrollRestoration" in window.history) wind
 
 function StoreLayout() {
   const { pathname } = useLocation();
-  useEffect(() => { window.scrollTo(0, 0); }, [pathname]);
+  useEffect(() => { scrollPageTo({ top: 0 }); }, [pathname]);
   const hideFooterOnMobile = ["/product/", "/checkout", "/account", "/orders", "/article", "/info"].some((p) => pathname.startsWith(p));
   return (
     <AuthModalProvider>
-      <div className="min-h-screen flex flex-col site-bg" style={{ "--site-bg-pc": "url(/kavip-bg-pc.png)", "--site-bg-m": "url(/kavip-bg-m.png)" }}>
+      <div className="min-h-screen flex flex-col site-bg site-shell" style={{ "--site-bg-pc": "url(/kavip-bg-pc.png)", "--site-bg-m": "url(/kavip-bg-m.png)" }}>
         <Header />
-        <main className="flex-1">
-          <Outlet />
-        </main>
-        <div className={hideFooterOnMobile ? "max-md:hidden" : ""}><Footer /></div>
+        <div id="site-scroll" className="site-scroll flex-1 flex flex-col">
+          <main className="flex-1">
+            <Outlet />
+          </main>
+          <div className={hideFooterOnMobile ? "max-md:hidden" : ""}><Footer /></div>
+        </div>
         <CartDrawer />
         <ServiceWidget />
       </div>

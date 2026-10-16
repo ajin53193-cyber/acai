@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { scrollPageTo } from "@/lib/scroller";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { Star, Minus, Plus, ShoppingCart, Sparkles, CalendarCheck, Gift, Tags, BadgePercent, ChevronLeft, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
@@ -88,7 +89,7 @@ export default function ProductDetail() {
   const [reviewsShown, setReviewsShown] = useState(10);
 
   useEffect(() => {
-    window.scrollTo(0, 0);
+    scrollPageTo({ top: 0 });
     setQty(1);
     publicApi.get(`/products/${id}`).then((r) => {
       setProduct(r.data);

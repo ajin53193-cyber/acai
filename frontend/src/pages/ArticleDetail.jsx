@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { scrollPageTo } from "@/lib/scroller";
 import { useParams, Link, Navigate } from "react-router-dom";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { publicApi } from "@/lib/api";
@@ -11,7 +12,7 @@ export default function ArticleDetail() {
 
   useEffect(() => {
     setA(null);
-    window.scrollTo({ top: 0 });
+    scrollPageTo({ top: 0 });
     publicApi.get(`/articles/${id}`).then((r) => setA(r.data)).catch(() => setMissing(true));
   }, [id]);
 
