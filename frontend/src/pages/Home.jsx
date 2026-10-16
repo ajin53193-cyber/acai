@@ -361,7 +361,7 @@ function PagedGrid({ items, perPage = 10, testid }) {
         onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp} onPointerLeave={onUp}
         onClickCapture={(e) => { if (drag.current.moved) { e.preventDefault(); e.stopPropagation(); } }}
         className="flex overflow-x-auto no-scrollbar cursor-grab active:cursor-grabbing select-none"
-        style={{ scrollSnapType: dragging ? "none" : "x mandatory", touchAction: "pan-y" }}>
+        style={{ scrollSnapType: dragging ? "none" : "x mandatory", touchAction: "pan-x pan-y" }}>
         {pages.map((pg, pi) => (
           <div key={pi} className="shrink-0 w-full grid grid-cols-4 md:grid-cols-5 gap-x-2 gap-y-4"
             style={{ scrollSnapAlign: "start" }}>

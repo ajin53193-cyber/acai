@@ -10,6 +10,7 @@
 
 html, body {
     background-color: #FFF4EA;
+    touch-action: pan-x pan-y;
 }
 .safe-top-pad { padding-top: env(safe-area-inset-top) !important; }
 .safe-bottom-inset { padding-bottom: env(safe-area-inset-bottom); }

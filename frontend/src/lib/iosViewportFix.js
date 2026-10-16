@@ -28,6 +28,10 @@ function debug(stage) {
 }
 
 if (isIOS) {
+  // Safari ignores user-scalable=no: block pinch zoom (gesture events) and double-tap zoom (touch-action in CSS)
+  document.addEventListener("gesturestart", (e) => e.preventDefault(), { passive: false });
+  document.addEventListener("gesturechange", (e) => e.preventDefault(), { passive: false });
+  document.addEventListener("touchmove", (e) => { if (e.scale !== undefined && e.scale !== 1) e.preventDefault(); }, { passive: false });
   setTimeout(() => debug("load"), 1500);
   new MutationObserver(() => { if (document.body.classList.contains("gt-scroll-locked")) setTimeout(() => debug("modal_open"), 500); }).observe(document.body, { attributes: true, attributeFilter: ["class"] });
 }
