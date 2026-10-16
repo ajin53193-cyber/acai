@@ -46,10 +46,12 @@ const COLS = [
 
 export default function Footer() {
   const cfg = useSiteConfig();
-  const [settings, setSettings] = useState({ whatsapp_link: "https://wa.me/", cs_label: tr("WhatsApp 掃碼聯繫客服") });
+  const [settings, setSettings] = useState({ whatsapp_link: "https://wa.me/", cs_label: tr("WhatsApp 掃碼聯繫客服"), cs_qr_image: "" });
   const [logos, setLogos] = useState(null);
+  const [cols, setCols] = useState(COLS);
   useEffect(() => {
     publicApi.get("/settings").then((r) => setSettings(r.data)).catch(() => {});
+    publicApi.get("/footer").then((r) => setCols((r.data.cols || []).map((c) => [tr(c.title), c.links.map((l) => [tr(l.label), l.to, l.hot])]))).catch(() => {});
     publicApi.get("/payment-logos").then((r) => setLogos(r.data)).catch(() => setLogos([]));
   }, []);
   return (
@@ -75,17 +77,21 @@ export default function Footer() {
       {/* Middle: links + service */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 md:py-10">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 md:gap-10">
-          <div className="grid grid-cols-3 gap-3 md:gap-6 px-2 md:px-0">
-            {COLS.map(([title, links]) => (
-              <div key={title}>
+          <div className={`grid gap-3 md:gap-6 px-2 md:px-0 ${cols.length === 4 ? "grid-cols-2 sm:grid-cols-4" : cols.length === 2 ? "grid-cols-2" : cols.length === 1 ? "grid-cols-1" : "grid-cols-3"}`} data-testid="footer-cols">
+            {cols.map(([title, links], ci) => (
+              <div key={ci}>
                 <h4 className="font-bold text-[15px] md:text-sm mb-2.5 md:mb-4 whitespace-nowrap">{title}</h4>
                 <ul className="space-y-1.5 md:space-y-2.5 text-[13px] md:text-[13px] text-white/90 md:text-white/85 whitespace-nowrap">
-                  {links.map(([label, to, hot]) => (
-                    <li key={label}>
-                      <Link to={to} className="hover:text-white inline-flex items-center gap-1 transition-colors">
-                        {label}
-                        {hot && <span className="text-[8px] md:text-[9px] font-bold bg-white text-[#E8792A] rounded px-0.5 md:px-1 py-px leading-none">HOT</span>}
-                      </Link>
+                  {links.map(([label, to, hot], li) => (
+                    <li key={li}>
+                      {/^https?:\/\//.test(to) ? (
+                        <a href={to} target="_blank" rel="noreferrer" className="hover:text-white inline-flex items-center gap-1 transition-colors">{label}{hot && <span className="text-[8px] md:text-[9px] font-bold bg-white text-[#E8792A] rounded px-0.5 md:px-1 py-px leading-none">HOT</span>}</a>
+                      ) : (
+                        <Link to={to || "/"} className="hover:text-white inline-flex items-center gap-1 transition-colors">
+                          {label}
+                          {hot && <span className="text-[8px] md:text-[9px] font-bold bg-white text-[#E8792A] rounded px-0.5 md:px-1 py-px leading-none">HOT</span>}
+                        </Link>
+                      )}
                     </li>
                   ))}
                 </ul>
@@ -97,7 +103,7 @@ export default function Footer() {
             <div className="flex items-center md:items-start gap-3 md:gap-4 bg-white/10 rounded-2xl p-3 md:p-4">
               <div className="flex flex-col items-center shrink-0 md:border-r-0 border-r border-white/25 pr-3 md:pr-0">
                 <a href={settings.whatsapp_link} target="_blank" rel="noreferrer" data-testid="footer-whatsapp-qr" className="inline-block bg-white rounded-xl p-1.5 leading-none">
-                  <QRCodeSVG value={settings.whatsapp_link} size={72} fgColor="#E8792A" level="M" className="block" />
+                  {settings.cs_qr_image ? <img src={settings.cs_qr_image} alt="" data-testid="footer-qr-image" className="block h-[72px] w-[72px] object-contain" /> : <QRCodeSVG value={settings.whatsapp_link} size={72} fgColor="#E8792A" level="M" className="block" />}
                 </a>
                 <div className="text-[10px] md:text-[11px] text-white/90 md:text-white/80 mt-1.5 whitespace-nowrap">{settings.cs_label}</div>
               </div>

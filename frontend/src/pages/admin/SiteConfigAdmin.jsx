@@ -38,8 +38,9 @@ function BannerList({ items, onChange, withAction, max, ratio }) {
   );
 }
 
-export function SiteConfigAdmin({ callApi }) {
-  const [tab, setTab] = useState("logo");
+export function SiteConfigAdmin({ callApi, go, only, title, sub }) {
+  const tabs = only ? TABS.filter(([k]) => only.includes(k)) : TABS;
+  const [tab, setTab] = useState(tabs[0][0]);
   const [cfg, setCfg] = useState(null);
   const [saving, setSaving] = useState(false);
   useEffect(() => { callApi({ method: "GET", url: "/site-config" }).then((r) => setCfg(r.data)).catch(() => toast.error(tr("載入失敗"))); }, [callApi]);
@@ -62,9 +63,10 @@ export function SiteConfigAdmin({ callApi }) {
 
   return (
     <div data-testid="siteconfig-admin">
-      <Head title={tr("網站配置")} sub={tr("前台所有橫幅、文案、Logo 皆可在此修改，儲存後即時生效。")} />
+      <Head title={title || tr("網站配置")} sub={sub || tr("前台所有橫幅、文案、Logo 皆可在此修改，儲存後即時生效。")}
+        right={only && go && <Btn kind="ghost" data-testid="banners-goto-home" onClick={() => go("home-decoration")}>{tr("首頁輪播大圖 → 首頁裝修")}</Btn>} />
       <div className="flex gap-2 mb-5 overflow-x-auto no-scrollbar">
-        {TABS.map(([k, label]) => <button key={k} data-testid={`siteconfig-tab-${k}`} onClick={() => setTab(k)} className={`shrink-0 h-9 px-4 rounded-lg text-xs font-semibold ${tab === k ? "bg-orange-500 text-white" : "bg-white border border-slate-200 text-slate-600 hover:border-orange-300"}`}>{label}</button>)}
+        {tabs.map(([k, label]) => <button key={k} data-testid={`siteconfig-tab-${k}`} onClick={() => setTab(k)} className={`shrink-0 h-9 px-4 rounded-lg text-xs font-semibold ${tab === k ? "bg-orange-500 text-white" : "bg-white border border-slate-200 text-slate-600 hover:border-orange-300"}`}>{label}</button>)}
       </div>
 
       {tab === "whatsapp" ? <WhatsAppSettings callApi={callApi} /> : (
@@ -158,7 +160,7 @@ export function SiteConfigAdmin({ callApi }) {
 }
 
 function WhatsAppSettings({ callApi }) {
-  const [form, setForm] = useState({ whatsapp_number: "", whatsapp_link: "", cs_label: "" });
+  const [form, setForm] = useState({ whatsapp_number: "", whatsapp_link: "", cs_label: "", cs_qr_image: "" });
   const [saving, setSaving] = useState(false);
   useEffect(() => { callApi({ method: "GET", url: "/settings" }).then((r) => setForm(r.data)).catch(() => {}); }, [callApi]);
   const save = async () => {
@@ -177,10 +179,13 @@ function WhatsAppSettings({ callApi }) {
         <Field label={tr("WhatsApp 號碼（含國碼，選填）")}><Txt data-testid="settings-whatsapp-number" value={form.whatsapp_number} onChange={(v) => setForm({ ...form, whatsapp_number: v })} placeholder="+85261234567" /></Field>
         <Field label={tr("WhatsApp 連結（二維碼內容）")}><Txt data-testid="settings-whatsapp-link" value={form.whatsapp_link} onChange={(v) => setForm({ ...form, whatsapp_link: v })} placeholder={tr("https://wa.me/85261234567 或群組邀請連結")} /></Field>
         <Field label={tr("二維碼下方文字")}><Txt data-testid="settings-cs-label" value={form.cs_label} onChange={(v) => setForm({ ...form, cs_label: v })} /></Field>
-        <Btn data-testid="settings-save" onClick={save} disabled={saving}>{tr("儲存")}</Btn>
+        <Field label={tr("自訂二維碼圖片（選填）")} hint={tr("上傳後頁尾直接顯示此圖（如微信 / WhatsApp 群二維碼）；留空則依上方連結自動生成。建議正方形 PNG。")}>
+          <div className="max-w-[200px]"><Img value={form.cs_qr_image} onChange={(v) => setForm({ ...form, cs_qr_image: v })} testId="settings-qr-img" ratio="aspect-square" /></div>
+        </Field>
+        <Btn data-testid="settings-save" onClick={save} disabled={saving}>{saving ? tr("儲存中…") : tr("儲存")}</Btn>
       </div>
       <div className="flex flex-col items-center justify-center bg-slate-50 rounded-2xl p-6">
-        <div className="bg-white rounded-xl p-2 shadow-sm"><QRCodeSVG value={form.whatsapp_link || "https://wa.me/"} size={160} fgColor="#E8792A" /></div>
+        <div className="bg-white rounded-xl p-2 shadow-sm">{form.cs_qr_image ? <img src={form.cs_qr_image} alt="" className="h-40 w-40 object-contain" /> : <QRCodeSVG value={form.whatsapp_link || "https://wa.me/"} size={160} fgColor="#E8792A" />}</div>
         <div className="text-xs text-slate-500 mt-3">{form.cs_label}</div>
         <div className="text-[11px] text-slate-400 mt-1 break-all text-center">{form.whatsapp_link}</div>
       </div>

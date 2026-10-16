@@ -1107,7 +1107,7 @@ async def product_daily_limit(product_id: str, member: dict = Depends(current_me
 
 
 # ----------------------------- Site settings -----------------------------
-DEFAULT_SETTINGS = {"whatsapp_number": "", "whatsapp_link": "https://wa.me/", "cs_label": "WhatsApp 掃碼聯繫客服"}
+DEFAULT_SETTINGS = {"whatsapp_number": "", "whatsapp_link": "https://wa.me/", "cs_label": "WhatsApp 掃碼聯繫客服", "cs_qr_image": ""}
 
 
 @api_router.get("/settings")
@@ -1122,6 +1122,8 @@ async def get_settings():
 @api_router.put("/admin/settings")
 async def put_settings(body: Dict[str, str], admin: dict = Depends(require_role("admin"))):
     allowed = {k: v for k, v in body.items() if k in DEFAULT_SETTINGS}
+    if str(allowed.get("cs_qr_image", "")).startswith("data:image"):
+        allowed["cs_qr_image"] = await _upload_b64("gogo589/cms", allowed["cs_qr_image"], "qr.png", max_mb=4)
     await db.site_settings.update_one({"_id": "site"}, {"$set": allowed}, upsert=True)
     return await get_settings()
 

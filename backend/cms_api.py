@@ -187,6 +187,76 @@ async def admin_list_articles(q: str = "", type: str = "", page: int = 1, size: 
     return {"total": total, "rows": rows}
 
 
+# ----------------------------- Footer pages & link columns -----------------------------
+DEFAULT_FOOTER = [
+    {"title": "關於我們", "links": [{"label": "公司介紹", "to": "/article/about-us", "hot": False}, {"label": "隱私權政策", "to": "/article/privacy-policy", "hot": False}, {"label": "條款與條件", "to": "/article/terms-conditions", "hot": False}, {"label": "聯絡我們", "to": "/article/contact-us", "hot": False}]},
+    {"title": "購物指南", "links": [{"label": "購物流程", "to": "/article/shopping", "hot": False}, {"label": "出貨流程", "to": "/article/delivery", "hot": False}, {"label": "退款政策", "to": "/article/refund-policy", "hot": False}, {"label": "成為經銷商", "to": "/article/reseller", "hot": True}]},
+    {"title": "幫助訊息", "links": [{"label": "常見問題", "to": "/article/faq", "hot": False}, {"label": "我的訂單", "to": "/orders", "hot": False}, {"label": "我的認證", "to": "/account/verify", "hot": False}, {"label": "我的優惠券", "to": "/account/coupons", "hot": False}]},
+]
+
+
+@router.get("/footer")
+async def get_footer():
+    doc = await db.settings.find_one({"key": "footer_links"}, {"_id": 0})
+    return {"cols": (doc or {}).get("cols") or DEFAULT_FOOTER}
+
+
+@router.put("/admin/footer")
+async def put_footer(body: Dict[str, Any], admin: dict = Depends(current_admin)):
+    cols = []
+    for c in (body.get("cols") or [])[:4]:
+        links = [{"label": str(l.get("label", "")).strip(), "to": str(l.get("to", "")).strip(), "hot": bool(l.get("hot"))} for l in (c.get("links") or []) if str(l.get("label", "")).strip()]
+        cols.append({"title": str(c.get("title", "")).strip(), "links": links})
+    await db.settings.update_one({"key": "footer_links"}, {"$set": {"key": "footer_links", "cols": cols}}, upsert=True)
+    return {"cols": cols}
+
+
+@router.post("/admin/footer/reset")
+async def reset_footer(admin: dict = Depends(current_admin)):
+    await db.settings.delete_one({"key": "footer_links"})
+    return {"cols": DEFAULT_FOOTER}
+
+
+class PageIn(BaseModel):
+    id: str = ""
+    title: str
+    content_html: Optional[str] = None
+    active: bool = True
+
+
+@router.get("/admin/articles/pages")
+async def admin_list_pages(admin: dict = Depends(current_admin)):
+    rows = await db.articles.find({"page": True}, {"_id": 0, "content_html": 0}).sort("title", 1).to_list(200)
+    return {"rows": rows}
+
+
+@router.post("/admin/articles/pages")
+async def admin_create_page(body: PageIn, admin: dict = Depends(current_admin)):
+    slug = re.sub(r"[^a-z0-9-]", "", body.id.strip().lower().replace(" ", "-")) or new_id()
+    if await db.articles.find_one({"id": slug}):
+        raise HTTPException(status_code=409, detail="此網址代號已存在")
+    if not body.title.strip():
+        raise HTTPException(status_code=400, detail="標題不可為空")
+    d = {"id": slug, "title": to_traditional(body.title.strip()), "type": "news", "summary": "", "cover": "", "content_html": to_traditional(body.content_html or ""), "link": "", "keywords": "",
+         "start_at": None, "end_at": None, "published_at": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S"), "sort_order": 0, "active": body.active, "page": True, "view_count": 0, "created_at": _now(), "updated_at": _now()}
+    await db.articles.insert_one(d)
+    d.pop("_id", None)
+    return d
+
+
+@router.put("/admin/articles/pages/{page_id}")
+async def admin_update_page(page_id: str, body: PageIn, admin: dict = Depends(current_admin)):
+    if not body.title.strip():
+        raise HTTPException(status_code=400, detail="標題不可為空")
+    upd = {"title": to_traditional(body.title.strip()), "active": body.active, "updated_at": _now()}
+    if body.content_html is not None:
+        upd["content_html"] = to_traditional(body.content_html)
+    res = await db.articles.update_one({"id": page_id, "page": True}, {"$set": upd})
+    if res.matched_count == 0:
+        raise HTTPException(status_code=404, detail="not found")
+    return await db.articles.find_one({"id": page_id}, {"_id": 0, "content_html": 0})
+
+
 @router.get("/admin/articles/{article_id}")
 async def admin_get_article(article_id: str, admin: dict = Depends(current_admin)):
     a = await db.articles.find_one({"id": article_id}, {"_id": 0})

@@ -1570,7 +1570,7 @@ ALL_PERMISSIONS = [
     "members", "user-tags", "member-assets", "blacklist", "user-logs", "verifications", "user-batch", "feedback", "user-reports", "chat-sessions",
     "products", "categories", "reviews",
     "giftcard-list", "giftcard-pool", "giftcard-orders", "giftcard-new", "giftcard-trade-query", "giftcard-api", "giftcard-report",
-    "home-decoration", "banners", "recommendations", "promos", "notifications", "announcements",
+    "home-decoration", "banners", "footer", "recommendations", "promos", "notifications", "announcements",
     "activities",
     "order-settlement", "topups", "payments", "reconciliation", "currencies", "finance-reports",
     "siteconfig", "admins", "roles", "operation-logs", "sms-config", "email-config", "oauth-config", "translations", "paylogos",
