@@ -34,12 +34,13 @@
 - 本机验证通过：80→301 https；443 返回 index.html；`/api/` 返回 JSON；MongoDB 本地 27017 正常（商品自动初始化）。
 - 已知：`Storage init failed: 403` — Emergent 对象存储拒绝外部服务器，图片上传不可用，需改为 OSS/S3/本地磁盘（P1）。`translate.py` 仍依赖 EMERGENT_LLM_KEY（P1）。
 
-## [2026-06] iOS 主屏幕 PWA 头部漂移 — 根治方案：App Shell
-- 现象（用户录屏）：PWA 内下单→填充值资料（键盘）→返回首页→一滑动，头部+内容整体上移一个状态栏高度。埋点显示 visualViewport.offsetTop=56（=状态栏高）→ WebKit 键盘后布局视口未归位。
-- 方案：`html.pwa`（track.js 在 ?source=pwa 或 standalone 时加）下 html/body/#root 固定高度 overflow:hidden，内容在 `#site-scroll`（App.js StoreLayout 包裹 main+Footer）内滚动，window 永不滚动；Header 一律 `sticky top-0`（PWA 中位于滚动区外）。浏览器模式完全不变。
-- 配套：`lib/scroller.js`（scrollPageTo / pageScrollY / onPageScroll）替换所有 window.scrollTo / scrollY（App.js 路由切换归零、ProductDetail、Category、ArticleCenter/Detail、ServiceWidget 回到顶部）。manifest 加 192 图标 + `start_url: /?source=pwa` + id/scope（安卓才会装成真 PWA）；A2HSTip 每会话只弹一次且 PWA 不弹；PagedGrid touch-action pan-x pan-y；iOS 输入框 ≥16px 防自动缩放 + gesturestart 拦截。
-- iteration_44 全通过（PWA/浏览器/桌面）。曾尝试过无效的方案：仅 fixed+spacer、offsetTop 自愈 — 勿再走回头路。
-- 用户服务器侧：补丁通过 `GET /api/_export/{DATA_EXPORT_TOKEN}/patch.zip`（整包 frontend/src + public）下发，用户 `tar -xf` 到项目根后 `yarn build`。该临时接口迁移完成后应删除。
+## [2026-06] iOS 主屏幕 PWA 头部漂移 — 现状：未解决（已回退 App Shell 实验）
+- 现象（用户录屏）：PWA 内下单→填充值资料（键盘）→返回首页→一滑动，头部+内容整体上移一个状态栏高度（页面比例不变，非缩放）。埋点：正常 vv.offsetTop=0；异常时 offsetTop=56（=状态栏高）。
+- 已尝试并无效/有副作用（勿重复）：① 浏览器模式 header 也 fixed+spacer → 状态栏颜色变化且无效，已回退；② offsetTop 自愈 scrollTo（iosViewportFix.js 仍保留，无害但无效）；③ App Shell（html.pwa 下 body overflow hidden、#site-scroll 内滚）→ 头部稳定，但壳层高度拿不到真实屏幕：height:100%/innerHeight 比屏幕少约 55~68pt（iOS 26 standalone），用 screen.height 撑高后 fixed bottom-0 底栏仍锚在 797pt（layout viewport），底部留空/底栏被截；已回退（index.css 的 html.pwa 壳层规则与 track.js 的 --app-h 已删）。
+- 当前保留：App.js 中 #site-scroll 包裹 div（无 CSS）、lib/scroller.js（scrollPageTo 等，浏览器模式等价 window.scrollTo）、Header 恢复为「PWA fixed+spacer / 浏览器 sticky」原版（commit 6f9f702）。
+- 若继续：需 iPhone 真机实测；思路 a) 壳层用 position:fixed; inset:0（早前结论 inset 可铺满真实屏幕），底栏改为壳层内 flex 子元素而非 fixed；b) 或 focusout 后 window.scrollTo(0, scrollY)+强制重排，用 /api/track 埋点（vp_debug meta.vvTop）在用户服务器 DB events 集合验证。
+- 本轮已生效：manifest 192 图标 + start_url /?source=pwa + id/scope；A2HSTip 每会话一次且 PWA 不弹；PagedGrid touch-action pan-x pan-y；iOS 输入框 ≥16px + gesturestart 拦截；路由切换回顶部 + scrollRestoration manual；storage.py 本地磁盘模式；scripts/export_data.py + import_data.py；Nginx index.html no-cache 建议。
+- 补丁下发：GET /api/_export/{DATA_EXPORT_TOKEN}/patch.zip（整包 frontend/src + public），用户 tar -xf 到项目根后 yarn build。临时接口 server.py /_export/... 迁移完成后应删除。
 
 ## 待办 / Blocked
 - P1 自托管：storage.py 改本地磁盘/OSS/S3；translate.py 改用户自有 OpenAI Key。

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useUser } from "@clerk/react";
 import { Search, ShoppingCart, Headphones, ChevronDown, ChevronRight, Shield, Package, Menu, X, UserRound, Gift, Wallet, Home, LayoutGrid,
@@ -13,6 +13,7 @@ import { openService } from "@/components/ServiceWidget";
 import { useSiteConfig } from "@/lib/siteConfig";
 import { AddToHomeDialog } from "@/components/AddToHomeDialog";
 import { A2HSTip } from "@/components/A2HSTip";
+import { isStandalone } from "@/lib/track";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -63,10 +64,23 @@ export default function Header() {
     callApi({ method: "GET", url: "/me" }).then((r) => setIsAdmin(r.data.role === "admin")).catch(() => setIsAdmin(false));
   }, [isSignedIn, callApi]);
 
+  const headRef = useRef(null);
+  const [headH, setHeadH] = useState(0);
+  const standalone = isStandalone();
+  useLayoutEffect(() => {
+    const el = headRef.current;
+    if (!el || !standalone) return;
+    const ro = new ResizeObserver(() => setHeadH(el.getBoundingClientRect().height));
+    ro.observe(el);
+    setHeadH(el.getBoundingClientRect().height);
+    return () => ro.disconnect();
+  }, [standalone]);
+
   return (
     <>
-    {/* Browser: sticky. Home-screen PWA: app shell (index.css html.pwa) keeps the header outside the scroll area, window never scrolls */}
-    <header className="sticky top-0 z-40 w-full bg-[#FFF4EA] shrink-0">
+    {/* Home-screen PWA: fixed header + spacer so iOS bottom rubber-band can't drag it; browser: plain sticky (original behaviour) */}
+    {standalone && <div style={{ height: headH }} aria-hidden="true" data-testid="header-spacer" />}
+    <header ref={headRef} className={`${standalone ? "fixed top-0 inset-x-0" : "sticky top-0"} z-40 w-full bg-[#FFF4EA]`}>
       <div style={{ height: "env(safe-area-inset-top)" }} />
       {/* Top promo bar */}
       {cfg.top_promo.enabled !== false && cfg.top_promo.image && (

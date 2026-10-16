@@ -10,20 +10,7 @@ export function track(event, source = "") {
   publicApi.post("/track", { event, source, path: window.location.pathname, standalone: isStandalone() }).catch(() => {});
 }
 
-if (typeof window !== "undefined" && isStandalone()) {
-  document.documentElement.classList.add("pwa");
-  // Real screen height for the app shell (iOS 26 standalone: 100%/100dvh is ~68px short); ignore keyboard-induced shrinks
-  const setH = () => {
-    const ae = document.activeElement;
-    if (ae && /^(INPUT|TEXTAREA|SELECT)$/.test(ae.tagName)) return;
-    if (document.body?.classList.contains("gt-scroll-locked")) return;
-    const full = Math.max(window.innerHeight, window.screen?.height || 0);
-    document.documentElement.style.setProperty("--app-h", `${full}px`);
-  };
-  setH();
-  window.addEventListener("resize", () => setTimeout(setH, 60));
-  window.addEventListener("orientationchange", () => setTimeout(setH, 300));
-}
+if (typeof window !== "undefined" && isStandalone()) document.documentElement.classList.add("pwa");
 if (typeof window !== "undefined" && isStandalone() && !sessionStorage.getItem("pwa_launch_tracked")) {
   sessionStorage.setItem("pwa_launch_tracked", "1");
   track("pwa_launch", "standalone");
