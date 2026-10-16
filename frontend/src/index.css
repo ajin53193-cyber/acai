@@ -10,11 +10,6 @@
 
 html, body {
     background-color: #FFF4EA;
-    touch-action: pan-x pan-y;
-}
-/* iOS auto-zooms into inputs whose font-size < 16px and may stay zoomed: fixed header then drifts on scroll */
-@supports (-webkit-touch-callout: none) {
-    input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="range"]), textarea, select { font-size: 16px !important; }
 }
 .safe-top-pad { padding-top: env(safe-area-inset-top) !important; }
 .safe-bottom-inset { padding-bottom: env(safe-area-inset-bottom); }

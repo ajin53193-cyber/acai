@@ -42,6 +42,13 @@
 - 本轮已生效：manifest 192 图标 + start_url /?source=pwa + id/scope；A2HSTip 每会话一次且 PWA 不弹；PagedGrid touch-action pan-x pan-y；iOS 输入框 ≥16px + gesturestart 拦截；路由切换回顶部 + scrollRestoration manual；storage.py 本地磁盘模式；scripts/export_data.py + import_data.py；Nginx index.html no-cache 建议。
 - 补丁下发：GET /api/_export/{DATA_EXPORT_TOKEN}/patch.zip（整包 frontend/src + public），用户 tar -xf 到项目根后 yarn build。临时接口 server.py /_export/... 迁移完成后应删除。
 
+### 补充（同日稍后）：面板实测数据与最终状态
+- 诊断面板 `lib/vpDebug.js`（logo 连点 5 次开关，或 `?vpdebug=1`）已保留。用户面板截图（异常时）：scrollY=pageTop、vv.offsetTop=0、vv.h=844、innerH=912、clientH=844、screenH=912、header.top=0、safeTop=68px、scale 1 → **JS 层没有任何可区分正常/异常的信号**。
+- 录屏逐帧：橙色横幅 y 在 68pt（正常）与 0pt（异常）之间随滚动方向来回切换：向下滚动=异常、向上滚动=正常。即键盘后 WebKit 把 68pt 状态栏 inset 当成"可收起的浏览器顶栏"处理（fixed 层随滚动方向上下移 68pt）。一次性 scrollTo 类修复无意义。
+- 已试且回退：`apple-mobile-web-app-status-bar-style=default`（理论上 inset=0 即无可收起区；用户反馈无效且需重新添加图标才生效，不确定是否真正验证过）；document 级非 passive touchmove/gesture 监听 + heal 循环（导致首页滑动卡顿，已全部回退，iosViewportFix.js/index.html 恢复 6f9f702 原版，index.css 的 touch-action/16px 规则已删）。
+- 最终保留的今日前端改动：App.js 路由切换 scrollPageTo(0) + scrollRestoration manual、#site-scroll 包裹 div（无 CSS）、lib/scroller.js、PagedGrid touch-action pan-x pan-y、manifest(192 图标/start_url ?source=pwa/id/scope)、track.js isStandalone 含 ?source=pwa、A2HSTip 每会话一次、vpDebug 面板。
+- 下一步最有希望的方向（需真机）：App Shell（window 不滚动）但壳层用 `position: fixed; inset: 0`（早前结论 inset 可铺满 912 真实屏幕），并把页面内 `fixed bottom-0` 底栏（ProductDetail/Checkout/注册条/ServiceWidget）改为壳层 flex 子元素或以壳层为包含块验证；或 status-bar-style=default 并让用户确认已重新添加图标后再评估。
+
 ## 待办 / Blocked
 - P1 自托管：storage.py 改本地磁盘/OSS/S3；translate.py 改用户自有 OpenAI Key。
 - P1 [BLOCKED-用户操作] Stripe 账户 charges_enabled=False，Boleto/Alipay 不稳定。
