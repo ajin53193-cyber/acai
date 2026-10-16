@@ -34,7 +34,8 @@
 - 本机验证通过：80→301 https；443 返回 index.html；`/api/` 返回 JSON；MongoDB 本地 27017 正常（商品自动初始化）。
 - 已知：`Storage init failed: 403` — Emergent 对象存储拒绝外部服务器，图片上传不可用，需改为 OSS/S3/本地磁盘（P1）。`translate.py` 仍依赖 EMERGENT_LLM_KEY（P1）。
 
-## [2026-06] iOS 主屏幕 PWA 头部漂移 — 现状：已按用户诊断完成 App Shell（待真机验证）
+## [2026-06] iOS 主屏幕 PWA 头部漂移 — 现状：App Shell 真机回归（弹窗图片消失/状态栏上滑/底部变黑），已改为最简方案：PWA 与浏览器一致，Header 纯 sticky、页面正常滚动，无 fixed header、无 spacer、无 shell CSS。勿再尝试 body fixed app-shell。
+### 历史：App Shell 尝试记录（已回退）
 - 根因（用户提供）：`.site-shell/.site-scroll` 类从未定义，PWA 下 fixed header + 窗口滚动，Safari overscroll/键盘导致布局视口偏移。
 - 修复：仅 `html.pwa.shell`（StoreLayout 挂载时加 `shell` 类）生效：html/body `height:100%; overflow:hidden`，body `position:fixed; inset:0`；`#root/.App/.site-shell` 高 100%；`.site-scroll` 为唯一滚动容器（flex:1, overflow-y:auto, overscroll-behavior contain, 背景图 attachment:local 并用 `--head-h` 补偿）。Header 在 PWA 下改为静态 `relative shrink-0`（去掉 fixed+spacer），用 ResizeObserver 写 `--head-h`。浏览器模式完全不变（sticky header，窗口滚动）。
 - 预览用 `?source=pwa` 模拟验证：body fixed、window.scrollY 恒 0、header top 0、滚动到底 footer 贴底无留白。
