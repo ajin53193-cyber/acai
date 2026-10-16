@@ -17,7 +17,8 @@ if (typeof window !== "undefined" && isStandalone()) {
     const ae = document.activeElement;
     if (ae && /^(INPUT|TEXTAREA|SELECT)$/.test(ae.tagName)) return;
     if (document.body?.classList.contains("gt-scroll-locked")) return;
-    document.documentElement.style.setProperty("--app-h", `${window.innerHeight}px`);
+    const full = Math.max(window.innerHeight, window.screen?.height || 0);
+    document.documentElement.style.setProperty("--app-h", `${full}px`);
   };
   setH();
   window.addEventListener("resize", () => setTimeout(setH, 60));
