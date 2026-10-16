@@ -24,7 +24,19 @@
   - 暖橙渐变 + 圆点纹理背景，橙色圆形礼物图标徽章。
   - 文件：/app/frontend/src/pages/MyOrders.jsx
 
+## [2026-06] Windows 10 宝塔自托管部署（已完成，待用户浏览器确认）
+- 服务器环境：`D:\wwwroot\gogo589`；Python 3.11.9 单独装在 `C:\Python311`（未加 PATH，宝塔自带 3.8.6 在 `C:\Program Files\python` 勿动）；venv 在 `backend\venv`；Node v24 + yarn 1.22.22（corepack）。
+- 后端依赖安装命令：`pip install -r requirements.txt --extra-index-url https://d33sy5i8bnduwe.cloudfront.net/simple/ --no-deps`（**`--no-deps` 必须**）。
+- `.env` 用宝塔文件管理器创建（CMD 多行粘贴会丢换行）；前端 `REACT_APP_BACKEND_URL=https://www.gogo589.com`，已 `yarn build`。
+- CMD 跨盘切目录必须 `cd /d`。
+- Nginx 欢迎页根因：`D:\BtSoft\nginx\conf\vhost\test.conf` 用 `default_server` 抢占同域名，已删除；站点配置 `www.gogo589.com.conf`（root build 目录 + try_files + /api/ 反代 8001）正确。Windows 下重启 Nginx 需 `taskkill /f /im nginx.exe` 后在宝塔启动。
+- 后端常驻：PM2 7.0.4（路径 `C:\Windows\system32\config\systemprofile\AppData\Roaming\npm\pm2.cmd`，不在 PATH），进程名 `gogo589-backend`，已 `pm2 save`；开机自启用计划任务 `schtasks /tn gogo589-backend /sc onstart /ru SYSTEM → pm2 resurrect`。
+- 本机验证通过：80→301 https；443 返回 index.html；`/api/` 返回 JSON；MongoDB 本地 27017 正常（商品自动初始化）。
+- 已知：`Storage init failed: 403` — Emergent 对象存储拒绝外部服务器，图片上传不可用，需改为 OSS/S3/本地磁盘（P1）。`translate.py` 仍依赖 EMERGENT_LLM_KEY（P1）。
+
 ## 待办 / Blocked
+- P1 自托管：storage.py 改本地磁盘/OSS/S3；translate.py 改用户自有 OpenAI Key。
+- P1 [BLOCKED-用户操作] Stripe 账户 charges_enabled=False，Boleto/Alipay 不稳定。
 - P1 [BLOCKED-用户操作] Google OAuth redirect_uri_mismatch：需用户在 Google Cloud Console 添加授权重定向 URI。
 - P1 [BLOCKED-用户操作] 打狗短信 +86 每日限额（25次）：需用户联系打狗客服提额。
 - P2 旧版 Clerk 登录失败缺 Toast 提示。
