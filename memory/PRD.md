@@ -157,3 +157,10 @@
 - [2026-06] 四方真實平台已接入預覽 Hub：base https://print8.8bc8uyz.com/api/admin-api（key 存於 settings.hub_platforms），實測 58 單 / 9 paid / 2660.9 USDT 與其 /stats 一致；sifang row 新增 remark 欄並可搜尋。
 
 - [2026-06] Giftray 真實平台接通（lpw-888.com，key 已啟用 + IP 白名單 35.193.209.116 預覽出口）；409 單 / 422 充值 / 81 會員；拉取 limit 提高（列表 3000、統計 20000/5000）。
+
+## [2026-06] 總後台可直接操作（訂單 / 充值 / 客服 / 四方資金）+ 操作權限 + 操作日誌
+- 權限模組擴充：orders_write / topups_write / cs_write / funds_write（超管全有；管理員勾選）。
+- `hub_console.py` 新增：`POST /orders/{platform}/{oid}/action`（local: complete→server.admin_confirm_topup、reject_info→admin_reject_info、cancel/processing→admin_update_order；giftray: /admin/orders/{oid}/status；sifang: manual-callback 需 funds_write）、`POST /topups/{platform}/{tid}/action`（local: payments_api approve/reject；giftray: approve/reject/gateway-sync/reverify）、`GET /chats/{platform}/{sid}/messages`、`POST .../reply`、`POST .../close|reopen`、`POST /sifang/{platform}/accounts/{aid}/adjust`、`GET/POST /sifang/{platform}/payouts[...]`、`GET /logs`。server 函數經 importlib 延遲載入避免循環引用；操作者 user_id="hub:<user>"。
+- 所有寫操作記錄到 `db.hub_logs`；管理員頁底部顯示最近 100 筆。
+- UI：訂單/充值表「操作」欄按狀態與權限顯示按鈕（prompt 輸入原因）；客服會話點擊開右側對話抽屜（5 秒輪詢、回覆、結束/重開）；用戶管理四方頁籤含加款/扣款/凍結與待審提現單；視圖寫入改用 pageShell 回傳的 body 元素，避免切頁競態。
+- 驗證：mock Giftray 寫接口 + 本站真實 reply/processing + playwright 全流程通過；真實 Giftray / 四方僅做讀取測試，未對其做寫操作。

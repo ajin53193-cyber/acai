@@ -54,12 +54,15 @@ const errBox = (errs) => errs?.length ? `<div class="mb-3 rounded-xl bg-red-50 t
 const empty = (n, t = "暫無數據") => `<tr><td colspan="${n}" class="text-center text-slate-400 py-8">${t}</td></tr>`;
 
 const NAV = [["dashboard", "數據概覽", "📊"], ["orders", "訂單管理", "🧾"], ["topups", "充值管理", "💰"], ["cs", "客服管理", "💬"], ["members", "用戶管理", "👥"], ["platforms", "平台接入", "🔌"], ["admins", "管理員", "🛡️"]];
-const MODULE_LABEL = Object.fromEntries(NAV.map(([k, l]) => [k, l]));
+const MODULE_LABEL = { ...Object.fromEntries(NAV.map(([k, l]) => [k, l])), orders_write: "訂單操作（完成/駁回/取消/補單）", topups_write: "充值審核（到帳/駁回）", cs_write: "客服回覆 / 結束會話", funds_write: "四方資金操作（補單/調帳/提現審核）" };
+const act = async (method, url, data, okMsg) => { try { await api(method, url, data); toast(okMsg || "操作成功"); render(); } catch (e) { toast(e.message, true); } };
+const ask = (msg, def = "") => { const v = prompt(msg, def); return v === null ? null : v.trim(); };
 const can = (m) => !!state.me?.modules?.includes(m);
 
 async function loadMe() { const r = await api("GET", "/me"); state.me = r; state.plats = r.platforms_list; }
 
 function render() {
+  if (typeof chatTimer !== "undefined" && chatTimer) { clearInterval(chatTimer); chatTimer = null; }
   const app = $("#app");
   if (!state.token) { app.innerHTML = loginView(); return; }
   if (!state.me) { app.innerHTML = '<div class="p-10 text-slate-400 text-sm">載入中…</div>'; return; }
@@ -104,13 +107,13 @@ function pageShell(title, sub, plats, extraTab) {
     <div class="flex flex-wrap items-center gap-1 mb-4 p-1 rounded-2xl bg-slate-200/60 w-fit">${tabs.map((t) => `<button data-ptab="${esc(t.id)}" class="ptab ${state.tab[key] === t.id ? "active" : ""}">${t.kind ? `<span class="dot" style="background:${PCOLOR[t.kind] || "#64748B"}"></span>` : "<span>Σ</span>"}${esc(t.label)}${t.kind ? `<span class="text-[10px] font-normal opacity-70">${PKIND[t.kind] || ""}</span>` : ""}</button>`).join("") || '<span class="text-sm text-slate-400 px-3">沒有可見的平台</span>'}</div>
     <div id="body" class="text-sm text-slate-400">載入中…</div>`;
   document.querySelectorAll("[data-ptab]").forEach((b) => (b.onclick = () => { state.tab[key] = b.dataset.ptab; render(); }));
-  return { pid: state.tab[key], plat: plats.find((p) => p.id === state.tab[key]) };
+  return { pid: state.tab[key], plat: plats.find((p) => p.id === state.tab[key]), body: $("#body") };
 }
-const fail = (e) => { $("#body").innerHTML = `<div class="text-red-600 text-sm">${esc(e.message)}</div>`; };
+const fail = (e, body) => { body.innerHTML = `<div class="text-red-600 text-sm">${esc(e.message)}</div>`; };
 
 // ---------- dashboard ----------
 async function dashView() {
-  const { pid, plat } = pageShell("數據概覽", "每個平台獨立查看；「合計」只匯總商城平台（gogo589 / Giftray），四方收款不計入", state.plats, { id: "all", label: "合計" });
+  const { pid, plat, body } = pageShell("數據概覽", "每個平台獨立查看；「合計」只匯總商城平台（gogo589 / Giftray），四方收款不計入", state.plats, { id: "all", label: "合計" });
   if (!pid) return;
   const daysSeg = `<div class="seg">${[7, 30, 90].map((d) => `<button data-days="${d}" class="${state.days === d ? "on" : ""}">近 ${d} 天</button>`).join("")}</div>`;
   const bind = () => document.querySelectorAll("[data-days]").forEach((b) => (b.onclick = () => { state.days = +b.dataset.days; render(); }));
@@ -120,19 +123,19 @@ async function dashView() {
     const cols = [["revenue_usd", "營收", 1], ["orders", "訂單"], ["topup_usd", "充值金額", 1], ["topups", "充值筆數"], ["new_members", "新會員"], ["members", "會員總數"], ["pending_orders", "待處理訂單"], ["pending_topups", "待審充值"], ["open_chats", "未讀客服"]];
     const cell = (v, u) => (u ? usd(v) : Number(v || 0).toLocaleString());
     if (pid === "all") {
-      $("#body").innerHTML = `<div class="flex justify-end mb-3">${daysSeg}</div>` + errBox(d.errors) + `<div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-5">${box("商城總營收", usd(d.total.revenue_usd))}${box("商城總訂單", d.total.orders)}${box("商城總充值", usd(d.total.topup_usd))}${box("商城會員總數", d.total.members)}</div>
+      body.innerHTML = `<div class="flex justify-end mb-3">${daysSeg}</div>` + errBox(d.errors) + `<div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-5">${box("商城總營收", usd(d.total.revenue_usd))}${box("商城總訂單", d.total.orders)}${box("商城總充值", usd(d.total.topup_usd))}${box("商城會員總數", d.total.members)}</div>
         <div class="card overflow-x-auto"><table><thead><tr><th>平台</th>${cols.map(([, l]) => `<th class="text-right">${l}</th>`).join("")}</tr></thead><tbody>${d.platforms.map((p) => `<tr><td>${ptag(p.platform)}</td>${cols.map(([k, , u]) => `<td class="text-right">${cell(p[k], u)}</td>`).join("")}</tr>`).join("") || empty(10)}${d.platforms.length ? `<tr class="bg-orange-50 font-bold"><td>合計</td>${cols.map(([k, , u]) => `<td class="text-right">${cell(d.total[k], u)}</td>`).join("")}</tr>` : ""}</tbody></table></div>`;
     } else if (d.kind === "sifang") {
-      $("#body").innerHTML = `<div class="flex items-center justify-between mb-3"><div class="text-xs text-slate-500">${esc(plat.name)} · USDT 收款 · 北京時間日切</div>${daysSeg}</div>
+      body.innerHTML = `<div class="flex items-center justify-between mb-3"><div class="text-xs text-slate-500">${esc(plat.name)} · USDT 收款 · 北京時間日切</div>${daysSeg}</div>
         <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-4">${box("今日收款", usdt(d.today.usdt), `${d.today.paid} / ${d.today.count} 單 · 成功率 ${d.today.rate}%`)}${box(`近 ${d.days} 天收款`, usdt(d.period.usdt), `${d.period.paid} / ${d.period.count} 單 · 成功率 ${d.period.rate}%`)}${box("待確認", `${d.pending + d.confirming}`, `待支付 ${d.pending} · 鏈上確認中 ${d.confirming}`)}${box("商戶", `${d.merchants}`, `商戶餘額合計 ${usdt(d.merchant_balance)} · 未結客服 ${d.open_chats}`)}</div>
         <div class="grid lg:grid-cols-2 gap-4"><div class="card overflow-hidden"><div class="px-4 py-3 text-sm font-bold border-b border-slate-100">近 ${d.days} 天各商戶收款</div><table><thead><tr><th>商戶</th><th class="text-right">成功單數</th><th class="text-right">收款 USDT</th></tr></thead><tbody>${d.by_merchant.map((x) => `<tr><td class="font-semibold">${esc(x.merchant_name)}</td><td class="text-right">${x.paid}</td><td class="text-right font-bold">${usdt(x.usdt)}</td></tr>`).join("") || empty(3)}</tbody></table></div>
         <div class="card p-5"><div class="text-sm font-bold mb-3">累計</div><div class="grid grid-cols-2 gap-3 text-sm">${[["累計收款", usdt(d.all.usdt)], ["累計成功單", d.all.paid], ["累計總單", d.all.count], ["整體成功率", d.all.rate + "%"], ["已過期單", d.expired]].map(([l, v]) => `<div class="rounded-xl bg-slate-50 p-3"><div class="text-xs text-slate-500">${l}</div><div class="font-black text-lg">${v}</div></div>`).join("")}</div></div></div>`;
     } else {
-      $("#body").innerHTML = `<div class="flex items-center justify-between mb-3"><div class="text-xs text-slate-500">${esc(plat.name)} · ${PKIND[plat.kind] || ""}</div>${daysSeg}</div>
+      body.innerHTML = `<div class="flex items-center justify-between mb-3"><div class="text-xs text-slate-500">${esc(plat.name)} · ${PKIND[plat.kind] || ""}</div>${daysSeg}</div>
         <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-4">${box("營收", usd(d.revenue_usd), `近 ${d.days} 天 · ${d.orders} 筆訂單`)}${box("充值", usd(d.topup_usd), `近 ${d.days} 天 · ${d.topups} 筆`)}${box("會員", d.members, `近 ${d.days} 天新增 ${d.new_members}`)}${box("待處理", d.pending_orders, `待審充值 ${d.pending_topups} · 未讀客服 ${d.open_chats}`)}</div>`;
     }
     bind();
-  } catch (e) { fail(e); }
+  } catch (e) { fail(e, body); }
 }
 
 // ---------- orders ----------
@@ -145,45 +148,68 @@ function bindFilter(key, rerender) {
   document.querySelectorAll("[data-seg]").forEach((b) => (b.onclick = () => { f.seg = b.dataset.seg; rerender(); }));
   $("#f-go").onclick = go; $("#f-q").onkeydown = (e) => e.key === "Enter" && go();
 }
-const sifangTable = (rows) => `<div class="card overflow-x-auto"><table><thead><tr><th>單號</th><th>商戶</th><th>商戶單號</th><th class="text-right">金額 USDT</th><th class="text-right">實付</th><th>網絡 / 地址</th><th>TxID</th><th>狀態</th><th>建立</th><th>支付</th></tr></thead><tbody>
-  ${rows.map((o) => `<tr><td class="font-semibold whitespace-nowrap">${esc(o.order_no)}</td><td class="whitespace-nowrap">${esc(o.merchant_name)}</td><td class="text-slate-500 text-xs">${esc(o.out_trade_no)}${o.remark ? `<div class="text-slate-400 max-w-[180px] truncate" title="${esc(o.remark)}">${esc(o.remark)}</div>` : ""}</td><td class="text-right font-bold whitespace-nowrap">${o.amount_usdt.toFixed(2)}</td><td class="text-right text-slate-500 whitespace-nowrap">${o.pay_amount || "-"}</td><td class="text-xs text-slate-500"><div>${esc(o.network)}</div><div class="font-mono max-w-[160px] truncate" title="${esc(o.wallet_address)}">${esc(o.wallet_address)}</div></td><td class="text-xs font-mono text-slate-500 max-w-[120px] truncate" title="${esc(o.tx_id)}">${esc(o.tx_id || "-")}</td><td class="whitespace-nowrap">${stag(o.status)}${o.manual_confirmed ? ' <span class="tag tag-slate">補單</span>' : ""}</td><td class="text-xs text-slate-500 whitespace-nowrap">${fmt(o.created_at)}</td><td class="text-xs text-slate-500 whitespace-nowrap">${fmt(o.paid_at)}</td></tr>`).join("") || empty(10)}</tbody></table></div>`;
-const shopOrderTable = (rows, withType) => `<div class="card overflow-x-auto"><table><thead><tr>${withType ? "<th>類型</th>" : ""}<th>訂單號</th><th>用戶</th><th>商品 / 方式</th><th class="text-right">金額 (USD)</th><th>狀態</th><th>時間</th></tr></thead><tbody>
-  ${rows.map((r) => `<tr>${withType ? `<td class="text-slate-500 text-xs whitespace-nowrap">${KIND[r.type] || esc(r.type)}</td>` : ""}<td class="font-semibold whitespace-nowrap">${esc(r.order_no)}</td><td class="text-slate-600">${esc(r.user)}</td><td class="text-slate-600 max-w-[320px] truncate">${esc((r.items || []).join("、"))}</td><td class="text-right font-bold whitespace-nowrap">${usd(r.amount_usd)}${r.amount_label ? `<div class="text-[11px] font-normal text-slate-400">${esc(r.amount_label)}</div>` : ""}</td><td class="whitespace-nowrap">${stag(r.status)}</td><td class="text-xs text-slate-500 whitespace-nowrap">${fmt(r.created_at)}</td></tr>`).join("") || empty(7)}</tbody></table></div>`;
+const sifangTable = (rows) => `<div class="card overflow-x-auto"><table><thead><tr><th>單號</th><th>商戶</th><th>商戶單號</th><th class="text-right">金額 USDT</th><th class="text-right">實付</th><th>網絡 / 地址</th><th>TxID</th><th>狀態</th><th>建立</th><th>支付</th>${can("funds_write") && can("orders_write") ? "<th>操作</th>" : ""}</tr></thead><tbody>
+  ${rows.map((o) => `<tr data-id="${esc(o.order_no)}"><td class="font-semibold whitespace-nowrap">${esc(o.order_no)}</td><td class="whitespace-nowrap">${esc(o.merchant_name)}</td><td class="text-slate-500 text-xs">${esc(o.out_trade_no)}${o.remark ? `<div class="text-slate-400 max-w-[180px] truncate" title="${esc(o.remark)}">${esc(o.remark)}</div>` : ""}</td><td class="text-right font-bold whitespace-nowrap">${o.amount_usdt.toFixed(2)}</td><td class="text-right text-slate-500 whitespace-nowrap">${o.pay_amount || "-"}</td><td class="text-xs text-slate-500"><div>${esc(o.network)}</div><div class="font-mono max-w-[160px] truncate" title="${esc(o.wallet_address)}">${esc(o.wallet_address)}</div></td><td class="text-xs font-mono text-slate-500 max-w-[120px] truncate" title="${esc(o.tx_id)}">${esc(o.tx_id || "-")}</td><td class="whitespace-nowrap">${stag(o.status)}${o.manual_confirmed ? ' <span class="tag tag-slate">補單</span>' : ""}</td><td class="text-xs text-slate-500 whitespace-nowrap">${fmt(o.created_at)}</td><td class="text-xs text-slate-500 whitespace-nowrap">${fmt(o.paid_at)}</td>${can("funds_write") && can("orders_write") ? `<td>${o.status !== "paid" ? abtn("manual_callback", "手動補單") : ""}</td>` : ""}</tr>`).join("") || empty(11)}</tbody></table></div>`;
+const abtn = (k, l, cls = "") => `<button data-act="${k}" class="btn-ghost !h-7 !px-2.5 text-xs ${cls}">${l}</button>`;
+const orderActs = (r, kind) => {
+  if (!can("orders_write") || !["local", "giftray"].includes(kind)) return "";
+  const st = r.status; const out = [];
+  if (kind === "local" && ["paid", "processing", "shipped"].includes(st)) { out.push(abtn("complete", "完成", "!text-emerald-700")); if (st !== "shipped") out.push(abtn("reject_info", "駁回資料")); out.push(abtn("cancel", "取消", "!text-red-600")); }
+  if (kind === "giftray" && ["need_info", "processing"].includes(st)) { out.push(abtn("complete", "完成", "!text-emerald-700")); if (st === "need_info") out.push(abtn("processing", "處理中")); else out.push(abtn("reject_info", "退回填寫")); out.push(abtn("cancel", "取消退款", "!text-red-600")); }
+  return out.join(" ");
+};
+const topupActs = (r, kind) => {
+  if (!can("topups_write") || !["local", "giftray"].includes(kind)) return "";
+  const out = []; const gw = kind === "giftray" && (r.items || []).some((i) => /快捷/.test(i));
+  if (["reviewing", "pending"].includes(r.status)) { if (gw) out.push(abtn("gateway_sync", "通道對帳")); else { out.push(abtn("approve", "確認到帳", "!text-emerald-700")); out.push(abtn("reject", "駁回", "!text-red-600")); } }
+  return out.join(" ");
+};
+const shopOrderTable = (rows, withType, kind, isTopup) => `<div class="card overflow-x-auto"><table><thead><tr>${withType ? "<th>類型</th>" : ""}<th>訂單號</th><th>用戶</th><th>商品 / 方式</th><th class="text-right">金額 (USD)</th><th>狀態</th><th>時間</th>${can(isTopup ? "topups_write" : "orders_write") ? "<th>操作</th>" : ""}</tr></thead><tbody>
+  ${rows.map((r) => `<tr data-id="${esc(r.id)}">${withType ? `<td class="text-slate-500 text-xs whitespace-nowrap">${KIND[r.type] || esc(r.type)}</td>` : ""}<td class="font-semibold whitespace-nowrap">${esc(r.order_no)}</td><td class="text-slate-600 max-w-[170px] truncate" title="${esc(r.user)}">${esc(r.user)}</td><td class="text-slate-600 max-w-[240px] truncate" title="${esc((r.items || []).join("、"))}">${esc((r.items || []).join("、"))}</td><td class="text-right font-bold whitespace-nowrap">${usd(r.amount_usd)}${r.amount_label ? `<div class="text-[11px] font-normal text-slate-400">${esc(r.amount_label)}</div>` : ""}</td><td class="whitespace-nowrap">${stag(r.status)}</td><td class="text-xs text-slate-500 w-[92px]">${fmt(r.created_at).replace(" ", "<br>")}</td>${can(isTopup ? "topups_write" : "orders_write") ? `<td class="whitespace-nowrap space-x-1">${isTopup ? topupActs(r, kind) : orderActs(r, kind)}</td>` : ""}</tr>`).join("") || empty(8)}</tbody></table></div>`;
+function bindActs(pid, isTopup) {
+  document.querySelectorAll("[data-act]").forEach((b) => (b.onclick = async () => {
+    const id = b.closest("tr").dataset.id; const a = b.dataset.act; let remark = "";
+    if (["reject_info", "cancel", "reject"].includes(a)) { remark = ask({ reject_info: "駁回原因（會通知用戶重新填寫）", cancel: "取消原因（將退款回餘額）", reject: "駁回原因" }[a]); if (remark === null) return; }
+    else if (a === "manual_callback") { const tx = ask("鏈上 TxID"); if (!tx) return; const amt = ask("實收金額 USDT"); if (!amt) return; return act("POST", `/orders/${pid}/${id}/action`, { action: a, tx_id: tx, amount: +amt, force: confirm("金額與訂單差異過大時是否強制補單？") }, "補單已提交"); }
+    else if (!confirm(b.textContent + "？")) return;
+    act("POST", `/${isTopup ? "topups" : "orders"}/${pid}/${id}/action`, { action: a, remark });
+  }));
+}
 
 async function ordersView() {
-  const { pid, plat } = pageShell("訂單管理", "各平台訂單獨立查看；四方收款平台顯示全部收款單", state.plats);
+  const { pid, plat, body } = pageShell("訂單管理", "各平台訂單獨立查看；四方收款平台顯示全部收款單", state.plats);
   if (!pid) return; const f = F("orders:" + pid);
   try {
     if (plat.kind === "sifang") {
       const d = await api("GET", `/orders?platform=${pid}&status=${f.seg === "all" ? "" : f.seg}&q=${encodeURIComponent(f.q)}&size=300`);
-      $("#body").innerHTML = filterBar({ seg: [["all", "全部"], ["paid", "已支付"], ["confirming", "鏈上確認中"], ["pending", "待支付"], ["expired", "已過期"]], segVal: f.seg, q: f.q, ph: "單號 / 商戶單號 / TxID / 地址 / 備註", right: `${d.rows.length} 筆 · 已支付合計 <b class="text-emerald-700">${usdt(d.rows.filter((o) => o.status === "paid").reduce((a, o) => a + o.amount_usdt, 0))}</b>` }) + sifangTable(d.rows);
+      body.innerHTML = filterBar({ seg: [["all", "全部"], ["paid", "已支付"], ["confirming", "鏈上確認中"], ["pending", "待支付"], ["expired", "已過期"]], segVal: f.seg, q: f.q, ph: "單號 / 商戶單號 / TxID / 地址 / 備註", right: `${d.rows.length} 筆 · 已支付合計 <b class="text-emerald-700">${usdt(d.rows.filter((o) => o.status === "paid").reduce((a, o) => a + o.amount_usdt, 0))}</b>` }) + sifangTable(d.rows);
     } else {
       const d = await api("GET", `/orders?platform=${pid}&kind=${f.seg}&q=${encodeURIComponent(f.q)}&size=200`);
-      $("#body").innerHTML = filterBar({ seg: [["all", "全部"], ["order", "商品訂單"], ["giftcard", "禮品卡"]], segVal: f.seg, q: f.q, ph: "訂單號 / 用戶 / 商品", right: `${d.rows.length} 筆` }) + shopOrderTable(d.rows, true);
+      body.innerHTML = filterBar({ seg: [["all", "全部"], ["order", "商品訂單"], ["giftcard", "禮品卡"]], segVal: f.seg, q: f.q, ph: "訂單號 / 用戶 / 商品", right: `${d.rows.length} 筆` }) + shopOrderTable(d.rows, true, plat.kind, false);
     }
-    bindFilter("orders:" + pid, render);
-  } catch (e) { fail(e); }
+    bindFilter("orders:" + pid, render); bindActs(pid, false);
+  } catch (e) { fail(e, body); }
 }
 
 // ---------- topups ----------
 async function topupsView() {
-  const { pid, plat } = pageShell("充值管理", "各平台充值獨立查看；四方收款平台顯示已支付成功的收款入帳", state.plats);
+  const { pid, plat, body } = pageShell("充值管理", "各平台充值獨立查看；四方收款平台顯示已支付成功的收款入帳", state.plats);
   if (!pid) return; const f = F("topups:" + pid);
   try {
     const d = await api("GET", `/topups?platform=${pid}&status=${plat.kind !== "sifang" && f.seg !== "all" ? f.seg : ""}&q=${encodeURIComponent(f.q)}&size=300`);
     if (plat.kind === "sifang") {
-      $("#body").innerHTML = filterBar({ q: f.q, ph: "單號 / 商戶單號 / TxID / 地址 / 備註", right: `${d.rows.length} 筆入帳 · 合計 <b class="text-emerald-700">${usdt(d.rows.reduce((a, o) => a + o.amount_usdt, 0))}</b>` }) + sifangTable(d.rows);
+      body.innerHTML = filterBar({ q: f.q, ph: "單號 / 商戶單號 / TxID / 地址 / 備註", right: `${d.rows.length} 筆入帳 · 合計 <b class="text-emerald-700">${usdt(d.rows.reduce((a, o) => a + o.amount_usdt, 0))}</b>` }) + sifangTable(d.rows);
     } else {
       const segs = pid === "gogo589" ? [["all", "全部"], ["reviewing", "審核中"], ["approved", "已到帳"], ["rejected", "已拒絕"]] : [["all", "全部"], ["reviewing", "審核中"], ["approved", "已到帳"], ["rejected", "已拒絕"]];
-      $("#body").innerHTML = filterBar({ seg: segs, segVal: f.seg, q: f.q, ph: "單號 / 用戶 / 方式", right: `${d.rows.length} 筆 · 已到帳合計 <b class="text-emerald-700">${usd(d.rows.filter((r) => ["approved", "paid", "completed"].includes(r.status)).reduce((a, r) => a + Number(r.amount_usd || 0), 0))}</b>` }) + shopOrderTable(d.rows, false);
+      body.innerHTML = filterBar({ seg: segs, segVal: f.seg, q: f.q, ph: "單號 / 用戶 / 方式", right: `${d.rows.length} 筆 · 已到帳合計 <b class="text-emerald-700">${usd(d.rows.filter((r) => ["approved", "paid", "completed"].includes(r.status)).reduce((a, r) => a + Number(r.amount_usd || 0), 0))}</b>` }) + shopOrderTable(d.rows, false, plat.kind, true);
     }
-    bindFilter("topups:" + pid, render);
-  } catch (e) { fail(e); }
+    bindFilter("topups:" + pid, render); bindActs(pid, true);
+  } catch (e) { fail(e, body); }
 }
 
 // ---------- customer service ----------
 async function csView() {
-  const { pid, plat } = pageShell("客服管理", "各平台客服各自獨立；在這裡查看會話，點按鈕進入該平台客服後台回覆", state.plats);
+  const { pid, plat, body } = pageShell("客服管理", "各平台客服各自獨立；在這裡查看會話，點按鈕進入該平台客服後台回覆", state.plats);
   if (!pid) return; const f = F("cs:" + pid); if (f.seg === "all") f.seg = "open";
   try {
     const d = await api("GET", `/chats?platform=${pid}&status=${f.seg}`);
@@ -191,26 +217,53 @@ async function csView() {
       <div class="text-xs text-slate-500">${d.rows.length} 個會話 · 未讀 <b class="text-red-600">${d.unread}</b></div>
       ${d.cs_url ? `<a href="${esc(d.cs_url)}" target="_blank" rel="noopener" class="btn ml-auto leading-9">進入 ${esc(plat.name)} 客服後台回覆 ↗</a>` : '<span class="ml-auto text-xs text-slate-400">到「平台接入」填寫客服後台地址即可一鍵進入</span>'}</div>`;
     const table = plat.kind === "sifang"
-      ? `<div class="card overflow-x-auto"><table><thead><tr><th>收款單號</th><th>客戶 / 商戶</th><th>最後訊息</th><th class="text-right">未讀</th><th>時間</th><th>狀態</th></tr></thead><tbody>${d.rows.map((t) => `<tr><td class="font-semibold whitespace-nowrap">${esc(t.order_no)}</td><td>${esc(t.customer || "-")}</td><td class="text-slate-600 max-w-[320px] truncate">${esc(t.last_message || "-")}</td><td class="text-right">${t.unread ? `<span class="tag tag-red">${t.unread}</span>` : "0"}</td><td class="text-xs text-slate-500 whitespace-nowrap">${fmt(t.last_at)}</td><td>${stag(t.status)}</td></tr>`).join("") || empty(6, "目前沒有會話")}</tbody></table></div>`
+      ? `<div class="card overflow-x-auto"><table><thead><tr><th>收款單號</th><th>客戶 / 商戶</th><th>最後訊息</th><th class="text-right">未讀</th><th>時間</th><th>狀態</th></tr></thead><tbody>${d.rows.map((t) => `<tr data-sid="${esc(t.order_no)}" class="cursor-pointer hover:bg-orange-50/50"><td class="font-semibold whitespace-nowrap">${esc(t.order_no)}</td><td>${esc(t.customer || "-")}</td><td class="text-slate-600 max-w-[320px] truncate">${esc(t.last_message || "-")}</td><td class="text-right">${t.unread ? `<span class="tag tag-red">${t.unread}</span>` : "0"}</td><td class="text-xs text-slate-500 whitespace-nowrap">${fmt(t.last_at)}</td><td>${stag(t.status)}</td></tr>`).join("") || empty(6, "目前沒有會話")}</tbody></table></div>`
       : d.unsupported ? '<div class="card p-8 text-center text-slate-400">此平台未提供客服接口，請直接進入其客服後台</div>'
-      : `<div class="card overflow-x-auto"><table><thead><tr><th>客戶</th><th>聯絡方式</th><th>最後訊息</th><th class="text-right">未讀</th><th>最後時間</th><th>狀態</th>${plat.kind === "giftray" ? "<th>接待</th>" : ""}</tr></thead><tbody>${d.rows.map((s) => `<tr><td class="font-semibold">${esc(s.name || "訪客")}</td><td class="text-slate-600 text-xs">${esc(s.contact || "-")}</td><td class="text-slate-600 max-w-[320px] truncate">${s.last_sender === "admin" ? '<span class="text-slate-400">[客服] </span>' : ""}${esc(s.last_message || "-")}</td><td class="text-right">${s.unread ? `<span class="tag tag-red">${s.unread}</span>` : "0"}</td><td class="text-xs text-slate-500 whitespace-nowrap">${fmt(s.last_at)}</td><td>${stag(s.status)}</td>${plat.kind === "giftray" ? `<td class="text-xs text-slate-500">${esc(s.assigned || "-")}</td>` : ""}</tr>`).join("") || empty(7, "目前沒有會話")}</tbody></table></div>`;
-    $("#body").innerHTML = head + table;
+      : `<div class="card overflow-x-auto"><table><thead><tr><th>客戶</th><th>聯絡方式</th><th>最後訊息</th><th class="text-right">未讀</th><th>最後時間</th><th>狀態</th>${plat.kind === "giftray" ? "<th>接待</th>" : ""}</tr></thead><tbody>${d.rows.map((s) => `<tr data-sid="${esc(s.id)}" class="cursor-pointer hover:bg-orange-50/50"><td class="font-semibold">${esc(s.name || "訪客")}</td><td class="text-slate-600 text-xs">${esc(s.contact || "-")}</td><td class="text-slate-600 max-w-[320px] truncate">${s.last_sender === "admin" ? '<span class="text-slate-400">[客服] </span>' : ""}${esc(s.last_message || "-")}</td><td class="text-right">${s.unread ? `<span class="tag tag-red">${s.unread}</span>` : "0"}</td><td class="text-xs text-slate-500 whitespace-nowrap">${fmt(s.last_at)}</td><td>${stag(s.status)}</td>${plat.kind === "giftray" ? `<td class="text-xs text-slate-500">${esc(s.assigned || "-")}</td>` : ""}</tr>`).join("") || empty(7, "目前沒有會話")}</tbody></table></div>`;
+    body.innerHTML = `<div class="text-xs text-slate-400 mb-2">點擊會話可直接查看訊息${can("cs_write") ? "並回覆" : ""}</div>` + head + table;
     document.querySelectorAll("[data-seg]").forEach((b) => (b.onclick = () => { f.seg = b.dataset.seg; render(); }));
-  } catch (e) { fail(e); }
+    document.querySelectorAll("[data-sid]").forEach((tr) => (tr.onclick = () => openChat(pid, plat, tr.dataset.sid, d.rows.find((x) => (x.id || x.order_no) === tr.dataset.sid))));
+  } catch (e) { fail(e, body); }
+}
+
+// ---------- chat drawer ----------
+let chatTimer = null;
+function closeChat() { clearInterval(chatTimer); chatTimer = null; $("#modal").innerHTML = ""; }
+async function openChat(pid, plat, sid, row) {
+  closeChat();
+  const canClose = can("cs_write") && plat.kind !== "sifang";
+  $("#modal").innerHTML = `<div class="fixed inset-0 z-[80] flex justify-end bg-black/30"><div class="w-full max-w-xl h-full bg-white flex flex-col shadow-2xl">
+    <div class="px-5 py-4 border-b border-slate-100 flex items-center gap-3">${ptag(plat)}<div class="flex-1 min-w-0"><div class="font-bold truncate">${esc(row?.name || row?.customer || row?.order_no || sid)}</div><div class="text-xs text-slate-500 truncate">${esc(row?.contact || row?.order_no || "")}</div></div>
+      ${canClose ? `<button id="c-toggle" class="btn-ghost !h-8 text-xs">${["open"].includes(row?.status) ? "結束會話" : "重新開啟"}</button>` : ""}<button id="c-x" class="btn-ghost !h-8 !px-3">✕</button></div>
+    <div id="c-msgs" class="flex-1 overflow-y-auto p-5 space-y-3 bg-[#F6F2EC] text-sm">載入中…</div>
+    ${can("cs_write") ? `<form id="c-form" class="p-4 border-t border-slate-100 flex gap-2"><input id="c-text" class="inp" placeholder="輸入回覆內容，Enter 送出" autocomplete="off" /><button class="btn shrink-0 whitespace-nowrap">送出</button></form>` : '<div class="p-3 text-center text-xs text-slate-400 border-t">沒有回覆權限</div>'}</div></div>`;
+  $("#c-x").onclick = closeChat;
+  const load = async () => { try { const d = await api("GET", `/chats/${pid}/${encodeURIComponent(sid)}/messages`); const box = $("#c-msgs"); if (!box) return; const stick = box.scrollHeight - box.scrollTop - box.clientHeight < 60;
+      box.innerHTML = d.messages.map((m) => m.from === "system" ? `<div class="text-center text-[11px] text-slate-400">${esc(m.text)}</div>` : `<div class="flex ${m.from === "admin" ? "justify-end" : "justify-start"}"><div class="max-w-[78%] rounded-2xl px-3.5 py-2 ${m.from === "admin" ? "bg-orange-500 text-white" : "bg-white text-slate-800 shadow-sm"}">${m.image ? `<a href="${esc(m.image)}" target="_blank"><img src="${esc(m.image)}" class="rounded-lg max-h-48 mb-1" /></a>` : ""}${esc(m.text)}<div class="text-[10px] mt-1 ${m.from === "admin" ? "text-white/70" : "text-slate-400"}">${m.name ? esc(m.name) + " · " : ""}${fmt(m.at)}</div></div></div>`).join("") || '<div class="text-center text-slate-400">尚無訊息</div>';
+      if (stick) box.scrollTop = box.scrollHeight; } catch (e) { const box = $("#c-msgs"); if (box) box.innerHTML = `<div class="text-red-600">${esc(e.message)}</div>`; } };
+  await load(); chatTimer = setInterval(load, 5000);
+  const form = $("#c-form"); if (form) form.onsubmit = async (e) => { e.preventDefault(); const t = $("#c-text").value.trim(); if (!t) return; try { await api("POST", `/chats/${pid}/${encodeURIComponent(sid)}/reply`, { text: t }); $("#c-text").value = ""; await load(); } catch (err) { toast(err.message, true); } };
+  const tg = $("#c-toggle"); if (tg) tg.onclick = async () => { const op = row?.status === "open" ? "close" : "reopen"; if (!confirm(tg.textContent + "？")) return; try { await api("POST", `/chats/${pid}/${encodeURIComponent(sid)}/${op}`); toast("已" + tg.textContent); closeChat(); render(); } catch (err) { toast(err.message, true); } };
 }
 
 // ---------- members ----------
 async function membersView() {
-  const { pid, plat } = pageShell("用戶管理", "gogo589 與 Giftray 的會員各自獨立；四方收款平台為商戶 / 運營帳戶", state.plats);
+  const { pid, plat, body } = pageShell("用戶管理", "gogo589 與 Giftray 的會員各自獨立；四方收款平台為商戶 / 運營帳戶", state.plats);
   if (!pid) return; const f = F("members:" + pid);
   try {
     const d = await api("GET", `/members?platform=${pid}&q=${encodeURIComponent(f.q)}&size=300`);
     const ROLE = { merchant: "商戶", operator: "運營", agent: "代理" };
-    $("#body").innerHTML = filterBar({ q: f.q, ph: plat.kind === "sifang" ? "搜尋帳戶 / 名稱" : "搜尋郵箱 / 帳號", right: `${d.rows.length} 位` }) + (plat.kind === "sifang"
-      ? `<div class="card overflow-x-auto"><table><thead><tr><th>帳戶</th><th>名稱</th><th>角色</th><th class="text-right">餘額 USDT</th><th>狀態</th><th>建立時間</th></tr></thead><tbody>${d.rows.map((a) => `<tr><td class="font-semibold">${esc(a.email)}</td><td class="text-slate-600">${esc(a.name)}</td><td><span class="tag ${a.role === "merchant" ? "tag-green" : "tag-slate"}">${ROLE[a.role] || esc(a.role)}</span></td><td class="text-right font-bold">${Number(a.wallet_usd).toFixed(2)}</td><td>${a.status === "frozen" ? '<span class="tag tag-red">已凍結</span>' : '<span class="tag tag-green">正常</span>'}</td><td class="text-xs text-slate-500 whitespace-nowrap">${fmt(a.created_at)}</td></tr>`).join("") || empty(6)}</tbody></table></div>`
+    let payoutsHtml = "";
+    if (plat.kind === "sifang") { try { const po = await api("GET", `/sifang/${pid}/payouts?status=pending`); payoutsHtml = `<div class="card overflow-x-auto mt-4"><div class="px-4 py-3 text-sm font-bold border-b border-slate-100">待審核提現單 <span class="tag ${po.rows.length ? "tag-red" : "tag-slate"}">${po.rows.length}</span></div><table><thead><tr><th>帳戶</th><th class="text-right">金額 USDT</th><th>網絡 / 地址</th><th>申請時間</th><th>備註</th>${can("funds_write") ? "<th>審核</th>" : ""}</tr></thead><tbody>${po.rows.map((x) => `<tr data-pid="${esc(x.id)}"><td class="font-semibold">${esc(x.account)}</td><td class="text-right font-bold">${x.amount_usdt.toFixed(2)}</td><td class="text-xs font-mono text-slate-500">${esc(x.network)} ${esc(x.address)}</td><td class="text-xs text-slate-500 whitespace-nowrap">${fmt(x.created_at)}</td><td class="text-xs text-slate-500">${esc(x.remark || "-")}</td>${can("funds_write") ? `<td class="space-x-1"><button data-po="approve" class="btn-ghost !h-7 !px-2.5 text-xs !text-emerald-700">通過放款</button><button data-po="reject" class="btn-ghost !h-7 !px-2.5 text-xs !text-red-600">駁回</button></td>` : ""}</tr>`).join("") || empty(6, "目前沒有待審核提現")}</tbody></table></div>`; } catch (e) { payoutsHtml = `<div class="mt-4 text-xs text-slate-400">提現單：${esc(e.message)}</div>`; } }
+    body.innerHTML = filterBar({ q: f.q, ph: plat.kind === "sifang" ? "搜尋帳戶 / 名稱" : "搜尋郵箱 / 帳號", right: `${d.rows.length} 位` }) + (plat.kind === "sifang"
+      ? `<div class="card overflow-x-auto"><table><thead><tr><th>帳戶</th><th>名稱</th><th>角色</th><th class="text-right">餘額 USDT</th><th>狀態</th><th>建立時間</th>${can("funds_write") ? "<th>資金操作</th>" : ""}</tr></thead><tbody>${d.rows.map((a) => `<tr><td class="font-semibold">${esc(a.email)}</td><td class="text-slate-600">${esc(a.name)}</td><td><span class="tag ${a.role === "merchant" ? "tag-green" : "tag-slate"}">${ROLE[a.role] || esc(a.role)}</span></td><td class="text-right font-bold">${Number(a.wallet_usd).toFixed(2)}</td><td>${a.status === "frozen" ? '<span class="tag tag-red">已凍結</span>' : '<span class="tag tag-green">正常</span>'}</td><td class="text-xs text-slate-500 whitespace-nowrap">${fmt(a.created_at)}</td>${can("funds_write") ? `<td class="whitespace-nowrap space-x-1" data-aid="${esc(a.id)}"><button data-fa="credit" class="btn-ghost !h-7 !px-2.5 text-xs !text-emerald-700">加款</button><button data-fa="debit" class="btn-ghost !h-7 !px-2.5 text-xs">扣款</button><button data-fa="toggle" class="btn-ghost !h-7 !px-2.5 text-xs ${a.status === "frozen" ? "" : "!text-red-600"}">${a.status === "frozen" ? "解凍" : "凍結"}</button></td>` : ""}</tr>`).join("") || empty(7)}</tbody></table></div>` + (payoutsHtml || "")
       : `<div class="card overflow-x-auto"><table><thead><tr><th>郵箱 / 帳號</th><th>名稱</th><th class="text-right">錢包餘額 (USD)</th><th>註冊時間</th></tr></thead><tbody>${d.rows.map((u) => `<tr><td class="font-semibold">${esc(u.email)}${u.is_test ? ' <span class="tag tag-slate">測試</span>' : ""}</td><td class="text-slate-600">${esc(u.name)}</td><td class="text-right font-bold">${usd(u.wallet_usd)}</td><td class="text-xs text-slate-500 whitespace-nowrap">${fmt(u.created_at)}</td></tr>`).join("") || empty(4)}</tbody></table></div>`);
     bindFilter("members:" + pid, render);
-  } catch (e) { fail(e); }
+    document.querySelectorAll("[data-fa]").forEach((b) => (b.onclick = async () => { const aid = b.closest("[data-aid]").dataset.aid; const a = b.dataset.fa; let amount = 0, remark = "";
+      if (a !== "toggle") { const v = ask(`${b.textContent}金額 USDT`); if (!v) return; amount = +v; remark = ask("備註", "") ?? ""; } else if (!confirm(b.textContent + "此帳戶？")) return;
+      act("POST", `/sifang/${pid}/accounts/${aid}/adjust`, { action: a, amount, remark }); }));
+    document.querySelectorAll("[data-po]").forEach((b) => (b.onclick = () => { const id = b.closest("[data-pid]").dataset.pid; if (confirm(b.textContent + "？")) act("POST", `/sifang/${pid}/payouts/${id}/${b.dataset.po}`); }));
+  } catch (e) { fail(e, body); }
 }
 
 // ---------- platforms ----------
@@ -251,6 +304,7 @@ async function adminsView() {
     $("#list").innerHTML = `<div class="card overflow-x-auto"><table><thead><tr><th>帳號</th><th>模組權限</th><th>可見平台</th><th>備註</th><th>最後登入</th><th>狀態</th><th></th></tr></thead><tbody>
       <tr class="bg-orange-50/60"><td class="font-semibold">${esc(d.super)} <span class="tag tag-orange">超管</span></td><td class="text-xs text-slate-500">全部</td><td class="text-xs text-slate-500">全部</td><td class="text-xs text-slate-400">backend/.env</td><td>-</td><td><span class="tag tag-green">啟用</span></td><td></td></tr>
       ${d.admins.map((a) => `<tr><td class="font-semibold">${esc(a.username)}</td><td class="text-xs">${a.modules.map((x) => `<span class="tag tag-slate mr-1 mb-1">${MODULE_LABEL[x] || x}</span>`).join("") || '<span class="text-slate-400">無</span>'}</td><td class="text-xs">${a.platforms.map((x) => ptag(state.plats.find((p) => p.id === x) || { id: x, name: x })).join(" ") || '<span class="text-slate-400">無</span>'}</td><td class="text-xs text-slate-500">${esc(a.note || "-")}</td><td class="text-xs text-slate-500 whitespace-nowrap">${fmt(a.last_login_at)}</td><td>${a.enabled ? '<span class="tag tag-green">啟用</span>' : '<span class="tag tag-red">停用</span>'}</td><td class="whitespace-nowrap"><button data-edit="${a.id}" class="btn-ghost !h-8 !px-3 text-xs">編輯</button> <button data-del="${a.id}" class="btn-ghost !h-8 !px-3 text-xs !text-red-600">刪除</button></td></tr>`).join("") || empty(7, "尚未新增管理員")}</tbody></table></div>`;
+    try { const lg = await api("GET", "/logs?size=100"); $("#list").insertAdjacentHTML("beforeend", `<div class="card overflow-x-auto mt-5"><div class="px-4 py-3 text-sm font-bold border-b border-slate-100">總後台操作日誌（最近 100 筆）</div><table><thead><tr><th>時間</th><th>管理員</th><th>平台</th><th>操作</th><th>對象</th><th>內容</th></tr></thead><tbody>${lg.rows.map((r) => `<tr><td class="text-xs text-slate-500 whitespace-nowrap">${fmt(r.at)}</td><td class="font-semibold">${esc(r.user)}</td><td>${ptag(state.plats.find((p) => p.id === r.platform) || { id: r.platform, name: r.platform })}</td><td><span class="tag tag-slate">${esc(r.action)}</span></td><td class="text-xs font-mono">${esc(r.target)}</td><td class="text-xs text-slate-500 max-w-[260px] truncate">${esc(r.detail || "-")}</td></tr>`).join("") || empty(6, "尚無操作記錄")}</tbody></table></div>`); } catch {}
     $("#add").onclick = () => adminModal(null, d.modules);
     document.querySelectorAll("[data-edit]").forEach((b) => (b.onclick = () => adminModal(d.admins.find((a) => a.id === b.dataset.edit), d.modules)));
     document.querySelectorAll("[data-del]").forEach((b) => (b.onclick = async () => { if (!confirm("刪除此管理員？")) return; try { await api("DELETE", `/admins/${b.dataset.del}`); toast("已刪除"); render(); } catch (e) { toast(e.message, true); } }));
@@ -262,7 +316,7 @@ function adminModal(a, modules) {
     <div class="font-black text-lg">${a ? "編輯管理員" : "新增管理員"}</div>
     <div class="grid grid-cols-2 gap-3"><label class="text-xs text-slate-500">帳號<input id="a-u" class="inp mt-1" value="${esc(a?.username || "")}" ${a ? "disabled" : ""} placeholder="英數字 3~40 位" required /></label>
     <label class="text-xs text-slate-500">${a ? "新密碼（留空不改）" : "密碼（至少 8 位）"}<input id="a-p" class="inp mt-1" type="password" ${a ? "" : "required"} autocomplete="new-password" /></label></div>
-    <div><div class="text-xs text-slate-500 mb-2">模組權限</div><div class="flex flex-wrap gap-2">${modules.map((k) => `<label class="chk"><input type="checkbox" data-m="${k}" ${a?.modules?.includes(k) ? "checked" : ""} />${MODULE_LABEL[k] || k}</label>`).join("")}</div></div>
+    <div><div class="text-xs text-slate-500 mb-2">模組權限（查看）與操作權限</div><div class="flex flex-wrap gap-2">${modules.map((k) => `<label class="chk"><input type="checkbox" data-m="${k}" ${a?.modules?.includes(k) ? "checked" : ""} />${MODULE_LABEL[k] || k}</label>`).join("")}</div></div>
     <div><div class="text-xs text-slate-500 mb-2">可見平台</div><div class="flex flex-wrap gap-2">${allPlats.map((p) => `<label class="chk"><input type="checkbox" data-pl="${esc(p.id)}" ${a?.platforms?.includes(p.id) ? "checked" : ""} />${esc(p.name)} <span class="text-[10px] text-slate-400">${PKIND[p.kind] || ""}</span></label>`).join("")}</div></div>
     <div class="grid grid-cols-[1fr_auto] gap-3 items-end"><label class="text-xs text-slate-500">備註<input id="a-n" class="inp mt-1" value="${esc(a?.note || "")}" placeholder="例：Giftray 客服" /></label><label class="chk h-9"><input type="checkbox" id="a-e" ${a ? (a.enabled ? "checked" : "") : "checked"} />啟用</label></div>
     <div id="a-err" class="text-xs text-red-600 min-h-[16px]"></div>

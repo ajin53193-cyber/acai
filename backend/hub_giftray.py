@@ -141,3 +141,28 @@ async def chats(p: dict, status: str = "open") -> dict:
     return {"platform": _tag(p), "unread": int((d or {}).get("unreadTotal") or 0) if isinstance(d, dict) else 0,
             "rows": [{"id": s.get("id"), "name": s.get("name") or "", "contact": s.get("account") or "", "last_message": s.get("lastMsg") or "", "last_at": s.get("lastAt"), "last_sender": s.get("lastFrom") or "",
                       "status": s.get("status") or "open", "unread": int(s.get("unreadAdmin") or 0), "assigned": s.get("assignedName") or ""} for s in rows]}
+
+
+async def post(p: dict, path: str, body: dict | None = None) -> Any:
+    async with httpx.AsyncClient(timeout=20) as c:
+        r = await c.post(p["base_url"].rstrip("/") + path, json=body or {}, headers={"X-Admin-Api-Key": p.get("api_key", "")})
+    for k in [k for k in _cache if k.startswith(p["id"] + "|")]:
+        _cache.pop(k, None)
+    if r.status_code >= 400:
+        try:
+            detail = r.json().get("detail", "")
+        except Exception:  # noqa: BLE001
+            detail = r.text[:200]
+        raise HTTPException(status_code=400 if r.status_code < 500 else 502, detail=f"{p['name']}：{detail or r.status_code}")
+    return r.json() if r.content else {}
+
+
+def _msg(m: dict) -> dict:
+    f = m.get("from") or "user"
+    return {"id": m.get("id"), "from": "admin" if f == "admin" else "system" if f == "system" else "user", "text": m.get("text") or "", "image": m.get("image") or "", "name": m.get("adminName") or "", "at": m.get("createdAt")}
+
+
+async def messages(p: dict, sid: str) -> dict:
+    d = await _get(p, f"/admin/chat/sessions/{sid}/messages")
+    _cache.pop(f"{p['id']}|/admin/chat/sessions/{sid}/messages|[]", None)
+    return {"messages": [_msg(m) for m in (d.get("messages") or [])], "session": d.get("session") or {}}

@@ -189,3 +189,37 @@ async def new_paid(p: dict, since: str) -> List[dict]:
         return []
     return [{"id": f"{p['id']}:{o['order_no']}", "order_no": o["order_no"], "type": "sifang", "user": o["merchant_name"], "amount_usd": o["amount_usdt"], "items": [f"{o['network']} 商戶單 {o['out_trade_no']}".strip()],
              "paid_at": o["paid_at"], "status": "paid", "platform": _tag(p)} for o in rows if o["status"] == "paid" and o["paid_at"] and o["paid_at"] > since]
+
+
+async def post(p: dict, path: str, body: dict | None = None) -> Any:
+    async with httpx.AsyncClient(timeout=20) as c:
+        r = await c.post(p["base_url"].rstrip("/") + path, json=body or {}, headers={"X-Api-Key": p.get("api_key", "")})
+    for k in [k for k in _cache if k.startswith(p["id"] + "|")]:
+        _cache.pop(k, None)
+    if r.status_code >= 400:
+        try:
+            detail = r.json().get("detail", "")
+        except Exception:  # noqa: BLE001
+            detail = r.text[:200]
+        raise HTTPException(status_code=400 if r.status_code < 500 else 502, detail=f"{p['name']}：{detail or r.status_code}")
+    body = r.json() if r.content else {}
+    return body.get("data", body) if isinstance(body, dict) else body
+
+
+def _msg(m: dict) -> dict:
+    f = m.get("sender") or m.get("from") or "customer"
+    return {"id": m.get("id"), "from": "admin" if f in ("agent", "admin") else "system" if f == "system" else "user", "text": m.get("text") or m.get("content") or "", "image": m.get("image") or "", "name": m.get("sender_name") or m.get("agent_name") or "", "at": m.get("created_at") or m.get("at")}
+
+
+async def messages(p: dict, order_no: str) -> dict:
+    d = await _get(p, f"/support/threads/{order_no}")
+    _cache.pop(f"{p['id']}|/support/threads/{order_no}|[]", None)
+    msgs = d.get("messages") if isinstance(d, dict) and "messages" in d else _list(d)
+    return {"messages": [_msg(m) for m in (msgs or [])], "session": {k: v for k, v in d.items() if k != "messages"} if isinstance(d, dict) else {}}
+
+
+async def payouts(p: dict, status: str = "pending") -> List[dict]:
+    rows = _list(await _get(p, "/settlements/payouts", {"status": status or "all"}))
+    _cache.pop(f"{p['id']}|/settlements/payouts|{sorted({'status': status or 'all'}.items())}", None)
+    return [{"id": x.get("id") or x.get("payout_id"), "account": x.get("merchant_name") or x.get("account_name") or x.get("account_id") or "", "amount_usdt": round(float(x.get("amount_usdt") or x.get("amount") or 0), 2),
+             "address": x.get("address") or x.get("wallet_address") or "", "network": x.get("network") or "TRC20", "status": x.get("status") or "pending", "created_at": x.get("created_at"), "remark": x.get("remark") or ""} for x in rows]

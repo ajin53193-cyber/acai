@@ -14,9 +14,13 @@ from fastapi import APIRouter, Depends, Header, HTTPException
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
+import importlib
+
+import chat_api
 import hub_api
 import hub_giftray
 import hub_sifang
+import payments_api
 
 db = None
 HUB_PATH = os.environ.get("HUB_PATH", "12334").strip("/")
@@ -25,7 +29,7 @@ router = APIRouter(prefix="/api/hub-admin")
 page_router = APIRouter()
 _fails: Dict[str, List[float]] = {}
 HUB_ACTOR = {"user_id": "hub-console", "email": "hub-console"}
-MODULES = ["dashboard", "orders", "topups", "cs", "members", "platforms", "admins"]
+MODULES = ["dashboard", "orders", "orders_write", "topups", "topups_write", "cs", "cs_write", "members", "funds_write", "platforms", "admins"]
 LOCAL = {**hub_api.LOCAL, "kind": "local"}
 
 
@@ -327,6 +331,185 @@ async def my_password(body: PwIn, me: dict = Depends(current_hub_user)):
         raise HTTPException(status_code=400, detail="新密碼至少 8 位")
     await db.hub_admins.update_one({"username": me["user"]}, {"$set": {"password_hash": bcrypt.hashpw(body.new_password.encode(), bcrypt.gensalt()).decode()}})
     return {"ok": True}
+
+
+# ----------------------------- actions (write) -----------------------------
+def _srv():
+    return importlib.import_module("server")
+
+
+def _actor(me: dict) -> dict:
+    return {"user_id": "hub:" + me["user"], "email": "總後台 " + me["user"], "name": me["user"], "role": "admin"}
+
+
+async def _log(me: dict, p: dict, action: str, target: str, detail: str = ""):
+    await db.hub_logs.insert_one({"id": uuid.uuid4().hex, "user": me["user"], "platform": p["id"], "action": action, "target": target, "detail": detail[:300], "at": now_iso()})
+
+
+class ActionIn(BaseModel):
+    action: str
+    remark: str = ""
+    tx_id: str = ""
+    amount: Optional[float] = None
+    force: bool = False
+
+
+@router.post("/orders/{platform}/{oid}/action")
+async def order_action(platform: str, oid: str, body: ActionIn, me: dict = Depends(need("orders_write"))):
+    p = await _plat(me, platform)
+    k, a = _k(p), body.action
+    if k == "local":
+        srv = _srv()
+        if a == "complete":
+            r = await srv.admin_confirm_topup(oid, admin=_actor(me))
+        elif a == "reject_info":
+            r = await srv.admin_reject_info(oid, srv.RejectInfoIn(reason=body.remark), admin=_actor(me))
+        elif a in ("cancel", "processing"):
+            r = await srv.admin_update_order(oid, srv.StatusUpdate(status="cancelled" if a == "cancel" else "processing", admin_note=body.remark or None), admin=_actor(me))
+        else:
+            raise HTTPException(status_code=400, detail="不支援的操作")
+        res = {"ok": True, "status": r.get("status") if isinstance(r, dict) else None}
+    elif k == "giftray":
+        st = {"complete": "completed", "processing": "processing", "cancel": "cancelled", "reject_info": "need_info"}.get(a)
+        if not st:
+            raise HTTPException(status_code=400, detail="不支援的操作")
+        await hub_giftray.post(p, f"/admin/orders/{oid}/status", {"status": st, "remark": body.remark})
+        res = {"ok": True, "status": st}
+    elif k == "sifang":
+        if a != "manual_callback":
+            raise HTTPException(status_code=400, detail="不支援的操作")
+        if "funds_write" not in me["modules"]:
+            raise HTTPException(status_code=403, detail="需要「四方資金操作」權限")
+        if not body.tx_id or not body.amount:
+            raise HTTPException(status_code=400, detail="請填寫 TxID 與金額")
+        r = await hub_sifang.post(p, f"/orders/{oid}/manual-callback", {"tx_id": body.tx_id, "amount": body.amount, "force": body.force})
+        res = {"ok": True, "result": r}
+    else:
+        raise HTTPException(status_code=400, detail="此平台不支援遠端操作")
+    await _log(me, p, "order:" + a, oid, body.remark or body.tx_id)
+    return res
+
+
+@router.post("/topups/{platform}/{tid}/action")
+async def topup_action(platform: str, tid: str, body: ActionIn, me: dict = Depends(need("topups_write"))):
+    p = await _plat(me, platform)
+    k, a = _k(p), body.action
+    if k == "local":
+        if a == "approve":
+            await payments_api.admin_topup_approve(tid, admin=_actor(me))
+        elif a == "reject":
+            await payments_api.admin_topup_reject(tid, payments_api.RejectIn(reason=body.remark), admin=_actor(me))
+        else:
+            raise HTTPException(status_code=400, detail="不支援的操作")
+    elif k == "giftray":
+        path = {"approve": "approve", "reject": "reject", "gateway_sync": "gateway-sync", "reverify": "reverify"}.get(a)
+        if not path:
+            raise HTTPException(status_code=400, detail="不支援的操作")
+        await hub_giftray.post(p, f"/admin/recharges/{tid}/{path}", {"remark": body.remark} if a == "reject" else {})
+    else:
+        raise HTTPException(status_code=400, detail="此平台不支援此操作")
+    await _log(me, p, "topup:" + a, tid, body.remark)
+    return {"ok": True}
+
+
+# ----------------------------- chat read / reply -----------------------------
+@router.get("/chats/{platform}/{sid}/messages")
+async def chat_messages(platform: str, sid: str, me: dict = Depends(need("cs"))):
+    p = await _plat(me, platform)
+    k = _k(p)
+    if k == "local":
+        r = await chat_api.admin_messages(sid, admin=_actor(me))
+        return {"messages": [{"id": m.get("id"), "from": "admin" if m.get("sender") == "admin" else "system" if m.get("sender") == "system" else "user", "text": m.get("text") or "", "image": m.get("image") or "", "name": m.get("admin_name") or "", "at": m.get("created_at")} for m in r["messages"]], "session": r["session"]}
+    if k == "giftray":
+        return await hub_giftray.messages(p, sid)
+    if k == "sifang":
+        return await hub_sifang.messages(p, sid)
+    raise HTTPException(status_code=400, detail="此平台不支援")
+
+
+class ReplyIn(BaseModel):
+    text: str
+
+
+@router.post("/chats/{platform}/{sid}/reply")
+async def chat_reply(platform: str, sid: str, body: ReplyIn, me: dict = Depends(need("cs_write"))):
+    p = await _plat(me, platform)
+    k, text = _k(p), body.text.strip()
+    if not text:
+        raise HTTPException(status_code=400, detail="請輸入內容")
+    if k == "local":
+        await chat_api.admin_send(sid, chat_api.AdminMessageIn(text=text), admin=_actor(me))
+    elif k == "giftray":
+        await hub_giftray.post(p, f"/admin/chat/sessions/{sid}/messages", {"text": text})
+    elif k == "sifang":
+        await hub_sifang.post(p, f"/support/threads/{sid}/reply", {"text": text, "sender_name": "總後台 " + me["user"]})
+    else:
+        raise HTTPException(status_code=400, detail="此平台不支援")
+    await _log(me, p, "chat:reply", sid, text)
+    return {"ok": True}
+
+
+@router.post("/chats/{platform}/{sid}/{op}")
+async def chat_op(platform: str, sid: str, op: str, me: dict = Depends(need("cs_write"))):
+    if op not in ("close", "reopen"):
+        raise HTTPException(status_code=404)
+    p = await _plat(me, platform)
+    k = _k(p)
+    if k == "local":
+        await chat_api.admin_patch_session(sid, chat_api.SessionPatch(status="handled" if op == "close" else "open"), admin=_actor(me))
+    elif k == "giftray":
+        await hub_giftray.post(p, f"/admin/chat/sessions/{sid}/{op}")
+    else:
+        raise HTTPException(status_code=400, detail="此平台不支援結束 / 重開")
+    await _log(me, p, "chat:" + op, sid)
+    return {"ok": True}
+
+
+# ----------------------------- sifang funds -----------------------------
+class AdjustIn(BaseModel):
+    action: str
+    amount: float = 0
+    remark: str = ""
+
+
+@router.post("/sifang/{platform}/accounts/{aid}/adjust")
+async def sifang_adjust(platform: str, aid: str, body: AdjustIn, me: dict = Depends(need("funds_write"))):
+    p = await _plat(me, platform)
+    if _k(p) != "sifang":
+        raise HTTPException(status_code=400, detail="僅四方平台")
+    if body.action == "toggle":
+        r = await hub_sifang.post(p, f"/accounts/{aid}/toggle-status")
+    elif body.action in ("credit", "debit", "freeze", "unfreeze"):
+        r = await hub_sifang.post(p, f"/accounts/{aid}/adjust", {"amount": body.amount, "action": body.action, "remark": body.remark})
+    else:
+        raise HTTPException(status_code=400, detail="不支援的操作")
+    await _log(me, p, "account:" + body.action, aid, f"{body.amount} {body.remark}")
+    return {"ok": True, "result": r}
+
+
+@router.get("/sifang/{platform}/payouts")
+async def sifang_payouts(platform: str, status: str = "pending", me: dict = Depends(need("members"))):
+    p = await _plat(me, platform)
+    if _k(p) != "sifang":
+        raise HTTPException(status_code=400, detail="僅四方平台")
+    return {"rows": await hub_sifang.payouts(p, status)}
+
+
+@router.post("/sifang/{platform}/payouts/{pid}/{op}")
+async def sifang_payout_op(platform: str, pid: str, op: str, me: dict = Depends(need("funds_write"))):
+    if op not in ("approve", "reject"):
+        raise HTTPException(status_code=404)
+    p = await _plat(me, platform)
+    if _k(p) != "sifang":
+        raise HTTPException(status_code=400, detail="僅四方平台")
+    r = await hub_sifang.post(p, f"/settlements/payouts/{pid}/{op}")
+    await _log(me, p, "payout:" + op, pid)
+    return {"ok": True, "result": r}
+
+
+@router.get("/logs")
+async def hub_logs(size: int = 200, me: dict = Depends(need("admins"))):
+    return {"rows": await db.hub_logs.find({}, {"_id": 0}).sort("at", -1).to_list(max(1, min(size, 500)))}
 
 
 @router.get("/ui", include_in_schema=False)
