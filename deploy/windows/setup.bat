@@ -48,6 +48,8 @@ echo [2/4] Checking Python 3.11...
 set "PYEXE="
 rem try common full install paths first
 for %%p in (
+  "C:\Python311\python.exe"
+  "C:\Python312\python.exe"
   "C:\Program Files\Python312\python.exe"
   "C:\Program Files\Python311\python.exe"
   "C:\Program Files\Python310\python.exe"

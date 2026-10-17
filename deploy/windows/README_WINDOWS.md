@@ -82,12 +82,12 @@ backend\.venv\Scripts\python.exe deploy\baota\import_from_live.py
 - 客服窗口发「加入」→ 出现「加入海鸥官方群」按钮
 - `/admin` 登录 → 上传一张图片 → 前台正常显示
 
-## 七、以后如何更新
-Emergent 改完代码 → Save to GitHub → 服务器双击（或终端执行）：
+## 七、以后如何更新（一键）
+Emergent 改完代码 → Save to GitHub → 服务器终端粘贴执行下面这一行（自动：下载最新代码 → 安装依赖 → 构建前端 → 重启后端 → 更新 nginx sitemap 规则 → 健康检查）：
 ```bat
-D:\wwwroot\heying\deploy\windows\deploy.bat
+powershell -NoProfile -Command "[Net.ServicePointManager]::SecurityProtocol='Tls12'; foreach($u in 'https://ghfast.top/https://raw.githubusercontent.com/ajin53193-cyber/acai/main/deploy/windows/setup.bat','https://raw.githubusercontent.com/ajin53193-cyber/acai/main/deploy/windows/setup.bat','https://ghproxy.net/https://raw.githubusercontent.com/ajin53193-cyber/acai/main/deploy/windows/setup.bat'){ try { Invoke-WebRequest -UseBasicParsing $u -OutFile 'C:\heying-update.bat' -TimeoutSec 60; break } catch {} }" && C:\heying-update.bat
 ```
-脚本自带 `git pull`，1–3 分钟完成。
+3–6 分钟完成，看到 `DEPLOY DONE` 即成功。若目录是 git 仓库，也可直接运行 `D:\wwwroot\heying\deploy\windows\deploy.bat`（自带 `git pull`）。
 
 ---
 

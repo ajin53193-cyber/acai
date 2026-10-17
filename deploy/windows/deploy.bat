@@ -131,6 +131,10 @@ if "%HC%"=="200" (
   exit /b 1
 )
 
+rem ---------- 6. nginx: /sitemap.xml -> backend (Baota vhost auto patch) ----------
+echo ===== Updating nginx sitemap rule
+powershell -NoProfile -ExecutionPolicy Bypass -File "%APP_DIR%\deploy\windows\patch-nginx.ps1"
+
 echo.
 echo ================= DEPLOY DONE =================
 echo 1. Baota site root -^> %FRONTEND_DIR%\build
