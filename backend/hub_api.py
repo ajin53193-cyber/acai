@@ -71,7 +71,7 @@ async def hub_orders(since: str = "", paid_since: str = "", status: str = "", pa
         q["paid_at"] = {"$gt": paid_since}
     if status:
         q["status"] = status
-    size = max(1, min(size, 200))
+    size = max(1, min(size, 500))
     await _refresh_gift_ids()
     total = await db.orders.count_documents(q)
     rows = await db.orders.find(q, {"_id": 0}).sort("created_at", -1).skip((page - 1) * size).to_list(size)
@@ -86,7 +86,7 @@ async def hub_topups(since: str = "", status: str = "", page: int = 1, size: int
         q["created_at"] = {"$gte": since}
     if status:
         q["status"] = status
-    size = max(1, min(size, 200))
+    size = max(1, min(size, 500))
     total = await db.topup_orders.count_documents(q)
     rows = await db.topup_orders.find(q, {"_id": 0}).sort("created_at", -1).skip((page - 1) * size).to_list(size)
     emails = {u["user_id"]: u.get("email", "") async for u in db.users.find({"user_id": {"$in": [r.get("user_id") for r in rows]}}, {"_id": 0, "user_id": 1, "email": 1})}
@@ -99,7 +99,7 @@ async def hub_members(q: str = "", page: int = 1, size: int = 50, x_hub_key: str
     cond: Dict[str, Any] = {"role": {"$ne": "admin"}}
     if q:
         cond["email"] = {"$regex": q, "$options": "i"}
-    size = max(1, min(size, 200))
+    size = max(1, min(size, 500))
     total = await db.users.count_documents(cond)
     rows = await db.users.find(cond, {"_id": 0, "user_id": 1, "email": 1, "name": 1, "created_at": 1, "wallet_balance_usd": 1, "is_test": 1}).sort("created_at", -1).skip((page - 1) * size).to_list(size)
     return {"platform": LOCAL, "total": total, "page": page, "size": size,
@@ -241,7 +241,7 @@ def _active(cfg: dict, platform: str) -> List[dict]:
 @router.get("/admin/hub/orders")
 async def admin_hub_orders(platform: str = "all", kind: str = "all", status: str = "", q: str = "", size: int = 50, admin: dict = Depends(current_admin)):
     cfg = await get_cfg()
-    size = max(1, min(size, 200))
+    size = max(1, min(size, 500))
     rows, errors = [], []
     if platform in ("all", LOCAL["id"]):
         if kind in ("all", "order", "giftcard"):

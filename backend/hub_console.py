@@ -31,6 +31,8 @@ _fails: Dict[str, List[float]] = {}
 HUB_ACTOR = {"user_id": "hub-console", "email": "hub-console"}
 MODULES = ["dashboard", "orders", "orders_write", "topups", "topups_write", "cs", "cs_write", "members", "funds_write", "platforms", "admins"]
 LOCAL = {**hub_api.LOCAL, "kind": "local"}
+META_STATUS = {"_pending": ("paid", "processing", "shipped", "need_info"), "_done": ("completed",), "_closed": ("cancelled", "refunded", "failed", "pending_payment")}
+TOPUP_META = {"_pending": ("reviewing", "pending"), "_done": ("approved", "paid", "completed"), "_closed": ("rejected", "expired", "failed", "cancelled")}
 
 
 def now_iso():
@@ -179,8 +181,11 @@ async def orders(platform: str, kind: str = "all", status: str = "", q: str = ""
     if _k(p) == "sifang":
         return {"kind": "sifang", **(await hub_sifang.order_list(p, status, "", "", q, size))}
     cfg = await hub_api.get_cfg()
-    r = await hub_api.hub_orders(status=status, size=min(size, 200), x_hub_key=cfg["inbound_key"]) if _k(p) == "local" else await hub_api._remote(p, "/hub/orders", {"status": status, "size": min(size, 200)})
+    meta = status in META_STATUS
+    r = await hub_api.hub_orders(status="" if meta else status, size=size, x_hub_key=cfg["inbound_key"]) if _k(p) == "local" else await hub_api._remote(p, "/hub/orders", {"status": "" if meta else status, "size": size})
     rows = [x for x in r.get("rows", []) if kind == "all" or x.get("type") == kind]
+    if meta:
+        rows = [x for x in rows if x.get("status") in META_STATUS[status]]
     if q:
         ql = q.lower()
         rows = [x for x in rows if ql in str(x.get("order_no", "")).lower() or ql in str(x.get("user", "")).lower() or any(ql in str(i).lower() for i in x.get("items", []))]
@@ -194,8 +199,11 @@ async def topups(platform: str, status: str = "", q: str = "", size: int = 200, 
     if _k(p) == "sifang":
         return {"kind": "sifang", **(await hub_sifang.order_list(p, "paid", "", "", q, size))}
     cfg = await hub_api.get_cfg()
-    r = await hub_api.hub_topups(status=status, size=min(size, 200), x_hub_key=cfg["inbound_key"]) if _k(p) == "local" else await hub_api._remote(p, "/hub/topups", {"status": status, "size": min(size, 200)})
+    meta = status in TOPUP_META
+    r = await hub_api.hub_topups(status="" if meta else status, size=size, x_hub_key=cfg["inbound_key"]) if _k(p) == "local" else await hub_api._remote(p, "/hub/topups", {"status": "" if meta else status, "size": size})
     rows = r.get("rows", [])
+    if meta:
+        rows = [x for x in rows if x.get("status") in TOPUP_META[status]]
     if q:
         ql = q.lower()
         rows = [x for x in rows if ql in str(x.get("order_no", "")).lower() or ql in str(x.get("user", "")).lower() or any(ql in str(i).lower() for i in x.get("items", []))]

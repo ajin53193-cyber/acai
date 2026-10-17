@@ -76,7 +76,7 @@ def _member_row(u: dict, rate: float) -> dict:
 
 
 async def orders(p: dict, params: dict) -> dict:
-    size = max(1, min(int(params.get("size") or 50), 200))
+    size = max(1, min(int(params.get("size") or 50), 500))
     rate = await _rate(p)
     rows = [_order_row(o, rate) for o in _items(await _get(p, "/admin/orders", {"limit": 3000}))]
     if params.get("status"):
@@ -88,7 +88,7 @@ async def orders(p: dict, params: dict) -> dict:
 
 
 async def topups(p: dict, params: dict) -> dict:
-    size = max(1, min(int(params.get("size") or 50), 200))
+    size = max(1, min(int(params.get("size") or 50), 500))
     rows = [_topup_row(t) for t in _items(await _get(p, "/admin/recharges", {"limit": 3000}))]
     if params.get("status"):
         rows = [r for r in rows if r["status"] == params["status"]]
@@ -97,7 +97,7 @@ async def topups(p: dict, params: dict) -> dict:
 
 
 async def members(p: dict, params: dict) -> dict:
-    size = max(1, min(int(params.get("size") or 50), 200))
+    size = max(1, min(int(params.get("size") or 50), 500))
     rate = await _rate(p)
     data = await _get(p, "/admin/users", {"limit": 5000})
     users = [u for u in (data.get("items") or data.get("users") or [] if isinstance(data, dict) else data or []) if not u.get("is_admin")]
