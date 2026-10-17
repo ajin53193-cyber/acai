@@ -51,7 +51,7 @@ async def _refresh_gift_ids():
 def _order_row(o: dict) -> dict:
     gift = bool(o.get("is_giftcard_order")) or any(it.get("product_id") in GIFT_IDS for it in o.get("items", []))
     return {"id": o.get("id"), "order_no": o.get("order_no") or (o.get("id") or "")[:8], "type": "giftcard" if gift else "order",
-            "user": o.get("user_email") or "", "status": o.get("status"), "amount_usd": float(o.get("total_usd") or 0),
+            "user": o.get("user_email") or "", "status": o.get("status"), "amount_usd": float(o.get("total_usd") or 0), "info_submitted": o.get("info_submitted", True),
             "items": [f"{it.get('product_name', '')} {it.get('spec_label', '')} ×{it.get('qty') or it.get('quantity') or 1}".strip() for it in o.get("items", [])],
             "created_at": o.get("created_at"), "paid_at": o.get("paid_at")}
 
@@ -151,6 +151,9 @@ class PlatformIn(BaseModel):
     api_key: str = ""
     cs_url: str = ""
     admin_url: str = ""
+    orders_url: str = ""
+    topups_url: str = ""
+    members_url: str = ""
     kind: str = "shop"  # shop = 商城（Hub 規範）, giftray = Giftray 商城（直接對接其後台 API）, topup = 充值平台（只有充值+會員）
     enabled: bool = True
 

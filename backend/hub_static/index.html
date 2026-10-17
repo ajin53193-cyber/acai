@@ -72,7 +72,7 @@ function render() {
   <div class="min-h-screen flex">
     <aside class="w-56 bg-slate-900 text-white flex flex-col p-3 shrink-0">
       <div class="px-3 py-3 mb-2"><div class="font-black text-lg">總後台</div><div class="text-xs text-slate-400">多平台統一管理</div></div>
-      ${nav.map(([k, l, ic]) => (k === "platforms" ? `<div class="mt-3 mb-1 px-3 text-[10px] tracking-widest text-slate-500">設定</div>` : "") + `<button data-nav="${k}" class="nav-btn ${state.page === k ? "active" : ""}"><span>${ic}</span>${l}</button>`).join("")}
+      ${nav.map(([k, l, ic]) => (k === "platforms" ? `<div class="mt-3 mb-1 px-3 text-[10px] tracking-widest text-slate-500">設定</div>` : "") + `<button data-nav="${k}" class="nav-btn ${state.page === k ? "active" : ""}"><span>${ic}</span>${l}${k === "cs" ? `<span id="cs-badge" class="ml-auto tag tag-red ${state.csUnread ? "" : "hidden"}">${state.csUnread || ""}</span>` : ""}</button>`).join("")}
       <div class="mt-auto px-3 pt-3 border-t border-slate-800 text-xs text-slate-400"><div class="flex items-center justify-between"><span>${esc(state.user)} ${state.me.super ? '<span class="tag tag-orange">超管</span>' : ""}</span><button id="logout" class="hover:text-white">登出</button></div>
       ${state.me.super ? "" : '<button id="pw" class="mt-2 hover:text-white">修改密碼</button>'}</div>
       <button id="sound" class="mt-2 text-xs text-slate-400 hover:text-white text-left px-3">${state.sound ? "🔔 新訂單提示音：開" : "🔕 新訂單提示音：關"}</button>
@@ -84,13 +84,13 @@ function render() {
   $("#logout").onclick = logout;
   $("#sound").onclick = () => { state.sound = !state.sound; localStorage.setItem("hub_sound", state.sound ? "1" : "0"); render(); };
   const pw = $("#pw"); if (pw) pw.onclick = pwModal;
-  if (nav.length) ({ dashboard: dashView, orders: ordersView, topups: topupsView, cs: csView, members: membersView, platforms: platformsView, admins: adminsView })[state.page]();
+  if (nav.length) ({ dashboard: dashView, orders: () => embedView("orders", "訂單管理", "orders_url", ordersView), topups: () => embedView("topups", "充值管理", "topups_url", topupsView), cs: () => embedView("cs", "客服管理", "cs_url", csView), members: () => embedView("members", "用戶管理", "members_url", membersView), platforms: platformsView, admins: adminsView })[state.page]();
   else $("#main").innerHTML = '<div class="card p-10 text-center text-slate-400">此帳號尚未分配任何模組權限，請聯繫超級管理員</div>';
   renderAlert();
 }
 
 function loginView() {
-  setTimeout(() => { $("#login-form").onsubmit = async (e) => { e.preventDefault(); const b = $("#login-btn"); b.disabled = true; try { const r = await api("POST", "/login", { username: $("#u").value.trim(), password: $("#p").value }); state.token = r.token; state.user = r.user; localStorage.setItem("hub_token", r.token); localStorage.setItem("hub_user", r.user); await loadMe(); render(); poll(); } catch (err) { $("#login-err").textContent = err.message; } b.disabled = false; }; });
+  setTimeout(() => { $("#login-form").onsubmit = async (e) => { e.preventDefault(); const b = $("#login-btn"); b.disabled = true; try { const r = await api("POST", "/login", { username: $("#u").value.trim(), password: $("#p").value }); state.token = r.token; state.user = r.user; localStorage.setItem("hub_token", r.token); localStorage.setItem("hub_user", r.user); await loadMe(); render(); poll(); pollCs(); } catch (err) { $("#login-err").textContent = err.message; } b.disabled = false; }; });
   return `<div class="min-h-screen flex items-center justify-center p-6"><form id="login-form" class="card w-full max-w-sm p-8 space-y-4">
     <div><div class="font-black text-2xl">總後台登入</div><div class="text-sm text-slate-500 mt-1">多平台訂單 / 充值 / 客服 / 用戶 統一管理</div></div>
     <input id="u" class="inp" placeholder="帳號" autocomplete="username" required />
@@ -111,6 +111,22 @@ function pageShell(title, sub, plats, extraTab) {
 }
 const fail = (e, body) => { body.innerHTML = `<div class="text-red-600 text-sm">${esc(e.message)}</div>`; };
 
+// ---------- embedded original admin pages ----------
+state.embed = JSON.parse(localStorage.getItem("hub_embed") || "{}");
+function embedView(page, title, urlKey, builtin) {
+  const useEmbed = state.embed[page] !== false;
+  const toggle = `<button id="embed-toggle" class="btn-ghost !h-8 text-xs">${useEmbed ? "切換為總後台內建工作台" : "切換為原平台後台頁面"}</button>`;
+  if (!useEmbed) { builtin(); const h = $("#main h1"); if (h) { h.insertAdjacentHTML("afterend", `<div class="absolute right-6 top-6">${toggle}</div>`); $("#main").classList.add("relative"); bindToggle(page); } return; }
+  const plats = state.plats; const key = state.page;
+  if (!plats.some((p) => p.id === state.tab[key])) state.tab[key] = plats[0]?.id;
+  const cur = plats.find((p) => p.id === state.tab[key]); const url = cur?.[urlKey] || cur?.admin_url || "";
+  $("#main").innerHTML = `<div class="flex flex-wrap items-center gap-3 mb-3"><h1 class="text-2xl font-black">${title}</h1><div class="flex flex-wrap items-center gap-1 p-1 rounded-2xl bg-slate-200/60">${plats.map((p) => `<button data-ptab="${esc(p.id)}" class="ptab !h-9 ${state.tab[key] === p.id ? "active" : ""}"><span class="dot" style="background:${PCOLOR[p.kind] || "#64748B"}"></span>${esc(p.name)}</button>`).join("")}</div><div class="ml-auto flex items-center gap-2">${url ? `<a href="${esc(url)}" target="_blank" rel="noopener" class="btn-ghost !h-8 text-xs">新分頁開啟 ↗</a>` : ""}${toggle}</div></div>
+    ${url ? `<div class="card overflow-hidden" style="height:calc(100vh - 120px)"><iframe id="embed-frame" src="${esc(url)}" class="w-full h-full border-0" allow="clipboard-write"></iframe></div><div class="text-[11px] text-slate-400 mt-1">此為 ${esc(cur.name)} 原後台頁面，操作方式與原後台完全一致；首次需在框內登入該平台後台。若框內空白，請點「新分頁開啟」。</div>` : `<div class="card p-10 text-center text-slate-400">尚未設定 ${esc(cur?.name || "")} 的後台地址，請到「平台接入」填寫「平台後台地址」</div>`}`;
+  document.querySelectorAll("[data-ptab]").forEach((b) => (b.onclick = () => { state.tab[key] = b.dataset.ptab; render(); }));
+  bindToggle(page);
+}
+function bindToggle(page) { const t = $("#embed-toggle"); if (t) t.onclick = () => { state.embed[page] = state.embed[page] === false; localStorage.setItem("hub_embed", JSON.stringify(state.embed)); render(); }; }
+
 // ---------- dashboard ----------
 async function dashView() {
   const { pid, plat, body } = pageShell("數據概覽", "每個平台獨立查看；「合計」只匯總商城平台（gogo589 / Giftray），四方收款不計入", state.plats, { id: "all", label: "合計" });
@@ -123,7 +139,7 @@ async function dashView() {
     const cols = [["revenue_usd", "營收", 1], ["orders", "訂單"], ["topup_usd", "充值金額", 1], ["topups", "充值筆數"], ["new_members", "新會員"], ["members", "會員總數"], ["pending_orders", "待處理訂單"], ["pending_topups", "待審充值"], ["open_chats", "未讀客服"]];
     const cell = (v, u) => (u ? usd(v) : Number(v || 0).toLocaleString());
     if (pid === "all") {
-      body.innerHTML = `<div class="flex justify-end mb-3">${daysSeg}</div>` + errBox(d.errors) + `<div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-5">${box("商城總營收", usd(d.total.revenue_usd))}${box("商城總訂單", d.total.orders)}${box("商城總充值", usd(d.total.topup_usd))}${box("商城會員總數", d.total.members)}</div>
+      body.innerHTML = `<div id="today-strip" class="mb-4"></div><div class="flex justify-end mb-3">${daysSeg}</div>` + errBox(d.errors) + `<div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-5">${box("商城總營收", usd(d.total.revenue_usd))}${box("商城總訂單", d.total.orders)}${box("商城總充值", usd(d.total.topup_usd))}${box("商城會員總數", d.total.members)}</div>
         <div class="card overflow-x-auto"><table><thead><tr><th>平台</th>${cols.map(([, l]) => `<th class="text-right">${l}</th>`).join("")}</tr></thead><tbody>${d.platforms.map((p) => `<tr><td>${ptag(p.platform)}</td>${cols.map(([k, , u]) => `<td class="text-right">${cell(p[k], u)}</td>`).join("")}</tr>`).join("") || empty(10)}${d.platforms.length ? `<tr class="bg-orange-50 font-bold"><td>合計</td>${cols.map(([k, , u]) => `<td class="text-right">${cell(d.total[k], u)}</td>`).join("")}</tr>` : ""}</tbody></table></div>`;
     } else if (d.kind === "sifang") {
       body.innerHTML = `<div class="flex items-center justify-between mb-3"><div class="text-xs text-slate-500">${esc(plat.name)} · USDT 收款 · 北京時間日切</div>${daysSeg}</div>
@@ -135,16 +151,33 @@ async function dashView() {
         <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-4">${box("營收", usd(d.revenue_usd), `近 ${d.days} 天 · ${d.orders} 筆訂單`)}${box("充值", usd(d.topup_usd), `近 ${d.days} 天 · ${d.topups} 筆`)}${box("會員", d.members, `近 ${d.days} 天新增 ${d.new_members}`)}${box("待處理", d.pending_orders, `待審充值 ${d.pending_topups} · 未讀客服 ${d.open_chats}`)}</div>`;
     }
     bind();
+    if (pid === "all") loadToday();
   } catch (e) { fail(e, body); }
+}
+async function loadToday() {
+  const el = $("#today-strip"); if (!el) return;
+  try { const t = await api("GET", "/today"); if (!$("#today-strip")) return;
+    const delta = (a, b) => { if (!b) return a ? '<span class="text-emerald-600">新增</span>' : '<span class="text-slate-400">—</span>'; const p = Math.round((a - b) / b * 100); return `<span class="${p >= 0 ? "text-emerald-600" : "text-red-600"}">${p >= 0 ? "▲" : "▼"} ${Math.abs(p)}%</span>`; };
+    el.innerHTML = `<div class="card p-4"><div class="flex items-center justify-between mb-3"><div class="text-sm font-bold">今日 vs 昨日 <span class="text-xs font-normal text-slate-400">北京時間 ${esc(t.bj_date)} · 商城=營收 USD，四方=收款 USDT</span></div>${errBox(t.errors)}</div>
+      <div class="grid md:grid-cols-${Math.max(1, Math.min(3, t.rows.length))} gap-3">${t.rows.map((r) => { const m = r.unit === "USDT" ? usdt : usd; return `<div class="rounded-xl bg-slate-50 p-4"><div class="flex items-center justify-between mb-2">${ptag(r.platform)}<span class="text-xs text-slate-400">${r.today.orders} / ${r.yday.orders} 單</span></div><div class="flex items-end justify-between"><div><div class="text-xs text-slate-500">今日${r.unit === "USDT" ? "收款" : "營收"}</div><div class="text-2xl font-black">${m(r.today.rev)}</div></div><div class="text-right text-xs"><div class="text-slate-400">昨日 ${m(r.yday.rev)}</div><div class="font-bold">${delta(r.today.rev, r.yday.rev)}</div></div></div>${r.unit !== "USDT" ? `<div class="mt-2 text-xs text-slate-500 flex justify-between"><span>今日充值 <b class="text-slate-800">${usd(r.today.topup)}</b></span><span>昨日 ${usd(r.yday.topup)} ${delta(r.today.topup, r.yday.topup)}</span></div>` : ""}</div>`; }).join("")}</div></div>`;
+  } catch (e) { el.innerHTML = `<div class="text-xs text-red-600">${esc(e.message)}</div>`; }
 }
 
 // ---------- orders ----------
 function filterBar(opts) {
-  return `<div class="flex flex-wrap items-center gap-2 mb-3">${opts.seg ? `<div class="seg">${opts.seg.map(([k, l]) => `<button data-seg="${k}" class="${opts.segVal === k ? "on" : ""}">${l}</button>`).join("")}</div>` : ""}<input id="f-q" class="inp !w-64" placeholder="${opts.ph}" value="${esc(opts.q || "")}" /><button id="f-go" class="btn-ghost">查詢</button>${opts.right ? `<div class="ml-auto text-xs text-slate-500">${opts.right}</div>` : ""}</div>`;
+  return `<div class="flex flex-wrap items-center gap-2 mb-3">${opts.seg ? `<div class="seg">${opts.seg.map(([k, l]) => `<button data-seg="${k}" class="${opts.segVal === k ? "on" : ""}">${l}</button>`).join("")}</div>` : ""}<input id="f-q" class="inp !w-64" placeholder="${opts.ph}" value="${esc(opts.q || "")}" /><button id="f-go" class="btn-ghost">查詢</button>${opts.rows ? `<button id="f-export" class="btn-ghost" title="匯出目前篩選結果（CSV，可用 Excel 開啟）">⬇ 匯出 Excel</button>` : ""}${opts.right ? `<div class="ml-auto text-xs text-slate-500">${opts.right}</div>` : ""}</div>`;
+}
+function exportCsv(rows, name) {
+  if (!rows?.length) return toast("沒有可匯出的資料", true);
+  const cols = [...new Set(rows.flatMap((r) => Object.keys(r)))].filter((k) => !["id", "platform", "raw", "image"].includes(k));
+  const cell = (v) => { if (v == null) return ""; if (Array.isArray(v)) v = v.join("、"); else if (typeof v === "object") v = JSON.stringify(v); v = String(v); return /[",\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v; };
+  const csv = "\ufeff" + [cols.join(","), ...rows.map((r) => cols.map((k) => cell(k === "status" ? (STATUS[r[k]]?.[0] || r[k]) : r[k])).join(","))].join("\r\n");
+  const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" })); a.download = `${name}_${new Date().toISOString().slice(0, 10)}.csv`; a.click(); URL.revokeObjectURL(a.href);
 }
 const F = (key) => (state.f ??= {}, state.f[key] ??= { seg: "all", q: "" });
 function bindFilter(key, rerender) {
   const f = F(key); const go = () => { f.q = $("#f-q").value.trim(); rerender(); };
+  const ex = $("#f-export"); if (ex) ex.onclick = () => exportCsv(f._rows, key.replace(":", "_"));
   document.querySelectorAll("[data-seg]").forEach((b) => (b.onclick = () => { f.seg = b.dataset.seg; rerender(); }));
   $("#f-go").onclick = go; $("#f-q").onkeydown = (e) => e.key === "Enter" && go();
 }
@@ -155,8 +188,19 @@ const abtn = (k, l, cls = "") => `<button data-act="${k}" class="btn-ghost !h-7 
 const orderActs = (r, kind, big) => {
   if (!can("orders_write") || !["local", "giftray"].includes(kind)) return "";
   const st = r.status; const out = []; const B = big ? (k, l, c) => `<button data-act="${k}" class="btn ${c || ""}">${l}</button>` : abtn;
-  if (kind === "local" && ["paid", "processing", "shipped"].includes(st)) { out.push(B("complete", "完成訂單", big ? "" : "!text-emerald-700")); if (st !== "shipped") out.push(B("reject_info", "駁回資料", big ? "!bg-slate-700" : "")); if (st === "paid") out.push(B("processing", "標記處理中", big ? "!bg-slate-500" : "")); out.push(B("cancel", "取消並退款", big ? "!bg-red-600" : "!text-red-600")); }
-  if (kind === "giftray" && ["need_info", "processing"].includes(st)) { out.push(B("complete", "完成訂單", big ? "" : "!text-emerald-700")); if (st === "need_info") out.push(B("processing", "標記處理中", big ? "!bg-slate-500" : "")); else out.push(B("reject_info", "退回重新填寫", big ? "!bg-slate-700" : "")); out.push(B("cancel", "取消並退款", big ? "!bg-red-600" : "!text-red-600")); }
+  if (kind === "local") {
+    if (["paid", "processing", "shipped"].includes(st)) out.push(B("complete", "確認充值完成", big ? "!bg-emerald-600" : "!text-emerald-700"));
+    if (["paid", "processing"].includes(st) && r.info_submitted !== false) out.push(B("reject_info", "駁回充值資料", big ? "!bg-amber-500" : "!text-amber-700"));
+    if (st === "paid") out.push(B("processing", "開始充值", big ? "!bg-violet-600" : ""));
+    if (st === "processing") out.push(B("ship", "確認人工發貨", big ? "!bg-cyan-600" : ""));
+    if (st === "shipped") out.push(B("mark_completed", "標記已完成", big ? "!bg-emerald-600" : ""));
+    if (big && !["completed", "exception", "cancelled"].includes(st)) out.push(B("exception", "標記異常", "!bg-red-500"));
+    if (!["completed", "cancelled"].includes(st) && (big || ["paid", "processing", "shipped", "exception", "pending_payment"].includes(st))) out.push(B("cancel", "取消訂單", big ? "!bg-white !text-red-600 border border-red-300" : "!text-red-600"));
+  }
+  if (kind === "giftray") {
+    if (["need_info", "processing"].includes(st)) { out.push(B("complete", "完成（發貨）", big ? "!bg-emerald-600" : "!text-emerald-700")); if (st === "need_info") out.push(B("processing", "開始處理", big ? "!bg-violet-600" : "")); else out.push(B("reject_info", "退回重新填寫", big ? "!bg-amber-500" : "!text-amber-700")); out.push(B("cancel", "取消並退款", big ? "!bg-white !text-red-600 border border-red-300" : "!text-red-600")); }
+    if (big && r.type === "giftcard" && st !== "cancelled") { if (r.extra?.["自動審核"] === "需人工") out.push(B("add_number_review", "補號並重審", "!bg-slate-600")); if (st === "completed") out.push(B("regenerate_txn", "重新產生交易號", "!bg-slate-500")); }
+  }
   return out.join(" ");
 };
 const topupActs = (r, kind, big) => {
@@ -167,7 +211,8 @@ const topupActs = (r, kind, big) => {
 };
 async function doAct(isTopup, pid, id, a, after) {
   let remark = "";
-  if (["reject_info", "cancel", "reject"].includes(a)) { remark = ask({ reject_info: "駁回原因（會通知用戶重新填寫）", cancel: "取消原因（將退款回餘額）", reject: "駁回原因" }[a]); if (remark === null) return; }
+  if (["reject_info", "cancel", "reject", "exception"].includes(a)) { remark = ask({ reject_info: "駁回原因（將顯示給用戶）", cancel: "取消原因（將通知用戶；已用錢包付款的訂單會自動退回餘額）", reject: "駁回原因", exception: "異常說明" }[a], a === "reject_info" ? "充值帳號有誤，請重新填寫" : ""); if (remark === null) return; }
+  else if (a === "set_status") { const st = $("#dw-status")?.value; if (!st || !confirm(`將狀態改為「${STATUS[st]?.[0] || st}」？`)) return; try { await api("POST", `/orders/${pid}/${id}/action`, { action: a, tx_id: st, remark: "" }); toast("狀態已更新"); after?.(); } catch (e) { toast(e.message, true); } return; }
   else if (a === "manual_callback") { const tx = ask("鏈上 TxID"); if (!tx) return; const amt = ask("實收金額 USDT"); if (!amt) return; try { await api("POST", `/orders/${pid}/${id}/action`, { action: a, tx_id: tx, amount: +amt, force: confirm("金額與訂單差異過大時是否強制補單？") }); toast("補單已提交"); after?.(); } catch (e) { toast(e.message, true); } return; }
   else if (!confirm("確定執行此操作？")) return;
   try { await api("POST", `/${isTopup ? "topups" : "orders"}/${pid}/${id}/action`, { action: a, remark }); toast("操作成功"); after?.(); } catch (e) { toast(e.message, true); }
@@ -199,12 +244,12 @@ async function ordersView() {
   try {
     if (plat.kind === "sifang") {
       const d = await api("GET", `/orders?platform=${pid}&status=${f.seg === "all" ? "" : f.seg}&q=${encodeURIComponent(f.q)}&size=300`);
-      body.innerHTML = filterBar({ seg: [["all", "全部"], ["paid", "已支付"], ["confirming", "鏈上確認中"], ["pending", "待支付"], ["expired", "已過期"]], segVal: f.seg, q: f.q, ph: "單號 / 商戶單號 / TxID / 地址 / 備註", right: `${d.rows.length} 筆 · 已支付合計 <b class="text-emerald-700">${usdt(d.rows.filter((o) => o.status === "paid").reduce((a, o) => a + o.amount_usdt, 0))}</b>` }) + sifangTable(d.rows);
+      f._rows = d.rows; body.innerHTML = filterBar({ rows: 1, seg: [["all", "全部"], ["paid", "已支付"], ["confirming", "鏈上確認中"], ["pending", "待支付"], ["expired", "已過期"]], segVal: f.seg, q: f.q, ph: "單號 / 商戶單號 / TxID / 地址 / 備註", right: `${d.rows.length} 筆 · 已支付合計 <b class="text-emerald-700">${usdt(d.rows.filter((o) => o.status === "paid").reduce((a, o) => a + o.amount_usdt, 0))}</b>` }) + sifangTable(d.rows);
     } else {
       f.kind ??= "all";
       const d = await api("GET", `/orders?platform=${pid}&kind=${f.kind}&status=${f.seg === "all" ? "" : f.seg}&q=${encodeURIComponent(f.q)}&size=500`);
       const pend = d.rows.filter((r) => ["paid", "processing", "shipped", "need_info"].includes(r.status)).length;
-      body.innerHTML = filterBar({ seg: [["all", "全部"], ["_pending", "待處理"], ["_done", "已完成"], ["_closed", "已取消"]], segVal: f.seg, q: f.q, ph: "訂單號 / 用戶 / 商品", right: `${d.rows.length} 筆${can("orders_write") ? ` · 待處理 <b class="text-orange-600">${pend}</b> 筆可操作` : ""}` }) + shopOrderTable(d.rows, true, plat.kind, false);
+      f._rows = d.rows; body.innerHTML = filterBar({ rows: 1, seg: [["all", "全部"], ["_pending", "待處理"], ["_done", "已完成"], ["_closed", "已取消"]], segVal: f.seg, q: f.q, ph: "訂單號 / 用戶 / 商品", right: `${d.rows.length} 筆${can("orders_write") ? ` · 待處理 <b class="text-orange-600">${pend}</b> 筆可操作` : ""}` }) + shopOrderTable(d.rows, true, plat.kind, false);
       $("#f-go").insertAdjacentHTML("afterend", `<select id="f-kind" class="inp !w-32"><option value="all" ${f.kind === "all" ? "selected" : ""}>全部類型</option><option value="order" ${f.kind === "order" ? "selected" : ""}>商品訂單</option><option value="giftcard" ${f.kind === "giftcard" ? "selected" : ""}>禮品卡</option></select>`);
       $("#f-kind").onchange = () => { f.kind = $("#f-kind").value; render(); };
     }
@@ -242,12 +287,15 @@ async function openOrder(pid, id) {
       ${d.images?.length ? section("憑證 / 圖片", `<div class="flex flex-wrap gap-2">${d.images.map((u) => `<a href="${esc(img(plat, u))}" target="_blank"><img src="${esc(img(plat, u))}" class="h-28 rounded-lg object-cover" /></a>`).join("")}</div>`) : ""}
       <div class="grid md:grid-cols-2 gap-4">
         ${section("時間線", timeline(d.timeline))}
-        ${section("發貨備註 / 管理員備註", `<textarea id="dw-note" class="inp !h-24 py-2 resize-none" ${can("orders_write") ? "" : "disabled"} placeholder="例如：已充值到帳 / 卡號已發送">${esc(d.admin_note)}</textarea>${d.type === "giftcard" && plat.kind === "giftray" && can("orders_write") ? `<input id="dw-txn" class="inp mt-2 font-mono" placeholder="禮品卡交易號（28~36 位數字）" value="${esc(d.transaction_no)}" />` : ""}${can("orders_write") ? `<button id="dw-save" class="btn-ghost mt-2">儲存備註</button>` : ""}`)}
+        ${section("備註歷史", `<div id="dw-notes" class="text-sm text-slate-400">載入中…</div>` + (can("orders_write") ? `<div class="flex gap-2 mt-3"><input id="dw-note" class="inp" placeholder="新增備註（含操作者與時間，會保留全部歷史）" /><button id="dw-save" class="btn-ghost shrink-0">新增</button></div>${d.type === "giftcard" && plat.kind === "giftray" ? `<div class="flex gap-2 mt-2"><input id="dw-txn" class="inp font-mono" placeholder="設定禮品卡交易號（28~36 位數字）" value="${esc(d.transaction_no)}" /><button id="dw-txn-save" class="btn-ghost shrink-0">設定</button></div>` : ""}` : ""))}
       </div>
-      ${can("orders_write") ? section("處理訂單", `<div class="flex flex-wrap gap-2">${orderActs(d, plat.kind, true) || '<span class="text-sm text-slate-400">此狀態的訂單無可執行操作</span>'}</div>`) : ""}`;
+      ${can("orders_write") ? section("處理訂單", `<div class="flex flex-wrap gap-2 items-center">${orderActs(d, plat.kind, true) || '<span class="text-sm text-slate-400">此狀態的訂單無可執行操作</span>'}${plat.kind === "local" ? `<span class="ml-auto flex items-center gap-2 text-xs text-slate-500">直接改狀態<select id="dw-status" class="inp !h-8 !w-36 text-xs">${["pending_payment", "paid", "processing", "shipped", "completed", "exception", "cancelled"].map((x) => `<option value="${x}" ${d.status === x ? "selected" : ""}>${STATUS[x]?.[0] || x}</option>`).join("")}</select><button data-act="set_status" class="btn-ghost !h-8 text-xs">套用</button></span>` : ""}</div>`) : ""}`;
     drawer(`訂單 ${esc(d.order_no)}`, `${esc(d.user)} · ${fmt(d.created_at)}`, inner, plat);
     document.querySelectorAll("#dw-body [data-act]").forEach((b) => (b.onclick = () => doAct(false, pid, d.id, b.dataset.act, reload)));
-    const sv = $("#dw-save"); if (sv) sv.onclick = async () => { try { await api("POST", `/orders/${pid}/${encodeURIComponent(d.id)}/note`, { note: $("#dw-note").value.trim(), transaction_no: $("#dw-txn")?.value.trim() || "" }); toast("已儲存"); } catch (e) { toast(e.message, true); } };
+    const loadNotes = async () => { try { const n = await api("GET", `/orders/${pid}/${encodeURIComponent(d.id)}/notes`); const box = $("#dw-notes"); if (!box) return; box.innerHTML = n.rows.length ? `<ul class="space-y-2">${n.rows.map((x) => `<li class="rounded-lg bg-slate-50 px-3 py-2"><div class="text-slate-800">${esc(x.text)}</div><div class="text-[11px] text-slate-400 mt-0.5">${esc(x.by)} · ${fmt(x.at)}${x.action && x.action !== "note" ? ` · <span class="tag tag-slate">${esc(x.action)}</span>` : ""}</div></li>`).join("")}</ul>` : '<div class="text-sm text-slate-400">尚無備註</div>'; } catch {} };
+    loadNotes();
+    const sv = $("#dw-save"); if (sv) sv.onclick = async () => { const t = $("#dw-note").value.trim(); if (!t) return; try { await api("POST", `/orders/${pid}/${encodeURIComponent(d.id)}/note`, { note: t }); $("#dw-note").value = ""; toast("已新增備註"); loadNotes(); } catch (e) { toast(e.message, true); } };
+    const tx = $("#dw-txn-save"); if (tx) tx.onclick = async () => { try { await api("POST", `/orders/${pid}/${encodeURIComponent(d.id)}/note`, { transaction_no: $("#dw-txn").value.trim() }); toast("交易號已設定"); } catch (e) { toast(e.message, true); } };
   } catch (e) { $("#dw-body").innerHTML = `<div class="text-red-600 text-sm">${esc(e.message)}</div>`; }
 }
 async function openTopup(pid, id) {
@@ -276,9 +324,9 @@ async function topupsView() {
   try {
     const d = await api("GET", `/topups?platform=${pid}&status=${plat.kind !== "sifang" && f.seg !== "all" ? f.seg : ""}&q=${encodeURIComponent(f.q)}&size=500`);
     if (plat.kind === "sifang") {
-      body.innerHTML = filterBar({ q: f.q, ph: "單號 / 商戶單號 / TxID / 地址", right: `${d.rows.length} 筆入帳 · 合計 <b class="text-emerald-700">${usdt(d.rows.reduce((a, o) => a + o.amount_usdt, 0))}</b>` }) + sifangTable(d.rows);
+      f._rows = d.rows; body.innerHTML = filterBar({ rows: 1, q: f.q, ph: "單號 / 商戶單號 / TxID / 地址", right: `${d.rows.length} 筆入帳 · 合計 <b class="text-emerald-700">${usdt(d.rows.reduce((a, o) => a + o.amount_usdt, 0))}</b>` }) + sifangTable(d.rows);
     } else {
-      body.innerHTML = filterBar({ seg: [["all", "全部"], ["_pending", "待審核"], ["_done", "已到帳"], ["_closed", "已拒絕 / 過期"]], segVal: f.seg, q: f.q, ph: "單號 / 用戶 / 方式", right: `${d.rows.length} 筆${can("topups_write") ? ` · 待審核 <b class="text-orange-600">${d.rows.filter((r) => ["reviewing", "pending"].includes(r.status)).length}</b> 筆可操作` : ""} · 已到帳合計 <b class="text-emerald-700">${usd(d.rows.filter((r) => ["approved", "paid", "completed"].includes(r.status)).reduce((a, r) => a + Number(r.amount_usd || 0), 0))}</b>` }) + shopOrderTable(d.rows, false, plat.kind, true);
+      f._rows = d.rows; body.innerHTML = filterBar({ rows: 1, seg: [["all", "全部"], ["_pending", "待審核"], ["_done", "已到帳"], ["_closed", "已拒絕 / 過期"]], segVal: f.seg, q: f.q, ph: "單號 / 用戶 / 方式", right: `${d.rows.length} 筆${can("topups_write") ? ` · 待審核 <b class="text-orange-600">${d.rows.filter((r) => ["reviewing", "pending"].includes(r.status)).length}</b> 筆可操作` : ""} · 已到帳合計 <b class="text-emerald-700">${usd(d.rows.filter((r) => ["approved", "paid", "completed"].includes(r.status)).reduce((a, r) => a + Number(r.amount_usd || 0), 0))}</b>` }) + shopOrderTable(d.rows, false, plat.kind, true);
     }
     bindFilter("topups:" + pid, render); bindActs(pid, true, plat.kind);
   } catch (e) { fail(e, body); }
@@ -353,7 +401,7 @@ async function membersView() {
     const ROLE = { merchant: "商戶", operator: "運營", agent: "代理" };
     let payoutsHtml = "";
     if (plat.kind === "sifang") { try { const po = await api("GET", `/sifang/${pid}/payouts?status=pending`); payoutsHtml = `<div class="card overflow-x-auto mt-4"><div class="px-4 py-3 text-sm font-bold border-b border-slate-100">待審核提現單 <span class="tag ${po.rows.length ? "tag-red" : "tag-slate"}">${po.rows.length}</span></div><table><thead><tr><th>帳戶</th><th class="text-right">金額 USDT</th><th>網絡 / 地址</th><th>申請時間</th><th>備註</th>${can("funds_write") ? "<th>審核</th>" : ""}</tr></thead><tbody>${po.rows.map((x) => `<tr data-pid="${esc(x.id)}"><td class="font-semibold">${esc(x.account)}</td><td class="text-right font-bold">${x.amount_usdt.toFixed(2)}</td><td class="text-xs font-mono text-slate-500">${esc(x.network)} ${esc(x.address)}</td><td class="text-xs text-slate-500 whitespace-nowrap">${fmt(x.created_at)}</td><td class="text-xs text-slate-500">${esc(x.remark || "-")}</td>${can("funds_write") ? `<td class="space-x-1"><button data-po="approve" class="btn-ghost !h-7 !px-2.5 text-xs !text-emerald-700">通過放款</button><button data-po="reject" class="btn-ghost !h-7 !px-2.5 text-xs !text-red-600">駁回</button></td>` : ""}</tr>`).join("") || empty(6, "目前沒有待審核提現")}</tbody></table></div>`; } catch (e) { payoutsHtml = `<div class="mt-4 text-xs text-slate-400">提現單：${esc(e.message)}</div>`; } }
-    body.innerHTML = filterBar({ q: f.q, ph: plat.kind === "sifang" ? "搜尋帳戶 / 名稱" : "搜尋郵箱 / 帳號", right: `${d.rows.length} 位` }) + (plat.kind === "sifang"
+    f._rows = d.rows; body.innerHTML = filterBar({ rows: 1, q: f.q, ph: plat.kind === "sifang" ? "搜尋帳戶 / 名稱" : "搜尋郵箱 / 帳號", right: `${d.rows.length} 位` }) + (plat.kind === "sifang"
       ? `<div class="card overflow-x-auto"><table><thead><tr><th>帳戶</th><th>名稱</th><th>角色</th><th class="text-right">餘額 USDT</th><th>狀態</th><th>建立時間</th>${can("funds_write") ? "<th>資金操作</th>" : ""}</tr></thead><tbody>${d.rows.map((a) => `<tr data-uid="${esc(a.id)}" class="cursor-pointer hover:bg-orange-50/40"><td class="font-semibold">${esc(a.email)}</td><td class="text-slate-600">${esc(a.name)}</td><td><span class="tag ${a.role === "merchant" ? "tag-green" : "tag-slate"}">${ROLE[a.role] || esc(a.role)}</span></td><td class="text-right font-bold">${Number(a.wallet_usd).toFixed(2)}</td><td>${a.status === "frozen" ? '<span class="tag tag-red">已凍結</span>' : '<span class="tag tag-green">正常</span>'}</td><td class="text-xs text-slate-500 whitespace-nowrap">${fmt(a.created_at)}</td>${can("funds_write") ? `<td class="whitespace-nowrap space-x-1" data-aid="${esc(a.id)}"><button data-fa="credit" class="btn-ghost !h-7 !px-2.5 text-xs !text-emerald-700">加款</button><button data-fa="debit" class="btn-ghost !h-7 !px-2.5 text-xs">扣款</button><button data-fa="toggle" class="btn-ghost !h-7 !px-2.5 text-xs ${a.status === "frozen" ? "" : "!text-red-600"}">${a.status === "frozen" ? "解凍" : "凍結"}</button></td>` : ""}</tr>`).join("") || empty(7)}</tbody></table></div>` + (payoutsHtml || "")
       : `<div class="card overflow-x-auto"><table><thead><tr><th>郵箱 / 帳號</th><th>名稱</th><th class="text-right">錢包餘額 (USD)</th><th>註冊時間</th><th></th></tr></thead><tbody>${d.rows.map((u) => `<tr data-uid="${esc(u.id)}" class="cursor-pointer hover:bg-orange-50/40"><td class="font-semibold">${esc(u.email)}${u.is_test ? ' <span class="tag tag-slate">測試</span>' : ""}</td><td class="text-slate-600">${esc(u.name)}</td><td class="text-right font-bold">${usd(u.wallet_usd)}</td><td class="text-xs text-slate-500 whitespace-nowrap">${fmt(u.created_at)}</td><td class="text-xs text-orange-600">詳情 ›</td></tr>`).join("") || empty(5)}</tbody></table></div>`);
     bindFilter("members:" + pid, render);
@@ -414,12 +462,13 @@ async function platformsView() {
         <label class="flex items-center gap-2 h-9 text-sm"><input type="checkbox" data-k="enabled" ${p.enabled !== false ? "checked" : ""} class="accent-orange-500" />啟用</label></div>
       <div class="grid md:grid-cols-[1fr_1fr_1fr_auto] gap-3 items-end">
         <label class="text-xs text-slate-500">${p.kind === "giftray" ? "Giftray 後台管理 API 金鑰（ak_…）" : p.kind === "sifang" ? "四方平台 X-Api-Key（ak_…）" : "X-Hub-Key"}<input data-k="api_key" class="inp font-mono mt-1" value="${esc(p.api_key)}" placeholder="${["giftray", "sifang"].includes(p.kind) ? "ak_xxxxxxxx" : ""}" /></label>
-        <label class="text-xs text-slate-500">客服後台地址<input data-k="cs_url" class="inp mt-1" value="${esc(p.cs_url)}" /></label>
-        <label class="text-xs text-slate-500">平台後台地址（選填）<input data-k="admin_url" class="inp mt-1" value="${esc(p.admin_url)}" /></label>
-        <div class="flex gap-2"><button data-test="${i}" class="btn-ghost">測試連線</button><button data-del="${i}" class="btn-ghost !text-red-600">移除</button></div></div></div>`).join("") + `<button id="add" class="w-full h-14 rounded-2xl border-2 border-dashed border-slate-300 text-slate-400 hover:border-orange-400 hover:text-orange-500">＋ 新增平台</button>`;
+        <label class="text-xs text-slate-500">平台後台地址（嵌入用）<input data-k="admin_url" class="inp mt-1" value="${esc(p.admin_url)}" placeholder="https://lpw-888.com/admin" /></label>
+        <label class="text-xs text-slate-500">客服頁地址<input data-k="cs_url" class="inp mt-1" value="${esc(p.cs_url)}" placeholder="留空＝後台地址" /></label>
+        <div class="flex gap-2"><button data-test="${i}" class="btn-ghost">測試連線</button><button data-del="${i}" class="btn-ghost !text-red-600">移除</button></div></div>
+      <div class="grid md:grid-cols-3 gap-3"><label class="text-xs text-slate-500">訂單頁地址<input data-k="orders_url" class="inp mt-1" value="${esc(p.orders_url || "")}" placeholder="留空＝後台地址" /></label><label class="text-xs text-slate-500">充值頁地址<input data-k="topups_url" class="inp mt-1" value="${esc(p.topups_url || "")}" placeholder="留空＝後台地址" /></label><label class="text-xs text-slate-500">用戶頁地址<input data-k="members_url" class="inp mt-1" value="${esc(p.members_url || "")}" placeholder="留空＝後台地址" /></label></div></div>`).join("") + `<button id="add" class="w-full h-14 rounded-2xl border-2 border-dashed border-slate-300 text-slate-400 hover:border-orange-400 hover:text-orange-500">＋ 新增平台</button>`;
     const read = () => [...document.querySelectorAll("[data-row]")].map((el) => Object.fromEntries([...el.querySelectorAll("[data-k]")].map((inp) => [inp.dataset.k, inp.type === "checkbox" ? inp.checked : inp.value])));
     document.querySelectorAll('[data-k="kind"]').forEach((sel) => (sel.onchange = () => { rows = read(); draw(); }));
-    $("#add").onclick = () => { rows = [...read(), { id: "", name: "", base_url: "", api_key: "", cs_url: "", admin_url: "", kind: "shop", enabled: true }]; draw(); };
+    $("#add").onclick = () => { rows = [...read(), { id: "", name: "", base_url: "", api_key: "", cs_url: "", admin_url: "", orders_url: "", topups_url: "", members_url: "", kind: "shop", enabled: true }]; draw(); };
     document.querySelectorAll("[data-del]").forEach((b) => (b.onclick = () => { if (confirm("移除此平台？")) { rows = read().filter((_, j) => j !== +b.dataset.del); draw(); } }));
     document.querySelectorAll("[data-test]").forEach((b) => (b.onclick = async () => { const p = read()[+b.dataset.test]; b.disabled = true; try { await api("PUT", "/platforms", read()); const r = await api("POST", `/platforms/${p.id}/test`); r.ok ? toast(`連線成功：${r.platform?.name || p.name}，近 7 天 ${r.stats?.orders ?? 0} 筆訂單 / ${r.stats?.topups ?? 0} 筆充值`) : toast("連線失敗：" + r.error, true); } catch (e) { toast(e.message, true); } b.disabled = false; }));
     $("#save").onclick = async () => { try { rows = (await api("PUT", "/platforms", read())).platforms; draw(); await loadMe(); toast("已儲存"); } catch (e) { toast(e.message, true); } };
@@ -488,9 +537,15 @@ async function poll() {
   } catch {}
 }
 setInterval(poll, 8000);
+let csPrev = null;
+async function pollCs() {
+  if (!state.token || !can("cs")) return;
+  try { const d = await api("GET", "/cs-unread"); state.csUnread = d.total; const b = $("#cs-badge"); if (b) { b.textContent = d.total || ""; b.classList.toggle("hidden", !d.total); } if (csPrev !== null && d.total > csPrev) { beep(); toast(`客服有 ${d.total - csPrev} 則新訊息`); } csPrev = d.total; } catch {}
+}
+setInterval(pollCs, 10000);
 setInterval(() => state.alerts.length && beep(), 12000);
 window.addEventListener("hashchange", () => { state.page = location.hash.replace("#", "") || "dashboard"; render(); });
-(async () => { if (state.token) { try { await loadMe(); } catch { state.token = ""; localStorage.removeItem("hub_token"); } } render(); poll(); })();
+(async () => { if (state.token) { try { await loadMe(); } catch { state.token = ""; localStorage.removeItem("hub_token"); } } render(); poll(); pollCs(); })();
 </script>
 </body>
 </html>

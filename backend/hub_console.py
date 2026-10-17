@@ -16,6 +16,7 @@ from pydantic import BaseModel
 
 import base64
 import importlib
+from datetime import datetime, timedelta, timezone
 
 import admin_api
 import chat_api
@@ -122,9 +123,17 @@ async def _all_platforms() -> List[dict]:
     return [LOCAL] + [p for p in cfg["platforms"] if p.get("enabled", True)]
 
 
+LOCAL_URLS = {"admin_url": "/gg589-k7p2x", "cs_url": "/gg589-k7p2x?s=chat-sessions", "orders_url": "/gg589-k7p2x?s=giftcard-orders", "topups_url": "/gg589-k7p2x?s=topups", "members_url": "/gg589-k7p2x?s=members"}
+
+
+def _urls(p: dict) -> dict:
+    local = p["id"] == LOCAL["id"]
+    admin = p.get("admin_url") or ("" if not local else LOCAL_URLS["admin_url"])
+    return {k: (p.get(k) or (LOCAL_URLS[k] if local else admin)) for k in ("admin_url", "cs_url", "orders_url", "topups_url", "members_url")}
+
+
 async def _visible(me: dict) -> List[dict]:
-    return [{"id": p["id"], "name": p["name"], "kind": p.get("kind", "shop"), "origin": re.sub(r"^(https?://[^/]+).*$", r"\1", p.get("base_url") or ""), "cs_url": p.get("cs_url", "/gg589-k7p2x?s=chat-sessions" if p["id"] == LOCAL["id"] else ""),
-             "admin_url": p.get("admin_url", "/gg589-k7p2x" if p["id"] == LOCAL["id"] else "")} for p in await _all_platforms() if _allowed(me, p["id"])]
+    return [{"id": p["id"], "name": p["name"], "kind": p.get("kind", "shop"), "origin": re.sub(r"^(https?://[^/]+).*$", r"\1", p.get("base_url") or ""), **_urls(p)} for p in await _all_platforms() if _allowed(me, p["id"])]
 
 
 async def _plat(me: dict, pid: str) -> dict:
@@ -381,21 +390,29 @@ async def order_action(platform: str, oid: str, body: ActionIn, me: dict = Depen
     k, a = _k(p), body.action
     if k == "local":
         srv = _srv()
+        st_map = {"cancel": "cancelled", "processing": "processing", "ship": "shipped", "mark_completed": "completed", "exception": "exception", "set_status": body.remark and body.tx_id}
         if a == "complete":
             r = await srv.admin_confirm_topup(oid, admin=_actor(me))
         elif a == "reject_info":
             r = await srv.admin_reject_info(oid, srv.RejectInfoIn(reason=body.remark), admin=_actor(me))
-        elif a in ("cancel", "processing"):
-            r = await srv.admin_update_order(oid, srv.StatusUpdate(status="cancelled" if a == "cancel" else "processing", admin_note=body.remark or None), admin=_actor(me))
+        elif a == "set_status":
+            r = await srv.admin_update_order(oid, srv.StatusUpdate(status=body.tx_id, admin_note=body.remark or None), admin=_actor(me))
+        elif a in st_map:
+            r = await srv.admin_update_order(oid, srv.StatusUpdate(status=st_map[a], admin_note=body.remark or None), admin=_actor(me))
         else:
             raise HTTPException(status_code=400, detail="不支援的操作")
         res = {"ok": True, "status": r.get("status") if isinstance(r, dict) else None}
     elif k == "giftray":
-        st = {"complete": "completed", "processing": "processing", "cancel": "cancelled", "reject_info": "need_info"}.get(a)
-        if not st:
-            raise HTTPException(status_code=400, detail="不支援的操作")
-        await hub_giftray.post(p, f"/admin/orders/{oid}/status", {"status": st, "remark": body.remark})
-        res = {"ok": True, "status": st}
+        if a == "add_number_review":
+            res = {"ok": True, "result": await hub_giftray.post(p, f"/admin/orders/{oid}/add-number-review")}
+        elif a == "regenerate_txn":
+            res = {"ok": True, "result": await hub_giftray.post(p, f"/admin/orders/{oid}/txn", {"regenerate": True})}
+        else:
+            st = {"complete": "completed", "processing": "processing", "cancel": "cancelled", "reject_info": "need_info"}.get(a)
+            if not st:
+                raise HTTPException(status_code=400, detail="不支援的操作")
+            await hub_giftray.post(p, f"/admin/orders/{oid}/status", {"status": st, "remark": body.remark})
+            res = {"ok": True, "status": st}
     elif k == "sifang":
         if a != "manual_callback":
             raise HTTPException(status_code=400, detail="不支援的操作")
@@ -408,6 +425,8 @@ async def order_action(platform: str, oid: str, body: ActionIn, me: dict = Depen
     else:
         raise HTTPException(status_code=400, detail="此平台不支援遠端操作")
     await _log(me, p, "order:" + a, oid, body.remark or body.tx_id)
+    if body.remark:
+        await db.hub_order_notes.insert_one({"id": uuid.uuid4().hex, "platform": p["id"], "oid": oid, "by": me["user"], "text": body.remark, "action": a, "at": now_iso()})
     return res
 
 
@@ -712,8 +731,8 @@ async def order_note(platform: str, oid: str, body: NoteIn, me: dict = Depends(n
     p = await _plat(me, platform)
     k = _k(p)
     if k == "local":
-        r = await db.orders.update_one({"id": oid}, {"$set": {"admin_note": body.note}})
-        if not r.matched_count:
+        r = await db.orders.update_one({"id": oid}, {"$set": {"admin_note": body.note}}) if body.note else None
+        if r is not None and not r.matched_count:
             raise HTTPException(status_code=404, detail="訂單不存在")
     elif k == "giftray":
         if body.transaction_no:
@@ -726,7 +745,66 @@ async def order_note(platform: str, oid: str, body: NoteIn, me: dict = Depends(n
     else:
         raise HTTPException(status_code=400, detail="此平台不支援")
     await _log(me, p, "order:note", oid, body.note or body.transaction_no)
+    if body.note:
+        await db.hub_order_notes.insert_one({"id": uuid.uuid4().hex, "platform": p["id"], "oid": oid, "by": me["user"], "text": body.note, "action": "note", "at": now_iso()})
     return {"ok": True}
+
+
+@router.get("/orders/{platform}/{oid}/notes")
+async def order_notes(platform: str, oid: str, me: dict = Depends(need("orders"))):
+    p = await _plat(me, platform)
+    rows = await db.hub_order_notes.find({"platform": p["id"], "oid": oid}, {"_id": 0}).sort("at", -1).to_list(100)
+    if _k(p) == "local":
+        o = await db.orders.find_one({"id": oid}, {"_id": 0, "admin_note": 1, "confirmed_by": 1, "completed_at": 1}) or {}
+        if o.get("admin_note") and not any(r["text"] == o["admin_note"] for r in rows):
+            rows.append({"by": "原後台", "text": o["admin_note"], "action": "note", "at": o.get("completed_at")})
+    return {"rows": rows}
+
+
+# ----------------------------- cs unread + today strip -----------------------------
+@router.get("/cs-unread")
+async def cs_unread(me: dict = Depends(need("cs"))):
+    out, total = {}, 0
+    for p in await _all_platforms():
+        if not _allowed(me, p["id"]):
+            continue
+        try:
+            r = await _chats(p, "open")
+            out[p["id"]] = int(r.get("unread") or 0)
+            total += out[p["id"]]
+        except Exception:  # noqa: BLE001
+            out[p["id"]] = None
+    return {"total": total, "by_platform": out, "now": now_iso()}
+
+
+@router.get("/today")
+async def today_strip(me: dict = Depends(need("dashboard"))):
+    bj = timezone(timedelta(hours=8))
+    t0 = datetime.now(bj).replace(hour=0, minute=0, second=0, microsecond=0)
+    today, yday = t0.astimezone(timezone.utc).isoformat(), (t0 - timedelta(days=1)).astimezone(timezone.utc).isoformat()
+    cfg = await hub_api.get_cfg()
+    rows, errors = [], []
+    for p in await _all_platforms():
+        if not _allowed(me, p["id"]):
+            continue
+        try:
+            if _k(p) == "sifang":
+                os_ = [hub_sifang._row(o) for o in await hub_sifang._orders(p)]
+                def agg(a, b):
+                    pd = [o for o in os_ if o["status"] == "paid" and a <= (o["paid_at"] or "") < b]
+                    return {"rev": round(sum(o["amount_usdt"] for o in pd), 2), "orders": len(pd), "topup": 0}
+                rows.append({"platform": {"id": p["id"], "name": p["name"], "kind": "sifang"}, "today": agg(today, "9"), "yday": agg(yday, today), "unit": "USDT"})
+                continue
+            o = (await hub_api.hub_orders(status="", size=500, x_hub_key=cfg["inbound_key"]) if _k(p) == "local" else await hub_api._remote(p, "/hub/orders", {"size": 500}))["rows"]
+            t = (await hub_api.hub_topups(status="", size=500, x_hub_key=cfg["inbound_key"]) if _k(p) == "local" else await hub_api._remote(p, "/hub/topups", {"size": 500}))["rows"]
+            def agg2(a, b):
+                po = [x for x in o if x.get("paid_at") and a <= x["paid_at"] < b and x.get("status") not in ("cancelled", "refunded")]
+                pt = [x for x in t if x.get("status") in ("approved", "paid", "completed") and a <= (x.get("paid_at") or x.get("created_at") or "") < b]
+                return {"rev": round(sum(float(x.get("amount_usd") or 0) for x in po), 2), "orders": len(po), "topup": round(sum(float(x.get("amount_usd") or 0) for x in pt), 2)}
+            rows.append({"platform": {"id": p["id"], "name": p["name"], "kind": _k(p)}, "today": agg2(today, "9"), "yday": agg2(yday, today), "unit": "USD"})
+        except Exception as e:  # noqa: BLE001
+            errors.append({"platform": p["id"], "name": p["name"], "error": getattr(e, "detail", str(e))})
+    return {"rows": rows, "errors": errors, "bj_date": t0.strftime("%Y-%m-%d")}
 
 
 # ----------------------------- member detail / actions -----------------------------

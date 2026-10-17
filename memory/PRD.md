@@ -179,3 +179,10 @@
 - 批量：`POST /orders|topups/{platform}/batch` {ids, action, remark} 逐筆呼叫單筆處理，回 {ok, failed[]}；前端表格勾選 + 底部批量列。
 - UI：用戶行點開檔案抽屜（基本資料、加款/扣款/停用、全部訂單可點開、充值、餘額變動）。
 - 驗證：playwright（本站加扣款 ±5 餘額正確回復、Giftray 用戶詳情讀取、批量標記處理中、附圖回覆入庫、轉接徽章與「我的」篩選）通過。
+
+## [2026-06] 四頁改為「進入原平台後台頁面」（用戶最終要求）+ 客服未讀提醒 / 今日 vs 昨日 / 備註歷史 / 匯出 / 原平台操作流程
+- 訂單/充值/客服/用戶 四頁預設以 iframe 嵌入各平台原後台頁（`embedView`，右上可切換回內建工作台，偏好存 localStorage hub_embed）。平台 URL 欄位新增 orders_url / topups_url / members_url（PlatformIn），本站預設 /gg589-k7p2x?s=giftcard-orders|topups|members|chat-sessions；其他平台留空時用 admin_url。Giftray/四方皆無 X-Frame-Options，可嵌入；Giftray `https://lpw-888.com/admin` 會跳回商城首頁，正確後台網址待用戶提供。
+- 內建工作台的訂單操作改為鏡像原後台：本站 確認充值完成 / 駁回充值資料 / 開始充值 / 確認人工發貨 / 標記已完成 / 標記異常 / 取消訂單 / 直接改狀態（action: ship, mark_completed, exception, set_status）；Giftray 完成 / 開始處理 / 退回填寫 / 取消退款 / 補號並重審 / 重新產生交易號。
+- 備註歷史 db.hub_order_notes（每筆帶操作者與時間，含操作附帶原因）；`GET/POST /orders/{p}/{oid}/notes|note`。
+- `GET /cs-unread`（側欄客服徽章 + 新訊息提示音，10 秒輪詢）、`GET /today`（數據概覽合計頁「今日 vs 昨日」條，北京日切）、前端 CSV 匯出（篩選結果，BOM，Excel 可開）。
+- 日報：用戶選擇不要發送，未做。
