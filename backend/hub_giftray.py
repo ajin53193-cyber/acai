@@ -166,3 +166,11 @@ async def messages(p: dict, sid: str) -> dict:
     d = await _get(p, f"/admin/chat/sessions/{sid}/messages")
     _cache.pop(f"{p['id']}|/admin/chat/sessions/{sid}/messages|[]", None)
     return {"messages": [_msg(m) for m in (d.get("messages") or [])], "session": d.get("session") or {}}
+
+
+async def upload(p: dict, data: bytes, name: str) -> str:
+    async with httpx.AsyncClient(timeout=30) as c:
+        r = await c.post(p["base_url"].rstrip("/") + "/admin/chat/upload", files={"file": (name, data)}, headers={"X-Admin-Api-Key": p.get("api_key", "")})
+    if r.status_code >= 400:
+        raise HTTPException(status_code=400, detail=f"{p['name']} 圖片上傳失敗 {r.status_code}")
+    return r.json().get("url", "")

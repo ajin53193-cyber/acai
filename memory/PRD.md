@@ -171,3 +171,11 @@
 - 後端新增：`GET /orders/{platform}/{oid}`（詳情：items/fields/need_fields/timeline/admin_note/transaction_no/extra；local 讀 db.orders；giftray 從 /admin/orders 快取找；sifang /orders/{no}）、`GET /topups/{platform}/{tid}`（網絡/地址/tx_hash/憑證 proof_image/bank/extra）、`GET /chats/{platform}/{sid}/customer`（客戶 + 最近訂單/充值）、`GET /chats/{platform}/quick-replies`、`POST /orders/{platform}/{oid}/note`（備註 / Giftray 交易號）。`/me` 平台含 origin 供相對圖片 URL 補全。
 - 前端：訂單/充值列表點行開右側詳情抽屜（含大按鈕操作）；客服改三欄工作台（列表 + 對話 + 客戶資料），Enter 送出、快捷回覆、結束/重開、5 秒輪詢、未讀增加提示音；新訂單彈窗「查看訂單」直接開詳情。
 - 驗證：playwright 全流程（gogo589 + Giftray 真實資料讀取、本站回覆）通過。patch.zip 已更新。
+
+## [2026-06] 用戶檔案與調整 / 客服轉接與圖片回覆 / 批量處理（日報用戶選「不要發」，未做）
+- 權限新增 members_write（用戶管理操作）。
+- `GET /members/{platform}/{uid}`（local: users+orders+topups+wallet_transactions；giftray: /admin/users/{uid}/detail；sifang: 帳戶 + 其收款單）、`POST /members/{platform}/{uid}/action` {adjust|disable|enable}（local: server._wallet_tx + admin_api ban/unban；giftray: /balance {delta HKD} 與 /disable）。
+- 客服：`ReplyIn` 支援 image_b64（local 直傳；giftray 先 /admin/chat/upload 再發 image URL）與 image_url（sifang 貼網址）；`GET /cs-agents`、`POST /chats/{p}/{sid}/assign` 存 db.hub_chat_assign（總後台內部指派，三平台通用），列表帶 hub_assigned、「我的」篩選。
+- 批量：`POST /orders|topups/{platform}/batch` {ids, action, remark} 逐筆呼叫單筆處理，回 {ok, failed[]}；前端表格勾選 + 底部批量列。
+- UI：用戶行點開檔案抽屜（基本資料、加款/扣款/停用、全部訂單可點開、充值、餘額變動）。
+- 驗證：playwright（本站加扣款 ±5 餘額正確回復、Giftray 用戶詳情讀取、批量標記處理中、附圖回覆入庫、轉接徽章與「我的」篩選）通過。

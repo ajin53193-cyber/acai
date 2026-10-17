@@ -14,8 +14,10 @@ from fastapi import APIRouter, Depends, Header, HTTPException
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
+import base64
 import importlib
 
+import admin_api
 import chat_api
 import hub_api
 import hub_giftray
@@ -29,7 +31,7 @@ router = APIRouter(prefix="/api/hub-admin")
 page_router = APIRouter()
 _fails: Dict[str, List[float]] = {}
 HUB_ACTOR = {"user_id": "hub-console", "email": "hub-console"}
-MODULES = ["dashboard", "orders", "orders_write", "topups", "topups_write", "cs", "cs_write", "members", "funds_write", "platforms", "admins"]
+MODULES = ["dashboard", "orders", "orders_write", "topups", "topups_write", "cs", "cs_write", "members", "members_write", "funds_write", "platforms", "admins"]
 LOCAL = {**hub_api.LOCAL, "kind": "local"}
 META_STATUS = {"_pending": ("paid", "processing", "shipped", "need_info"), "_done": ("completed",), "_closed": ("cancelled", "refunded", "failed", "pending_payment")}
 TOPUP_META = {"_pending": ("reviewing", "pending"), "_done": ("approved", "paid", "completed"), "_closed": ("rejected", "expired", "failed", "cancelled")}
@@ -225,9 +227,20 @@ async def members(platform: str, q: str = "", size: int = 200, me: dict = Depend
     return {"kind": "shop", "platform": {"id": p["id"], "name": p["name"]}, "rows": r.get("rows", [])}
 
 
+async def _with_assign(p: dict, res: dict) -> dict:
+    amap = {a["sid"]: a["admin"] async for a in db.hub_chat_assign.find({"platform": p["id"]}, {"_id": 0})}
+    for r in res.get("rows", []):
+        r["hub_assigned"] = amap.get(r.get("id") or r.get("order_no") or "", "")
+    return res
+
+
 @router.get("/chats")
 async def chats(platform: str, status: str = "open", me: dict = Depends(need("cs"))):
     p = await _plat(me, platform)
+    return await _with_assign(p, await _chats(p, status))
+
+
+async def _chats(p: dict, status: str) -> dict:
     url = (p.get("cs_url") or "") if _k(p) != "local" else "/gg589-k7p2x?s=chat-sessions"
     if _k(p) == "sifang":
         r = await hub_sifang.thread_list(p, status)
@@ -436,24 +449,57 @@ async def chat_messages(platform: str, sid: str, me: dict = Depends(need("cs")))
 
 
 class ReplyIn(BaseModel):
-    text: str
+    text: str = ""
+    image_b64: str = ""
+    image_name: str = "image.jpg"
+    image_url: str = ""
 
 
 @router.post("/chats/{platform}/{sid}/reply")
 async def chat_reply(platform: str, sid: str, body: ReplyIn, me: dict = Depends(need("cs_write"))):
     p = await _plat(me, platform)
     k, text = _k(p), body.text.strip()
-    if not text:
-        raise HTTPException(status_code=400, detail="請輸入內容")
+    if not text and not body.image_b64 and not body.image_url:
+        raise HTTPException(status_code=400, detail="請輸入內容或附上圖片")
+    if body.image_b64 and len(body.image_b64) > 11_000_000:
+        raise HTTPException(status_code=400, detail="圖片請小於 8MB")
     if k == "local":
-        await chat_api.admin_send(sid, chat_api.AdminMessageIn(text=text), admin=_actor(me))
+        await chat_api.admin_send(sid, chat_api.AdminMessageIn(text=text, image_b64=body.image_b64, image_name=body.image_name), admin=_actor(me))
     elif k == "giftray":
-        await hub_giftray.post(p, f"/admin/chat/sessions/{sid}/messages", {"text": text})
+        url = body.image_url
+        if body.image_b64:
+            raw = body.image_b64.split(",", 1)[-1]
+            url = await hub_giftray.upload(p, base64.b64decode(raw), body.image_name or "image.jpg")
+        await hub_giftray.post(p, f"/admin/chat/sessions/{sid}/messages", {k2: v for k2, v in {"text": text, "image": url}.items() if v})
     elif k == "sifang":
-        await hub_sifang.post(p, f"/support/threads/{sid}/reply", {"text": text, "sender_name": "總後台 " + me["user"]})
+        if body.image_b64:
+            raise HTTPException(status_code=400, detail="四方平台僅支援圖片網址，請貼圖片 URL")
+        await hub_sifang.post(p, f"/support/threads/{sid}/reply", {k2: v for k2, v in {"text": text, "sender_name": "總後台 " + me["user"], "image": body.image_url}.items() if v})
     else:
         raise HTTPException(status_code=400, detail="此平台不支援")
-    await _log(me, p, "chat:reply", sid, text)
+    await _log(me, p, "chat:reply", sid, text or "[圖片]")
+    return {"ok": True}
+
+
+class AssignIn(BaseModel):
+    admin: str = ""
+
+
+@router.get("/cs-agents")
+async def cs_agents(me: dict = Depends(need("cs"))):
+    su, _, _ = _cfg()
+    rows = [a["username"] async for a in db.hub_admins.find({"enabled": True, "modules": "cs_write"}, {"_id": 0, "username": 1})]
+    return {"agents": [su] + rows}
+
+
+@router.post("/chats/{platform}/{sid}/assign")
+async def chat_assign(platform: str, sid: str, body: AssignIn, me: dict = Depends(need("cs_write"))):
+    p = await _plat(me, platform)
+    if body.admin:
+        await db.hub_chat_assign.update_one({"platform": p["id"], "sid": sid}, {"$set": {"admin": body.admin, "by": me["user"], "at": now_iso()}}, upsert=True)
+    else:
+        await db.hub_chat_assign.delete_one({"platform": p["id"], "sid": sid})
+    await _log(me, p, "chat:assign", sid, body.admin or "取消指派")
     return {"ok": True}
 
 
@@ -681,6 +727,110 @@ async def order_note(platform: str, oid: str, body: NoteIn, me: dict = Depends(n
         raise HTTPException(status_code=400, detail="此平台不支援")
     await _log(me, p, "order:note", oid, body.note or body.transaction_no)
     return {"ok": True}
+
+
+# ----------------------------- member detail / actions -----------------------------
+@router.get("/members/{platform}/{uid}")
+async def member_detail(platform: str, uid: str, me: dict = Depends(need("members"))):
+    p = await _plat(me, platform)
+    k = _k(p)
+    if k == "local":
+        u = await db.users.find_one({"user_id": uid}, {"_id": 0})
+        if not u:
+            raise HTTPException(status_code=404, detail="會員不存在")
+        orders = [hub_api._order_row(o) for o in await db.orders.find({"user_id": uid}, {"_id": 0}).sort("created_at", -1).to_list(200)]
+        topups = [{"id": t["id"], "order_no": t.get("out_trade_no") or t["id"], "status": t.get("status"), "amount_usd": float(t.get("amount_usd") or 0), "items": [t.get("method_name") or t.get("network") or ""], "created_at": t.get("created_at")} for t in await db.topup_orders.find({"user_id": uid}, {"_id": 0}).sort("created_at", -1).to_list(200)]
+        txs = [{"at": x.get("created_at"), "kind": x.get("kind"), "amount": float(x.get("amount_usd") or 0), "after": float(x.get("balance_after_usd") or 0), "note": x.get("note") or ""} for x in await db.wallet_transactions.find({"user_id": uid}, {"_id": 0}).sort("created_at", -1).to_list(50)]
+        return {"kind": "shop", "user": {"id": uid, "email": u.get("email", ""), "name": u.get("name") or (u.get("profile") or {}).get("name") or "", "phone": u.get("phone", ""), "wallet_usd": float(u.get("wallet_balance_usd") or 0), "wallet_label": "", "disabled": bool(u.get("banned")), "ban_reason": u.get("ban_reason", ""), "is_test": bool(u.get("is_test")), "created_at": u.get("created_at"), "level": u.get("level_name") or "", "points": u.get("points")},
+                "orders": orders, "topups": topups, "wallet_tx": txs, "currency": "USD"}
+    if k == "giftray":
+        d = await hub_giftray._get(p, f"/admin/users/{uid}/detail")
+        rate = await hub_giftray._rate(p)
+        u = d.get("user") or {}
+        return {"kind": "shop", "user": {"id": u.get("id") or uid, "email": u.get("account") or u.get("email") or "", "name": u.get("name") or "", "phone": u.get("phone", ""), "wallet_usd": hub_giftray._usd(u.get("balance"), rate), "wallet_label": _hk(u.get("balance"), rate), "wallet_hkd": float(u.get("balance") or 0), "disabled": bool(u.get("disabled")), "ban_reason": "", "is_test": bool(u.get("isTest")), "created_at": u.get("createdAt"), "level": u.get("role") or "", "twofa": bool(u.get("twofa_enabled"))},
+                "orders": [hub_giftray._order_row(o, rate) for o in d.get("orders") or []], "topups": [hub_giftray._topup_row(t) for t in d.get("recharges") or []], "wallet_tx": [], "currency": "HKD"}
+    if k == "sifang":
+        a = next((x for x in (await hub_sifang.account_list(p, ""))["rows"] if str(x["id"]) == uid), None)
+        if not a:
+            raise HTTPException(status_code=404, detail="帳戶不存在")
+        rows = [o for o in (await hub_sifang.order_list(p, "", "", "", "", 500))["rows"] if o["merchant_id"] == uid or o["merchant_name"] == a["name"]]
+        return {"kind": "sifang", "user": {**a, "disabled": a.get("status") == "frozen"}, "orders": rows, "topups": [], "wallet_tx": [], "currency": "USDT"}
+    raise HTTPException(status_code=400, detail="此平台不支援")
+
+
+class MemberActIn(BaseModel):
+    action: str
+    amount: float = 0
+    remark: str = ""
+
+
+@router.post("/members/{platform}/{uid}/action")
+async def member_action(platform: str, uid: str, body: MemberActIn, me: dict = Depends(need("members_write"))):
+    p = await _plat(me, platform)
+    k, a = _k(p), body.action
+    if k == "local":
+        if a == "adjust":
+            if not body.amount:
+                raise HTTPException(status_code=400, detail="金額不可為 0")
+            bal = await _srv()._wallet_tx(uid, "admin_adjust", float(body.amount), f"總後台 {me['user']}：{body.remark}".strip("：")) 
+            res = {"ok": True, "balance": bal}
+        elif a == "disable":
+            await admin_api.admin_member_ban(uid, admin_api.BanIn(reason=body.remark or f"總後台 {me['user']} 停用"), admin=_actor(me))
+            res = {"ok": True}
+        elif a == "enable":
+            await admin_api.admin_member_unban(uid, admin=_actor(me))
+            res = {"ok": True}
+        else:
+            raise HTTPException(status_code=400, detail="不支援的操作")
+    elif k == "giftray":
+        if a == "adjust":
+            if not body.amount:
+                raise HTTPException(status_code=400, detail="金額不可為 0")
+            res = {"ok": True, **(await hub_giftray.post(p, f"/admin/users/{uid}/balance", {"delta": float(body.amount)}) or {})}
+        elif a in ("disable", "enable"):
+            await hub_giftray.post(p, f"/admin/users/{uid}/disable", {"disabled": a == "disable"})
+            res = {"ok": True}
+        else:
+            raise HTTPException(status_code=400, detail="不支援的操作")
+    else:
+        raise HTTPException(status_code=400, detail="四方商戶請使用「資金操作」")
+    await _log(me, p, "member:" + a, uid, f"{body.amount} {body.remark}".strip())
+    return res
+
+
+# ----------------------------- batch -----------------------------
+class BatchIn(BaseModel):
+    ids: List[str]
+    action: str
+    remark: str = ""
+
+
+@router.post("/orders/{platform}/batch")
+async def orders_batch(platform: str, body: BatchIn, me: dict = Depends(need("orders_write"))):
+    ok, failed = 0, []
+    for oid in body.ids[:200]:
+        try:
+            await order_action(platform, oid, ActionIn(action=body.action, remark=body.remark), me=me)
+            ok += 1
+        except HTTPException as e:
+            failed.append({"id": oid, "detail": e.detail})
+        except Exception as e:  # noqa: BLE001
+            failed.append({"id": oid, "detail": str(e)[:120]})
+    return {"ok": ok, "failed": failed}
+
+
+@router.post("/topups/{platform}/batch")
+async def topups_batch(platform: str, body: BatchIn, me: dict = Depends(need("topups_write"))):
+    ok, failed = 0, []
+    for tid in body.ids[:200]:
+        try:
+            await topup_action(platform, tid, ActionIn(action=body.action, remark=body.remark), me=me)
+            ok += 1
+        except HTTPException as e:
+            failed.append({"id": tid, "detail": e.detail})
+        except Exception as e:  # noqa: BLE001
+            failed.append({"id": tid, "detail": str(e)[:120]})
+    return {"ok": ok, "failed": failed}
 
 
 @router.get("/ui", include_in_schema=False)
