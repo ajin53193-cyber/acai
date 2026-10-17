@@ -1,0 +1,188 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>總後台 · 多平台管理</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet" />
+<style>
+  body { font-family: "Noto Sans TC", system-ui, sans-serif; background: #F6F2EC; }
+  .tag { display:inline-flex; align-items:center; border-radius:6px; padding:2px 6px; font-size:11px; font-weight:700; }
+  .tag-blue { background:#E0F2FE; color:#0369A1 } .tag-orange { background:#FFEDD5; color:#C2410C } .tag-green { background:#DCFCE7; color:#15803D } .tag-slate { background:#F1F5F9; color:#475569 } .tag-red { background:#FEE2E2; color:#B91C1C }
+  .nav-btn { display:flex; align-items:center; gap:10px; width:100%; padding:10px 14px; border-radius:10px; font-size:14px; color:#CBD5E1; }
+  .nav-btn:hover { background:#1E293B; color:#fff } .nav-btn.active { background:#F97316; color:#fff; font-weight:700 }
+  .card { background:#fff; border-radius:16px; box-shadow:0 1px 2px rgba(15,23,42,.06); }
+  .inp { height:36px; border-radius:10px; background:#F1F5F9; padding:0 12px; font-size:14px; outline:none; width:100% } .inp:focus { box-shadow:0 0 0 2px #FDBA74 }
+  .btn { height:36px; padding:0 16px; border-radius:999px; background:#F97316; color:#fff; font-weight:700; font-size:14px } .btn:hover{background:#EA580C} .btn:disabled{opacity:.5}
+  .btn-ghost { height:36px; padding:0 14px; border-radius:999px; border:1px solid #E2E8F0; color:#475569; font-size:14px; background:#fff } .btn-ghost:hover{background:#F8FAFC}
+  table { width:100%; font-size:14px } th { text-align:left; font-size:12px; color:#64748B; padding:10px 14px; background:#F8FAFC; border-bottom:1px solid #E2E8F0; white-space:nowrap } td { padding:10px 14px; border-bottom:1px solid #F1F5F9; vertical-align:top }
+  @keyframes wiggle { 0%,100%{transform:rotate(-12deg)} 50%{transform:rotate(12deg)} }
+</style>
+</head>
+<body class="text-slate-800">
+<div id="app"></div>
+<script>
+const $ = (s) => document.querySelector(s);
+const state = { token: localStorage.getItem("hub_token") || "", user: localStorage.getItem("hub_user") || "", page: location.hash.replace("#", "") || "dash", plats: [], days: 30, since: null, alerts: [], sound: localStorage.getItem("hub_sound") !== "0" };
+const api = async (method, url, data) => {
+  const r = await fetch("/api" + url, { method, headers: { "Content-Type": "application/json", Authorization: "Bearer " + state.token }, body: data ? JSON.stringify(data) : undefined });
+  if (r.status === 401 && state.token) { logout(); throw new Error("請重新登入"); }
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(j.detail || "請求失敗");
+  return j;
+};
+const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const usd = (v) => "$" + Number(v || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const fmt = (s) => s ? new Date(s).toLocaleString("zh-TW", { hour12: false }) : "-";
+const STATUS = { completed: ["已完成", "green"], approved: ["已到帳", "green"], paid: ["已支付", "orange"], processing: ["處理中", "orange"], shipped: ["已發貨", "orange"], reviewing: ["審核中", "orange"], pending: ["待支付", "slate"], pending_payment: ["待支付", "slate"], cancelled: ["已取消", "slate"], rejected: ["已拒絕", "red"], failed: ["失敗", "red"], refunded: ["已退款", "slate"] };
+const KIND = { order: "商品訂單", giftcard: "禮品卡", topup: "充值" };
+const ptag = (p) => `<span class="tag ${p?.kind === "topup" ? "tag-green" : "tag-blue"}">${esc(p?.name || p?.id || "-")}</span>`;
+const stag = (s) => { const [l, t] = STATUS[s] || [s || "-", "slate"]; return `<span class="tag tag-${t}">${esc(l)}</span>`; };
+const toast = (msg, bad) => { const d = document.createElement("div"); d.className = `fixed top-4 right-4 z-[99] rounded-xl px-4 py-2.5 text-sm font-semibold shadow-lg ${bad ? "bg-red-600 text-white" : "bg-slate-900 text-white"}`; d.textContent = msg; document.body.appendChild(d); setTimeout(() => d.remove(), 2600); };
+const logout = () => { state.token = ""; localStorage.removeItem("hub_token"); render(); };
+const beep = () => { if (!state.sound) return; try { const ctx = new (window.AudioContext || window.webkitAudioContext)(); [0, 0.18, 0.36].forEach((t, i) => { const o = ctx.createOscillator(), g = ctx.createGain(); o.connect(g); g.connect(ctx.destination); o.frequency.value = [880, 1175, 1480][i]; g.gain.setValueAtTime(0.0001, ctx.currentTime + t); g.gain.exponentialRampToValueAtTime(0.25, ctx.currentTime + t + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + t + 0.16); o.start(ctx.currentTime + t); o.stop(ctx.currentTime + t + 0.18); }); } catch {} };
+
+const NAV = [["dash", "數據概覽", "📊"], ["orders", "訂單 / 充值", "🧾"], ["members", "會員", "👥"], ["cs", "客服", "💬"], ["platforms", "平台接入", "🔌"]];
+
+function render() {
+  const app = $("#app");
+  if (!state.token) { app.innerHTML = loginView(); return; }
+  app.innerHTML = `
+  <div class="min-h-screen flex">
+    <aside class="w-56 bg-slate-900 text-white flex flex-col p-3 shrink-0">
+      <div class="px-3 py-3 mb-2"><div class="font-black text-lg">總後台</div><div class="text-xs text-slate-400">多平台統一管理</div></div>
+      ${NAV.map(([k, l, ic]) => `<button data-nav="${k}" class="nav-btn ${state.page === k ? "active" : ""}"><span>${ic}</span>${l}</button>`).join("")}
+      <div class="mt-auto px-3 pt-3 border-t border-slate-800 text-xs text-slate-400 flex items-center justify-between"><span>${esc(state.user)}</span><button id="logout" class="hover:text-white">登出</button></div>
+      <button id="sound" class="mt-2 text-xs text-slate-400 hover:text-white text-left px-3">${state.sound ? "🔔 新訂單提示音：開" : "🔕 新訂單提示音：關"}</button>
+    </aside>
+    <main class="flex-1 p-6 overflow-x-auto" id="main"></main>
+  </div>
+  <div id="alert"></div>`;
+  app.querySelectorAll("[data-nav]").forEach((b) => (b.onclick = () => { state.page = b.dataset.nav; location.hash = state.page; render(); }));
+  $("#logout").onclick = logout;
+  $("#sound").onclick = () => { state.sound = !state.sound; localStorage.setItem("hub_sound", state.sound ? "1" : "0"); render(); };
+  ({ dash: dashView, orders: ordersView, members: membersView, cs: csView, platforms: platformsView })[state.page]();
+  renderAlert();
+}
+
+function loginView() {
+  setTimeout(() => { $("#login-form").onsubmit = async (e) => { e.preventDefault(); const b = $("#login-btn"); b.disabled = true; try { const r = await api("POST", "/login", { username: $("#u").value.trim(), password: $("#p").value }); state.token = r.token; state.user = r.user; localStorage.setItem("hub_token", r.token); localStorage.setItem("hub_user", r.user); render(); loadPlats(); } catch (err) { $("#login-err").textContent = err.message; } b.disabled = false; }; });
+  return `<div class="min-h-screen flex items-center justify-center p-6"><form id="login-form" class="card w-full max-w-sm p-8 space-y-4">
+    <div><div class="font-black text-2xl">總後台登入</div><div class="text-sm text-slate-500 mt-1">多平台訂單 / 充值 / 會員 / 統計 統一管理</div></div>
+    <input id="u" class="inp" placeholder="帳號" autocomplete="username" required />
+    <input id="p" class="inp" type="password" placeholder="密碼" autocomplete="current-password" required />
+    <div id="login-err" class="text-xs text-red-600 min-h-[16px]"></div>
+    <button id="login-btn" class="btn w-full">登入</button></form></div>`;
+}
+
+async function loadPlats() { try { state.plats = (await api("GET", "/platforms")).platforms.filter((p) => p.enabled !== false); } catch {} }
+const platSelect = (v) => `<select id="f-plat" class="inp !w-44"><option value="all">全部平台</option>${state.plats.map((p) => `<option value="${esc(p.id)}" ${v === p.id ? "selected" : ""}>${esc(p.name)}</option>`).join("")}</select>`;
+const errBox = (errs) => errs?.length ? `<div class="mb-3 rounded-xl bg-red-50 text-red-700 text-xs px-3 py-2">${errs.map((e) => esc(e.name + "：" + e.error)).join("；")}</div>` : "";
+
+async function dashView() {
+  const m = $("#main");
+  m.innerHTML = `<div class="flex items-center justify-between mb-5"><div><h1 class="text-2xl font-black">數據概覽</h1><div class="text-sm text-slate-500">所有平台的營收、訂單、充值與會員匯總</div></div>
+    <div class="inline-flex rounded-xl bg-white p-1 shadow-sm">${[7, 30, 90].map((d) => `<button data-days="${d}" class="h-8 px-3 rounded-lg text-sm font-semibold ${state.days === d ? "bg-orange-500 text-white" : "text-slate-500"}">近 ${d} 天</button>`).join("")}</div></div><div id="dash-body" class="text-slate-400 text-sm">載入中…</div>`;
+  m.querySelectorAll("[data-days]").forEach((b) => (b.onclick = () => { state.days = +b.dataset.days; dashView(); }));
+  try {
+    const d = await api("GET", `/stats?days=${state.days}`);
+    const cols = [["revenue_usd", "營收", 1], ["orders", "訂單"], ["topup_usd", "充值金額", 1], ["topups", "充值筆數"], ["new_members", "新會員"], ["members", "會員總數"], ["pending_orders", "待處理訂單"], ["pending_topups", "待審充值"], ["open_chats", "未讀客服"]];
+    const cell = (v, u) => (u ? usd(v) : Number(v || 0).toLocaleString());
+    $("#dash-body").innerHTML = errBox(d.errors) + `
+      <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-5">${[["總營收", usd(d.total.revenue_usd)], ["總訂單", d.total.orders], ["總充值", usd(d.total.topup_usd)], ["會員總數", d.total.members]].map(([l, v]) => `<div class="card p-5"><div class="text-xs text-slate-500">${l}</div><div class="text-2xl font-black mt-1">${v}</div></div>`).join("")}</div>
+      <div class="card overflow-x-auto"><table><thead><tr><th>平台</th>${cols.map(([, l]) => `<th class="text-right">${l}</th>`).join("")}</tr></thead><tbody>
+        ${d.platforms.map((p) => `<tr><td>${ptag(p.platform)}</td>${cols.map(([k, , u]) => `<td class="text-right">${cell(p[k], u)}</td>`).join("")}</tr>`).join("") || `<tr><td colspan="10" class="text-center text-slate-400 py-8">尚未接入任何平台，請到「平台接入」新增</td></tr>`}
+        ${d.platforms.length ? `<tr class="bg-orange-50 font-bold"><td>合計</td>${cols.map(([k, , u]) => `<td class="text-right">${cell(d.total[k], u)}</td>`).join("")}</tr>` : ""}</tbody></table></div>`;
+  } catch (e) { $("#dash-body").innerHTML = `<div class="text-red-600 text-sm">${esc(e.message)}</div>`; }
+}
+
+async function ordersView(f = { plat: "all", kind: "all", q: "" }) {
+  const m = $("#main");
+  m.innerHTML = `<h1 class="text-2xl font-black mb-1">訂單 / 充值</h1><div class="text-sm text-slate-500 mb-4">各平台訂單與充值記錄合併顯示</div>
+    <div class="flex flex-wrap items-center gap-2 mb-3">${platSelect(f.plat)}<div class="inline-flex rounded-xl bg-white p-1 shadow-sm">${[["all", "全部"], ["order", "商品訂單"], ["giftcard", "禮品卡"], ["topup", "充值"]].map(([k, l]) => `<button data-kind="${k}" class="h-8 px-3 rounded-lg text-xs font-semibold ${f.kind === k ? "bg-orange-500 text-white" : "text-slate-500"}">${l}</button>`).join("")}</div>
+    <input id="f-q" class="inp !w-60" placeholder="訂單號 / 用戶 / 商品" value="${esc(f.q)}" /><button id="f-go" class="btn-ghost">查詢</button></div><div id="list" class="text-sm text-slate-400">載入中…</div>`;
+  const read = () => ({ plat: $("#f-plat").value, kind: f.kind, q: $("#f-q").value.trim() });
+  m.querySelectorAll("[data-kind]").forEach((b) => (b.onclick = () => ordersView({ ...read(), kind: b.dataset.kind })));
+  $("#f-go").onclick = () => ordersView(read()); $("#f-plat").onchange = () => ordersView(read()); $("#f-q").onkeydown = (e) => e.key === "Enter" && ordersView(read());
+  try {
+    const d = await api("GET", `/orders?platform=${f.plat}&kind=${f.kind}&q=${encodeURIComponent(f.q)}&size=200`);
+    $("#list").innerHTML = errBox(d.errors) + `<div class="card overflow-x-auto"><table><thead><tr><th>平台</th><th>類型</th><th>訂單號</th><th>用戶</th><th>商品 / 方式</th><th class="text-right">金額 (USD)</th><th>狀態</th><th>時間</th></tr></thead><tbody>
+      ${d.rows.map((r) => `<tr><td>${ptag(r.platform)}</td><td class="text-slate-500 text-xs">${KIND[r.type] || esc(r.type)}</td><td class="font-semibold whitespace-nowrap">${esc(r.order_no)}</td><td class="text-slate-600">${esc(r.user)}</td><td class="text-slate-600 max-w-[280px] truncate">${esc((r.items || []).join("、"))}</td><td class="text-right font-bold">${usd(r.amount_usd)}</td><td>${stag(r.status)}</td><td class="text-xs text-slate-500 whitespace-nowrap">${fmt(r.created_at)}</td></tr>`).join("") || `<tr><td colspan="8" class="text-center text-slate-400 py-8">暫無數據</td></tr>`}</tbody></table></div>`;
+  } catch (e) { $("#list").innerHTML = `<div class="text-red-600">${esc(e.message)}</div>`; }
+}
+
+async function membersView(f = { plat: "all", q: "" }) {
+  const m = $("#main");
+  m.innerHTML = `<h1 class="text-2xl font-black mb-1">會員</h1><div class="text-sm text-slate-500 mb-4">各平台會員各自獨立，這裡合併查看</div>
+    <div class="flex flex-wrap items-center gap-2 mb-3">${platSelect(f.plat)}<input id="f-q" class="inp !w-60" placeholder="搜尋郵箱" value="${esc(f.q)}" /><button id="f-go" class="btn-ghost">查詢</button></div><div id="list" class="text-sm text-slate-400">載入中…</div>`;
+  const read = () => ({ plat: $("#f-plat").value, q: $("#f-q").value.trim() });
+  $("#f-go").onclick = () => membersView(read()); $("#f-plat").onchange = () => membersView(read()); $("#f-q").onkeydown = (e) => e.key === "Enter" && membersView(read());
+  try {
+    const d = await api("GET", `/members?platform=${f.plat}&q=${encodeURIComponent(f.q)}&size=200`);
+    $("#list").innerHTML = errBox(d.errors) + `<div class="card overflow-x-auto"><table><thead><tr><th>平台</th><th>郵箱</th><th>名稱</th><th class="text-right">錢包餘額 (USD)</th><th>註冊時間</th></tr></thead><tbody>
+      ${d.rows.map((u) => `<tr><td>${ptag(u.platform)}</td><td class="font-semibold">${esc(u.email)}${u.is_test ? ' <span class="tag tag-slate">測試</span>' : ""}</td><td class="text-slate-600">${esc(u.name)}</td><td class="text-right font-bold">${usd(u.wallet_usd)}</td><td class="text-xs text-slate-500 whitespace-nowrap">${fmt(u.created_at)}</td></tr>`).join("") || `<tr><td colspan="5" class="text-center text-slate-400 py-8">暫無數據</td></tr>`}</tbody></table></div>`;
+  } catch (e) { $("#list").innerHTML = `<div class="text-red-600">${esc(e.message)}</div>`; }
+}
+
+function csView() {
+  $("#main").innerHTML = `<h1 class="text-2xl font-black mb-1">客服</h1><div class="text-sm text-slate-500 mb-4">各平台客服分開處理，點擊進入對應平台的客服後台</div>
+    <div class="grid md:grid-cols-2 xl:grid-cols-3 gap-4">${state.plats.map((p) => `<div class="card p-5 flex flex-col gap-3"><div class="flex items-center justify-between">${ptag(p)}<span class="text-xs text-slate-400">${p.kind === "topup" ? "充值平台" : "商城"}</span></div><div class="font-bold text-lg">${esc(p.name)} 客服</div>
+      ${p.cs_url ? `<a href="${esc(p.cs_url)}" target="_blank" rel="noopener" class="btn text-center leading-9">進入客服後台 ↗</a>` : `<div class="text-xs text-slate-400">尚未填寫客服後台地址（到「平台接入」填寫）</div>`}
+      ${p.admin_url ? `<a href="${esc(p.admin_url)}" target="_blank" rel="noopener" class="btn-ghost text-center leading-9">進入該平台後台 ↗</a>` : ""}</div>`).join("") || '<div class="text-slate-400 text-sm">尚未接入任何平台</div>'}</div>`;
+}
+
+async function platformsView() {
+  const m = $("#main");
+  m.innerHTML = `<div class="flex items-center justify-between mb-4"><div><h1 class="text-2xl font-black">平台接入</h1><div class="text-sm text-slate-500">每個平台需提供 Hub 規範接口（/hub/stats、/hub/orders、/hub/topups、/hub/members）與 X-Hub-Key</div></div><button id="save" class="btn">儲存</button></div><div id="rows" class="space-y-3 text-sm text-slate-400">載入中…</div>`;
+  let rows = [];
+  try { rows = (await api("GET", "/platforms")).platforms; } catch (e) { toast(e.message, true); }
+  const draw = () => {
+    $("#rows").innerHTML = rows.map((p, i) => `<div class="card p-4 space-y-3" data-row="${i}">
+      <div class="grid md:grid-cols-[120px_1fr_1fr_160px_auto] gap-3 items-end">
+        <label class="text-xs text-slate-500">代號<input data-k="id" class="inp font-mono mt-1" value="${esc(p.id)}" placeholder="giftray" /></label>
+        <label class="text-xs text-slate-500">名稱<input data-k="name" class="inp mt-1" value="${esc(p.name)}" placeholder="Giftray 商城" /></label>
+        <label class="text-xs text-slate-500">接口地址前綴（含 /api）<input data-k="base_url" class="inp font-mono mt-1" value="${esc(p.base_url)}" placeholder="https://www.gogo589.com/api" /></label>
+        <label class="text-xs text-slate-500">類型<select data-k="kind" class="inp mt-1"><option value="shop" ${p.kind !== "topup" ? "selected" : ""}>商城</option><option value="topup" ${p.kind === "topup" ? "selected" : ""}>充值平台</option></select></label>
+        <label class="flex items-center gap-2 h-9 text-sm"><input type="checkbox" data-k="enabled" ${p.enabled !== false ? "checked" : ""} class="accent-orange-500" />啟用</label></div>
+      <div class="grid md:grid-cols-[1fr_1fr_1fr_auto] gap-3 items-end">
+        <label class="text-xs text-slate-500">X-Hub-Key<input data-k="api_key" class="inp font-mono mt-1" value="${esc(p.api_key)}" /></label>
+        <label class="text-xs text-slate-500">客服後台地址<input data-k="cs_url" class="inp mt-1" value="${esc(p.cs_url)}" /></label>
+        <label class="text-xs text-slate-500">平台後台地址（選填）<input data-k="admin_url" class="inp mt-1" value="${esc(p.admin_url)}" /></label>
+        <div class="flex gap-2"><button data-test="${i}" class="btn-ghost">測試連線</button><button data-del="${i}" class="btn-ghost !text-red-600">移除</button></div></div></div>`).join("") + `<button id="add" class="w-full h-14 rounded-2xl border-2 border-dashed border-slate-300 text-slate-400 hover:border-orange-400 hover:text-orange-500">＋ 新增平台</button>`;
+    const read = () => [...document.querySelectorAll("[data-row]")].map((el) => Object.fromEntries([...el.querySelectorAll("[data-k]")].map((inp) => [inp.dataset.k, inp.type === "checkbox" ? inp.checked : inp.value])));
+    $("#add").onclick = () => { rows = [...read(), { id: "", name: "", base_url: "", api_key: "", cs_url: "", admin_url: "", kind: "shop", enabled: true }]; draw(); };
+    document.querySelectorAll("[data-del]").forEach((b) => (b.onclick = () => { if (confirm("移除此平台？")) { rows = read().filter((_, j) => j !== +b.dataset.del); draw(); } }));
+    document.querySelectorAll("[data-test]").forEach((b) => (b.onclick = async () => { const p = read()[+b.dataset.test]; b.disabled = true; try { await api("PUT", "/platforms", read()); const r = await api("POST", `/platforms/${p.id}/test`); r.ok ? toast(`連線成功：${r.platform?.name || p.name}，近 7 天訂單 ${r.stats?.orders ?? 0} 筆`) : toast("連線失敗：" + r.error, true); } catch (e) { toast(e.message, true); } b.disabled = false; }));
+    $("#save").onclick = async () => { try { rows = (await api("PUT", "/platforms", read())).platforms; draw(); await loadPlats(); toast("已儲存"); } catch (e) { toast(e.message, true); } };
+  };
+  draw();
+}
+
+function renderAlert() {
+  const box = $("#alert"); if (!box) return;
+  if (!state.alerts.length) { box.innerHTML = ""; return; }
+  box.innerHTML = `<div class="fixed inset-0 z-[90] flex items-center justify-center bg-black/40 p-4"><div class="card w-full max-w-md overflow-hidden">
+    <div class="bg-orange-500 text-white px-5 py-4 flex items-center gap-3"><span class="h-10 w-10 rounded-full bg-white/20 flex items-center justify-center text-xl" style="animation:wiggle 1s infinite">🔔</span><div><div class="font-black">新訂單：${state.alerts.length} 筆已支付</div><div class="text-xs text-white/80">請盡快處理</div></div></div>
+    <ul class="max-h-72 overflow-y-auto divide-y divide-slate-100">${state.alerts.map((o) => `<li class="px-5 py-3 text-sm"><div class="flex items-center justify-between gap-2"><span class="font-semibold flex items-center gap-1.5">${ptag(o.platform)} #${esc(o.order_no)}</span><span class="font-black text-orange-600">${usd(o.amount_usd)}</span></div><div class="text-xs text-slate-500 truncate">${esc((o.items || []).join("，"))}</div><div class="text-[11px] text-slate-400">${esc(o.user)}</div></li>`).join("")}</ul>
+    <div class="px-5 py-4 flex gap-3 bg-slate-50"><button id="al-later" class="btn-ghost flex-1">稍後處理</button><button id="al-view" class="btn flex-1">查看訂單</button></div></div></div>`;
+  $("#al-later").onclick = () => { state.alerts = []; renderAlert(); };
+  $("#al-view").onclick = () => { state.alerts = []; state.page = "orders"; location.hash = "orders"; render(); };
+}
+
+async function poll() {
+  if (!state.token) return;
+  try {
+    const d = await api("GET", `/alerts?since=${encodeURIComponent(state.since || "")}`);
+    state.since = d.now;
+    if (d.orders.length) { const ids = new Set(state.alerts.map((o) => o.platform.id + o.id)); state.alerts = [...d.orders.filter((o) => !ids.has(o.platform.id + o.id)), ...state.alerts].slice(0, 20); beep(); renderAlert(); }
+  } catch {}
+}
+setInterval(poll, 8000);
+setInterval(() => state.alerts.length && beep(), 12000);
+window.addEventListener("hashchange", () => { state.page = location.hash.replace("#", "") || "dash"; render(); });
+(async () => { if (state.token) await loadPlats(); render(); poll(); })();
+</script>
+</body>
+</html>
