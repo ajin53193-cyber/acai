@@ -44,7 +44,7 @@ const toast = (msg, bad) => { const d = document.createElement("div"); d.classNa
 const logout = () => { state.token = ""; localStorage.removeItem("hub_token"); render(); };
 const beep = () => { if (!state.sound) return; try { const ctx = new (window.AudioContext || window.webkitAudioContext)(); [0, 0.18, 0.36].forEach((t, i) => { const o = ctx.createOscillator(), g = ctx.createGain(); o.connect(g); g.connect(ctx.destination); o.frequency.value = [880, 1175, 1480][i]; g.gain.setValueAtTime(0.0001, ctx.currentTime + t); g.gain.exponentialRampToValueAtTime(0.25, ctx.currentTime + t + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + t + 0.16); o.start(ctx.currentTime + t); o.stop(ctx.currentTime + t + 0.18); }); } catch {} };
 
-const NAV = [["dash", "數據概覽", "📊"], ["orders", "訂單 / 充值", "🧾"], ["members", "會員", "👥"], ["cs", "客服", "💬"], ["platforms", "平台接入", "🔌"]];
+const NAV = [["dash", "數據概覽", "📊"], ["orders", "訂單 / 充值", "🧾"], ["members", "會員", "👥"], ["cs", "客服", "💬"], ["sifang", "四方收款", "💠"], ["platforms", "平台接入", "🔌"]];
 
 function render() {
   const app = $("#app");
@@ -53,7 +53,7 @@ function render() {
   <div class="min-h-screen flex">
     <aside class="w-56 bg-slate-900 text-white flex flex-col p-3 shrink-0">
       <div class="px-3 py-3 mb-2"><div class="font-black text-lg">總後台</div><div class="text-xs text-slate-400">多平台統一管理</div></div>
-      ${NAV.map(([k, l, ic]) => `<button data-nav="${k}" class="nav-btn ${state.page === k ? "active" : ""}"><span>${ic}</span>${l}</button>`).join("")}
+      ${NAV.map(([k, l, ic]) => (k === "sifang" ? `<div class="mt-3 mb-1 px-3 text-[10px] tracking-widest text-slate-500">收款平台（獨立）</div>` : k === "platforms" ? `<div class="mt-3 mb-1 px-3 text-[10px] tracking-widest text-slate-500">設定</div>` : "") + `<button data-nav="${k}" class="nav-btn ${state.page === k ? "active" : ""}"><span>${ic}</span>${l}</button>`).join("")}
       <div class="mt-auto px-3 pt-3 border-t border-slate-800 text-xs text-slate-400 flex items-center justify-between"><span>${esc(state.user)}</span><button id="logout" class="hover:text-white">登出</button></div>
       <button id="sound" class="mt-2 text-xs text-slate-400 hover:text-white text-left px-3">${state.sound ? "🔔 新訂單提示音：開" : "🔕 新訂單提示音：關"}</button>
     </aside>
@@ -63,7 +63,7 @@ function render() {
   app.querySelectorAll("[data-nav]").forEach((b) => (b.onclick = () => { state.page = b.dataset.nav; location.hash = state.page; render(); }));
   $("#logout").onclick = logout;
   $("#sound").onclick = () => { state.sound = !state.sound; localStorage.setItem("hub_sound", state.sound ? "1" : "0"); render(); };
-  ({ dash: dashView, orders: ordersView, members: membersView, cs: csView, platforms: platformsView })[state.page]();
+  ({ dash: dashView, orders: ordersView, members: membersView, cs: csView, sifang: sifangView, platforms: platformsView })[state.page]();
   renderAlert();
 }
 
@@ -77,13 +77,13 @@ function loginView() {
     <button id="login-btn" class="btn w-full">登入</button></form></div>`;
 }
 
-async function loadPlats() { try { const r = await api("GET", "/platforms"); state.plats = [{ ...r.local, kind: "shop", cs_url: "/gg589-k7p2x?s=chat-sessions", admin_url: "/gg589-k7p2x", enabled: true }, ...r.platforms.filter((p) => p.enabled !== false)]; } catch {} }
+async function loadPlats() { try { const r = await api("GET", "/platforms"); state.plats = [{ ...r.local, kind: "shop", cs_url: "/gg589-k7p2x?s=chat-sessions", admin_url: "/gg589-k7p2x", enabled: true }, ...r.platforms.filter((p) => p.enabled !== false && p.kind !== "sifang")]; state.sifang = r.platforms.filter((p) => p.enabled !== false && p.kind === "sifang"); } catch {} }
 const platSelect = (v) => `<select id="f-plat" class="inp !w-44"><option value="all">全部平台</option>${state.plats.map((p) => `<option value="${esc(p.id)}" ${v === p.id ? "selected" : ""}>${esc(p.name)}</option>`).join("")}</select>`;
 const errBox = (errs) => errs?.length ? `<div class="mb-3 rounded-xl bg-red-50 text-red-700 text-xs px-3 py-2">${[...new Set(errs.map((e) => e.name + "：" + e.error))].map(esc).join("；")}</div>` : "";
 
 async function dashView() {
   const m = $("#main");
-  m.innerHTML = `<div class="flex items-center justify-between mb-5"><div><h1 class="text-2xl font-black">數據概覽</h1><div class="text-sm text-slate-500">所有平台的營收、訂單、充值與會員匯總</div></div>
+  m.innerHTML = `<div class="flex items-center justify-between mb-5"><div><h1 class="text-2xl font-black">數據概覽</h1><div class="text-sm text-slate-500">商城平台（gogo589 / Giftray）的營收、訂單、充值與會員匯總；四方收款另見左側「四方收款」</div></div>
     <div class="inline-flex rounded-xl bg-white p-1 shadow-sm">${[7, 30, 90].map((d) => `<button data-days="${d}" class="h-8 px-3 rounded-lg text-sm font-semibold ${state.days === d ? "bg-orange-500 text-white" : "text-slate-500"}">近 ${d} 天</button>`).join("")}</div></div><div id="dash-body" class="text-slate-400 text-sm">載入中…</div>`;
   m.querySelectorAll("[data-days]").forEach((b) => (b.onclick = () => { state.days = +b.dataset.days; dashView(); }));
   try {
@@ -161,15 +161,70 @@ async function platformsView() {
   draw();
 }
 
+const SF_STATUS = { pending: ["待支付", "slate"], confirming: ["鏈上確認中", "orange"], paid: ["已支付", "green"], expired: ["已過期", "slate"] };
+const sfTag = (st) => { const [l, t] = SF_STATUS[st] || [st || "-", "slate"]; return `<span class="tag tag-${t}">${esc(l)}</span>`; };
+const usdt = (v) => Number(v || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " USDT";
+state.sf = { tab: "overview", pid: "", days: 30, status: "", merchant: "", network: "", q: "" };
+async function sifangView() {
+  const m = $("#main"); const f = state.sf;
+  if (!state.sifang?.length) { m.innerHTML = `<h1 class="text-2xl font-black mb-1">四方收款</h1><div class="card p-10 text-center text-slate-400 text-sm">尚未接入四方收款平台。請到「平台接入」新增，類型選「四方 USDT 收款平台（直接對接）」，填 https://四方域名/api/admin-api 與 ak_ 金鑰。</div>`; return; }
+  if (!f.pid || !state.sifang.some((p) => p.id === f.pid)) f.pid = state.sifang[0].id;
+  const cur = state.sifang.find((p) => p.id === f.pid);
+  m.innerHTML = `<div class="flex flex-wrap items-center justify-between gap-3 mb-4"><div><h1 class="text-2xl font-black">四方收款 <span class="tag tag-green align-middle">獨立數據</span></h1><div class="text-sm text-slate-500">USDT 四方收款平台的收款單、商戶帳戶與客服，不計入商城統計</div></div>
+    <div class="flex items-center gap-2">${state.sifang.length > 1 ? `<select id="sf-pid" class="inp !w-44">${state.sifang.map((p) => `<option value="${esc(p.id)}" ${p.id === f.pid ? "selected" : ""}>${esc(p.name)}</option>`).join("")}</select>` : ""}
+    ${cur.admin_url ? `<a href="${esc(cur.admin_url)}" target="_blank" rel="noopener" class="btn-ghost leading-9">平台後台 ↗</a>` : ""}</div></div>
+    <div class="inline-flex rounded-xl bg-white p-1 shadow-sm mb-4">${[["overview", "數據概覽"], ["orders", "收款單"], ["accounts", "商戶帳戶"], ["cs", "客服會話"]].map(([k, l]) => `<button data-sftab="${k}" class="h-8 px-4 rounded-lg text-sm font-semibold ${f.tab === k ? "bg-emerald-600 text-white" : "text-slate-500"}">${l}</button>`).join("")}</div>
+    <div id="sf-body" class="text-sm text-slate-400">載入中…</div>`;
+  m.querySelectorAll("[data-sftab]").forEach((b) => (b.onclick = () => { f.tab = b.dataset.sftab; sifangView(); }));
+  const sel = $("#sf-pid"); if (sel) sel.onchange = () => { f.pid = sel.value; sifangView(); };
+  try { await ({ overview: sfOverview, orders: sfOrders, accounts: sfAccounts, cs: sfThreads })[f.tab](cur); } catch (e) { $("#sf-body").innerHTML = `<div class="text-red-600">${esc(e.message)}</div>`; }
+}
+async function sfOverview(cur) {
+  const f = state.sf; const d = await api("GET", `/sifang/overview?platform=${f.pid}&days=${f.days}`);
+  const box = (l, v, sub) => `<div class="card p-5"><div class="text-xs text-slate-500">${l}</div><div class="text-2xl font-black mt-1">${v}</div>${sub ? `<div class="text-xs text-slate-400 mt-1">${sub}</div>` : ""}</div>`;
+  $("#sf-body").innerHTML = `<div class="flex items-center justify-between mb-3"><div class="text-xs text-slate-500">${esc(cur.name)} · 北京時間日切</div><div class="inline-flex rounded-xl bg-white p-1 shadow-sm">${[7, 30, 90].map((x) => `<button data-sfdays="${x}" class="h-8 px-3 rounded-lg text-sm font-semibold ${f.days === x ? "bg-emerald-600 text-white" : "text-slate-500"}">近 ${x} 天</button>`).join("")}</div></div>
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-4">${box("今日收款", usdt(d.today.usdt), `${d.today.paid} / ${d.today.count} 單 · 成功率 ${d.today.rate}%`)}${box(`近 ${d.days} 天收款`, usdt(d.period.usdt), `${d.period.paid} / ${d.period.count} 單 · 成功率 ${d.period.rate}%`)}${box("待確認", `${d.pending + d.confirming}`, `待支付 ${d.pending} · 鏈上確認中 ${d.confirming}`)}${box("商戶", `${d.merchants}`, `商戶餘額合計 ${usdt(d.merchant_balance)} · 未結客服 ${d.open_chats}`)}</div>
+    <div class="grid lg:grid-cols-2 gap-4"><div class="card overflow-hidden"><div class="px-4 py-3 text-sm font-bold border-b border-slate-100">近 ${d.days} 天各商戶收款</div><table><thead><tr><th>商戶</th><th class="text-right">成功單數</th><th class="text-right">收款 USDT</th></tr></thead><tbody>${d.by_merchant.map((x) => `<tr><td class="font-semibold">${esc(x.merchant_name)}</td><td class="text-right">${x.paid}</td><td class="text-right font-bold">${usdt(x.usdt)}</td></tr>`).join("") || '<tr><td colspan="3" class="text-center text-slate-400 py-6">暫無數據</td></tr>'}</tbody></table></div>
+    <div class="card p-5"><div class="text-sm font-bold mb-3">累計</div><div class="grid grid-cols-2 gap-3 text-sm">${[["累計收款", usdt(d.all.usdt)], ["累計成功單", d.all.paid], ["累計總單", d.all.count], ["整體成功率", d.all.rate + "%"], ["已過期單", d.expired]].map(([l, v]) => `<div class="rounded-xl bg-slate-50 p-3"><div class="text-xs text-slate-500">${l}</div><div class="font-black text-lg">${v}</div></div>`).join("")}</div></div></div>`;
+  document.querySelectorAll("[data-sfdays]").forEach((b) => (b.onclick = () => { f.days = +b.dataset.sfdays; sifangView(); }));
+}
+async function sfOrders() {
+  const f = state.sf; const d = await api("GET", `/sifang/orders?platform=${f.pid}&status=${f.status}&merchant=${encodeURIComponent(f.merchant)}&network=${encodeURIComponent(f.network)}&q=${encodeURIComponent(f.q)}&size=300`);
+  const paidSum = d.rows.filter((o) => o.status === "paid").reduce((a, o) => a + o.amount_usdt, 0);
+  $("#sf-body").innerHTML = `<div class="flex flex-wrap items-center gap-2 mb-3">
+      <div class="inline-flex rounded-xl bg-white p-1 shadow-sm">${[["", "全部"], ["paid", "已支付"], ["confirming", "鏈上確認中"], ["pending", "待支付"], ["expired", "已過期"]].map(([k, l]) => `<button data-sfst="${k}" class="h-8 px-3 rounded-lg text-xs font-semibold ${f.status === k ? "bg-emerald-600 text-white" : "text-slate-500"}">${l}</button>`).join("")}</div>
+      <select id="sf-m" class="inp !w-44"><option value="">全部商戶</option>${d.merchants.map((x) => `<option ${f.merchant === x ? "selected" : ""}>${esc(x)}</option>`).join("")}</select>
+      <select id="sf-n" class="inp !w-32"><option value="">全部網絡</option>${d.networks.map((x) => `<option ${f.network === x ? "selected" : ""}>${esc(x)}</option>`).join("")}</select>
+      <input id="sf-q" class="inp !w-64" placeholder="單號 / 商戶單號 / TxID / 地址" value="${esc(f.q)}" /><button id="sf-go" class="btn-ghost">查詢</button>
+      <div class="ml-auto text-xs text-slate-500">${d.rows.length} 筆 · 已支付合計 <b class="text-emerald-700">${usdt(paidSum)}</b></div></div>
+    <div class="card overflow-x-auto"><table><thead><tr><th>單號</th><th>商戶</th><th>商戶單號</th><th class="text-right">金額</th><th class="text-right">實付</th><th>網絡 / 地址</th><th>TxID</th><th>狀態</th><th>建立</th><th>支付</th></tr></thead><tbody>
+      ${d.rows.map((o) => `<tr><td class="font-semibold whitespace-nowrap">${esc(o.order_no)}</td><td class="whitespace-nowrap">${esc(o.merchant_name)}</td><td class="text-slate-500 text-xs">${esc(o.out_trade_no)}</td><td class="text-right font-bold whitespace-nowrap">${o.amount_usdt.toFixed(2)}</td><td class="text-right text-slate-500 whitespace-nowrap">${o.pay_amount ? o.pay_amount : "-"}</td><td class="text-xs text-slate-500"><div>${esc(o.network)}</div><div class="font-mono max-w-[160px] truncate" title="${esc(o.wallet_address)}">${esc(o.wallet_address)}</div></td><td class="text-xs font-mono text-slate-500 max-w-[120px] truncate" title="${esc(o.tx_id)}">${esc(o.tx_id || "-")}</td><td class="whitespace-nowrap">${sfTag(o.status)}${o.manual_confirmed ? ' <span class="tag tag-slate">補單</span>' : ""}</td><td class="text-xs text-slate-500 whitespace-nowrap">${fmt(o.created_at)}</td><td class="text-xs text-slate-500 whitespace-nowrap">${fmt(o.paid_at)}</td></tr>`).join("") || '<tr><td colspan="10" class="text-center text-slate-400 py-8">暫無數據</td></tr>'}</tbody></table></div>`;
+  document.querySelectorAll("[data-sfst]").forEach((b) => (b.onclick = () => { f.status = b.dataset.sfst; sifangView(); }));
+  const read = () => { f.merchant = $("#sf-m").value; f.network = $("#sf-n").value; f.q = $("#sf-q").value.trim(); sifangView(); };
+  $("#sf-m").onchange = read; $("#sf-n").onchange = read; $("#sf-go").onclick = read; $("#sf-q").onkeydown = (e) => e.key === "Enter" && read();
+}
+async function sfAccounts() {
+  const f = state.sf; const d = await api("GET", `/sifang/accounts?platform=${f.pid}`);
+  const ROLE = { merchant: "商戶", operator: "運營", agent: "代理" };
+  $("#sf-body").innerHTML = `<div class="card overflow-x-auto"><table><thead><tr><th>帳戶</th><th>名稱</th><th>角色</th><th class="text-right">餘額 USDT</th><th>狀態</th><th>建立時間</th></tr></thead><tbody>
+    ${d.rows.map((a) => `<tr><td class="font-semibold">${esc(a.email)}</td><td class="text-slate-600">${esc(a.name)}</td><td><span class="tag ${a.role === "merchant" ? "tag-green" : "tag-slate"}">${ROLE[a.role] || esc(a.role)}</span></td><td class="text-right font-bold">${Number(a.wallet_usd).toFixed(2)}</td><td>${a.status === "frozen" ? '<span class="tag tag-red">已凍結</span>' : '<span class="tag tag-green">正常</span>'}</td><td class="text-xs text-slate-500 whitespace-nowrap">${fmt(a.created_at)}</td></tr>`).join("") || '<tr><td colspan="6" class="text-center text-slate-400 py-8">暫無數據</td></tr>'}</tbody></table></div>`;
+}
+async function sfThreads(cur) {
+  const f = state.sf; const d = await api("GET", `/sifang/threads?platform=${f.pid}&status=open`);
+  $("#sf-body").innerHTML = `<div class="flex items-center justify-between mb-3"><div class="text-xs text-slate-500">未結會話 ${d.rows.length} 個 · 未讀 ${d.rows.reduce((a, t) => a + t.unread, 0)} 條</div>${cur.cs_url ? `<a href="${esc(cur.cs_url)}" target="_blank" rel="noopener" class="btn leading-9">進入四方客服後台回覆 ↗</a>` : '<span class="text-xs text-slate-400">到「平台接入」填寫客服後台地址即可一鍵進入</span>'}</div>
+    <div class="card overflow-x-auto"><table><thead><tr><th>收款單號</th><th>客戶 / 商戶</th><th>最後訊息</th><th class="text-right">未讀</th><th>時間</th><th>狀態</th></tr></thead><tbody>
+    ${d.rows.map((t) => `<tr><td class="font-semibold whitespace-nowrap">${esc(t.order_no)}</td><td>${esc(t.customer || "-")}</td><td class="text-slate-600 max-w-[320px] truncate">${esc(t.last_message || "-")}</td><td class="text-right">${t.unread ? `<span class="tag tag-red">${t.unread}</span>` : "0"}</td><td class="text-xs text-slate-500 whitespace-nowrap">${fmt(t.last_at)}</td><td>${t.status === "open" ? '<span class="tag tag-orange">處理中</span>' : '<span class="tag tag-slate">已解決</span>'}</td></tr>`).join("") || '<tr><td colspan="6" class="text-center text-slate-400 py-8">目前沒有未結會話</td></tr>'}</tbody></table></div>`;
+}
+
 function renderAlert() {
   const box = $("#alert"); if (!box) return;
   if (!state.alerts.length) { box.innerHTML = ""; return; }
   box.innerHTML = `<div class="fixed inset-0 z-[90] flex items-center justify-center bg-black/40 p-4"><div class="card w-full max-w-md overflow-hidden">
-    <div class="bg-orange-500 text-white px-5 py-4 flex items-center gap-3"><span class="h-10 w-10 rounded-full bg-white/20 flex items-center justify-center text-xl" style="animation:wiggle 1s infinite">🔔</span><div><div class="font-black">新訂單：${state.alerts.length} 筆已支付</div><div class="text-xs text-white/80">請盡快處理</div></div></div>
-    <ul class="max-h-72 overflow-y-auto divide-y divide-slate-100">${state.alerts.map((o) => `<li class="px-5 py-3 text-sm"><div class="flex items-center justify-between gap-2"><span class="font-semibold flex items-center gap-1.5">${ptag(o.platform)} #${esc(o.order_no)}</span><span class="font-black text-orange-600">${usd(o.amount_usd)}</span></div><div class="text-xs text-slate-500 truncate">${esc((o.items || []).join("，"))}</div><div class="text-[11px] text-slate-400">${esc(o.user)}</div></li>`).join("")}</ul>
+    <div class="bg-orange-500 text-white px-5 py-4 flex items-center gap-3"><span class="h-10 w-10 rounded-full bg-white/20 flex items-center justify-center text-xl" style="animation:wiggle 1s infinite">🔔</span><div><div class="font-black">新訂單：${state.alerts.length} 筆已支付${state.alerts.some((o) => o.type === "sifang") ? "（含四方收款）" : ""}</div><div class="text-xs text-white/80">請盡快處理</div></div></div>
+    <ul class="max-h-72 overflow-y-auto divide-y divide-slate-100">${state.alerts.map((o) => `<li class="px-5 py-3 text-sm"><div class="flex items-center justify-between gap-2"><span class="font-semibold flex items-center gap-1.5">${ptag(o.platform)}${o.type === "sifang" ? '<span class="tag tag-green">四方收款</span>' : ""} #${esc(o.order_no)}</span><span class="font-black text-orange-600">${usd(o.amount_usd)}</span></div><div class="text-xs text-slate-500 truncate">${esc((o.items || []).join("，"))}</div><div class="text-[11px] text-slate-400">${esc(o.user)}</div></li>`).join("")}</ul>
     <div class="px-5 py-4 flex gap-3 bg-slate-50"><button id="al-later" class="btn-ghost flex-1">稍後處理</button><button id="al-view" class="btn flex-1">查看訂單</button></div></div></div>`;
   $("#al-later").onclick = () => { state.alerts = []; renderAlert(); };
-  $("#al-view").onclick = () => { state.alerts = []; state.page = "orders"; location.hash = "orders"; render(); };
+  $("#al-view").onclick = () => { const sf = state.alerts.every((o) => o.type === "sifang"); state.alerts = []; state.page = sf ? "sifang" : "orders"; location.hash = state.page; render(); };
 }
 
 async function poll() {

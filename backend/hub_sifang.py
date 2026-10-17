@@ -111,3 +111,81 @@ HANDLERS = {"/hub/orders": orders, "/hub/topups": topups, "/hub/members": member
 
 async def fetch(p: dict, path: str, params: dict) -> dict:
     return await HANDLERS[path](p, {k: v for k, v in params.items() if v not in ("", None)})
+
+
+# ----------------------------- 獨立「四方收款」頁面用 -----------------------------
+BJ = timezone(timedelta(hours=8))
+
+
+def _row(o: dict) -> dict:
+    addr = o.get("wallet_address") or ""
+    return {"order_no": o.get("order_no"), "out_trade_no": o.get("out_trade_no") or "", "merchant_id": o.get("merchant_id") or "", "merchant_name": o.get("merchant_name") or o.get("merchant_id") or "",
+            "amount_usdt": round(float(o.get("amount_usdt") or 0), 2), "pay_amount": round(float(o.get("pay_amount") or 0), 4), "network": o.get("network") or "", "wallet_address": addr,
+            "status": o.get("status"), "tx_id": o.get("tx_id") or "", "manual_confirmed": bool(o.get("manual_confirmed")), "created_at": o.get("created_at"), "paid_at": o.get("paid_at"), "expires_at": o.get("expires_at")}
+
+
+async def overview(p: dict, days: int) -> dict:
+    days = max(1, min(days, 365))
+    os_ = [_row(o) for o in await _orders(p)]
+    since = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
+    today = datetime.now(BJ).replace(hour=0, minute=0, second=0, microsecond=0).astimezone(timezone.utc).isoformat()
+
+    def agg(rows):
+        paid = [o for o in rows if o["status"] == "paid"]
+        return {"count": len(rows), "paid": len(paid), "usdt": round(sum(o["amount_usdt"] for o in paid), 2), "rate": round(len(paid) / len(rows) * 100, 1) if rows else 0}
+
+    accts = await _accounts(p)
+    merchants = [a for a in accts if (a.get("role") or "merchant") == "merchant"]
+    by_m: Dict[str, dict] = {}
+    for o in os_:
+        if o["status"] == "paid" and (o["paid_at"] or o["created_at"] or "") >= since:
+            m = by_m.setdefault(o["merchant_id"] or o["merchant_name"], {"merchant_name": o["merchant_name"], "paid": 0, "usdt": 0.0})
+            m["paid"] += 1
+            m["usdt"] = round(m["usdt"] + o["amount_usdt"], 2)
+    chats = 0
+    try:
+        chats = len(_list(await _get(p, "/support/threads", {"status": "open"})))
+    except Exception:  # noqa: BLE001
+        pass
+    return {"platform": _tag(p), "days": days, "today": agg([o for o in os_ if (o["created_at"] or "") >= today]), "period": agg([o for o in os_ if (o["created_at"] or "") >= since]), "all": agg(os_),
+            "pending": len([o for o in os_ if o["status"] == "pending"]), "confirming": len([o for o in os_ if o["status"] == "confirming"]), "expired": len([o for o in os_ if o["status"] == "expired"]),
+            "merchants": len(merchants), "merchant_balance": round(sum(float(a.get("balance") if a.get("balance") is not None else a.get("balance_usdt") or 0) for a in merchants), 2), "open_chats": chats,
+            "by_merchant": sorted(by_m.values(), key=lambda m: -m["usdt"])[:10]}
+
+
+async def order_list(p: dict, status: str = "", merchant: str = "", network: str = "", q: str = "", size: int = 200) -> dict:
+    rows = [_row(o) for o in await _orders(p)]
+    if status:
+        rows = [o for o in rows if o["status"] == status]
+    if merchant:
+        rows = [o for o in rows if merchant in (o["merchant_id"], o["merchant_name"])]
+    if network:
+        rows = [o for o in rows if o["network"] == network]
+    if q:
+        ql = q.lower()
+        rows = [o for o in rows if ql in o["order_no"].lower() or ql in o["out_trade_no"].lower() or ql in o["tx_id"].lower() or ql in o["wallet_address"].lower() or ql in o["merchant_name"].lower()]
+    rows.sort(key=lambda o: o.get("created_at") or "", reverse=True)
+    return {"platform": _tag(p), "total": len(rows), "rows": rows[:max(1, min(size, 500))], "merchants": sorted({o["merchant_name"] for o in rows if o["merchant_name"]}), "networks": sorted({o["network"] for o in rows if o["network"]})}
+
+
+async def account_list(p: dict, role: str = "") -> dict:
+    rows = [{**_member_row(a), "status": a.get("status") or ("frozen" if a.get("frozen") or a.get("disabled") else "active"), "frozen": round(float(a.get("frozen_balance") or a.get("frozen") or 0), 2) if isinstance(a.get("frozen_balance") or a.get("frozen"), (int, float)) else 0} for a in await _accounts(p)]
+    if role:
+        rows = [r for r in rows if r["role"] == role]
+    rows.sort(key=lambda r: -r["wallet_usd"])
+    return {"platform": _tag(p), "rows": rows}
+
+
+async def thread_list(p: dict, status: str = "open") -> dict:
+    rows = _list(await _get(p, "/support/threads", {"status": status or "all"}))
+    return {"platform": _tag(p), "rows": [{"order_no": t.get("order_no"), "status": t.get("status"), "unread": int(t.get("unread") or t.get("unread_count") or 0), "last_message": t.get("last_message") or t.get("last_text") or "",
+                                            "last_at": t.get("last_at") or t.get("updated_at") or t.get("created_at"), "customer": t.get("customer_name") or t.get("merchant_name") or ""} for t in rows]}
+
+
+async def new_paid(p: dict, since: str) -> List[dict]:
+    try:
+        rows = [_row(o) for o in await _orders(p)]
+    except Exception:  # noqa: BLE001
+        return []
+    return [{"id": f"{p['id']}:{o['order_no']}", "order_no": o["order_no"], "type": "sifang", "user": o["merchant_name"], "amount_usd": o["amount_usdt"], "items": [f"{o['network']} 商戶單 {o['out_trade_no']}".strip()],
+             "paid_at": o["paid_at"], "status": "paid", "platform": _tag(p)} for o in rows if o["status"] == "paid" and o["paid_at"] and o["paid_at"] > since]

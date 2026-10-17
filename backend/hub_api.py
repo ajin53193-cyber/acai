@@ -229,11 +229,11 @@ async def admin_hub_platform_test(pid: str, admin: dict = Depends(current_admin)
 @router.get("/admin/hub/platforms/public")
 async def admin_hub_platforms_public(admin: dict = Depends(current_admin)):
     cfg = await get_cfg()
-    return {"platforms": [{"id": p["id"], "name": p["name"], "kind": p.get("kind", "shop"), "cs_url": p.get("cs_url", ""), "admin_url": p.get("admin_url", "")} for p in cfg["platforms"] if p.get("enabled", True)]}
+    return {"platforms": [{"id": p["id"], "name": p["name"], "kind": p.get("kind", "shop"), "cs_url": p.get("cs_url", ""), "admin_url": p.get("admin_url", "")} for p in cfg["platforms"] if p.get("enabled", True) and p.get("kind") != "sifang"]}
 
 
 def _active(cfg: dict, platform: str) -> List[dict]:
-    ps = [p for p in cfg["platforms"] if p.get("enabled", True)]
+    ps = [p for p in cfg["platforms"] if p.get("enabled", True) and p.get("kind") != "sifang"]
     return [p for p in ps if p["id"] == platform] if platform and platform != "all" else ps
 
 

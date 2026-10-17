@@ -138,3 +138,9 @@
 - UI：總後台 `/12334` 與 React `HubPlatformsAdmin` 類型下拉新增兩個「直接對接」選項，金鑰標籤/placeholder 隨類型變化；訂單表顯示 amount_label、新狀態標籤（待填資料 / 鏈上確認中 / 已過期）。
 - 已用本機 mock 伺服器（8102 Giftray、8103 四方）驗證：測試連線、stats 匯總、orders/topups 映射、搜尋、members、alerts、401 錯誤回報。真實金鑰待用戶填寫。
 - 文件：`docs/hub_giftray_sifang_setup.md`；patch.zip 已更新（含兩適配器 + 前端兩檔，需 yarn build）。
+
+## [2026-06] 四方收款平台數據獨立（用戶：「四方收款平台数据的单独的」）
+- `hub_api._active()` 與 `/admin/hub/platforms/public` 排除 kind=sifang → 數據概覽 / 訂單充值 / 會員 / 客服只含商城（gogo589 + Giftray）。
+- `hub_sifang.py` 新增 overview / order_list / account_list / thread_list / new_paid；`hub_console.py` 新增 `/api/hub-admin/sifang/{platforms,overview,orders,accounts,threads}`，alerts 併入四方 paid 單（type="sifang"）。
+- 總後台 UI 新增側欄分組「收款平台（獨立）→ 四方收款」頁：4 個子頁（數據概覽 / 收款單 / 商戶帳戶 / 客服會話），多四方平台可切換；彈窗提醒標「四方收款」，全為四方時「查看訂單」跳四方頁。
+- mock 驗證通過（8102/8103 本機假伺服器，測後已移除平台設定）。patch.zip 已更新。

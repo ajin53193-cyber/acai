@@ -11,6 +11,7 @@ from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
 import hub_api
+import hub_sifang
 
 db = None
 HUB_PATH = os.environ.get("HUB_PATH", "12334").strip("/")
@@ -101,10 +102,51 @@ async def alerts(since: str = "", user: str = Depends(current_hub_user)):
         return {"now": now, "orders": []}
     local = await db.orders.find({"paid_at": {"$gt": since, "$lte": now}}, {"_id": 0}).sort("paid_at", -1).to_list(20)
     out = [{**hub_api._order_row(o), "platform": hub_api.LOCAL} for o in local]
+    for p in await _sifang_platforms():
+        out += await hub_sifang.new_paid(p, since)
     for o in await hub_api.remote_new_paid_orders(since):
         out.append({"id": o["id"], "order_no": o.get("order_no"), "type": "giftcard" if o.get("is_giftcard_order") else "order", "user": o.get("user_email"),
                     "amount_usd": o.get("total_usd"), "items": [i.get("product_name", "") for i in o.get("items", [])], "paid_at": o.get("paid_at"), "platform": o["platform"]})
     return {"now": now, "orders": out}
+
+
+# ----------------------------- 四方收款平台（獨立頁面） -----------------------------
+async def _sifang_platforms() -> List[dict]:
+    cfg = await hub_api.get_cfg()
+    return [p for p in cfg["platforms"] if p.get("enabled", True) and p.get("kind") == "sifang"]
+
+
+async def _sifang(pid: str) -> dict:
+    ps = await _sifang_platforms()
+    p = next((x for x in ps if x["id"] == pid), None) if pid else (ps[0] if ps else None)
+    if not p:
+        raise HTTPException(status_code=404, detail="尚未接入四方收款平台，請到「平台接入」新增")
+    return p
+
+
+@router.get("/sifang/platforms")
+async def sifang_platforms(user: str = Depends(current_hub_user)):
+    return {"platforms": [{"id": p["id"], "name": p["name"], "cs_url": p.get("cs_url", ""), "admin_url": p.get("admin_url", "")} for p in await _sifang_platforms()]}
+
+
+@router.get("/sifang/overview")
+async def sifang_overview(platform: str = "", days: int = 30, user: str = Depends(current_hub_user)):
+    return await hub_sifang.overview(await _sifang(platform), days)
+
+
+@router.get("/sifang/orders")
+async def sifang_orders(platform: str = "", status: str = "", merchant: str = "", network: str = "", q: str = "", size: int = 200, user: str = Depends(current_hub_user)):
+    return await hub_sifang.order_list(await _sifang(platform), status, merchant, network, q, size)
+
+
+@router.get("/sifang/accounts")
+async def sifang_accounts(platform: str = "", role: str = "", user: str = Depends(current_hub_user)):
+    return await hub_sifang.account_list(await _sifang(platform), role)
+
+
+@router.get("/sifang/threads")
+async def sifang_threads(platform: str = "", status: str = "open", user: str = Depends(current_hub_user)):
+    return await hub_sifang.thread_list(await _sifang(platform), status)
 
 
 @page_router.get(f"/{HUB_PATH}", include_in_schema=False)
