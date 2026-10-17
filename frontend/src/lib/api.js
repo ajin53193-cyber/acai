@@ -1,11 +1,12 @@
 import axios from "axios";
+import { DEFAULT_COPY, mergeCopy } from "@/lib/defaultCopy";
 
 export const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 export const DEFAULT_SETTINGS = {
   contact: {
-    hotline: "400-888-6888",
-    wechat: "heyingkefu",
+    hotline: "",
+    wechat: "",
     hours: "9:00 - 21:00",
     email: "contact@heying.com",
     mp_qr_image: "",
@@ -52,6 +53,7 @@ export const DEFAULT_SETTINGS = {
     { title: "每月项目分享", desc: "最新项目每月在群内同步分享，团队长第一时间掌握合作机会。", image: "/images/ui/edge-share.webp" },
     { title: "专属客服对接", desc: "一对一客服全程对接，工作时间 30 分钟内响应，合作全程护航。", image: "/images/ui/edge-service.webp" },
   ],
+  copy: DEFAULT_COPY,
 };
 
 let cache = null;
@@ -71,6 +73,7 @@ export const fetchSettings = () => {
           tiers: res.data.tiers && res.data.tiers.length ? res.data.tiers : DEFAULT_SETTINGS.tiers,
           edges: res.data.edges && res.data.edges.length ? res.data.edges : DEFAULT_SETTINGS.edges,
           milestones: res.data.milestones && res.data.milestones.length ? res.data.milestones : DEFAULT_SETTINGS.milestones,
+          copy: mergeCopy(res.data.copy),
         };
         return cache;
       })

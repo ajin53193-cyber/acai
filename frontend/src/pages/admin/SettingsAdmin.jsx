@@ -88,6 +88,14 @@ export default function SettingsAdmin({ token, onUnauthorized }) {
             <label className="mb-1.5 block text-xs tracking-widest text-slate-400">邮箱</label>
             <input data-testid="settings-email-input" value={contact.email} onChange={setContactField("email")} className={inputCls} />
           </div>
+          <div>
+            <label className="mb-1.5 block text-xs tracking-widest text-slate-400">联系电话（留空则前台不显示）</label>
+            <input data-testid="settings-hotline-input" value={contact.hotline || ""} onChange={setContactField("hotline")} placeholder="例如：138-0000-0000" className={inputCls} />
+          </div>
+          <div>
+            <label className="mb-1.5 block text-xs tracking-widest text-slate-400">客服微信号（留空则前台不显示）</label>
+            <input data-testid="settings-wechat-input" value={contact.wechat || ""} onChange={setContactField("wechat")} placeholder="例如：heying_kefu" className={inputCls} />
+          </div>
         </div>
         <div className="mt-6 rounded-2xl border border-amber-500/10 bg-[#060B18]/50 p-4">
           <div className="text-sm font-medium text-slate-200">官方微信服务号二维码</div>

@@ -2,19 +2,15 @@ import { Unlock, ShieldCheck, Handshake, FolderKanban, Users, Newspaper, Timer }
 import { Reveal, SectionHeading } from "@/components/Reveal";
 import { CountUp } from "@/components/CountUp";
 import { useSettings } from "@/lib/useSettings";
+import { toFullUrl } from "@/components/ImageUpload";
 
 const STAT_ICONS = [FolderKanban, Users, Newspaper, Timer];
 
-const VALUES = [
-  { icon: Unlock, title: "开放", desc: "开放项目信息与合作机会，让每一位伙伴都能平等触达优质资源。", img: "/images/ui/value-open.webp" },
-  { icon: ShieldCheck, title: "可信", desc: "重视资源真实与对接效率，项目层层审核，信息透明可查。", img: "/images/ui/value-trust.webp" },
-  { icon: Handshake, title: "共赢", desc: "推动伙伴共同成长，构建长期稳定、互利共赢的合作生态。", img: "/images/ui/value-win.webp" },
-];
-
-const AVATARS_PLACEHOLDER = [];
+const VALUE_ICONS = [Unlock, ShieldCheck, Handshake];
 
 export default function About() {
-  const { stats, milestones } = useSettings();
+  const { stats, milestones, copy } = useSettings();
+  const a = copy.about;
 
   return (
     <main className="pt-28" data-testid="about-page">
@@ -22,9 +18,9 @@ export default function About() {
         <div className="pointer-events-none absolute left-1/2 top-0 h-72 w-[640px] -translate-x-1/2 rounded-full bg-[#1E3A8A]/25 blur-[120px]" />
         <Reveal>
           <h1 className="font-display text-3xl font-black tracking-tight text-gold-gradient sm:text-4xl lg:text-5xl">
-            关于我们
+            {a.title}
           </h1>
-          <p className="mt-4 text-base text-slate-400 sm:text-lg">聚力项目，合作共赢</p>
+          <p className="mt-4 text-base text-slate-400 sm:text-lg">{a.subtitle}</p>
         </Reveal>
       </section>
 
@@ -34,22 +30,21 @@ export default function About() {
             <div className="glass-card h-full overflow-hidden rounded-3xl">
               <div className="relative h-44 overflow-hidden">
                 <img
-                  src="/images/ui/about-intro.webp"
-                  alt="合赢项目社"
+                  src={toFullUrl(a.intro_image)}
+                  alt={a.intro_title}
                   loading="lazy"
                   className="h-full w-full object-cover"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-[#0D1730] via-[#0A1228]/20 to-transparent" />
               </div>
               <div className="p-8 sm:p-9">
-                <h2 className="font-display text-2xl font-bold text-gold-gradient">平台简介</h2>
+                <h2 className="font-display text-2xl font-bold text-gold-gradient">{a.intro_title}</h2>
                 <div className="mt-4 h-px w-14 bg-gold-gradient" />
-                <p className="mt-6 text-sm leading-loose text-slate-300 sm:text-base">
-                  合赢项目社专注优质项目资源对接，主要面向全国招募团队长。团队通过专业的项目审核、项目评估、项目整合，为团队长提供稳定可靠的优质项目。
-                </p>
-                <p className="mt-4 text-sm leading-loose text-slate-400">
-                  平台每月在海鸥官方群内分享最新项目，团队长带领团队协作发展，多劳多得。我们相信，好的项目值得被更多人看见，合赢项目社让每一次合作都有迹可循、有始有终。
-                </p>
+                {a.intro.map((para, i) => (
+                  <p key={i} className={i === 0 ? "mt-6 text-sm leading-loose text-slate-300 sm:text-base" : "mt-4 text-sm leading-loose text-slate-400"}>
+                    {para}
+                  </p>
+                ))}
               </div>
             </div>
           </Reveal>
@@ -87,21 +82,23 @@ export default function About() {
 
       <section className="py-14 md:bg-[#080E1F] md:py-20" data-testid="about-values-section">
         <div className="mx-auto max-w-7xl px-4 sm:px-8 lg:px-16">
-          <SectionHeading title="平台价值观" subtitle="开放 · 可信 · 共赢" />
+          <SectionHeading title={a.values_title} subtitle={a.values_subtitle} />
           <div className="grid grid-cols-2 gap-3 sm:gap-5 md:gap-7 lg:grid-cols-3">
-            {VALUES.map((v, i) => (
-              <Reveal key={v.title} delay={i * 0.12}>
+            {a.values.map((v, i) => {
+              const ValueIcon = VALUE_ICONS[i % VALUE_ICONS.length];
+              return (
+              <Reveal key={`${v.title}-${i}`} delay={i * 0.12}>
                 <div className="glass-card group h-full overflow-hidden rounded-3xl transition-transform duration-200 active:scale-[0.98]" data-testid={`value-card-${i}`}>
                   <div className="relative h-28 overflow-hidden sm:h-36 md:h-40">
                     <img
-                      src={v.img}
+                      src={toFullUrl(v.img)}
                       alt={v.title}
                       loading="lazy"
                       className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-110"
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-[#0D1730] via-[#0A1228]/20 to-transparent" />
                     <div className="absolute bottom-3 left-1/2 flex h-9 w-9 -translate-x-1/2 items-center justify-center rounded-full border border-amber-400/40 bg-[#060B18]/80 text-[#E5C158] shadow-[0_0_20px_rgba(212,175,55,0.35)] backdrop-blur-sm md:bottom-4 md:h-12 md:w-12">
-                      <v.icon size={16} />
+                      <ValueIcon size={16} />
                     </div>
                   </div>
                   <div className="p-4 text-center md:p-8">
@@ -110,14 +107,15 @@ export default function About() {
                   </div>
                 </div>
               </Reveal>
-            ))}
+              );
+            })}
           </div>
         </div>
       </section>
 
       <section className="py-14 md:py-20" data-testid="about-milestones-section">
         <div className="mx-auto max-w-4xl px-4 sm:px-8">
-          <SectionHeading title="平台发展历程" subtitle="一步一个脚印，与合作伙伴共同成长" />
+          <SectionHeading title={a.milestones_title} subtitle={a.milestones_subtitle} />
           <div className="relative ml-2 border-l border-amber-500/25 pl-8">
             {milestones.map((m, i) => (
               <Reveal key={`${m.year}-${i}`} delay={i * 0.08}>

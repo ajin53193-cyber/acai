@@ -1,7 +1,7 @@
 import { useCallback, useState } from "react";
 import axios from "axios";
 import { toast } from "sonner";
-import { Lock, LogOut, Inbox, FolderKanban, Settings2, Newspaper, MessagesSquare, BarChart3, Share2, PlayCircle } from "lucide-react";
+import { Lock, LogOut, Inbox, FolderKanban, Settings2, Newspaper, MessagesSquare, BarChart3, Share2, PlayCircle, Type } from "lucide-react";
 import { LogoMark } from "@/components/Logo";
 import { API, formatDetail } from "@/lib/api";
 import InboxAdmin from "@/pages/admin/InboxAdmin";
@@ -10,6 +10,7 @@ import ArticlesAdmin from "@/pages/admin/ArticlesAdmin";
 import TutorialsAdmin from "@/pages/admin/TutorialsAdmin";
 import ChatAdmin from "@/pages/admin/ChatAdmin";
 import SettingsAdmin from "@/pages/admin/SettingsAdmin";
+import CopyAdmin from "@/pages/admin/CopyAdmin";
 import StatsAdmin from "@/pages/admin/StatsAdmin";
 import PosterAdmin from "@/pages/admin/PosterAdmin";
 
@@ -24,6 +25,7 @@ const TABS = [
   { key: "stats", name: "访问统计", icon: BarChart3, testid: "admin-tab-stats" },
   { key: "poster", name: "推广海报", icon: Share2, testid: "admin-tab-poster" },
   { key: "settings", name: "站点设置", icon: Settings2, testid: "admin-tab-settings" },
+  { key: "copy", name: "页面文案", icon: Type, testid: "admin-tab-copy" },
 ];
 
 export default function Admin() {
@@ -131,6 +133,7 @@ export default function Admin() {
       {tab === "stats" && <StatsAdmin token={token} onUnauthorized={onUnauthorized} />}
       {tab === "poster" && <PosterAdmin />}
       {tab === "settings" && <SettingsAdmin token={token} onUnauthorized={onUnauthorized} />}
+      {tab === "copy" && <CopyAdmin token={token} onUnauthorized={onUnauthorized} />}
     </main>
   );
 }

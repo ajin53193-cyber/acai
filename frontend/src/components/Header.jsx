@@ -3,19 +3,22 @@ import { Link, NavLink, useLocation } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { Menu, X, Headset } from "lucide-react";
 import { LogoFull } from "@/components/Logo";
+import { useSettings } from "@/lib/useSettings";
 
-const NAV_ITEMS = [
-  { name: "首页", path: "/", testid: "nav-home-link" },
-  { name: "项目中心", path: "/projects", testid: "nav-projects-link" },
-  { name: "新闻动态", path: "/news", testid: "nav-news-link" },
-  { name: "合作共赢", path: "/cooperation", testid: "nav-cooperation-link" },
-  { name: "关于我们", path: "/about", testid: "nav-about-link" },
-  { name: "联系我们", path: "/contact", testid: "nav-contact-link" },
+const NAV_KEYS = [
+  { key: "home", path: "/", testid: "nav-home-link" },
+  { key: "projects", path: "/projects", testid: "nav-projects-link" },
+  { key: "news", path: "/news", testid: "nav-news-link" },
+  { key: "cooperation", path: "/cooperation", testid: "nav-cooperation-link" },
+  { key: "about", path: "/about", testid: "nav-about-link" },
+  { key: "contact", path: "/contact", testid: "nav-contact-link" },
 ];
 
 export const Header = () => {
   const [open, setOpen] = useState(false);
   const location = useLocation();
+  const { copy } = useSettings();
+  const NAV_ITEMS = NAV_KEYS.map((n) => ({ ...n, name: copy.nav[n.key] }));
 
   return (
     <header
@@ -57,7 +60,7 @@ export const Header = () => {
             className="flex items-center gap-2 rounded-full bg-gold-gradient px-5 py-2 text-sm font-bold text-[#060B18] shadow-[0_0_18px_rgba(212,175,55,0.35)] transition-all duration-300 hover:scale-105 hover:shadow-[0_0_28px_rgba(255,232,150,0.55)] active:scale-95"
           >
             <Headset size={15} />
-            联系客服
+            {copy.nav.kefu}
           </Link>
         </nav>
 
@@ -103,7 +106,7 @@ export const Header = () => {
                 onClick={() => setOpen(false)}
                 className="mt-2 rounded-full bg-gold-gradient px-5 py-2.5 text-center text-sm font-bold text-[#060B18]"
               >
-                联系客服
+                {copy.nav.kefu}
               </Link>
             </div>
           </motion.nav>

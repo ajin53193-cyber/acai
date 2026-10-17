@@ -2,46 +2,16 @@ import { Link } from "react-router-dom";
 import { Users, User, Target, Layers, Hexagon, ShieldCheck, Zap, Crown, Package, Gem } from "lucide-react";
 import { Reveal, SectionHeading } from "@/components/Reveal";
 import { useSettings } from "@/lib/useSettings";
+import { toFullUrl } from "@/components/ImageUpload";
 
-const STEPS = [
-  { icon: ShieldCheck, title: "项目审核", desc: "专业机制层层审核" },
-  { icon: Target, title: "项目评估", desc: "全面评估项目价值" },
-  { icon: Layers, title: "项目整合", desc: "整合优质资源项目" },
-  { icon: Users, title: "合作落地", desc: "团队对接稳定落地" },
-];
-
+const STEP_ICONS = [ShieldCheck, Target, Layers, Users];
 const TIER_ICONS = [User, Users, Crown, Gem, Package, Hexagon];
-
-const MODES = [
-  {
-    icon: Crown,
-    title: "团长合作",
-    desc: "招募团队长，平台提供优质项目，共建团队协作成长",
-    points: ["专属城市团长席位", "平台优质项目直供", "团队协作激励机制", "新项目每月群内分享"],
-  },
-  {
-    icon: Package,
-    title: "项目方合作",
-    desc: "提交项目信息，获取对接机会与社群曝光",
-    points: ["项目免费上架展示", "精准匹配资金渠道", "百人社群同步曝光", "客服一对一跟进"],
-  },
-  {
-    icon: Gem,
-    title: "资源方合作",
-    desc: "提供资金、渠道、技术或服务资源",
-    points: ["优质项目优先对接", "资源价值高效变现", "平台信用背书保障", "长期战略合作机制"],
-  },
-];
-
-const ADVANTAGES = [
-  { icon: Layers, title: "平台项目资源", desc: "严选项目库持续更新，覆盖多行业赛道", img: "/images/ui/adv-resources.webp" },
-  { icon: Hexagon, title: "社群协作体系", desc: "成熟社群网络，信息高效流转共享", img: "/images/ui/adv-network.webp" },
-  { icon: ShieldCheck, title: "客服全程对接", desc: "专业客服团队，合作全程跟进护航", img: "/images/ui/adv-service.webp" },
-  { icon: Zap, title: "高效信息匹配", desc: "需求快速响应，精准撮合合作双方", img: "/images/ui/adv-match.webp" },
-];
+const MODE_ICONS = [Crown, Package, Gem];
+const ADV_ICONS = [Layers, Hexagon, ShieldCheck, Zap];
 
 export default function Cooperation() {
-  const { contact, tiers } = useSettings();
+  const { contact, tiers, copy } = useSettings();
+  const c = copy.cooperation;
 
   return (
     <main className="pt-28" data-testid="cooperation-page">
@@ -49,11 +19,11 @@ export default function Cooperation() {
         <div className="pointer-events-none absolute left-1/2 top-0 h-72 w-[640px] -translate-x-1/2 rounded-full bg-[#1E3A8A]/25 blur-[120px]" />
         <Reveal>
           <h1 className="font-display text-3xl font-black tracking-tight text-gold-gradient sm:text-4xl lg:text-5xl">
-            合作共赢
+            {c.title}
           </h1>
-          <p className="mt-4 text-base text-slate-400 sm:text-lg">招募团队长 · 平台提供优质项目 · 每月新项目群内分享</p>
+          <p className="mt-4 text-base text-slate-400 sm:text-lg">{c.subtitle}</p>
           <div className="mt-6 flex flex-wrap items-center justify-center gap-2.5 sm:gap-3" data-testid="cooperation-compliance-badges">
-            {["平台不收取任何费用", "不承诺收益", "正规合规项目"].map((t) => (
+            {copy.compliance_badges.map((t) => (
               <span
                 key={t}
                 className="inline-flex items-center gap-1.5 rounded-full border border-amber-500/30 bg-amber-500/[0.06] px-3.5 py-1.5 text-xs font-medium text-[#E5C158] sm:text-sm"
@@ -68,16 +38,18 @@ export default function Cooperation() {
 
       <section className="pb-14 md:pb-20" data-testid="cooperation-flow-section">
         <div className="mx-auto max-w-7xl px-4 sm:px-8 lg:px-16">
-          <SectionHeading title="合作模式" subtitle="四步闭环，从发布到落地全程护航" />
+          <SectionHeading title={c.steps_title} subtitle={c.steps_subtitle} />
           <Reveal>
             <div className="glass-card relative overflow-hidden rounded-3xl px-5 py-8 sm:px-12 sm:py-12">
               <img src="/images/ui/cta-banner.webp" alt="" loading="lazy" decoding="async" className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-15" />
               <div className="absolute left-[12%] right-[12%] top-[64px] hidden h-px bg-gradient-to-r from-transparent via-[#D4AF37]/50 to-transparent md:block" />
               <div className="relative grid grid-cols-2 gap-4 md:grid-cols-4 md:gap-10">
-                {STEPS.map((s, i) => (
-                  <div key={s.title} className="relative flex items-center gap-3 text-left md:block md:text-center" data-testid={`flow-step-${i}`}>
+                {c.steps.map((s, i) => {
+                  const StepIcon = STEP_ICONS[i % STEP_ICONS.length];
+                  return (
+                  <div key={`${s.title}-${i}`} className="relative flex items-center gap-3 text-left md:block md:text-center" data-testid={`flow-step-${i}`}>
                     <div className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-amber-400/40 bg-[#060B18] text-[#E5C158] shadow-[0_0_24px_rgba(212,175,55,0.25)] md:mx-auto md:h-16 md:w-16 md:rounded-2xl">
-                      <s.icon size={20} />
+                      <StepIcon size={20} />
                       <span className="absolute -right-2 -top-2 flex h-5 w-5 items-center justify-center rounded-full bg-gold-gradient text-[10px] font-black text-[#060B18] md:h-6 md:w-6 md:text-xs">
                         {i + 1}
                       </span>
@@ -87,7 +59,8 @@ export default function Cooperation() {
                       <p className="mt-0.5 text-[11px] leading-snug text-slate-400 md:mt-1.5 md:text-sm">{s.desc}</p>
                     </div>
                   </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           </Reveal>
@@ -96,7 +69,7 @@ export default function Cooperation() {
 
       <section className="py-14 md:py-20" data-testid="cooperation-tiers-section">
         <div className="mx-auto max-w-7xl px-4 sm:px-8 lg:px-16">
-          <SectionHeading title="团队协作激励" subtitle="团队协作成长 · 多劳多得 · 具体以正式合作协议为准" />
+          <SectionHeading title={c.tiers_title} subtitle={c.tiers_subtitle} />
           <div className="grid grid-cols-3 items-stretch gap-2.5 sm:gap-4 md:gap-6">
             {tiers.map((t, i) => {
               const TierIcon = TIER_ICONS[i % TIER_ICONS.length];
@@ -120,7 +93,7 @@ export default function Cooperation() {
                   </div>
                   <div className="mt-2 text-[9px] tracking-[0.1em] text-slate-400 md:mt-5 md:text-sm md:tracking-[0.25em]">{t.count}</div>
                   <div className="mt-1 font-display text-lg font-black leading-tight text-gold-gradient sm:text-2xl md:mt-3 lg:text-5xl">{t.income}</div>
-                  <div className="mt-1 text-[8px] tracking-[0.05em] text-[#D4AF37] md:mt-2 md:text-xs md:tracking-[0.2em]">协作激励层级</div>
+                  <div className="mt-1 text-[8px] tracking-[0.05em] text-[#D4AF37] md:mt-2 md:text-xs md:tracking-[0.2em]">{c.tier_level_label}</div>
                   <div className="mt-2 h-0.5 w-6 rounded-full bg-gold-gradient opacity-40 transition-all duration-500 group-hover:w-16 group-hover:opacity-100 md:mt-6 md:w-8" />
                 </div>
               </Reveal>
@@ -129,7 +102,7 @@ export default function Cooperation() {
           </div>
           <Reveal className="mt-8 text-center">
             <p className="mx-auto max-w-2xl text-xs leading-relaxed text-slate-500" data-testid="tier-disclaimer">
-              团队协作激励与团队规模、运营情况相关，多劳多得，不构成任何收益承诺，具体权益以正式合作协议为准。
+              {c.tiers_disclaimer}
             </p>
           </Reveal>
         </div>
@@ -137,19 +110,21 @@ export default function Cooperation() {
 
       <section className="py-14 md:bg-[#080E1F] md:py-20" data-testid="cooperation-modes-section">
         <div className="mx-auto max-w-7xl px-4 sm:px-8 lg:px-16">
-          <SectionHeading title="合作方式" subtitle="三种身份，总有一个适合你" />
+          <SectionHeading title={c.modes_title} subtitle={c.modes_subtitle} />
           <div className="grid grid-cols-3 gap-2.5 sm:gap-4 md:gap-7">
-            {MODES.map((m, i) => (
-              <Reveal key={m.title} delay={i * 0.12}>
+            {c.modes.map((m, i) => {
+              const ModeIcon = MODE_ICONS[i % MODE_ICONS.length];
+              return (
+              <Reveal key={`${m.title}-${i}`} delay={i * 0.12}>
                 <div className="glass-card group flex h-full flex-col rounded-2xl p-2.5 text-center transition-transform duration-200 active:scale-[0.98] md:rounded-3xl md:p-8" data-testid={`cooperation-mode-card-${i}`}>
                   <div className="mx-auto flex h-9 w-9 items-center justify-center rounded-xl bg-gold-gradient text-[#060B18] shadow-[0_0_28px_rgba(212,175,55,0.4)] transition-transform duration-500 group-hover:rotate-6 group-hover:scale-110 md:h-16 md:w-16 md:rounded-2xl">
-                    <m.icon size={16} />
+                    <ModeIcon size={16} />
                   </div>
                   <h3 className="mt-2 font-display text-xs font-bold text-slate-50 md:mt-6 md:text-xl">{m.title}</h3>
                   <p className="hidden md:mt-2 md:block md:text-sm md:text-slate-400">{m.desc}</p>
                   <ul className="mt-2 flex-1 space-y-1 text-left md:mt-6 md:space-y-2.5">
-                    {m.points.map((pt) => (
-                      <li key={pt} className="flex items-start gap-1 text-[9px] leading-snug text-slate-300 md:items-center md:gap-2.5 md:text-sm">
+                    {(m.points || []).map((pt, j) => (
+                      <li key={`${pt}-${j}`} className="flex items-start gap-1 text-[9px] leading-snug text-slate-300 md:items-center md:gap-2.5 md:text-sm">
                         <span className="mt-0.5 h-1 w-1 shrink-0 rotate-45 bg-[#D4AF37] md:mt-0 md:h-1.5 md:w-1.5" /> {pt}
                       </li>
                     ))}
@@ -159,25 +134,28 @@ export default function Cooperation() {
                     data-testid={`cooperation-apply-btn-${i}`}
                     className="mt-2.5 rounded-full bg-gold-gradient py-1.5 text-[10px] font-bold text-[#060B18] shadow-[0_0_18px_rgba(212,175,55,0.3)] transition-all duration-300 hover:shadow-[0_0_30px_rgba(255,232,150,0.55)] md:mt-8 md:py-3 md:text-sm"
                   >
-                    申请合作
+                    {c.apply_btn}
                   </Link>
                 </div>
               </Reveal>
-            ))}
+              );
+            })}
           </div>
         </div>
       </section>
 
       <section className="py-14 md:py-20" data-testid="cooperation-advantages-section">
         <div className="mx-auto max-w-7xl px-4 sm:px-8 lg:px-16">
-          <SectionHeading title="合作优势" subtitle="为什么选择合赢项目社" />
+          <SectionHeading title={c.adv_title} subtitle={c.adv_subtitle} />
           <div className="grid grid-cols-2 gap-3 sm:gap-6 lg:grid-cols-4">
-            {ADVANTAGES.map((a, i) => (
-              <Reveal key={a.title} delay={i * 0.1}>
+            {c.advantages.map((a, i) => {
+              const AdvIcon = ADV_ICONS[i % ADV_ICONS.length];
+              return (
+              <Reveal key={`${a.title}-${i}`} delay={i * 0.1}>
                 <div className="glass-card group h-full overflow-hidden rounded-2xl transition-transform duration-200 active:scale-[0.98]" data-testid={`advantage-card-${i}`}>
                   <div className="relative h-24 overflow-hidden sm:h-32 md:h-36">
                     <img
-                      src={a.img}
+                      src={toFullUrl(a.img)}
                       alt={a.title}
                       loading="lazy"
                       className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-110"
@@ -187,7 +165,7 @@ export default function Cooperation() {
                   <div className="p-3.5 md:p-6">
                     <div className="flex items-center gap-2 md:gap-3">
                       <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-amber-500/30 bg-amber-500/10 text-[#E5C158] transition-all duration-300 group-hover:shadow-[0_0_20px_rgba(212,175,55,0.4)] md:h-10 md:w-10">
-                        <a.icon size={16} />
+                        <AdvIcon size={16} />
                       </div>
                       <h3 className="font-display text-sm font-bold text-slate-50 md:text-lg">{a.title}</h3>
                     </div>
@@ -195,7 +173,8 @@ export default function Cooperation() {
                   </div>
                 </div>
               </Reveal>
-            ))}
+              );
+            })}
           </div>
 
           <Reveal className="mt-16">
@@ -203,8 +182,12 @@ export default function Cooperation() {
               <img src="/images/ui/cta-banner.webp" alt="" loading="lazy" decoding="async" className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-40" />
               <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-[#0A1228]/70 via-[#0A1228]/40 to-[#0A1228]/70" />
               <div className="relative">
-                <h3 className="font-display text-xl font-bold text-slate-50 sm:text-2xl">联系客服加入团长</h3>
-                <p className="mt-2 text-sm text-slate-300">工作时间 {contact.hours} · 邮箱 {contact.email}</p>
+                <h3 className="font-display text-xl font-bold text-slate-50 sm:text-2xl">{c.cta_title}</h3>
+                <p className="mt-2 text-sm text-slate-300">
+                  工作时间 {contact.hours} · 邮箱 {contact.email}
+                  {contact.hotline && <> · 电话 {contact.hotline}</>}
+                  {contact.wechat && <> · 微信 {contact.wechat}</>}
+                </p>
               </div>
               <button
                 type="button"
@@ -212,7 +195,7 @@ export default function Cooperation() {
                 data-testid="cooperation-consult-btn"
                 className="relative shrink-0 rounded-full bg-gold-gradient px-9 py-3.5 text-sm font-bold text-[#060B18] shadow-[0_0_24px_rgba(212,175,55,0.4)] transition-all duration-300 hover:scale-105 active:scale-95"
               >
-                在线咨询
+                {c.cta_btn}
               </button>
             </div>
           </Reveal>

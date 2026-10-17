@@ -1,7 +1,7 @@
 import { useState } from "react";
 import axios from "axios";
 import { toast } from "sonner";
-import { Clock, Mail, Send, Headset } from "lucide-react";
+import { Clock, Mail, Send, Headset, Phone, MessageCircle } from "lucide-react";
 import { Reveal } from "@/components/Reveal";
 import { API, formatDetail } from "@/lib/api";
 import { useSettings } from "@/lib/useSettings";
@@ -10,7 +10,8 @@ import { toFullUrl } from "@/components/ImageUpload";
 const TYPES = ["项目合作", "团长合作", "资源对接", "其他"];
 
 export default function Contact() {
-  const { contact } = useSettings();
+  const { contact, copy } = useSettings();
+  const t = copy.contact;
   const [form, setForm] = useState({ name: "", phone: "", city: "", inquiry_type: "项目合作", message: "" });
   const [submitting, setSubmitting] = useState(false);
 
@@ -44,15 +45,15 @@ export default function Contact() {
         <div className="mx-auto max-w-7xl px-4 sm:px-8 lg:px-16">
           <Reveal>
             <h1 className="font-display text-3xl font-black tracking-tight text-gold-gradient sm:text-4xl lg:text-5xl">
-              联系我们
+              {t.title}
             </h1>
-            <p className="mt-4 text-base text-slate-400 sm:text-lg">客服团队为您提供项目合作咨询</p>
+            <p className="mt-4 text-base text-slate-400 sm:text-lg">{t.subtitle}</p>
           </Reveal>
 
           <div className="mt-12 grid gap-8 lg:grid-cols-5">
             <Reveal delay={0.1} className="lg:col-span-2">
               <div className="glass-card flex h-full flex-col rounded-3xl p-8 sm:p-10" data-testid="contact-info-card">
-                <h2 className="font-display text-xl font-bold text-gold-gradient">联系方式</h2>
+                <h2 className="font-display text-xl font-bold text-gold-gradient">{t.info_title}</h2>
                 <div className="mt-3 h-px w-12 bg-gold-gradient" />
                 <ul className="mt-8 flex-1 space-y-6 text-sm">
                   <li className="flex items-center gap-4" data-testid="contact-hours">
@@ -63,12 +64,24 @@ export default function Contact() {
                     <span className="flex h-11 w-11 items-center justify-center rounded-xl border border-amber-500/30 bg-amber-500/10 text-[#E5C158]"><Mail size={18} /></span>
                     <div><div className="text-slate-400">邮箱</div><div className="mt-0.5 font-bold text-slate-100">{contact.email}</div></div>
                   </li>
+                  {contact.hotline && (
+                    <li className="flex items-center gap-4" data-testid="contact-hotline">
+                      <span className="flex h-11 w-11 items-center justify-center rounded-xl border border-amber-500/30 bg-amber-500/10 text-[#E5C158]"><Phone size={18} /></span>
+                      <div><div className="text-slate-400">联系电话</div><a href={`tel:${contact.hotline}`} className="mt-0.5 block font-bold text-slate-100 hover:text-[#FFE896]">{contact.hotline}</a></div>
+                    </li>
+                  )}
+                  {contact.wechat && (
+                    <li className="flex items-center gap-4" data-testid="contact-wechat">
+                      <span className="flex h-11 w-11 items-center justify-center rounded-xl border border-amber-500/30 bg-amber-500/10 text-[#E5C158]"><MessageCircle size={18} /></span>
+                      <div><div className="text-slate-400">客服微信</div><div className="mt-0.5 font-bold text-slate-100">{contact.wechat}</div></div>
+                    </li>
+                  )}
                 </ul>
                 {contact.mp_qr_image && (
                   <div className="mt-8 rounded-2xl border border-amber-500/20 bg-[#060B18]/60 p-5 text-center" data-testid="contact-qr-block">
                     <img src={toFullUrl(contact.mp_qr_image)} alt={contact.mp_name || "官方微信服务号"} loading="lazy" decoding="async" className="mx-auto w-36 rounded-xl border border-amber-500/20" />
                     <div className="mt-3 text-sm font-medium text-[#E5C158]">{contact.mp_name || "官方微信服务号"}</div>
-                    <div className="mt-1 text-xs text-slate-500">微信扫码关注，获取最新项目</div>
+                    <div className="mt-1 text-xs text-slate-500">{t.mp_hint}</div>
                   </div>
                 )}
                 <button
@@ -77,7 +90,7 @@ export default function Contact() {
                   data-testid="contact-online-consult-btn"
                   className="mt-10 flex items-center justify-center gap-2 rounded-full border border-[#D4AF37] py-3.5 text-sm font-medium text-[#FFE896] transition-all duration-300 hover:bg-[#D4AF37]/10 hover:shadow-[0_0_24px_rgba(212,175,55,0.25)]"
                 >
-                  <Headset size={16} /> 在线咨询
+                  <Headset size={16} /> {t.consult_btn}
                 </button>
               </div>
             </Reveal>
@@ -89,7 +102,7 @@ export default function Contact() {
                 className="glass-card rounded-3xl p-8 sm:p-10"
                 data-testid="contact-form"
               >
-                <h2 className="font-display text-xl font-bold text-gold-gradient">在线留言</h2>
+                <h2 className="font-display text-xl font-bold text-gold-gradient">{t.form_title}</h2>
                 <div className="mt-3 h-px w-12 bg-gold-gradient" />
                 <div className="mt-8 grid gap-5 sm:grid-cols-2">
                   <div>
@@ -133,10 +146,10 @@ export default function Contact() {
                   data-testid="contact-form-submit-btn"
                   className="mt-8 flex w-full items-center justify-center gap-2 rounded-full bg-gold-gradient py-4 text-sm font-bold text-[#060B18] shadow-[0_0_24px_rgba(212,175,55,0.35)] transition-all duration-300 hover:shadow-[0_0_36px_rgba(255,232,150,0.55)] active:scale-[0.98] disabled:opacity-60 sm:w-auto sm:px-14"
                 >
-                  <Send size={16} /> {submitting ? "提交中…" : "提交咨询"}
+                  <Send size={16} /> {submitting ? "提交中…" : t.submit_btn}
                 </button>
                 <p className="mt-5 text-xs text-slate-500">
-                  咨询信息将进入后台管理系统，由客服人员及时跟进处理。
+                  {t.form_note}
                 </p>
               </form>
             </Reveal>

@@ -12,36 +12,7 @@ import { useSettings } from "@/lib/useSettings";
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
-const SERVICES = [
-  {
-    icon: FilePlus2,
-    tag: "项目发布",
-    title: "绿色能源合作项目",
-    desc: "汇聚光伏、储能、充电桩等绿色能源优质项目，严选审核，长期价值清晰可见。",
-    img: "/images/ui/service-publish.webp",
-  },
-  {
-    icon: Link2,
-    tag: "资源对接",
-    title: "社群共建项目",
-    desc: "为项目方精准匹配资金、渠道与团队伙伴，高效撮合，全程跟进对接进度。",
-    img: "/images/ui/service-link.webp",
-  },
-  {
-    icon: Users,
-    tag: "社群共建",
-    title: "资源对接平台项目",
-    desc: "开放本地社群与团长席位，共建活跃商业社群，共享平台流量与资源红利。",
-    img: "/images/ui/service-community.webp",
-  },
-  {
-    icon: Handshake,
-    tag: "合作落地",
-    title: "新项目推荐",
-    desc: "客服团队全程护航合作落地，从意向对接到签约执行，一站式陪伴成长。",
-    img: "/images/ui/service-deal.webp",
-  },
-];
+const SERVICE_ICONS = [FilePlus2, Link2, Users, Handshake];
 
 const lineReveal = {
   hidden: { y: "110%" },
@@ -53,7 +24,8 @@ const lineReveal = {
 
 export default function Home() {
   const [projects, setProjects] = useState([]);
-  const { stats, edges } = useSettings();
+  const { stats, edges, copy } = useSettings();
+  const home = copy.home;
 
   useEffect(() => {
     axios
@@ -77,18 +49,18 @@ export default function Home() {
               className="mb-6 inline-flex items-center gap-2 rounded-full border border-amber-500/30 bg-amber-500/5 px-4 py-1.5 text-xs font-medium tracking-[0.25em] text-[#E5C158]"
               data-testid="hero-badge"
             >
-              HEYING PROJECT CLUB
+              {home.hero_tag}
             </motion.div>
 
             <h1 className="font-display text-4xl font-black leading-[1.15] tracking-tight sm:text-5xl lg:text-6xl">
               <span className="block overflow-hidden pb-1">
                 <motion.span custom={0} variants={lineReveal} initial="hidden" animate="show" className="block text-slate-50">
-                  合赢项目社
+                  {home.hero_title1}
                 </motion.span>
               </span>
               <span className="block overflow-hidden pb-2">
                 <motion.span custom={1} variants={lineReveal} initial="hidden" animate="show" className="block text-gold-gradient">
-                  聚力项目，合作共赢
+                  {home.hero_title2}
                 </motion.span>
               </span>
             </h1>
@@ -100,7 +72,7 @@ export default function Home() {
               className="mx-auto mt-6 max-w-lg text-base leading-relaxed text-slate-300 sm:text-lg lg:mx-0"
               data-testid="hero-subtitle"
             >
-              招募团队长，平台提供优质稳定项目。专业项目审核、评估、整合，每月新项目海鸥官方群内同步分享。
+              {home.hero_subtitle}
             </motion.p>
 
             <motion.div
@@ -114,14 +86,14 @@ export default function Home() {
                 data-testid="hero-browse-projects-btn"
                 className="rounded-full bg-gold-gradient px-8 py-3.5 text-sm font-bold text-[#060B18] shadow-[0_0_24px_rgba(212,175,55,0.35)] transition-all duration-300 hover:scale-105 hover:shadow-[0_0_36px_rgba(255,232,150,0.55)] active:scale-95"
               >
-                浏览项目
+                {home.hero_btn_primary}
               </Link>
               <Link
                 to="/cooperation"
                 data-testid="hero-join-cooperation-btn"
                 className="rounded-full border border-[#D4AF37] px-8 py-3.5 text-sm font-medium text-[#FFE896] transition-all duration-300 hover:bg-[#D4AF37]/10 hover:shadow-[0_0_24px_rgba(212,175,55,0.25)]"
               >
-                加入合作
+                {home.hero_btn_secondary}
               </Link>
             </motion.div>
 
@@ -132,7 +104,7 @@ export default function Home() {
               className="mt-5 flex flex-wrap items-center justify-center gap-2 lg:justify-start"
               data-testid="hero-compliance-badges"
             >
-              {["平台不收取任何费用", "不承诺收益", "正规合规项目"].map((t) => (
+              {copy.compliance_badges.map((t) => (
                 <span
                   key={t}
                   className="inline-flex items-center gap-1.5 rounded-full border border-amber-500/25 bg-amber-500/[0.05] px-3 py-1 text-[11px] font-medium text-[#E5C158] sm:text-xs"
@@ -186,21 +158,23 @@ export default function Home() {
 
       <section className="py-14 md:py-24" data-testid="services-section">
         <div className="mx-auto max-w-7xl px-4 sm:px-8 lg:px-16">
-          <SectionHeading title="优质项目推荐" subtitle="四大核心服务，构建项目合作全链路" />
+          <SectionHeading title={home.services_title} subtitle={home.services_subtitle} />
           <div className="grid grid-cols-2 gap-4 sm:gap-6 lg:grid-cols-4">
-            {SERVICES.map((s, i) => (
-              <Reveal key={s.tag} delay={i * 0.1}>
+            {home.services.map((s, i) => {
+              const Icon = SERVICE_ICONS[i % SERVICE_ICONS.length];
+              return (
+              <Reveal key={`${s.title}-${i}`} delay={i * 0.1}>
                 <div className="glass-card group flex h-full flex-col overflow-hidden rounded-2xl transition-transform duration-200 active:scale-[0.98]" data-testid={`service-card-${i}`}>
                   <div className="relative h-24 overflow-hidden sm:h-36">
                     <img
-                      src={s.img}
+                      src={toFullUrl(s.img)}
                       alt={s.tag}
                       loading="lazy"
                       className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-110"
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-[#0D1730] via-[#0A1228]/20 to-transparent" />
                     <div className="absolute bottom-2.5 left-3 flex h-8 w-8 items-center justify-center rounded-lg border border-amber-400/40 bg-[#060B18]/70 text-[#E5C158] backdrop-blur-sm sm:bottom-3 sm:left-4 sm:h-9 sm:w-9">
-                      <s.icon size={16} />
+                      <Icon size={16} />
                     </div>
                   </div>
                   <div className="flex flex-1 flex-col p-4 sm:p-6">
@@ -217,14 +191,15 @@ export default function Home() {
                   </div>
                 </div>
               </Reveal>
-            ))}
+              );
+            })}
           </div>
         </div>
       </section>
 
       <section className="py-14 md:bg-[#080E1F] md:py-24" data-testid="featured-projects-section">
         <div className="mx-auto max-w-7xl px-4 sm:px-8 lg:px-16">
-          <SectionHeading title="精选合作项目" subtitle="严选优质项目，真实可靠，持续更新" />
+          <SectionHeading title={home.projects_title} subtitle={home.projects_subtitle} />
           <div className="grid grid-cols-2 gap-3 sm:gap-5 md:gap-7 lg:grid-cols-3">
             {projects.map((p, i) => (
               <Reveal key={p.id} delay={i * 0.08}>
@@ -262,7 +237,7 @@ export default function Home() {
               data-testid="view-all-projects-btn"
               className="inline-block rounded-full border border-[#D4AF37] px-9 py-3 text-sm font-medium text-[#FFE896] transition-all duration-300 hover:bg-[#D4AF37]/10 hover:shadow-[0_0_24px_rgba(212,175,55,0.25)]"
             >
-              查看全部项目
+              {home.projects_btn}
             </Link>
           </Reveal>
         </div>
@@ -270,7 +245,7 @@ export default function Home() {
 
       <section className="py-14 md:py-24" data-testid="advantages-home-section">
         <div className="mx-auto max-w-7xl px-4 sm:px-8 lg:px-16">
-          <SectionHeading title="我们的优势" subtitle="专业审核 · 稳定供给 · 每月分享 · 专属对接" />
+          <SectionHeading title={home.edges_title} subtitle={home.edges_subtitle} />
           <div className="grid grid-cols-2 gap-4 sm:gap-6 lg:grid-cols-4">
             {edges.map((a, i) => (
               <Reveal key={`${a.title}-${i}`} delay={i * 0.1}>
@@ -305,10 +280,10 @@ export default function Home() {
               <div className="pointer-events-none absolute -top-24 left-1/2 h-48 w-[520px] -translate-x-1/2 rounded-full bg-[#D4AF37]/15 blur-[80px]" />
               <div className="relative">
               <h3 className="font-display text-2xl font-bold text-slate-50 sm:text-3xl">
-                准备好加入<span className="text-gold-gradient">合作</span>了吗？
+                <span className="text-gold-gradient">{home.cta_title}</span>
               </h3>
               <p className="mx-auto mt-4 max-w-xl text-sm text-slate-300 sm:text-base">
-                联系客服获取团长入驻与项目合作详情，工作时间 9:00 - 21:00 全程在线。
+                {home.cta_desc}
               </p>
               <button
                 type="button"
@@ -316,7 +291,7 @@ export default function Home() {
                 data-testid="cta-contact-kefu-btn"
                 className="mt-8 inline-block rounded-full bg-gold-gradient px-10 py-3.5 text-sm font-bold text-[#060B18] shadow-[0_0_24px_rgba(212,175,55,0.4)] transition-all duration-300 hover:scale-105 hover:shadow-[0_0_36px_rgba(255,232,150,0.6)] active:scale-95"
               >
-                立即联系客服
+                {home.cta_btn}
               </button>
               </div>
             </div>

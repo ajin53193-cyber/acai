@@ -24,6 +24,7 @@ from zoneinfo import ZoneInfo
 import asyncio
 import logging
 import requests
+from site_copy import SiteCopy
 
 mongo_url = os.environ["MONGO_URL"]
 client = AsyncIOMotorClient(mongo_url)
@@ -165,8 +166,8 @@ class FeaturedUpdate(BaseModel):
 
 
 class ContactInfo(BaseModel):
-    hotline: str = "400-888-6888"
-    wechat: str = "heyingkefu"
+    hotline: str = Field(default="", max_length=40)
+    wechat: str = Field(default="", max_length=40)
     hours: str = "9:00 - 21:00"
     email: str = "contact@heying.com"
     mp_qr_image: str = ""  # 官方微信服务号二维码
@@ -618,6 +619,10 @@ async def startup():
     except Exception as e:
         print(f"[migration] income_compliance_v1 failed (skipped): {e}")
 
+    # 一次性清理：去掉早期写死的占位电话/微信号（现改为后台填写，留空则前台不显示）
+    await db.settings.update_one({"key": "site", "contact.hotline": "400-888-6888"}, {"$set": {"contact.hotline": ""}})
+    await db.settings.update_one({"key": "site", "contact.wechat": "heyingkefu"}, {"$set": {"contact.wechat": ""}})
+
 
 @api_router.get("/")
 async def root():
@@ -662,7 +667,8 @@ def sync_active_qr(cfg: dict) -> dict:
 async def get_settings():
     doc = await db.settings.find_one({"key": "site"}, {"_id": 0, "key": 0})
     if not doc:
-        return {"contact": ContactInfo().model_dump(), "team": [], "chat": ChatConfig().model_dump()}
+        return {"contact": ContactInfo().model_dump(), "team": [], "chat": ChatConfig().model_dump(), "copy": SiteCopy().model_dump()}
+    doc["copy"] = SiteCopy(**(doc.get("copy") or {})).model_dump()
     doc.setdefault("chat", ChatConfig().model_dump())
     doc["chat"].setdefault("ai_enabled", True)
     for k in ("welcome_tutorial_label", "welcome_tutorial_link", "welcome_group_label", "welcome_group_link"):
@@ -809,6 +815,35 @@ async def get_article(article_id: str):
     if not doc:
         raise HTTPException(status_code=404, detail="文章不存在")
     return doc
+
+
+SITE_URL = os.environ.get("SITE_URL", "https://eztyv.com").rstrip("/")
+
+
+@api_router.get("/sitemap.xml")
+async def sitemap_xml():
+    """动态站点地图：静态页面 + 已发布新闻 + 已发布教程。生产 nginx 将 /sitemap.xml 代理到这里。"""
+    today = datetime.now(ZoneInfo("Asia/Shanghai")).date().isoformat()
+    urls = [
+        ("/", today, "weekly", "1.0"),
+        ("/projects", today, "weekly", "0.9"),
+        ("/cooperation", today, "monthly", "0.9"),
+        ("/news", today, "weekly", "0.8"),
+        ("/about", today, "monthly", "0.6"),
+        ("/contact", today, "monthly", "0.6"),
+    ]
+    articles = await db.articles.find({"published": {"$ne": False}}, {"_id": 0, "id": 1, "created_at": 1}).to_list(500)
+    for a in articles:
+        urls.append((f"/news/{a['id']}", str(a.get("created_at", today))[:10], "monthly", "0.7"))
+    tutorials = await db.tutorials.find({"published": {"$ne": False}}, {"_id": 0, "slug": 1, "created_at": 1}).to_list(100)
+    for t in tutorials:
+        urls.append((f"/tutorials/{t['slug']}", str(t.get("created_at", today))[:10], "monthly", "0.7"))
+    body = "".join(
+        f"<url><loc>{SITE_URL}{path}</loc><lastmod>{mod}</lastmod><changefreq>{freq}</changefreq><priority>{pri}</priority></url>"
+        for path, mod, freq, pri in urls
+    )
+    xml = f'<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">{body}</urlset>'
+    return Response(content=xml, media_type="application/xml", headers={"Cache-Control": "public, max-age=3600"})
 
 
 @api_router.post("/chat/start")
@@ -1225,6 +1260,12 @@ async def delete_project(project_id: str, _: str = Depends(require_admin)):
     if result.deleted_count == 0:
         raise HTTPException(status_code=404, detail="项目不存在")
     return {"message": "项目已删除"}
+
+
+@api_router.put("/admin/settings/copy")
+async def update_site_copy(data: SiteCopy, _: str = Depends(require_admin)):
+    await db.settings.update_one({"key": "site"}, {"$set": {"copy": data.model_dump(), "key": "site"}}, upsert=True)
+    return {"ok": True, "copy": data.model_dump()}
 
 
 @api_router.put("/admin/settings")
