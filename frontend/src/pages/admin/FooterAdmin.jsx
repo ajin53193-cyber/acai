@@ -78,6 +78,26 @@ function PageEditor({ callApi, page, onClose, onSaved }) {
   );
 }
 
+const TEXT_FIELDS = [["cs_title", "客服標題（二維碼右側第一行）"], ["cs_btn", "在線客服按鈕文字"], ["cs_sub", "客服副標題（第二行）"], ["copyright", "版權聲明"], ["company", "公司名稱 / 說明（留空則隱藏）"], ["address", "地址（留空則隱藏）"], ["trustpilot_url", "Trustpilot 連結（選填，填了可點擊）"]];
+
+function FooterTexts({ callApi }) {
+  const [t, setT] = useState(null);
+  const [saving, setSaving] = useState(false);
+  useEffect(() => { callApi({ method: "GET", url: "/footer" }).then((r) => setT(r.data.texts)).catch(() => {}); }, [callApi]);
+  if (!t) return null;
+  const save = async () => { setSaving(true); try { const r = await callApi({ method: "PUT", url: "/admin/footer", data: { texts: t } }); setT(r.data.texts); toast.success(tr("已儲存，頁尾已更新")); } catch (e) { toast.error(e.response?.data?.detail || tr("儲存失敗")); } setSaving(false); };
+  return (
+    <Card className="p-4 mb-4" data-testid="footer-texts-card">
+      <div className="flex items-center gap-2 mb-3"><div className="font-semibold text-slate-800">{tr("頁尾文案")}</div><span className="text-xs text-slate-400">{tr("客服區文字、Trustpilot、版權與公司資訊")}</span>
+        <Btn className="ml-auto" data-testid="footer-texts-save" onClick={save} disabled={saving}><Save className="h-4 w-4 inline -mt-0.5 mr-1" />{tr("儲存")}</Btn></div>
+      <div className="grid md:grid-cols-2 gap-3">
+        {TEXT_FIELDS.map(([k, label]) => <Field key={k} label={tr(label)}><Input data-testid={`footer-text-${k}`} className="w-full" value={t[k] || ""} onChange={(e) => setT({ ...t, [k]: e.target.value })} /></Field>)}
+        <label className="flex items-center gap-2 text-sm text-slate-700 h-9 self-end"><Switch data-testid="footer-text-show_trustpilot" checked={!!t.show_trustpilot} onCheckedChange={(v) => setT({ ...t, show_trustpilot: v })} />{tr("顯示 Trustpilot 五星評分")}</label>
+      </div>
+    </Card>
+  );
+}
+
 export function FooterAdmin({ callApi }) {
   const [pages, setPages] = useState([]);
   const [editing, setEditing] = useState(undefined);
@@ -89,6 +109,7 @@ export function FooterAdmin({ callApi }) {
     <div data-testid="footer-admin">
       <Head title={tr("頁尾管理")} sub={tr("編輯頁尾三欄連結，以及公司介紹 / 隱私權政策 / 常見問題等固定頁面的標題與正文。二維碼與支付 Logo 請到「系統配置 → 基礎設置」。")}
         right={<Btn data-testid="footer-page-add" onClick={() => setEditing(null)}><Plus className="h-4 w-4 inline -mt-0.5 mr-1" />{tr("新增頁面")}</Btn>} />
+      <FooterTexts callApi={callApi} />
       <LinkColumns callApi={callApi} pages={pages} />
       <Card className="overflow-x-auto">
         <table className="w-full text-sm" data-testid="footer-pages-table">

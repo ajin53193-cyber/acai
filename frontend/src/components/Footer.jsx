@@ -44,14 +44,17 @@ const COLS = [
   [tr("幫助訊息"), [[tr("常見問題"), "/article/faq"], [tr("我的訂單"), "/orders"], [tr("我的認證"), "/account/verify"], [tr("我的優惠券"), "/account/coupons"]]],
 ];
 
+const TpLink = ({ url, className, children }) => (url ? <a href={url} target="_blank" rel="noreferrer" className={className} data-testid="footer-trustpilot">{children}</a> : <div className={className} data-testid="footer-trustpilot">{children}</div>);
+
 export default function Footer() {
   const cfg = useSiteConfig();
   const [settings, setSettings] = useState({ whatsapp_link: "https://wa.me/", cs_label: tr("WhatsApp 掃碼聯繫客服"), cs_qr_image: "" });
   const [logos, setLogos] = useState(null);
   const [cols, setCols] = useState(COLS);
+  const [ft, setFt] = useState({ cs_title: "7*24 小時線上客服", cs_btn: "在線客服", cs_sub: "WhatsApp 24 小時客服", show_trustpilot: true, trustpilot_url: "", copyright: "© 2015-2026 gogo589.com 版權所有，並保留所有權利", company: "Element colors Electronic Entertainment Limited · 本站為示範項目，支付為測試模式", address: "Address: 19H MAXGRAND PLAZA NO. 3 TAI YAU STREET SAN PO KONG KL, Hong Kong" });
   useEffect(() => {
     publicApi.get("/settings").then((r) => setSettings(r.data)).catch(() => {});
-    publicApi.get("/footer").then((r) => setCols((r.data.cols || []).map((c) => [tr(c.title), c.links.map((l) => [tr(l.label), l.to, l.hot])]))).catch(() => {});
+    publicApi.get("/footer").then((r) => { setCols((r.data.cols || []).map((c) => [tr(c.title), c.links.map((l) => [tr(l.label), l.to, l.hot])])); if (r.data.texts) setFt(r.data.texts); }).catch(() => {});
     publicApi.get("/payment-logos").then((r) => setLogos(r.data)).catch(() => setLogos([]));
   }, []);
   return (
@@ -109,11 +112,11 @@ export default function Footer() {
               </div>
               <div className="flex flex-col gap-2.5 md:gap-3 pt-1 min-w-0">
                 <div className="flex items-center gap-2">
-                  <span className="text-xs md:text-sm text-white/90 whitespace-nowrap">{tr("7*24 小時線上客服")}</span>
-                  <button type="button" onClick={openService} data-testid="footer-cs-btn" className="text-xs font-bold bg-white/25 md:bg-white text-white md:text-[#E8792A] rounded-full px-3 py-1 whitespace-nowrap hover:bg-orange-50 hover:text-[#E8792A]">{tr("在線客服")}</button>
+                  <span className="text-xs md:text-sm text-white/90 whitespace-nowrap">{tr(ft.cs_title)}</span>
+                  <button type="button" onClick={openService} data-testid="footer-cs-btn" className="text-xs font-bold bg-white/25 md:bg-white text-white md:text-[#E8792A] rounded-full px-3 py-1 whitespace-nowrap hover:bg-orange-50 hover:text-[#E8792A]">{tr(ft.cs_btn)}</button>
                 </div>
-                <div className="text-xs md:text-sm text-white/90 whitespace-nowrap">{tr("WhatsApp 24 小時客服")}</div>
-                <div className="hidden md:flex items-center gap-1.5">
+                <div className="text-xs md:text-sm text-white/90 whitespace-nowrap">{tr(ft.cs_sub)}</div>
+                {ft.show_trustpilot && <TpLink url={ft.trustpilot_url} className="hidden md:flex items-center gap-1.5">
                   <div className="flex">
                     {[0, 1, 2, 3, 4].map((i) => (
                       <span key={i} className="h-6 w-6 bg-white/20 flex items-center justify-center first:rounded-l last:rounded-r">
@@ -122,7 +125,7 @@ export default function Footer() {
                     ))}
                   </div>
                   <span className="flex items-center gap-1 text-sm font-semibold ml-1"><Star className="h-3.5 w-3.5 fill-white text-white" />Trustpilot</span>
-                </div>
+                </TpLink>}
               </div>
             </div>
           </div>
@@ -130,21 +133,21 @@ export default function Footer() {
       </div>
 
       {/* Mobile Trustpilot */}
-      <div className="md:hidden flex items-center justify-center gap-2 pb-4">
+      {ft.show_trustpilot && <TpLink url={ft.trustpilot_url} className="md:hidden flex items-center justify-center gap-2 pb-4">
         <div className="flex gap-0.5">{[0, 1, 2, 3, 4].map((i) => <span key={i} className={`h-7 w-7 flex items-center justify-center rounded-sm ${i < 4 ? "bg-white/30" : "bg-white/15"}`}><Star className="h-4 w-4 fill-white text-white" /></span>)}</div>
         <span className="flex items-center gap-1 text-base font-semibold ml-1"><Star className="h-4 w-4 fill-white text-white" />Trustpilot</span>
-      </div>
+      </TpLink>}
 
       {/* Bottom bar */}
       <div className="bg-black/10 md:bg-black/10 max-md:bg-transparent max-md:pb-[calc(3.5rem+env(safe-area-inset-bottom))]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 md:py-5 flex flex-col md:flex-row md:items-center justify-between gap-1.5 md:gap-3 text-center md:text-left">
           <div className="flex items-center justify-center md:justify-start gap-4">
             <img src={cfg.logo.image} alt="gogo589" className="hidden md:block h-6 w-auto opacity-80" style={{ filter: "brightness(0) invert(1)" }} />
-            <span className="text-[13px] md:text-[11px] text-white/70">{tr("© 2015-2026 gogo589.com 版權所有，並保留所有權利")}</span>
+            <span className="text-[13px] md:text-[11px] text-white/70">{tr(ft.copyright)}</span>
           </div>
           <div className="text-[12px] md:text-[11px] text-white/55 md:text-right leading-relaxed">
-            <div>{tr("Element colors Electronic Entertainment Limited · 本站為示範項目，支付為測試模式")}</div>
-            <div>Address: 19H MAXGRAND PLAZA NO. 3 TAI YAU STREET SAN PO KONG KL, Hong Kong</div>
+            {ft.company && <div data-testid="footer-company">{tr(ft.company)}</div>}
+            {ft.address && <div data-testid="footer-address">{ft.address}</div>}
           </div>
         </div>
       </div>

@@ -195,26 +195,42 @@ DEFAULT_FOOTER = [
 ]
 
 
+DEFAULT_FOOTER_TEXTS = {"cs_title": "7*24 小時線上客服", "cs_btn": "在線客服", "cs_sub": "WhatsApp 24 小時客服", "show_trustpilot": True, "trustpilot_url": "",
+                        "copyright": "© 2015-2026 gogo589.com 版權所有，並保留所有權利", "company": "Element colors Electronic Entertainment Limited · 本站為示範項目，支付為測試模式",
+                        "address": "Address: 19H MAXGRAND PLAZA NO. 3 TAI YAU STREET SAN PO KONG KL, Hong Kong"}
+
+
+def _footer_texts(raw: dict) -> dict:
+    t = {**DEFAULT_FOOTER_TEXTS, **{k: v for k, v in (raw or {}).items() if k in DEFAULT_FOOTER_TEXTS}}
+    t["show_trustpilot"] = bool(t["show_trustpilot"])
+    return {k: (v if isinstance(v, bool) else str(v).strip()) for k, v in t.items()}
+
+
 @router.get("/footer")
 async def get_footer():
-    doc = await db.settings.find_one({"key": "footer_links"}, {"_id": 0})
-    return {"cols": (doc or {}).get("cols") or DEFAULT_FOOTER}
+    doc = await db.settings.find_one({"key": "footer_links"}, {"_id": 0}) or {}
+    return {"cols": doc.get("cols") or DEFAULT_FOOTER, "texts": _footer_texts(doc.get("texts"))}
 
 
 @router.put("/admin/footer")
 async def put_footer(body: Dict[str, Any], admin: dict = Depends(current_admin)):
-    cols = []
-    for c in (body.get("cols") or [])[:4]:
-        links = [{"label": str(l.get("label", "")).strip(), "to": str(l.get("to", "")).strip(), "hot": bool(l.get("hot"))} for l in (c.get("links") or []) if str(l.get("label", "")).strip()]
-        cols.append({"title": str(c.get("title", "")).strip(), "links": links})
-    await db.settings.update_one({"key": "footer_links"}, {"$set": {"key": "footer_links", "cols": cols}}, upsert=True)
-    return {"cols": cols}
+    upd = {"key": "footer_links"}
+    if "cols" in body:
+        cols = []
+        for c in (body.get("cols") or [])[:4]:
+            links = [{"label": str(l.get("label", "")).strip(), "to": str(l.get("to", "")).strip(), "hot": bool(l.get("hot"))} for l in (c.get("links") or []) if str(l.get("label", "")).strip()]
+            cols.append({"title": str(c.get("title", "")).strip(), "links": links})
+        upd["cols"] = cols
+    if "texts" in body:
+        upd["texts"] = _footer_texts(body.get("texts"))
+    await db.settings.update_one({"key": "footer_links"}, {"$set": upd}, upsert=True)
+    return await get_footer()
 
 
 @router.post("/admin/footer/reset")
 async def reset_footer(admin: dict = Depends(current_admin)):
-    await db.settings.delete_one({"key": "footer_links"})
-    return {"cols": DEFAULT_FOOTER}
+    await db.settings.update_one({"key": "footer_links"}, {"$unset": {"cols": ""}})
+    return await get_footer()
 
 
 class PageIn(BaseModel):
