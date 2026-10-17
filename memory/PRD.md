@@ -130,3 +130,11 @@
 - backend/.env 新增：HUB_PATH、HUB_ADMIN_USER、HUB_ADMIN_PASSWORD、HUB_SECRET（缺任一則登入回 503 提示）。
 - 部署：用戶 Nginx 需加 `location /12334 { proxy_pass http://127.0.0.1:8001; }`，見 `docs/hub_console_deploy.md`；patch.zip 含 server.py / hub_console.py / hub_api.py / hub_static / docs。
 - 預覽環境 /12334 會被 ingress 導到前端 3000，驗證用 localhost:8001/12334（本機 playwright 全流程通過）。
+
+## [2026-06] 總後台直接對接 Giftray 與四方 USDT 平台（適配器，對方無需改代碼）
+- `backend/hub_giftray.py`：調用 Giftray 後台管理 API（Base https://lpw-888.com/api，Header X-Admin-Api-Key）/admin/orders、/admin/recharges、/admin/users、/admin/pending-counts、/settings(usdtRate)，映射為 Hub 規範 rows；HKD→USD 換算（usdtRate 1~20 之間取用，否則 7.8），row 額外帶 `amount_label`（原始 HK$）；排除 isTest；need_info 狀態；禮品卡判定 transactionNo/autoReview/redeemed；paid_at=createdAt（餘額扣款即付款）。
+- `backend/hub_sifang.py`：調用四方 Admin Open API（Base https://域名/api/admin-api，Header X-Api-Key，回應 {code,msg,data} 自動解包）/orders、/accounts、/support/threads；kind=sifang 視為充值平台（只出現在充值/會員/統計）；狀態 pending→pending_payment、confirming、paid、expired。
+- `hub_api.py`：`ADAPTERS={"giftray","sifang"}` 在 `_remote` 分派；`is_topup(p)` 取代 `kind=="topup"` 判斷；平台 tag 帶 kind。10 秒 TTL 快取避免 8 秒輪詢壓力。
+- UI：總後台 `/12334` 與 React `HubPlatformsAdmin` 類型下拉新增兩個「直接對接」選項，金鑰標籤/placeholder 隨類型變化；訂單表顯示 amount_label、新狀態標籤（待填資料 / 鏈上確認中 / 已過期）。
+- 已用本機 mock 伺服器（8102 Giftray、8103 四方）驗證：測試連線、stats 匯總、orders/topups 映射、搜尋、members、alerts、401 錯誤回報。真實金鑰待用戶填寫。
+- 文件：`docs/hub_giftray_sifang_setup.md`；patch.zip 已更新（含兩適配器 + 前端兩檔，需 yarn build）。

@@ -36,9 +36,9 @@ const api = async (method, url, data) => {
 const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 const usd = (v) => "$" + Number(v || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const fmt = (s) => s ? new Date(s).toLocaleString("zh-TW", { hour12: false }) : "-";
-const STATUS = { completed: ["已完成", "green"], approved: ["已到帳", "green"], paid: ["已支付", "orange"], processing: ["處理中", "orange"], shipped: ["已發貨", "orange"], reviewing: ["審核中", "orange"], pending: ["待支付", "slate"], pending_payment: ["待支付", "slate"], cancelled: ["已取消", "slate"], rejected: ["已拒絕", "red"], failed: ["失敗", "red"], refunded: ["已退款", "slate"] };
+const STATUS = { completed: ["已完成", "green"], approved: ["已到帳", "green"], paid: ["已支付", "orange"], processing: ["處理中", "orange"], shipped: ["已發貨", "orange"], reviewing: ["審核中", "orange"], pending: ["待支付", "slate"], need_info: ["待填資料", "orange"], confirming: ["鏈上確認中", "orange"], expired: ["已過期", "slate"], pending_payment: ["待支付", "slate"], cancelled: ["已取消", "slate"], rejected: ["已拒絕", "red"], failed: ["失敗", "red"], refunded: ["已退款", "slate"] };
 const KIND = { order: "商品訂單", giftcard: "禮品卡", topup: "充值" };
-const ptag = (p) => `<span class="tag ${p?.id === "gogo589" ? "tag-orange" : p?.kind === "topup" ? "tag-green" : "tag-blue"}">${esc(p?.name || p?.id || "-")}</span>`;
+const ptag = (p) => `<span class="tag ${p?.id === "gogo589" ? "tag-orange" : ["topup","sifang"].includes(p?.kind) ? "tag-green" : "tag-blue"}">${esc(p?.name || p?.id || "-")}</span>`;
 const stag = (s) => { const [l, t] = STATUS[s] || [s || "-", "slate"]; return `<span class="tag tag-${t}">${esc(l)}</span>`; };
 const toast = (msg, bad) => { const d = document.createElement("div"); d.className = `fixed top-4 right-4 z-[99] rounded-xl px-4 py-2.5 text-sm font-semibold shadow-lg ${bad ? "bg-red-600 text-white" : "bg-slate-900 text-white"}`; d.textContent = msg; document.body.appendChild(d); setTimeout(() => d.remove(), 2600); };
 const logout = () => { state.token = ""; localStorage.removeItem("hub_token"); render(); };
@@ -79,7 +79,7 @@ function loginView() {
 
 async function loadPlats() { try { const r = await api("GET", "/platforms"); state.plats = [{ ...r.local, kind: "shop", cs_url: "/gg589-k7p2x?s=chat-sessions", admin_url: "/gg589-k7p2x", enabled: true }, ...r.platforms.filter((p) => p.enabled !== false)]; } catch {} }
 const platSelect = (v) => `<select id="f-plat" class="inp !w-44"><option value="all">全部平台</option>${state.plats.map((p) => `<option value="${esc(p.id)}" ${v === p.id ? "selected" : ""}>${esc(p.name)}</option>`).join("")}</select>`;
-const errBox = (errs) => errs?.length ? `<div class="mb-3 rounded-xl bg-red-50 text-red-700 text-xs px-3 py-2">${errs.map((e) => esc(e.name + "：" + e.error)).join("；")}</div>` : "";
+const errBox = (errs) => errs?.length ? `<div class="mb-3 rounded-xl bg-red-50 text-red-700 text-xs px-3 py-2">${[...new Set(errs.map((e) => e.name + "：" + e.error))].map(esc).join("；")}</div>` : "";
 
 async function dashView() {
   const m = $("#main");
@@ -108,8 +108,8 @@ async function ordersView(f = { plat: "all", kind: "all", q: "" }) {
   $("#f-go").onclick = () => ordersView(read()); $("#f-plat").onchange = () => ordersView(read()); $("#f-q").onkeydown = (e) => e.key === "Enter" && ordersView(read());
   try {
     const d = await api("GET", `/orders?platform=${f.plat}&kind=${f.kind}&q=${encodeURIComponent(f.q)}&size=200`);
-    $("#list").innerHTML = errBox(d.errors) + `<div class="card overflow-x-auto"><table><thead><tr><th>平台</th><th>類型</th><th>訂單號</th><th>用戶</th><th>商品 / 方式</th><th class="text-right">金額 (USD)</th><th>狀態</th><th>時間</th></tr></thead><tbody>
-      ${d.rows.map((r) => `<tr><td>${ptag(r.platform)}</td><td class="text-slate-500 text-xs">${KIND[r.type] || esc(r.type)}</td><td class="font-semibold whitespace-nowrap">${esc(r.order_no)}</td><td class="text-slate-600">${esc(r.user)}</td><td class="text-slate-600 max-w-[280px] truncate">${esc((r.items || []).join("、"))}</td><td class="text-right font-bold">${usd(r.amount_usd)}</td><td>${stag(r.status)}</td><td class="text-xs text-slate-500 whitespace-nowrap">${fmt(r.created_at)}</td></tr>`).join("") || `<tr><td colspan="8" class="text-center text-slate-400 py-8">暫無數據</td></tr>`}</tbody></table></div>`;
+    $("#list").innerHTML = errBox(d.errors) + `<div class="card overflow-x-auto"><table><thead><tr><th class="whitespace-nowrap">平台</th><th class="whitespace-nowrap">類型</th><th>訂單號</th><th>用戶</th><th>商品 / 方式</th><th class="text-right">金額 (USD)</th><th>狀態</th><th>時間</th></tr></thead><tbody>
+      ${d.rows.map((r) => `<tr><td>${ptag(r.platform)}</td><td class="text-slate-500 text-xs whitespace-nowrap">${KIND[r.type] || esc(r.type)}</td><td class="font-semibold whitespace-nowrap">${esc(r.order_no)}</td><td class="text-slate-600">${esc(r.user)}</td><td class="text-slate-600 max-w-[280px] truncate">${esc((r.items || []).join("、"))}</td><td class="text-right font-bold">${usd(r.amount_usd)}${r.amount_label ? `<div class="text-[11px] font-normal text-slate-400">${esc(r.amount_label)}</div>` : ""}</td><td class="whitespace-nowrap">${stag(r.status)}</td><td class="text-xs text-slate-500 whitespace-nowrap">${fmt(r.created_at)}</td></tr>`).join("") || `<tr><td colspan="8" class="text-center text-slate-400 py-8">暫無數據</td></tr>`}</tbody></table></div>`;
   } catch (e) { $("#list").innerHTML = `<div class="text-red-600">${esc(e.message)}</div>`; }
 }
 
@@ -128,14 +128,14 @@ async function membersView(f = { plat: "all", q: "" }) {
 
 function csView() {
   $("#main").innerHTML = `<h1 class="text-2xl font-black mb-1">客服</h1><div class="text-sm text-slate-500 mb-4">各平台客服分開處理，點擊進入對應平台的客服後台</div>
-    <div class="grid md:grid-cols-2 xl:grid-cols-3 gap-4">${state.plats.map((p) => `<div class="card p-5 flex flex-col gap-3"><div class="flex items-center justify-between">${ptag(p)}<span class="text-xs text-slate-400">${p.kind === "topup" ? "充值平台" : "商城"}</span></div><div class="font-bold text-lg">${esc(p.name)} 客服</div>
+    <div class="grid md:grid-cols-2 xl:grid-cols-3 gap-4">${state.plats.map((p) => `<div class="card p-5 flex flex-col gap-3"><div class="flex items-center justify-between">${ptag(p)}<span class="text-xs text-slate-400">${p.kind === "sifang" ? "四方收款平台" : p.kind === "topup" ? "充值平台" : p.kind === "giftray" ? "Giftray 商城" : "商城"}</span></div><div class="font-bold text-lg">${esc(p.name)} 客服</div>
       ${p.cs_url ? `<a href="${esc(p.cs_url)}" target="_blank" rel="noopener" class="btn text-center leading-9">進入客服後台 ↗</a>` : `<div class="text-xs text-slate-400">尚未填寫客服後台地址（到「平台接入」填寫）</div>`}
       ${p.admin_url ? `<a href="${esc(p.admin_url)}" target="_blank" rel="noopener" class="btn-ghost text-center leading-9">進入該平台後台 ↗</a>` : ""}</div>`).join("") || '<div class="text-slate-400 text-sm">尚未接入任何平台</div>'}</div>`;
 }
 
 async function platformsView() {
   const m = $("#main");
-  m.innerHTML = `<div class="flex items-center justify-between mb-4"><div><h1 class="text-2xl font-black">平台接入</h1><div class="text-sm text-slate-500">本站 gogo589 已自動接入；其他平台需提供 Hub 規範接口（/hub/stats、/hub/orders、/hub/topups、/hub/members）與 X-Hub-Key</div></div><button id="save" class="btn">儲存</button></div><div id="rows" class="space-y-3 text-sm text-slate-400">載入中…</div>`;
+  m.innerHTML = `<div class="flex items-center justify-between mb-4"><div><h1 class="text-2xl font-black">平台接入</h1><div class="text-sm text-slate-500">本站 gogo589 已自動接入；Giftray / 四方平台選「直接對接」類型，填接口地址與 ak_ 金鑰即可；其他平台需提供 Hub 規範接口與 X-Hub-Key</div></div><button id="save" class="btn">儲存</button></div><div id="rows" class="space-y-3 text-sm text-slate-400">載入中…</div>`;
   let rows = [];
   try { rows = (await api("GET", "/platforms")).platforms; } catch (e) { toast(e.message, true); }
   const draw = () => {
@@ -143,15 +143,16 @@ async function platformsView() {
       <div class="grid md:grid-cols-[120px_1fr_1fr_160px_auto] gap-3 items-end">
         <label class="text-xs text-slate-500">代號<input data-k="id" class="inp font-mono mt-1" value="${esc(p.id)}" placeholder="giftray" /></label>
         <label class="text-xs text-slate-500">名稱<input data-k="name" class="inp mt-1" value="${esc(p.name)}" placeholder="Giftray 商城" /></label>
-        <label class="text-xs text-slate-500">接口地址前綴（含 /api）<input data-k="base_url" class="inp font-mono mt-1" value="${esc(p.base_url)}" placeholder="https://www.gogo589.com/api" /></label>
-        <label class="text-xs text-slate-500">類型<select data-k="kind" class="inp mt-1"><option value="shop" ${p.kind !== "topup" ? "selected" : ""}>商城</option><option value="topup" ${p.kind === "topup" ? "selected" : ""}>充值平台</option></select></label>
+        <label class="text-xs text-slate-500">接口地址前綴（含 /api）<input data-k="base_url" class="inp font-mono mt-1" value="${esc(p.base_url)}" placeholder="${p.kind === "sifang" ? "https://四方域名/api/admin-api" : "https://lpw-888.com/api"}" /></label>
+        <label class="text-xs text-slate-500">類型<select data-k="kind" class="inp mt-1"><option value="shop" ${!["topup","giftray","sifang"].includes(p.kind) ? "selected" : ""}>商城（Hub 規範接口）</option><option value="giftray" ${p.kind === "giftray" ? "selected" : ""}>Giftray 商城（直接對接）</option><option value="sifang" ${p.kind === "sifang" ? "selected" : ""}>四方 USDT 收款平台（直接對接）</option><option value="topup" ${p.kind === "topup" ? "selected" : ""}>充值平台（Hub 規範接口）</option></select></label>
         <label class="flex items-center gap-2 h-9 text-sm"><input type="checkbox" data-k="enabled" ${p.enabled !== false ? "checked" : ""} class="accent-orange-500" />啟用</label></div>
       <div class="grid md:grid-cols-[1fr_1fr_1fr_auto] gap-3 items-end">
-        <label class="text-xs text-slate-500">X-Hub-Key<input data-k="api_key" class="inp font-mono mt-1" value="${esc(p.api_key)}" /></label>
+        <label class="text-xs text-slate-500">${p.kind === "giftray" ? "Giftray 後台管理 API 金鑰（ak_…）" : p.kind === "sifang" ? "四方平台 X-Api-Key（ak_…）" : "X-Hub-Key"}<input data-k="api_key" class="inp font-mono mt-1" value="${esc(p.api_key)}" placeholder="${["giftray","sifang"].includes(p.kind) ? "ak_xxxxxxxx" : ""}" /></label>
         <label class="text-xs text-slate-500">客服後台地址<input data-k="cs_url" class="inp mt-1" value="${esc(p.cs_url)}" /></label>
         <label class="text-xs text-slate-500">平台後台地址（選填）<input data-k="admin_url" class="inp mt-1" value="${esc(p.admin_url)}" /></label>
         <div class="flex gap-2"><button data-test="${i}" class="btn-ghost">測試連線</button><button data-del="${i}" class="btn-ghost !text-red-600">移除</button></div></div></div>`).join("") + `<button id="add" class="w-full h-14 rounded-2xl border-2 border-dashed border-slate-300 text-slate-400 hover:border-orange-400 hover:text-orange-500">＋ 新增平台</button>`;
     const read = () => [...document.querySelectorAll("[data-row]")].map((el) => Object.fromEntries([...el.querySelectorAll("[data-k]")].map((inp) => [inp.dataset.k, inp.type === "checkbox" ? inp.checked : inp.value])));
+    document.querySelectorAll('[data-k="kind"]').forEach((sel) => (sel.onchange = () => { rows = read(); draw(); }));
     $("#add").onclick = () => { rows = [...read(), { id: "", name: "", base_url: "", api_key: "", cs_url: "", admin_url: "", kind: "shop", enabled: true }]; draw(); };
     document.querySelectorAll("[data-del]").forEach((b) => (b.onclick = () => { if (confirm("移除此平台？")) { rows = read().filter((_, j) => j !== +b.dataset.del); draw(); } }));
     document.querySelectorAll("[data-test]").forEach((b) => (b.onclick = async () => { const p = read()[+b.dataset.test]; b.disabled = true; try { await api("PUT", "/platforms", read()); const r = await api("POST", `/platforms/${p.id}/test`); r.ok ? toast(`連線成功：${r.platform?.name || p.name}，近 7 天訂單 ${r.stats?.orders ?? 0} 筆`) : toast("連線失敗：" + r.error, true); } catch (e) { toast(e.message, true); } b.disabled = false; }));

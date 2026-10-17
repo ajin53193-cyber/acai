@@ -419,7 +419,7 @@ async def download_export(token: str):
 @api_router.get("/_export/{token}/{name}")
 async def download_export_file(token: str, name: str):
     expected = os.environ.get("DATA_EXPORT_TOKEN")
-    files = {"storage.py": Path("/app/backend/storage.py"), "data.zip": Path("/app/export/gogo589_data.zip"), "patch.zip": Path("/app/export/patch.zip"), "hub_platform_spec.md": Path("/app/docs/hub_platform_spec.md"), "hub_console_deploy.md": Path("/app/docs/hub_console_deploy.md")}
+    files = {"storage.py": Path("/app/backend/storage.py"), "data.zip": Path("/app/export/gogo589_data.zip"), "patch.zip": Path("/app/export/patch.zip"), "hub_platform_spec.md": Path("/app/docs/hub_platform_spec.md"), "hub_console_deploy.md": Path("/app/docs/hub_console_deploy.md"), "hub_giftray_sifang_setup.md": Path("/app/docs/hub_giftray_sifang_setup.md")}
     if not expected or not hmac.compare_digest(token, expected) or name not in files:
         raise HTTPException(status_code=404)
     from fastapi.responses import FileResponse

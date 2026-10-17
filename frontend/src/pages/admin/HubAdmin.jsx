@@ -6,8 +6,8 @@ import { tr } from "@/i18n";
 
 const KINDS = [["all", tr("全部")], ["order", tr("商品訂單")], ["giftcard", tr("禮品卡訂單")], ["topup", tr("充值")]];
 const KIND_ICON = { order: Package, giftcard: Gift, topup: Wallet };
-const STATUS_LABEL = { completed: tr("已完成"), approved: tr("已到帳"), paid: tr("已支付"), processing: tr("處理中"), shipped: tr("已發貨"), reviewing: tr("審核中"), pending: tr("待支付"), pending_payment: tr("待支付"), cancelled: tr("已取消"), rejected: tr("已拒絕"), failed: tr("失敗"), refunded: tr("已退款") };
-const STATUS_TONE = { completed: "green", approved: "green", paid: "orange", processing: "orange", reviewing: "orange", pending_payment: "slate", cancelled: "slate", rejected: "red", failed: "red" };
+const STATUS_LABEL = { completed: tr("已完成"), approved: tr("已到帳"), paid: tr("已支付"), processing: tr("處理中"), shipped: tr("已發貨"), reviewing: tr("審核中"), pending: tr("待支付"), need_info: tr("待填資料"), confirming: tr("鏈上確認中"), expired: tr("已過期"), pending_payment: tr("待支付"), cancelled: tr("已取消"), rejected: tr("已拒絕"), failed: tr("失敗"), refunded: tr("已退款") };
+const STATUS_TONE = { completed: "green", approved: "green", paid: "orange", processing: "orange", need_info: "orange", confirming: "orange", reviewing: "orange", pending_payment: "slate", cancelled: "slate", rejected: "red", failed: "red" };
 
 function PlatformTag({ p }) {
   const local = p?.id === "gogo589";
@@ -60,7 +60,7 @@ export function HubOrdersAdmin({ callApi }) {
                 <td className="px-4 py-3 font-semibold text-slate-800 whitespace-nowrap">{r.order_no}</td>
                 <td className="px-4 py-3 text-slate-600 truncate max-w-[180px]">{r.user}</td>
                 <td className="px-4 py-3 text-slate-600 truncate max-w-[260px]">{(r.items || []).join("、")}</td>
-                <td className="px-4 py-3 font-bold text-slate-800 whitespace-nowrap">${Number(r.amount_usd || 0).toFixed(2)}</td>
+                <td className="px-4 py-3 font-bold text-slate-800 whitespace-nowrap">${Number(r.amount_usd || 0).toFixed(2)}{r.amount_label && <div className="text-[11px] font-normal text-slate-400">{r.amount_label}</div>}</td>
                 <td className="px-4 py-3"><Pill tone={STATUS_TONE[r.status] || "slate"}>{STATUS_LABEL[r.status] || r.status || "-"}</Pill></td>
                 <td className="px-4 py-3 text-xs text-slate-500 whitespace-nowrap">{fmt(r.created_at)}</td>
               </tr>); })}

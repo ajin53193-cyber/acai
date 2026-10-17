@@ -10,6 +10,8 @@ from fastapi import APIRouter, Depends, Header, HTTPException
 from pydantic import BaseModel
 
 import admin_api
+import hub_giftray
+import hub_sifang
 from admin_api import current_admin, require_super
 
 db = None
@@ -127,7 +129,7 @@ async def hub_stats(days: int = 30, x_hub_key: str = Header("", alias="X-Hub-Key
 async def remote_new_paid_orders(paid_since: str) -> List[dict]:
     """Paid orders that arrived on remote platforms after `paid_since` (used by the admin new-order alert)."""
     cfg = await get_cfg()
-    plats = [p for p in cfg["platforms"] if p.get("enabled", True) and p.get("kind") != "topup"]
+    plats = [p for p in cfg["platforms"] if p.get("enabled", True) and not is_topup(p)]
     if not plats or not paid_since:
         return []
     try:
@@ -139,7 +141,7 @@ async def remote_new_paid_orders(paid_since: str) -> List[dict]:
         for o in r.get("rows", []):
             if o.get("paid_at") and o["paid_at"] > paid_since and o.get("status") not in ("pending_payment", "cancelled", "failed"):
                 out.append({"id": f"{p['id']}:{o.get('id')}", "order_no": o.get("order_no"), "total_usd": o.get("amount_usd"), "user_email": o.get("user"), "paid_at": o.get("paid_at"),
-                            "is_giftcard_order": o.get("type") == "giftcard", "items": [{"product_name": i} for i in o.get("items", [])], "platform": {"id": p["id"], "name": p["name"]}})
+                            "is_giftcard_order": o.get("type") == "giftcard", "items": [{"product_name": i} for i in o.get("items", [])], "platform": {"id": p["id"], "name": p["name"], "kind": p.get("kind", "shop")}})
     return out
 class PlatformIn(BaseModel):
     id: str
@@ -148,11 +150,21 @@ class PlatformIn(BaseModel):
     api_key: str = ""
     cs_url: str = ""
     admin_url: str = ""
-    kind: str = "shop"  # shop = 商城（訂單+充值+會員）, topup = 充值平台（只有充值+會員）
+    kind: str = "shop"  # shop = 商城（Hub 規範）, giftray = Giftray 商城（直接對接其後台 API）, topup = 充值平台（只有充值+會員）
     enabled: bool = True
 
 
+ADAPTERS = {"giftray": hub_giftray.fetch, "sifang": hub_sifang.fetch}
+TOPUP_KINDS = ("topup", "sifang")
+
+
+def is_topup(p: dict) -> bool:
+    return p.get("kind") in TOPUP_KINDS
+
+
 async def _remote(p: dict, path: str, params: dict) -> dict:
+    if p.get("kind") in ADAPTERS:
+        return await ADAPTERS[p["kind"]](p, path, params)
     async with httpx.AsyncClient(timeout=12) as c:
         r = await c.get(p["base_url"].rstrip("/") + path, params=params, headers={"X-Hub-Key": p.get("api_key", "")})
     if r.status_code != 200:
@@ -241,13 +253,13 @@ async def admin_hub_orders(platform: str = "all", kind: str = "all", status: str
     if remote:
         paths = [x for x in ["/hub/orders", "/hub/topups"] if kind == "all" or (x.endswith("orders") and kind in ("order", "giftcard")) or (x.endswith("topups") and kind == "topup")]
         for path in paths:
-            targets = [p for p in remote if not (path.endswith("orders") and p.get("kind") == "topup")]
+            targets = [p for p in remote if not (path.endswith("orders") and is_topup(p))]
             if not targets:
                 continue
             got, errs = await _gather(targets, path, {"status": status, "size": size})
             errors += errs
             for p, r in got:
-                rows += [{**x, "platform": {"id": p["id"], "name": p["name"]}} for x in r.get("rows", []) if kind == "all" or x.get("type") == kind or path.endswith("topups")]
+                rows += [{**x, "platform": {"id": p["id"], "name": p["name"], "kind": p.get("kind", "shop")}} for x in r.get("rows", []) if kind == "all" or x.get("type") == kind or path.endswith("topups")]
     if q:
         ql = q.lower()
         rows = [r for r in rows if ql in (r.get("order_no") or "").lower() or ql in (r.get("user") or "").lower() or any(ql in (i or "").lower() for i in r.get("items", []))]
@@ -264,7 +276,7 @@ async def admin_hub_members(platform: str = "all", q: str = "", size: int = 50, 
         rows += [{**r, "platform": LOCAL} for r in lm["rows"]]
     got, errors = await _gather(_active(cfg, platform), "/hub/members", {"q": q, "size": size})
     for p, r in got:
-        rows += [{**x, "platform": {"id": p["id"], "name": p["name"]}} for x in r.get("rows", [])]
+        rows += [{**x, "platform": {"id": p["id"], "name": p["name"], "kind": p.get("kind", "shop")}} for x in r.get("rows", [])]
     rows.sort(key=lambda r: r.get("created_at") or "", reverse=True)
     return {"rows": rows[:size], "errors": errors}
 
@@ -275,7 +287,7 @@ async def admin_hub_stats(days: int = 30, admin: dict = Depends(current_admin)):
     days = max(1, min(days, 365))
     local = {"platform": LOCAL, **(await local_stats(days))}
     got, errors = await _gather(_active(cfg, "all"), "/hub/stats", {"days": days})
-    plats = [local] + [{**{k: v for k, v in r.items() if k != "platform"}, "platform": {"id": p["id"], "name": p["name"]}} for p, r in got]
+    plats = [local] + [{**{k: v for k, v in r.items() if k != "platform"}, "platform": {"id": p["id"], "name": p["name"], "kind": p.get("kind", "shop")}} for p, r in got]
     keys = ["revenue_usd", "orders", "topup_usd", "topups", "new_members", "members", "pending_orders", "pending_topups", "open_chats"]
     total = {k: round(sum(float(x.get(k) or 0) for x in plats), 2) if k.endswith("_usd") else int(sum(int(x.get(k) or 0) for x in plats)) for k in keys}
     return {"days": days, "platforms": plats, "total": total, "errors": errors}
