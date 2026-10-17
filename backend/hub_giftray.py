@@ -133,3 +133,11 @@ HANDLERS = {"/hub/orders": orders, "/hub/topups": topups, "/hub/members": member
 
 async def fetch(p: dict, path: str, params: dict) -> dict:
     return await HANDLERS[path](p, {k: v for k, v in params.items() if v not in ("", None)})
+
+
+async def chats(p: dict, status: str = "open") -> dict:
+    d = await _get(p, "/admin/chat/sessions", {"status": status or "open"})
+    rows = d.get("sessions", []) if isinstance(d, dict) else (d or [])
+    return {"platform": _tag(p), "unread": int((d or {}).get("unreadTotal") or 0) if isinstance(d, dict) else 0,
+            "rows": [{"id": s.get("id"), "name": s.get("name") or "", "contact": s.get("account") or "", "last_message": s.get("lastMsg") or "", "last_at": s.get("lastAt"), "last_sender": s.get("lastFrom") or "",
+                      "status": s.get("status") or "open", "unread": int(s.get("unreadAdmin") or 0), "assigned": s.get("assignedName") or ""} for s in rows]}

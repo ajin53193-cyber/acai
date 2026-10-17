@@ -144,3 +144,10 @@
 - `hub_sifang.py` 新增 overview / order_list / account_list / thread_list / new_paid；`hub_console.py` 新增 `/api/hub-admin/sifang/{platforms,overview,orders,accounts,threads}`，alerts 併入四方 paid 單（type="sifang"）。
 - 總後台 UI 新增側欄分組「收款平台（獨立）→ 四方收款」頁：4 個子頁（數據概覽 / 收款單 / 商戶帳戶 / 客服會話），多四方平台可切換；彈窗提醒標「四方收款」，全為四方時「查看訂單」跳四方頁。
 - mock 驗證通過（8102/8103 本機假伺服器，測後已移除平台設定）。patch.zip 已更新。
+
+## [2026-06] 總後台重構：按業務分菜單 × 平台分頁籤 + 管理員權限（用戶需求）
+- 菜單：數據概覽（合計 + 各平台）/ 訂單管理 / 充值管理 / 客服管理 / 用戶管理，每頁以平台分頁籤（gogo589 本站 / Giftray / 四方USDT）獨立顯示；四方在訂單頁=全部收款單，充值頁=已支付入帳，用戶頁=商戶帳戶。
+- `hub_console.py` 重寫：`/api/hub-admin/{me,overview,orders,topups,members,chats,alerts,platforms,admins,me/password}`，全部帶 `platform=` 參數；`need(module)` 依賴做模組權限，`_plat()` 做平台範圍校驗（無權限 404）。
+- 管理員：超管 = .env HUB_ADMIN_USER；其他存 `db.hub_admins` {id, username, password_hash(bcrypt), modules[], platforms[], note, enabled, last_login_at}；停用即時失效（每次請求查庫）；普通管理員可改密碼。
+- 客服：gogo589 讀 db.chat_sessions；Giftray 走 `/admin/chat/sessions`（hub_giftray.chats）；四方走 `/support/threads`；每頁有「進入該平台客服後台」按鈕。
+- 本機驗證（mock 8102/8103 + playwright）：超管全流程、受限管理員只看到勾選模組與平台、403/404/401 正確；測試資料已清除。patch.zip 已更新。

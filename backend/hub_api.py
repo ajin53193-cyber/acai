@@ -18,6 +18,7 @@ db = None
 router = APIRouter(prefix="/api")
 LOCAL = {"id": "gogo589", "name": "gogo589"}
 KEY = "hub_platforms"
+STAT_KEYS = ["revenue_usd", "orders", "topup_usd", "topups", "new_members", "members", "pending_orders", "pending_topups", "open_chats"]
 
 
 def now_iso():
@@ -288,6 +289,5 @@ async def admin_hub_stats(days: int = 30, admin: dict = Depends(current_admin)):
     local = {"platform": LOCAL, **(await local_stats(days))}
     got, errors = await _gather(_active(cfg, "all"), "/hub/stats", {"days": days})
     plats = [local] + [{**{k: v for k, v in r.items() if k != "platform"}, "platform": {"id": p["id"], "name": p["name"], "kind": p.get("kind", "shop")}} for p, r in got]
-    keys = ["revenue_usd", "orders", "topup_usd", "topups", "new_members", "members", "pending_orders", "pending_topups", "open_chats"]
-    total = {k: round(sum(float(x.get(k) or 0) for x in plats), 2) if k.endswith("_usd") else int(sum(int(x.get(k) or 0) for x in plats)) for k in keys}
+    total = {k: round(sum(float(x.get(k) or 0) for x in plats), 2) if k.endswith("_usd") else int(sum(int(x.get(k) or 0) for x in plats)) for k in STAT_KEYS}
     return {"days": days, "platforms": plats, "total": total, "errors": errors}

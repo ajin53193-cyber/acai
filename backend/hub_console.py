@@ -1,16 +1,21 @@
-"""總後台（多平台管理）— 掛在主站域名的隱藏路徑下（預設 /12334），獨立帳號登入，API 前綴 /api/hub-admin。"""
+"""總後台（多平台管理）— 掛在主站域名的隱藏路徑下（預設 /12334），API 前綴 /api/hub-admin。
+超級管理員來自 backend/.env；其他管理員存於 db.hub_admins（bcrypt），權限 = 模組 × 平台範圍。"""
 import hashlib
 import hmac
 import os
+import re
 import time
+import uuid
 from pathlib import Path
-from typing import Dict, List
+from typing import Dict, List, Optional
 
+import bcrypt
 from fastapi import APIRouter, Depends, Header, HTTPException
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
 import hub_api
+import hub_giftray
 import hub_sifang
 
 db = None
@@ -20,8 +25,15 @@ router = APIRouter(prefix="/api/hub-admin")
 page_router = APIRouter()
 _fails: Dict[str, List[float]] = {}
 HUB_ACTOR = {"user_id": "hub-console", "email": "hub-console"}
+MODULES = ["dashboard", "orders", "topups", "cs", "members", "platforms", "admins"]
+LOCAL = {**hub_api.LOCAL, "kind": "local"}
 
 
+def now_iso():
+    return hub_api.now_iso()
+
+
+# ----------------------------- auth -----------------------------
 def _cfg():
     user, pw = os.environ.get("HUB_ADMIN_USER", ""), os.environ.get("HUB_ADMIN_PASSWORD", "")
     secret = os.environ.get("HUB_SECRET") or os.environ.get("CLERK_SECRET_KEY", "")
@@ -34,15 +46,37 @@ def _sign(secret: str, payload: str) -> str:
     return hmac.new(secret.encode(), payload.encode(), hashlib.sha256).hexdigest()
 
 
-def current_hub_user(authorization: str = Header("")) -> str:
-    _, _, secret = _cfg()
+def _super(user: str) -> dict:
+    return {"user": user, "super": True, "modules": MODULES, "platforms": "all"}
+
+
+async def current_hub_user(authorization: str = Header("")) -> dict:
+    su, _, secret = _cfg()
     try:
         user, exp, sig = authorization.replace("Bearer ", "").split(".")
-        if hmac.compare_digest(sig, _sign(secret, user + exp)) and int(exp) > time.time():
-            return user
+        ok = hmac.compare_digest(sig, _sign(secret, user + exp)) and int(exp) > time.time()
     except Exception:  # noqa: BLE001
-        pass
-    raise HTTPException(status_code=401, detail="請重新登入")
+        ok = False
+    if not ok:
+        raise HTTPException(status_code=401, detail="請重新登入")
+    if hmac.compare_digest(user, su):
+        return _super(user)
+    a = await db.hub_admins.find_one({"username": user, "enabled": True}, {"_id": 0, "password_hash": 0})
+    if not a:
+        raise HTTPException(status_code=401, detail="帳號已停用，請重新登入")
+    return {"user": user, "super": False, "modules": a.get("modules", []), "platforms": a.get("platforms", [])}
+
+
+def need(module: str):
+    async def dep(me: dict = Depends(current_hub_user)) -> dict:
+        if module not in me["modules"]:
+            raise HTTPException(status_code=403, detail="沒有此模組的權限")
+        return me
+    return dep
+
+
+def _allowed(me: dict, pid: str) -> bool:
+    return me["platforms"] == "all" or pid in me["platforms"]
 
 
 class LoginIn(BaseModel):
@@ -52,101 +86,247 @@ class LoginIn(BaseModel):
 
 @router.post("/login")
 async def login(body: LoginIn):
-    user, pw, secret = _cfg()
+    su, pw, secret = _cfg()
     recent = [t for t in _fails.get(body.username, []) if t > time.time() - 900]
     if len(recent) >= 5:
         raise HTTPException(status_code=429, detail="嘗試次數過多，請 15 分鐘後再試")
-    if not (hmac.compare_digest(body.username, user) and hmac.compare_digest(body.password, pw)):
+    ok = hmac.compare_digest(body.username, su) and hmac.compare_digest(body.password, pw)
+    if not ok:
+        a = await db.hub_admins.find_one({"username": body.username}, {"_id": 0})
+        ok = bool(a and a.get("enabled", True) and bcrypt.checkpw(body.password.encode(), a["password_hash"].encode()))
+    if not ok:
         _fails[body.username] = recent + [time.time()]
         raise HTTPException(status_code=401, detail="帳號或密碼錯誤")
     _fails.pop(body.username, None)
+    await db.hub_admins.update_one({"username": body.username}, {"$set": {"last_login_at": now_iso()}})
     exp = str(int(time.time()) + 12 * 3600)
-    return {"token": f"{user}.{exp}.{_sign(secret, user + exp)}", "user": user}
+    return {"token": f"{body.username}.{exp}.{_sign(secret, body.username + exp)}", "user": body.username}
+
+
+@router.get("/me")
+async def me(me: dict = Depends(current_hub_user)):
+    return {**me, "platforms_list": await _visible(me)}
+
+
+# ----------------------------- platforms -----------------------------
+async def _all_platforms() -> List[dict]:
+    cfg = await hub_api.get_cfg()
+    return [LOCAL] + [p for p in cfg["platforms"] if p.get("enabled", True)]
+
+
+async def _visible(me: dict) -> List[dict]:
+    return [{"id": p["id"], "name": p["name"], "kind": p.get("kind", "shop"), "cs_url": p.get("cs_url", "/gg589-k7p2x?s=chat-sessions" if p["id"] == LOCAL["id"] else ""),
+             "admin_url": p.get("admin_url", "/gg589-k7p2x" if p["id"] == LOCAL["id"] else "")} for p in await _all_platforms() if _allowed(me, p["id"])]
+
+
+async def _plat(me: dict, pid: str) -> dict:
+    p = next((x for x in await _all_platforms() if x["id"] == pid), None)
+    if not p or not _allowed(me, pid):
+        raise HTTPException(status_code=404, detail="平台不存在或無權限")
+    return p
 
 
 @router.get("/platforms")
-async def platforms(user: str = Depends(current_hub_user)):
+async def platforms(me: dict = Depends(need("platforms"))):
     cfg = await hub_api.get_cfg()
     return {"local": hub_api.LOCAL, "platforms": [hub_api._mask(p) for p in cfg["platforms"]]}
 
 
 @router.put("/platforms")
-async def platforms_put(body: List[hub_api.PlatformIn], user: str = Depends(current_hub_user)):
-    return await hub_api.admin_hub_platforms_put(body, admin=HUB_ACTOR)
+async def platforms_put(body: List[hub_api.PlatformIn], me: dict = Depends(need("platforms"))):
+    return await hub_api.admin_hub_platforms_put(body, admin={**HUB_ACTOR, "email": me["user"]})
 
 
 @router.post("/platforms/{pid}/test")
-async def platform_test(pid: str, user: str = Depends(current_hub_user)):
+async def platform_test(pid: str, me: dict = Depends(need("platforms"))):
     return await hub_api.admin_hub_platform_test(pid, admin=HUB_ACTOR)
 
 
-@router.get("/stats")
-async def stats(days: int = 30, user: str = Depends(current_hub_user)):
-    return await hub_api.admin_hub_stats(days=days, admin=HUB_ACTOR)
+# ----------------------------- per-platform data -----------------------------
+def _k(p: dict) -> str:
+    return p.get("kind", "shop")
+
+
+@router.get("/overview")
+async def overview(platform: str = "all", days: int = 30, me: dict = Depends(need("dashboard"))):
+    days = max(1, min(days, 365))
+    if platform == "all":
+        ps = [p for p in await _all_platforms() if _allowed(me, p["id"]) and _k(p) != "sifang"]
+        rows, errors = [], []
+        for p in ps:
+            try:
+                r = await hub_api.local_stats(days) if _k(p) == "local" else await hub_api._remote(p, "/hub/stats", {"days": days})
+                rows.append({**{k: r.get(k, 0) for k in hub_api.STAT_KEYS}, "platform": {"id": p["id"], "name": p["name"], "kind": _k(p)}})
+            except Exception as e:  # noqa: BLE001
+                errors.append({"platform": p["id"], "name": p["name"], "error": getattr(e, "detail", str(e))})
+        total = {k: round(sum(float(x.get(k) or 0) for x in rows), 2) if k.endswith("_usd") else int(sum(int(x.get(k) or 0) for x in rows)) for k in hub_api.STAT_KEYS}
+        return {"days": days, "platforms": rows, "total": total, "errors": errors}
+    p = await _plat(me, platform)
+    if _k(p) == "sifang":
+        return {"kind": "sifang", **(await hub_sifang.overview(p, days))}
+    r = await hub_api.local_stats(days) if _k(p) == "local" else await hub_api._remote(p, "/hub/stats", {"days": days})
+    return {"kind": "shop", "platform": {"id": p["id"], "name": p["name"]}, **{k: r.get(k, 0) for k in hub_api.STAT_KEYS}, "days": days}
 
 
 @router.get("/orders")
-async def orders(platform: str = "all", kind: str = "all", status: str = "", q: str = "", size: int = 100, user: str = Depends(current_hub_user)):
-    return await hub_api.admin_hub_orders(platform=platform, kind=kind, status=status, q=q, size=size, admin=HUB_ACTOR)
+async def orders(platform: str, kind: str = "all", status: str = "", q: str = "", size: int = 200, me: dict = Depends(need("orders"))):
+    p = await _plat(me, platform)
+    size = max(1, min(size, 500))
+    if _k(p) == "sifang":
+        return {"kind": "sifang", **(await hub_sifang.order_list(p, status, "", "", q, size))}
+    cfg = await hub_api.get_cfg()
+    r = await hub_api.hub_orders(status=status, size=min(size, 200), x_hub_key=cfg["inbound_key"]) if _k(p) == "local" else await hub_api._remote(p, "/hub/orders", {"status": status, "size": min(size, 200)})
+    rows = [x for x in r.get("rows", []) if kind == "all" or x.get("type") == kind]
+    if q:
+        ql = q.lower()
+        rows = [x for x in rows if ql in str(x.get("order_no", "")).lower() or ql in str(x.get("user", "")).lower() or any(ql in str(i).lower() for i in x.get("items", []))]
+    return {"kind": "shop", "platform": {"id": p["id"], "name": p["name"]}, "rows": rows}
+
+
+@router.get("/topups")
+async def topups(platform: str, status: str = "", q: str = "", size: int = 200, me: dict = Depends(need("topups"))):
+    p = await _plat(me, platform)
+    size = max(1, min(size, 500))
+    if _k(p) == "sifang":
+        return {"kind": "sifang", **(await hub_sifang.order_list(p, "paid", "", "", q, size))}
+    cfg = await hub_api.get_cfg()
+    r = await hub_api.hub_topups(status=status, size=min(size, 200), x_hub_key=cfg["inbound_key"]) if _k(p) == "local" else await hub_api._remote(p, "/hub/topups", {"status": status, "size": min(size, 200)})
+    rows = r.get("rows", [])
+    if q:
+        ql = q.lower()
+        rows = [x for x in rows if ql in str(x.get("order_no", "")).lower() or ql in str(x.get("user", "")).lower() or any(ql in str(i).lower() for i in x.get("items", []))]
+    return {"kind": "shop", "platform": {"id": p["id"], "name": p["name"]}, "rows": rows}
 
 
 @router.get("/members")
-async def members(platform: str = "all", q: str = "", size: int = 100, user: str = Depends(current_hub_user)):
-    return await hub_api.admin_hub_members(platform=platform, q=q, size=size, admin=HUB_ACTOR)
+async def members(platform: str, q: str = "", size: int = 200, me: dict = Depends(need("members"))):
+    p = await _plat(me, platform)
+    size = max(1, min(size, 500))
+    if _k(p) == "sifang":
+        r = await hub_sifang.account_list(p, "")
+        if q:
+            ql = q.lower()
+            r["rows"] = [x for x in r["rows"] if ql in x["email"].lower() or ql in x["name"].lower()]
+        return {"kind": "sifang", **r}
+    cfg = await hub_api.get_cfg()
+    r = await hub_api.hub_members(q=q, size=min(size, 200), x_hub_key=cfg["inbound_key"]) if _k(p) == "local" else await hub_api._remote(p, "/hub/members", {"q": q, "size": min(size, 200)})
+    return {"kind": "shop", "platform": {"id": p["id"], "name": p["name"]}, "rows": r.get("rows", [])}
+
+
+@router.get("/chats")
+async def chats(platform: str, status: str = "open", me: dict = Depends(need("cs"))):
+    p = await _plat(me, platform)
+    url = (p.get("cs_url") or "") if _k(p) != "local" else "/gg589-k7p2x?s=chat-sessions"
+    if _k(p) == "sifang":
+        r = await hub_sifang.thread_list(p, status)
+        return {"kind": "sifang", "cs_url": url, "platform": r["platform"], "rows": r["rows"], "unread": sum(t["unread"] for t in r["rows"])}
+    if _k(p) == "giftray":
+        return {"kind": "shop", "cs_url": url, **(await hub_giftray.chats(p, status))}
+    if _k(p) == "local":
+        cond = {"last_message": {"$ne": ""}} if status == "all" else {"status": status, "last_message": {"$ne": ""}}
+        items = await db.chat_sessions.find(cond, {"_id": 0}).sort("last_at", -1).to_list(300)
+        rows = [{"id": s["id"], "name": s.get("name") or "", "contact": s.get("contact") or "", "last_message": s.get("last_message") or "", "last_at": s.get("last_at"), "last_sender": s.get("last_sender") or "",
+                 "status": s.get("status"), "unread": int(s.get("unread_admin") or 0), "assigned": ""} for s in items]
+        return {"kind": "shop", "cs_url": url, "platform": hub_api.LOCAL, "rows": rows, "unread": sum(r["unread"] for r in rows)}
+    return {"kind": "shop", "cs_url": url, "platform": {"id": p["id"], "name": p["name"]}, "rows": [], "unread": 0, "unsupported": True}
 
 
 @router.get("/alerts")
-async def alerts(since: str = "", user: str = Depends(current_hub_user)):
-    now = hub_api.now_iso()
+async def alerts(since: str = "", me: dict = Depends(need("orders"))):
+    now = now_iso()
     if not since:
         return {"now": now, "orders": []}
-    local = await db.orders.find({"paid_at": {"$gt": since, "$lte": now}}, {"_id": 0}).sort("paid_at", -1).to_list(20)
-    out = [{**hub_api._order_row(o), "platform": hub_api.LOCAL} for o in local]
-    for p in await _sifang_platforms():
-        out += await hub_sifang.new_paid(p, since)
+    out = []
+    if _allowed(me, LOCAL["id"]):
+        local = await db.orders.find({"paid_at": {"$gt": since, "$lte": now}}, {"_id": 0}).sort("paid_at", -1).to_list(20)
+        out += [{**hub_api._order_row(o), "platform": hub_api.LOCAL} for o in local]
+    for p in await _all_platforms():
+        if _k(p) == "sifang" and _allowed(me, p["id"]):
+            out += await hub_sifang.new_paid(p, since)
     for o in await hub_api.remote_new_paid_orders(since):
-        out.append({"id": o["id"], "order_no": o.get("order_no"), "type": "giftcard" if o.get("is_giftcard_order") else "order", "user": o.get("user_email"),
-                    "amount_usd": o.get("total_usd"), "items": [i.get("product_name", "") for i in o.get("items", [])], "paid_at": o.get("paid_at"), "platform": o["platform"]})
+        if _allowed(me, o["platform"]["id"]):
+            out.append({"id": o["id"], "order_no": o.get("order_no"), "type": "giftcard" if o.get("is_giftcard_order") else "order", "user": o.get("user_email"),
+                        "amount_usd": o.get("total_usd"), "items": [i.get("product_name", "") for i in o.get("items", [])], "paid_at": o.get("paid_at"), "platform": o["platform"]})
     return {"now": now, "orders": out}
 
 
-# ----------------------------- 四方收款平台（獨立頁面） -----------------------------
-async def _sifang_platforms() -> List[dict]:
-    cfg = await hub_api.get_cfg()
-    return [p for p in cfg["platforms"] if p.get("enabled", True) and p.get("kind") == "sifang"]
+# ----------------------------- admins -----------------------------
+class AdminIn(BaseModel):
+    username: str
+    password: Optional[str] = None
+    modules: List[str] = []
+    platforms: List[str] = []
+    note: str = ""
+    enabled: bool = True
 
 
-async def _sifang(pid: str) -> dict:
-    ps = await _sifang_platforms()
-    p = next((x for x in ps if x["id"] == pid), None) if pid else (ps[0] if ps else None)
-    if not p:
-        raise HTTPException(status_code=404, detail="尚未接入四方收款平台，請到「平台接入」新增")
-    return p
+def _clean(body: AdminIn) -> dict:
+    return {"modules": [m for m in body.modules if m in MODULES], "platforms": body.platforms, "note": body.note[:100], "enabled": body.enabled}
 
 
-@router.get("/sifang/platforms")
-async def sifang_platforms(user: str = Depends(current_hub_user)):
-    return {"platforms": [{"id": p["id"], "name": p["name"], "cs_url": p.get("cs_url", ""), "admin_url": p.get("admin_url", "")} for p in await _sifang_platforms()]}
+def _pub(a: dict) -> dict:
+    return {k: v for k, v in a.items() if k != "password_hash"}
 
 
-@router.get("/sifang/overview")
-async def sifang_overview(platform: str = "", days: int = 30, user: str = Depends(current_hub_user)):
-    return await hub_sifang.overview(await _sifang(platform), days)
+@router.get("/admins")
+async def admins_list(me: dict = Depends(need("admins"))):
+    su, _, _ = _cfg()
+    rows = [_pub(a) async for a in db.hub_admins.find({}, {"_id": 0}).sort("created_at", 1)]
+    return {"super": su, "modules": MODULES, "admins": rows}
 
 
-@router.get("/sifang/orders")
-async def sifang_orders(platform: str = "", status: str = "", merchant: str = "", network: str = "", q: str = "", size: int = 200, user: str = Depends(current_hub_user)):
-    return await hub_sifang.order_list(await _sifang(platform), status, merchant, network, q, size)
+@router.post("/admins")
+async def admins_create(body: AdminIn, me: dict = Depends(need("admins"))):
+    su, _, _ = _cfg()
+    u = body.username.strip()
+    if not re.fullmatch(r"[A-Za-z0-9_.@-]{3,40}", u):
+        raise HTTPException(status_code=400, detail="帳號需 3~40 位英數字")
+    if u == su or await db.hub_admins.find_one({"username": u}):
+        raise HTTPException(status_code=409, detail="帳號已存在")
+    if not body.password or len(body.password) < 8:
+        raise HTTPException(status_code=400, detail="密碼至少 8 位")
+    doc = {"id": uuid.uuid4().hex, "username": u, "password_hash": bcrypt.hashpw(body.password.encode(), bcrypt.gensalt()).decode(), **_clean(body), "created_by": me["user"], "created_at": now_iso()}
+    await db.hub_admins.insert_one(doc)
+    return _pub({k: v for k, v in doc.items() if k != "_id"})
 
 
-@router.get("/sifang/accounts")
-async def sifang_accounts(platform: str = "", role: str = "", user: str = Depends(current_hub_user)):
-    return await hub_sifang.account_list(await _sifang(platform), role)
+@router.put("/admins/{aid}")
+async def admins_update(aid: str, body: AdminIn, me: dict = Depends(need("admins"))):
+    a = await db.hub_admins.find_one({"id": aid}, {"_id": 0})
+    if not a:
+        raise HTTPException(status_code=404, detail="管理員不存在")
+    upd = _clean(body)
+    if body.password:
+        if len(body.password) < 8:
+            raise HTTPException(status_code=400, detail="密碼至少 8 位")
+        upd["password_hash"] = bcrypt.hashpw(body.password.encode(), bcrypt.gensalt()).decode()
+    await db.hub_admins.update_one({"id": aid}, {"$set": upd})
+    return _pub({**a, **upd})
 
 
-@router.get("/sifang/threads")
-async def sifang_threads(platform: str = "", status: str = "open", user: str = Depends(current_hub_user)):
-    return await hub_sifang.thread_list(await _sifang(platform), status)
+@router.delete("/admins/{aid}")
+async def admins_delete(aid: str, me: dict = Depends(need("admins"))):
+    if (await db.hub_admins.delete_one({"id": aid})).deleted_count == 0:
+        raise HTTPException(status_code=404, detail="管理員不存在")
+    return {"ok": True}
+
+
+class PwIn(BaseModel):
+    old_password: str
+    new_password: str
+
+
+@router.post("/me/password")
+async def my_password(body: PwIn, me: dict = Depends(current_hub_user)):
+    if me["super"]:
+        raise HTTPException(status_code=400, detail="超級管理員密碼請在 backend/.env 修改")
+    a = await db.hub_admins.find_one({"username": me["user"]}, {"_id": 0})
+    if not a or not bcrypt.checkpw(body.old_password.encode(), a["password_hash"].encode()):
+        raise HTTPException(status_code=400, detail="舊密碼錯誤")
+    if len(body.new_password) < 8:
+        raise HTTPException(status_code=400, detail="新密碼至少 8 位")
+    await db.hub_admins.update_one({"username": me["user"]}, {"$set": {"password_hash": bcrypt.hashpw(body.new_password.encode(), bcrypt.gensalt()).decode()}})
+    return {"ok": True}
 
 
 @page_router.get(f"/{HUB_PATH}", include_in_schema=False)
