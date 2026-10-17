@@ -190,7 +190,7 @@ def chain_usage_snapshot() -> dict:
 # ---------------------------------------------------------------------------
 from utils import (
     now_utc, iso, hash_password, verify_password, get_jwt_secret, create_access_token,
-    gen_order_no, gen_wallet_address, gen_txid, gen_api_key, gen_api_secret, is_private_host,
+    gen_order_no, gen_wallet_address, gen_txid, gen_api_key, gen_api_secret, gen_gateway_code, is_private_host,
     clean_user, serialize, canon, sign_payload, client_ip,
     now_bj, bj_today_str, bj_yesterday_str, bj_day_bounds, bj_str,
 )
@@ -1217,6 +1217,7 @@ async def create_account(data: AccountCreate, request: Request, user: dict = Dep
     if data.role == "merchant":
         doc["api_key"] = gen_api_key()
         doc["api_secret"] = gen_api_secret()
+        doc["gateway_code"] = gen_gateway_code()
     if data.role == "operator":
         doc["permissions"] = data.permissions or []
         doc["rate"] = 0
@@ -1561,6 +1562,7 @@ async def seed():
     await db.login_attempts.create_index("identifier")
     await db.api_nonces.create_index("created_at", expireAfterSeconds=600)
     await db.api_nonces.create_index([("api_key", 1), ("nonce", 1)])
+    await db.users.create_index("gateway_code", unique=True, sparse=True)
     await db.orders.create_index([("status", 1), ("wallet_address", 1), ("pay_amount", 1)])
     await db.orders.create_index([("wallet_address", 1), ("pay_amount", 1)], name="uniq_pending_pay_amount", unique=True,
                                  partialFilterExpression={"status": "pending", "live": True})
@@ -1617,6 +1619,7 @@ async def seed():
                 "name": m["name"], "role": "merchant", "rate": m["rate"],
                 "parent_agent_id": m["parent"], "balance": 0.0, "frozen_balance": 0.0,
                 "status": "active", "api_key": gen_api_key(), "api_secret": gen_api_secret(),
+                "gateway_code": gen_gateway_code(),
                 "created_at": iso(now_utc()),
             })
             m_ids.append((str(r.inserted_id), m["name"]))
@@ -1673,9 +1676,11 @@ async def seed():
                     "operator": None, "created_at": ts,
                 })
 
+    # backfill gateway_code for existing merchants (per-merchant gateway API url)
+    async for m in db.users.find({"role": "merchant", "$or": [{"gateway_code": {"$exists": False}}, {"gateway_code": {"$in": [None, ""]}}]}):
+        await db.users.update_one({"_id": m["_id"]}, {"$set": {"gateway_code": gen_gateway_code()}})
+
     logger.info("Seed complete.")
-
-
 @app.on_event("startup")
 async def on_startup():
     await seed()

@@ -67,6 +67,44 @@ async def api_query_order(data: ApiOrderQuery, request: Request):
     return {"code": 0, "msg": "success", "data": api_order_view(o)}
 
 
+@router.post("/v1/g/{gateway_code}/orders")
+async def api_create_order_gw(gateway_code: str, data: ApiOrderCreate, request: Request):
+    merchant_gw = await db.users.find_one({"gateway_code": gateway_code, "role": "merchant"})
+    if not merchant_gw:
+        raise HTTPException(status_code=404, detail="网关地址无效")
+    body = data.model_dump()
+    merchant = await verify_api_request(body, request)
+    if str(merchant["_id"]) != str(merchant_gw["_id"]):
+        raise HTTPException(status_code=401, detail="api_key 与网关地址不匹配")
+    dup = await db.orders.find_one({"merchant_id": str(merchant["_id"]), "out_trade_no": data.out_trade_no})
+    if dup:
+        return {"code": 0, "msg": "duplicate", "data": api_order_view(dup)}
+    order = await build_order(merchant, data.amount_usdt, data.network, data.remark, data.notify_url, data.out_trade_no, data.return_url)
+    return {"code": 0, "msg": "success", "data": api_order_view(order)}
+
+
+@router.post("/v1/g/{gateway_code}/orders/query")
+async def api_query_order_gw(gateway_code: str, data: ApiOrderQuery, request: Request):
+    merchant_gw = await db.users.find_one({"gateway_code": gateway_code, "role": "merchant"})
+    if not merchant_gw:
+        raise HTTPException(status_code=404, detail="网关地址无效")
+    body = data.model_dump()
+    merchant = await verify_api_request(body, request)
+    if str(merchant["_id"]) != str(merchant_gw["_id"]):
+        raise HTTPException(status_code=401, detail="api_key 与网关地址不匹配")
+    q: dict = {"merchant_id": str(merchant["_id"])}
+    if data.order_no:
+        q["order_no"] = data.order_no
+    elif data.out_trade_no:
+        q["out_trade_no"] = data.out_trade_no
+    else:
+        raise HTTPException(status_code=400, detail="需提供 order_no 或 out_trade_no")
+    o = await db.orders.find_one(q)
+    if not o:
+        raise HTTPException(status_code=404, detail="订单不存在")
+    return {"code": 0, "msg": "success", "data": api_order_view(o)}
+
+
 @router.get("/notifications/paid")
 async def paid_notifications(since: str, user: dict = Depends(get_current_user)):
     scope = await merchant_ids_for_scope(user)

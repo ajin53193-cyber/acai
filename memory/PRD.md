@@ -481,3 +481,14 @@
   - AccountsPage 商户行新增「收银台样式」(Palette, 紫色)按钮 + checkout-style-dialog(模板下拉/主题色/Logo/副标题)，保存调 PATCH；留空继承全局。
   - CheckoutSettingsDialog 品牌 Tab 顶部新增全局「页面模板」4 选 1。
 - 验证：curl e2e(设置 dark/#7C3AED/副标题→合并正确；清空→回退 classic) + 收银台截图确认 dark 样式渲染正常；前端编译通过。用户验证待确认。
+
+## 商户专属网关 API 网址 (2026-10-17)
+- 需求：每个商户对接用不一样的 API 网址（网关 API 网址）。
+- 方案：每商户自动生成唯一 gateway_code，专属下单网址 `https://域名/api/v1/g/{gateway_code}/orders`、查询 `.../orders/query`；请求体与 HMAC-SHA256 签名方式与通用网址完全一致；老网址 /api/v1/orders 继续兼容。
+- 后端：
+  - utils.gen_gateway_code()=secrets.token_hex(8)。
+  - users 新增 gateway_code 字段；create_account 商户分支 + seed demo 商户写入；seed() 对缺失的老商户做一次性 backfill；db.users 建 gateway_code 唯一 sparse 索引。
+  - orders.py 新增 POST /api/v1/g/{gateway_code}/orders 与 .../orders/query：按 gateway_code 查商户→verify_api_request(按 body.api_key 验签)→校验 api_key 属于该网关商户(否则 401 api_key 与网关地址不匹配)→复用 build_order；gateway_code 无效 404。
+  - dev.py /dev/merchants 返回 gateway_code。
+- 前端 ApiDocsPage：商户凭证卡新增「专属网关 API 网址」(绿色,可复制)；接口说明 Code 块用 gwBase(=选中商户的 /api/v1/g/{code})动态拼接下单/查询网址。
+- 验证：curl 全链路 e2e 通过——专属网址下单 200(返回 order+pay_url)、查询 200、无效网关 404、api_key 与网关不匹配 401、老 /v1/orders 仍 200。前端编译通过(ApiDocsPage UI 因登录自动化受限未截图，仅展示逻辑、已编译)。用户验证待确认。

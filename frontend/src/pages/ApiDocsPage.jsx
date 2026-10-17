@@ -66,6 +66,10 @@ function Credentials({ merchant, isAdmin, onReset }) {
         <div><span className="text-slate-400">默认回调地址 (notify_url)：</span><span className="font-mono text-slate-200 break-all" data-testid="merchant-notify-url">{merchant.notify_url || "未设置"}</span></div>
         <div><span className="text-slate-400">IP 白名单：</span><span className="font-mono text-slate-200" data-testid="merchant-ip-whitelist">{merchant.ip_whitelist?.length ? merchant.ip_whitelist.join(", ") : "未启用（不限制）"}</span></div>
       </div>
+      <div className="space-y-1 pt-1"><Label className="text-xs text-slate-400">专属网关 API 网址（该商户独有）</Label>
+        <div className="flex items-center gap-2 p-2.5 rounded-lg bg-emerald-500/10 border border-emerald-500/30 font-mono text-xs"><span className="flex-1 truncate text-emerald-300" data-testid="merchant-gateway-url">{merchant.gateway_code ? `${BASE}/api/v1/g/${merchant.gateway_code}/orders` : "—"}</span>{merchant.gateway_code && <button onClick={() => copy(`${BASE}/api/v1/g/${merchant.gateway_code}/orders`)} className="text-emerald-400"><Copy className="w-3.5 h-3.5" /></button>}</div>
+        <p className="text-[11px] text-slate-500">每个商户有各自不同的下单网址；查询网址为 <span className="font-mono text-slate-300">.../orders/query</span>。请求体与签名方式与通用网址完全一致。</p>
+      </div>
     </div>
   );
 }
@@ -125,6 +129,8 @@ export default function ApiDocsPage() {
 
   if (loading) return <div className="flex items-center justify-center py-20"><Loader2 className="w-6 h-6 animate-spin text-cyan-400" /></div>;
 
+  const gwBase = sel?.gateway_code ? `${BASE}/api/v1/g/${sel.gateway_code}` : `${BASE}/api/v1`;
+
   return (
     <div className="space-y-6" data-testid="api-docs-page">
       <div className="flex flex-wrap items-end justify-between gap-4">
@@ -155,15 +161,15 @@ export default function ApiDocsPage() {
 
       <div className="grid lg:grid-cols-2 gap-5">
         <div className="glass rounded-xl p-5 space-y-4">
-          <div className="flex items-center gap-2 text-sm font-semibold"><Code2 className="w-4 h-4 text-cyan-400" /> 接口说明</div>
+          <div className="flex items-center gap-2 text-sm font-semibold"><Code2 className="w-4 h-4 text-cyan-400" /> 接口说明{sel?.gateway_code && <span className="text-[11px] font-normal text-emerald-400">（下方已套用「{sel.name}」的专属网关网址）</span>}</div>
           <div className="space-y-3 text-sm">
             <div>
               <div className="text-xs text-slate-400 mb-1">1. 创建订单</div>
-              <Code>{`POST ${BASE}/api/v1/orders\nContent-Type: application/json\n\n{\n  "api_key": "mk_xxx",\n  "timestamp": 1718000000,        // Unix 秒，±300s 内有效\n  "nonce": "随机字符串",            // 10 分钟内不可重复\n  "amount_usdt": 100.00,\n  "network": "TRC20",             // 仅支持 TRC20\n  "out_trade_no": "您的订单号",     // 幂等键，重复返回原订单\n  "notify_url": "https://...",    // 可选，默认用商户设置\n  "remark": "可选",\n  "sign": "HMAC-SHA256 签名"\n}`}</Code>
+              <Code>{`POST ${gwBase}/orders\nContent-Type: application/json\n\n{\n  "api_key": "mk_xxx",\n  "timestamp": 1718000000,        // Unix 秒，±300s 内有效\n  "nonce": "随机字符串",            // 10 分钟内不可重复\n  "amount_usdt": 100.00,\n  "network": "TRC20",             // 仅支持 TRC20\n  "out_trade_no": "您的订单号",     // 幂等键，重复返回原订单\n  "notify_url": "https://...",    // 可选，默认用商户设置\n  "remark": "可选",\n  "sign": "HMAC-SHA256 签名"\n}`}</Code>
             </div>
             <div>
               <div className="text-xs text-slate-400 mb-1">2. 查询订单</div>
-              <Code>{`POST ${BASE}/api/v1/orders/query\n{ api_key, timestamp, nonce, sign, order_no 或 out_trade_no }`}</Code>
+              <Code>{`POST ${gwBase}/orders/query\n{ api_key, timestamp, nonce, sign, order_no 或 out_trade_no }`}</Code>
             </div>
             <div>
               <div className="text-xs text-slate-400 mb-1">3. 签名算法（下单 / 查询 / 回调通知通用）</div>

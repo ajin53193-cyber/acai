@@ -106,6 +106,10 @@ def gen_api_secret() -> str:
     return "sk_" + secrets.token_hex(24)
 
 
+def gen_gateway_code() -> str:
+    return secrets.token_hex(8)
+
+
 def clean_user(u: dict) -> dict:
     u = dict(u)
     u["id"] = str(u.pop("_id"))
