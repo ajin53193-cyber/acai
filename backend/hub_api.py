@@ -59,11 +59,13 @@ def _topup_row(t: dict) -> dict:
 
 
 @router.get("/hub/orders")
-async def hub_orders(since: str = "", status: str = "", page: int = 1, size: int = 50, x_hub_key: str = Header("", alias="X-Hub-Key")):
+async def hub_orders(since: str = "", paid_since: str = "", status: str = "", page: int = 1, size: int = 50, x_hub_key: str = Header("", alias="X-Hub-Key")):
     await _inbound_auth(x_hub_key)
     q: Dict[str, Any] = {}
     if since:
         q["created_at"] = {"$gte": since}
+    if paid_since:
+        q["paid_at"] = {"$gt": paid_since}
     if status:
         q["status"] = status
     size = max(1, min(size, 200))
@@ -122,6 +124,23 @@ async def hub_stats(days: int = 30, x_hub_key: str = Header("", alias="X-Hub-Key
 
 
 # ----------------------------- inbound: pull from remote platforms -----------------------------
+async def remote_new_paid_orders(paid_since: str) -> List[dict]:
+    """Paid orders that arrived on remote platforms after `paid_since` (used by the admin new-order alert)."""
+    cfg = await get_cfg()
+    plats = [p for p in cfg["platforms"] if p.get("enabled", True) and p.get("kind") != "topup"]
+    if not plats or not paid_since:
+        return []
+    try:
+        got, _ = await asyncio.wait_for(_gather(plats, "/hub/orders", {"paid_since": paid_since, "size": 20}), timeout=6)
+    except asyncio.TimeoutError:
+        return []
+    out = []
+    for p, r in got:
+        for o in r.get("rows", []):
+            if o.get("paid_at") and o["paid_at"] > paid_since and o.get("status") not in ("pending_payment", "cancelled", "failed"):
+                out.append({"id": f"{p['id']}:{o.get('id')}", "order_no": o.get("order_no"), "total_usd": o.get("amount_usd"), "user_email": o.get("user"), "paid_at": o.get("paid_at"),
+                            "is_giftcard_order": o.get("type") == "giftcard", "items": [{"product_name": i} for i in o.get("items", [])], "platform": {"id": p["id"], "name": p["name"]}})
+    return out
 class PlatformIn(BaseModel):
     id: str
     name: str
@@ -129,6 +148,7 @@ class PlatformIn(BaseModel):
     api_key: str = ""
     cs_url: str = ""
     admin_url: str = ""
+    kind: str = "shop"  # shop = 商城（訂單+充值+會員）, topup = 充值平台（只有充值+會員）
     enabled: bool = True
 
 
@@ -197,7 +217,7 @@ async def admin_hub_platform_test(pid: str, admin: dict = Depends(current_admin)
 @router.get("/admin/hub/platforms/public")
 async def admin_hub_platforms_public(admin: dict = Depends(current_admin)):
     cfg = await get_cfg()
-    return {"platforms": [{"id": p["id"], "name": p["name"], "cs_url": p.get("cs_url", ""), "admin_url": p.get("admin_url", "")} for p in cfg["platforms"] if p.get("enabled", True)]}
+    return {"platforms": [{"id": p["id"], "name": p["name"], "kind": p.get("kind", "shop"), "cs_url": p.get("cs_url", ""), "admin_url": p.get("admin_url", "")} for p in cfg["platforms"] if p.get("enabled", True)]}
 
 
 def _active(cfg: dict, platform: str) -> List[dict]:
@@ -221,7 +241,10 @@ async def admin_hub_orders(platform: str = "all", kind: str = "all", status: str
     if remote:
         paths = [x for x in ["/hub/orders", "/hub/topups"] if kind == "all" or (x.endswith("orders") and kind in ("order", "giftcard")) or (x.endswith("topups") and kind == "topup")]
         for path in paths:
-            got, errs = await _gather(remote, path, {"status": status, "size": size})
+            targets = [p for p in remote if not (path.endswith("orders") and p.get("kind") == "topup")]
+            if not targets:
+                continue
+            got, errs = await _gather(targets, path, {"status": status, "size": size})
             errors += errs
             for p, r in got:
                 rows += [{**x, "platform": {"id": p["id"], "name": p["name"]}} for x in r.get("rows", []) if kind == "all" or x.get("type") == kind or path.endswith("topups")]

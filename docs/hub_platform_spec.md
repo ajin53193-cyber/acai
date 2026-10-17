@@ -33,7 +33,7 @@ gogo589 後台可把其他平台（如 **Giftray 商城**）的訂單、充值�
 | pending_topups | 待審核充值數（即時） |
 | open_chats | 未讀客服會話數（可回 0） |
 
-### 3.2 訂單 `GET /hub/orders?since=&status=&page=1&size=50`
+### 3.2 訂單 `GET /hub/orders?since=&paid_since=&status=&page=1&size=50`
 `rows[]` 每筆：
 ```json
 { "id": "f6b5...", "order_no": "GT26101614BC58", "type": "order",
@@ -43,6 +43,7 @@ gogo589 後台可把其他平台（如 **Giftray 商城**）的訂單、充值�
 - `type`：`order`（一般商品）或 `giftcard`（禮品卡）
 - `status` 建議值：`pending_payment` / `paid` / `processing` / `shipped` / `completed` / `cancelled` / `failed` / `refunded`
 - `since`：只回 `created_at >= since` 的訂單；按 `created_at` 倒序
+- `paid_since`：只回 `paid_at > paid_since` 的訂單（gogo589 後台每 8 秒用此參數拉取新付款訂單，觸發「新訂單」彈窗與提示音）
 
 ### 3.3 充值 `GET /hub/topups?since=&status=&page=1&size=50`
 `rows[]` 每筆：
@@ -62,7 +63,11 @@ gogo589 後台可把其他平台（如 **Giftray 商城**）的訂單、充值�
 ## 4. 參考實作
 gogo589 自身已按本規範對外提供同樣 4 個接口（`https://www.gogo589.com/api/hub/…`，密鑰見後台「平台接入」頁），Giftray 可直接照抄其返回格式。
 
-## 5. 接入步驟
+## 5. 平台類型
+- **商城**（如 Giftray）：實作全部 4 個接口
+- **充值平台**（如四方充值平台）：只需 `/hub/stats`、`/hub/topups`、`/hub/members`（stats 中訂單欄位可回 0）；在 gogo589「平台接入」把類型選為「充值平台」即可
+
+## 6. 接入步驟
 1. Giftray 開發完成 4 個接口並提供：接口前綴（如 `https://www.giftray.com/api`）、`X-Hub-Key`、客服後台地址
 2. gogo589 後台 → 系統配置 → 平台接入 → 新增平台（代號 `giftray`）→ 填入以上資訊 → 儲存 → 「測試連線」
 3. 之後：數據概覽頂部出現「多平台匯總」；訂單管理多一個「多平台訂單 / 充值」Tab；用戶管理多「多平台會員」；客服菜單多「Giftray 商城 客服」入口

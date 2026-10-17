@@ -34,10 +34,11 @@ export function HubPlatformsAdmin({ callApi }) {
       <div className="space-y-3">
         {rows.map((p, i) => (
           <Card key={i} className="p-4" data-testid={`hub-platform-${i}`}>
-            <div className="grid md:grid-cols-[120px_1fr_1fr_auto] gap-3 items-end">
+            <div className="grid md:grid-cols-[120px_1fr_1fr_auto_auto] gap-3 items-end">
               <Field label={tr("平台代號")}><Input data-testid={`hub-platform-id-${i}`} className="w-full font-mono" value={p.id} onChange={(e) => set(i, { id: e.target.value })} placeholder="giftray" /></Field>
               <Field label={tr("平台名稱")}><Input data-testid={`hub-platform-name-${i}`} className="w-full" value={p.name} onChange={(e) => set(i, { name: e.target.value })} placeholder="Giftray 商城" /></Field>
               <Field label={tr("接口地址前綴（含 /api）")}><Input data-testid={`hub-platform-url-${i}`} className="w-full font-mono text-xs" value={p.base_url} onChange={(e) => set(i, { base_url: e.target.value })} placeholder="https://www.giftray.com/api" /></Field>
+              <Field label={tr("平台類型")}><select data-testid={`hub-platform-kind-${i}`} value={p.kind || "shop"} onChange={(e) => set(i, { kind: e.target.value })} className="h-9 rounded-lg bg-slate-100 px-2 text-sm outline-none"><option value="shop">{tr("商城（訂單+充值+會員）")}</option><option value="topup">{tr("充值平台（充值+會員）")}</option></select></Field>
               <label className="flex items-center gap-2 text-sm text-slate-700 h-9"><Switch data-testid={`hub-platform-enabled-${i}`} checked={p.enabled !== false} onCheckedChange={(v) => set(i, { enabled: v })} />{tr("啟用")}</label>
             </div>
             <div className="grid md:grid-cols-[1fr_1fr_1fr_auto] gap-3 items-end mt-3">
@@ -49,7 +50,7 @@ export function HubPlatformsAdmin({ callApi }) {
             </div>
           </Card>
         ))}
-        <button data-testid="hub-platform-add" onClick={() => setRows([...rows, { id: "", name: "", base_url: "", api_key: "", cs_url: "", admin_url: "", enabled: true }])} className="w-full rounded-xl border-2 border-dashed border-slate-200 text-slate-400 hover:border-orange-300 hover:text-orange-500 h-14 flex items-center justify-center gap-1 text-sm"><Plus className="h-4 w-4" />{tr("新增平台")}</button>
+        <button data-testid="hub-platform-add" onClick={() => setRows([...rows, { id: "", name: "", base_url: "", api_key: "", cs_url: "", admin_url: "", kind: "shop", enabled: true }])} className="w-full rounded-xl border-2 border-dashed border-slate-200 text-slate-400 hover:border-orange-300 hover:text-orange-500 h-14 flex items-center justify-center gap-1 text-sm"><Plus className="h-4 w-4" />{tr("新增平台")}</button>
       </div>
     </div>
   );

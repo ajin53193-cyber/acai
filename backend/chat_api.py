@@ -391,4 +391,7 @@ async def admin_alerts(since: str = "", admin: dict = Depends(current_admin)):
     orders = await db.orders.find({"paid_at": {"$gt": since, "$lte": now}}, {"_id": 0, "id": 1, "order_no": 1, "total_usd": 1, "user_email": 1, "paid_at": 1, "is_giftcard_order": 1, "items.product_name": 1, "items.spec_label": 1, "items.quantity": 1}).sort("paid_at", -1).to_list(20)
     topups = await db.topup_orders.find({"proof_at": {"$gt": since, "$lte": now}, "status": "reviewing"}, {"_id": 0, "id": 1, "amount_usd": 1, "method_name": 1, "provider": 1, "proof_at": 1}).sort("proof_at", -1).to_list(20)
     chats = await db.chat_messages.find({"sender": "user", "auto": {"$ne": True}, "created_at": {"$gt": since, "$lte": now}}, {"_id": 0, "session_id": 1, "text": 1, "image": 1, "created_at": 1}).sort("created_at", -1).to_list(20)
+    if since:
+        import hub_api
+        orders = orders + await hub_api.remote_new_paid_orders(since)
     return {"now": now, "orders": orders, "topups": topups, "chats": chats}
