@@ -193,3 +193,4 @@
 - 待辦 P1：translate.py 改用用戶自有 OpenAI Key（等待用戶提供）。
 - 提醒邏輯調整：新訂單彈窗不再每 12 秒重播音效（只響一次，`NewOrderAlert.jsx`）；桌面通知（Notification）改為只要權限已允許就彈出（不限頁面在背景），首次點擊頁面自動請求通知權限；`desktop` 偏好預設開啟。
 - 新增 `backend/reset_for_launch.py`：正式上線清數據腳本（預覽模式 / `--yes` 執行，先備份 zip）。清除會員(非 admin)、訂單、充值、錢包/積分流水、聊天、日誌、抽獎、驗證碼等；保留商品/分類/評價/設定/管理員/翻譯。用戶選擇：reviews 保留、admin 保留、僅在 Windows 伺服器執行（預覽環境未清）。
+- 新增 `POST /api/admin/system/launch-reset`（require_super + X-Admin-Token）：body `{confirm:"RESET", keep_admin_emails:[]}`；不帶 confirm 回 preview 計數；reset_for_launch.py 拆成 plan()/execute() 供腳本與 API 共用。生產 www.gogo589.com 已確認仍有測試數據（13 會員 / 15 待處理訂單），待用戶部署 patch 後由 agent 遠端觸發（Clerk ticket→session jwt 流程可用：admin login→totp→ticket→FAPI /v1/client/sign_ins strategy=ticket）。預覽環境已清空，僅留 admin@gogo589.com。

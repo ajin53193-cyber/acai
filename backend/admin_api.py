@@ -1629,6 +1629,28 @@ async def admin_me(admin: dict = Depends(current_admin)):
             "permissions": await _admin_perms(admin), "all_permissions": ALL_PERMISSIONS}
 
 
+# ---- Launch reset (wipe test data; super admin only) ----
+class LaunchResetIn(BaseModel):
+    confirm: str = ""
+    keep_admin_emails: List[str] = []
+
+
+@router.post("/system/launch-reset")
+async def admin_launch_reset(body: LaunchResetIn, admin: dict = Depends(require_super)):
+    import reset_for_launch
+    keep = [e.strip().lower() for e in body.keep_admin_emails if e.strip()]
+    if keep and (admin.get("email") or "").lower() not in keep:
+        raise HTTPException(status_code=400, detail="保留名單必須包含您自己的帳號")
+    items = await reset_for_launch.plan(db, keep or None)
+    preview = {c: n for c, _, n in items}
+    if body.confirm != "RESET":
+        return {"preview": preview}
+    r = await reset_for_launch.execute(db, items)
+    logger.warning("launch reset by %s: %s", admin.get("email"), r["deleted"])
+    return {"ok": True, **r}
+
+
+
 # ---- Roles ----
 class RoleIn(BaseModel):
     name: str
