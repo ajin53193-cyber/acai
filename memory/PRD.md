@@ -466,3 +466,18 @@
 - 后端：users.wallet_addresses 字段；services.build_order 优先走商户地址池(synth channel '商户专属地址', channel_id='')，否则 pick_channel；settle_order 对空/非法 channel_id 做保护。新增 PATCH /api/accounts/{id}/wallet-addresses(admin, normalize TRC20)。AccountCreate 支持 wallet_addresses。
 - 前端：AccountsPage 商户行新增「收款地址」(Wallet)按钮 + addr-edit-dialog 文本域(每行一个地址)，保存调 PATCH。
 - 验证：curl e2e(池内分配/回退全局/非法400) + 测试 iteration_22 前端 100%。
+
+## 商户专属收款页面样式 (2026-10-17)
+- 需求：每个商户的收款页面长得不一样（视觉样式按商户定制）。
+- 方案：每商户可覆盖收银台外观，未配置项继承全局默认。可配置字段：checkout_style(页面模板) / theme_color(主题色) / logo_url / brand_subtitle(zh,tw,en)。
+- 页面模板 4 种：classic(经典浅色,默认) / dark(暗黑) / gradient(渐变品牌色) / minimal(极简白)。
+- 后端：
+  - models.py 新增 MerchantCheckoutSettings(全部 Optional)；CheckoutSettings + DEFAULT_CHECKOUT_SETTINGS 增加 checkout_style(默认 classic)。
+  - server.py 新增 merged_checkout_settings(merchant)：全局默认 ∪ db.settings._id='checkout' ∪ 商户 users.checkout_settings(仅非空键覆盖)。
+  - 新增 PATCH /api/accounts/{id}/checkout-settings(admin)：保存到 users.checkout_settings，校验 theme_color(#RRGGBB) 与 checkout_style 合法值；空值表示继承。
+  - orders.py 新增公开 GET /api/orders/{order_no}/checkout-settings：按订单商户返回合并后设置。
+- 前端：
+  - CheckoutPage 改为读 /orders/{orderNo}/checkout-settings（不再只读全局）；按 checkout_style 渲染 4 套样式(root/text/header class + 注入 <style> 覆盖规则，gradient/dark 用 theme_color)。
+  - AccountsPage 商户行新增「收银台样式」(Palette, 紫色)按钮 + checkout-style-dialog(模板下拉/主题色/Logo/副标题)，保存调 PATCH；留空继承全局。
+  - CheckoutSettingsDialog 品牌 Tab 顶部新增全局「页面模板」4 选 1。
+- 验证：curl e2e(设置 dark/#7C3AED/副标题→合并正确；清空→回退 classic) + 收银台截图确认 dark 样式渲染正常；前端编译通过。用户验证待确认。

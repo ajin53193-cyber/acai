@@ -41,7 +41,17 @@ class SecurityPolicy(BaseModel):
     login_alert: bool = True
 
 
+class MerchantCheckoutSettings(BaseModel):
+    checkout_style: Optional[str] = None
+    theme_color: Optional[str] = None
+    logo_url: Optional[str] = None
+    brand_subtitle: Optional[str] = None
+    brand_subtitle_tw: Optional[str] = None
+    brand_subtitle_en: Optional[str] = None
+
+
 class CheckoutSettings(BaseModel):
+    checkout_style: str = "classic"
     energy_enabled: bool = False
     energy_trx_address: str = ""
     energy_price_text: str = ""

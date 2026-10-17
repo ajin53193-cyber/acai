@@ -21,7 +21,7 @@ import {
 import {
   Plus, Loader2, KeyRound, Lock, Unlock, Copy, SlidersHorizontal, Snowflake, ShieldCheck, Fingerprint, Eye, Trash2,
 } from "lucide-react";
-import { Wallet } from "lucide-react";
+import { Wallet, Palette } from "lucide-react";
 import { MerchantDrawer } from "@/components/MerchantDrawer";
 
 export default function AccountsPage() {
@@ -61,6 +61,19 @@ export default function AccountsPage() {
   };
   const [adjForm, setAdjForm] = useState({ amount: "", action: "credit", remark: "" });
   const [saving, setSaving] = useState(false);
+
+  const [styleEdit, setStyleEdit] = useState(null);
+  const [styleForm, setStyleForm] = useState({});
+  const [savingStyle, setSavingStyle] = useState(false);
+  const saveStyle = async () => {
+    setSavingStyle(true);
+    try {
+      await api.patch(`/accounts/${styleEdit.id}/checkout-settings`, styleForm);
+      toast.success("收银台样式已保存");
+      setStyleEdit(null); load();
+    } catch (err) { toast.error(formatApiErrorDetail(err.response?.data?.detail)); }
+    finally { setSavingStyle(false); }
+  };
 
   const load = () => {
     const params = user.role === "admin" ? { role: tab } : {};
@@ -257,6 +270,9 @@ export default function AccountsPage() {
                         <button onClick={() => { setAddrEdit(a); setAddrVal((a.wallet_addresses || []).join("\n")); }} data-testid={`edit-addresses-${a.id}`} title="收款地址" className="p-1.5 rounded-md text-emerald-400 hover:bg-emerald-400/10"><Wallet className="w-4 h-4" /></button>
                       )}
                       {a.role === "merchant" && (
+                        <button onClick={() => { setStyleEdit(a); setStyleForm(a.checkout_settings || {}); }} data-testid={`edit-checkout-style-${a.id}`} title="收银台样式" className="p-1.5 rounded-md text-fuchsia-400 hover:bg-fuchsia-400/10"><Palette className="w-4 h-4" /></button>
+                      )}
+                      {a.role === "merchant" && (
                         <button onClick={() => resetKey(a)} data-testid={`reset-key-${a.id}`} title="重置密钥" className="p-1.5 rounded-md text-amber-400 hover:bg-amber-400/10"><KeyRound className="w-4 h-4" /></button>
                       )}
                       {user.role === "admin" && (
@@ -286,6 +302,40 @@ export default function AccountsPage() {
             <p className="text-[11px] text-slate-500">该商户的订单将只在以上地址中按「最少挂单优先 + 2 位小数金额唯一」分配。</p>
           </div>
           <DialogFooter><Button onClick={saveAddr} disabled={savingAddr} data-testid="addr-save-btn" className="bg-emerald-500 text-slate-950 hover:bg-emerald-400">{savingAddr ? <Loader2 className="w-4 h-4 animate-spin" /> : "保存收款地址"}</Button></DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* merchant checkout style dialog */}
+      <Dialog open={!!styleEdit} onOpenChange={(v) => !v && setStyleEdit(null)}>
+        <DialogContent className="glass border-slate-700" data-testid="checkout-style-dialog">
+          <DialogHeader><DialogTitle className="flex items-center gap-2"><Palette className="w-4 h-4 text-fuchsia-400" /> 收银台样式 · {styleEdit?.name}</DialogTitle><DialogDescription className="text-slate-400">为该商户单独设置收款页面外观；留空的项将继承全局收银台设置。</DialogDescription></DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-1.5">
+              <Label className="text-xs text-slate-400">页面模板</Label>
+              <Select value={styleForm.checkout_style || ""} onValueChange={(v) => setStyleForm({ ...styleForm, checkout_style: v })}>
+                <SelectTrigger data-testid="checkout-style-select" className="bg-slate-900/60 border-slate-700"><SelectValue placeholder="继承全局默认" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="classic">经典浅色</SelectItem>
+                  <SelectItem value="dark">暗黑模式</SelectItem>
+                  <SelectItem value="gradient">渐变品牌色</SelectItem>
+                  <SelectItem value="minimal">极简白</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs text-slate-400">主题色（留空继承全局）</Label>
+              <div className="flex items-center gap-3">
+                <input type="color" value={styleForm.theme_color || "#26A17B"} onChange={(e) => setStyleForm({ ...styleForm, theme_color: e.target.value })} data-testid="checkout-style-color" className="w-10 h-10 rounded cursor-pointer bg-transparent border border-slate-700" />
+                <Input value={styleForm.theme_color || ""} onChange={(e) => setStyleForm({ ...styleForm, theme_color: e.target.value })} className="bg-slate-900/60 border-slate-700 font-mono text-xs w-32" placeholder="#26A17B" />
+                <div className="flex gap-1.5">{["#26A17B", "#2563EB", "#7C3AED", "#DC2626", "#EA580C", "#0F766E", "#111827"].map((c) => <button key={c} onClick={() => setStyleForm({ ...styleForm, theme_color: c })} className="w-6 h-6 rounded-full border border-white/20" style={{ background: c }} title={c} />)}</div>
+              </div>
+            </div>
+            <div className="space-y-1.5"><Label className="text-xs text-slate-400">Logo 图片 URL（可选）</Label><Input value={styleForm.logo_url || ""} onChange={(e) => setStyleForm({ ...styleForm, logo_url: e.target.value })} data-testid="checkout-style-logo" className="bg-slate-900/60 border-slate-700 font-mono text-xs" placeholder="https://.../logo.png" />
+              {styleForm.logo_url && <img src={styleForm.logo_url} alt="logo" className="w-12 h-12 rounded-lg object-contain bg-white mt-2" />}</div>
+            <div className="space-y-1.5"><Label className="text-xs text-slate-400">副标题（简体，可选）</Label><Input value={styleForm.brand_subtitle || ""} onChange={(e) => setStyleForm({ ...styleForm, brand_subtitle: e.target.value })} data-testid="checkout-style-subtitle" className="bg-slate-900/60 border-slate-700" placeholder="USDT 安全收款" /></div>
+            <p className="text-[11px] text-slate-500">提示：收银台顶部显示的「商户名称」取自该账号名称。清空某项后保存即恢复继承全局。</p>
+          </div>
+          <DialogFooter><Button onClick={saveStyle} disabled={savingStyle} data-testid="checkout-style-save-btn" className="bg-fuchsia-500 text-white hover:bg-fuchsia-400">{savingStyle ? <Loader2 className="w-4 h-4 animate-spin" /> : "保存样式"}</Button></DialogFooter>
         </DialogContent>
       </Dialog>
 

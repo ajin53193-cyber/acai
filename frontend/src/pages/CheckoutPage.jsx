@@ -85,7 +85,7 @@ export default function CheckoutPage() {
   const load = useCallback(() => {
     api.get(`/orders/${orderNo}/public`).then((r) => setOrder(r.data)).catch(() => setNotFound(true));
   }, [orderNo]);
-  useEffect(() => { load(); api.get("/checkout/settings").then((r) => setSettings(r.data)).catch(() => setSettings({})); }, [load]);
+  useEffect(() => { load(); api.get(`/orders/${orderNo}/checkout-settings`).then((r) => setSettings(r.data)).catch(() => setSettings({})); }, [load, orderNo]);
   useEffect(() => {
     if (!order || order.status !== "pending") return;
     const i = setInterval(load, 5000);
@@ -119,6 +119,30 @@ export default function CheckoutPage() {
   };
 
   const subtitle = settings ? (lang === "en" ? settings.brand_subtitle_en : lang === "zh-TW" ? settings.brand_subtitle_tw : settings.brand_subtitle) : "";
+  const cstyle = settings?.checkout_style || "classic";
+  const accent = settings?.theme_color || "#26A17B";
+  const SC = ({
+    classic: { root: "bg-[#F5F6F8]", text: "text-slate-900", header: "bg-white border-b border-slate-200" },
+    dark: { root: "sf-dark bg-[#0B1220]", text: "text-[#E6EDF7]", header: "bg-[#141B2E] border-b border-[#243049]" },
+    gradient: { root: "sf-gradient", text: "text-slate-900", header: "sf-grad-header border-b border-white/10" },
+    minimal: { root: "sf-minimal bg-white", text: "text-slate-900", header: "bg-white border-b border-slate-200" },
+  })[cstyle] || { root: "bg-[#F5F6F8]", text: "text-slate-900", header: "bg-white border-b border-slate-200" };
+  const styleCss = `
+.sf-dark .bg-white{background:#141B2E!important}
+.sf-dark .text-slate-900{color:#E6EDF7!important}
+.sf-dark .text-slate-800{color:#D7E0EE!important}
+.sf-dark .text-slate-700{color:#C2CBDD!important}
+.sf-dark .text-slate-600{color:#9AA6BD!important}
+.sf-dark .text-slate-500,.sf-dark .text-slate-400{color:#7E8AA3!important}
+.sf-dark .border-slate-200,.sf-dark .border-slate-100{border-color:#243049!important}
+.sf-dark .bg-slate-900{background:#0f1830!important}
+.sf-gradient{background:linear-gradient(160deg, ${accent}2e 0%, #F5F6F8 42%)!important}
+.sf-grad-header{background:linear-gradient(90deg, ${accent} 0%, ${accent}cc 100%)!important}
+.sf-grad-header, .sf-grad-header *{color:#fff!important}
+.sf-grad-header svg{color:#fff!important}
+.sf-minimal .rounded-2xl{border-radius:.5rem!important}
+.sf-minimal .shadow-sm{box-shadow:none!important;border:1px solid #E5E7EB!important}
+`;
   const downloadReceipt = () => {
     const W = 720, H = 640, c = document.createElement("canvas"); c.width = W; c.height = H;
     const x = c.getContext("2d"); const accent = settings?.theme_color || "#26A17B";
@@ -140,8 +164,9 @@ export default function CheckoutPage() {
     const a = document.createElement("a"); a.href = c.toDataURL("image/png"); a.download = `receipt-${order.order_no}.png`; a.click();
   };
   const shell = (inner) => (
-    <div className="min-h-screen bg-[#F5F6F8] text-slate-900" data-testid="checkout-page" style={{ colorScheme: "light", "--accent": settings?.theme_color || "#26A17B", fontFamily: "-apple-system, BlinkMacSystemFont, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', 'Noto Sans SC', 'Helvetica Neue', Arial, sans-serif" }}>
-      <header className="bg-white border-b border-slate-200 sticky top-0 z-10">
+    <div className={`min-h-screen ${SC.root} ${SC.text}`} data-testid="checkout-page" data-checkout-style={cstyle} style={{ colorScheme: "light", "--accent": settings?.theme_color || "#26A17B", fontFamily: "-apple-system, BlinkMacSystemFont, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', 'Noto Sans SC', 'Helvetica Neue', Arial, sans-serif" }}>
+      <style>{styleCss}</style>
+      <header className={`${SC.header} sticky top-0 z-10`}>
         <div className="max-w-md mx-auto px-4 h-14 flex items-center justify-between gap-3">
           <div className="flex items-center gap-2.5 min-w-0" data-testid="checkout-brand">
             {settings?.logo_url ? <img src={settings.logo_url} alt="logo" className="w-9 h-9 rounded-lg object-contain" />

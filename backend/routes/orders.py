@@ -20,7 +20,7 @@ from deps import get_current_user, require_roles, merchant_ids_for_scope
 from models import OrderCreate, ApiOrderCreate, ApiOrderQuery
 from services import build_order, mark_paid
 from shared import enqueue_callback, deliver_callback, audit
-from server import api_pay_url, verify_api_request, api_order_view, fetch_trc20_transfers
+from server import api_pay_url, verify_api_request, api_order_view, fetch_trc20_transfers, merged_checkout_settings
 
 router = APIRouter(prefix="/api")
 
@@ -157,6 +157,15 @@ async def get_order_public(order_no: str):
         "return_url": order.get("return_url") or None,
         "chat_token": chat_token(order["order_no"]),
     }
+
+
+@router.get("/orders/{order_no}/checkout-settings")
+async def get_order_checkout_settings(order_no: str):
+    order = await db.orders.find_one({"order_no": order_no})
+    if not order:
+        raise HTTPException(status_code=404, detail="订单不存在")
+    merchant = await db.users.find_one({"_id": ObjectId(order["merchant_id"])})
+    return await merged_checkout_settings(merchant)
 
 
 @router.post("/orders/{order_no}/simulate-pay")

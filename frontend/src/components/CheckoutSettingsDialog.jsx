@@ -112,6 +112,13 @@ export function CheckoutSettingsDialog() {
             </TabsList>
             <TabsContent value="brand" className="space-y-4 pt-3">
               <p className="text-xs text-slate-500">收银台顶部显示「收款商户名称」+ 副标题；Logo 不填则显示商户名称首字头像。</p>
+              <div className="space-y-1.5"><Label>收银台页面模板（全局默认，商户可在账号管理单独覆盖）</Label>
+                <div className="flex flex-wrap gap-2" data-testid="global-style-options">
+                  {[["classic", "经典浅色"], ["dark", "暗黑模式"], ["gradient", "渐变品牌色"], ["minimal", "极简白"]].map(([v, label]) => (
+                    <button key={v} onClick={() => setS({ ...s, checkout_style: v })} data-testid={`global-style-${v}`} className={`px-3 py-1.5 rounded-lg text-xs border ${(s.checkout_style || "classic") === v ? "border-cyan-500 bg-cyan-500/15 text-cyan-300" : "border-slate-700 text-slate-400 hover:bg-slate-800"}`}>{label}</button>
+                  ))}
+                </div>
+              </div>
               <div className="space-y-1.5"><Label>Logo 图片 URL（可选，建议正方形 PNG/SVG）</Label><Input value={s.logo_url} onChange={(e) => setS({ ...s, logo_url: e.target.value })} data-testid="logo-url-input" className={`${inputCls} font-mono text-xs`} placeholder="https://.../logo.png" />
                 {s.logo_url && <img src={s.logo_url} alt="logo" className="w-12 h-12 rounded-lg object-contain bg-white mt-2" />}</div>
               <div className="grid md:grid-cols-3 gap-3">

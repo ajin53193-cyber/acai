@@ -206,7 +206,7 @@ from services import (
     channel_addresses, pick_address, pick_channel,
     build_order, settle_order, mark_paid,
 )
-from models import SecurityPolicy, CheckoutSettings, MerchantAddressesUpdate  # consolidated into models.py
+from models import SecurityPolicy, CheckoutSettings, MerchantAddressesUpdate, MerchantCheckoutSettings  # consolidated into models.py
 
 
 async def _chain_throttle():
@@ -762,6 +762,7 @@ def api_order_view(o: dict) -> dict:
 
 
 DEFAULT_CHECKOUT_SETTINGS = {
+    "checkout_style": "classic",
     "energy_enabled": False, "energy_trx_address": "", "energy_price_text": "2TRX/笔（即每65500能量只需2TRX）",
     "energy_amounts": "2,4",
     "support_url": "", "tutorial_links": [], "energy_rules": [],
@@ -777,6 +778,18 @@ async def get_checkout_settings():
     doc = await db.settings.find_one({"_id": "checkout"}) or {}
     doc.pop("_id", None)
     return {**DEFAULT_CHECKOUT_SETTINGS, **doc}
+
+
+async def merged_checkout_settings(merchant: dict = None) -> dict:
+    """Global checkout settings with per-merchant overrides applied on top."""
+    doc = await db.settings.find_one({"_id": "checkout"}) or {}
+    doc.pop("_id", None)
+    merged = {**DEFAULT_CHECKOUT_SETTINGS, **doc}
+    override = (merchant or {}).get("checkout_settings") or {}
+    for k, v in override.items():
+        if k in DEFAULT_CHECKOUT_SETTINGS and v not in (None, ""):
+            merged[k] = v
+    return merged
 
 
 @api_router.put("/checkout/settings")
@@ -1231,6 +1244,25 @@ async def set_merchant_addresses(account_id: str, data: MerchantAddressesUpdate,
     await db.users.update_one({"_id": m["_id"]}, {"$set": {"wallet_addresses": addrs}})
     await audit(user, "merchant.addresses", "user", account_id,
                 {"name": m.get("name"), "count": len(addrs)}, request)
+    u = await db.users.find_one({"_id": m["_id"]})
+    return clean_user(u)
+
+
+@api_router.patch("/accounts/{account_id}/checkout-settings")
+async def set_merchant_checkout(account_id: str, data: MerchantCheckoutSettings, request: Request,
+                                user: dict = Depends(require_roles("admin"))):
+    m = await db.users.find_one({"_id": ObjectId(account_id)})
+    if not m or m.get("role") != "merchant":
+        raise HTTPException(status_code=404, detail="商户不存在")
+    override = {k: v for k, v in data.model_dump().items() if v not in (None, "")}
+    tc = override.get("theme_color")
+    if tc and not re.fullmatch(r"#[0-9a-fA-F]{6}", tc):
+        raise HTTPException(status_code=400, detail="主题色需为 #RRGGBB 格式")
+    if override.get("checkout_style") and override["checkout_style"] not in ("classic", "dark", "gradient", "minimal"):
+        raise HTTPException(status_code=400, detail="无效的收银台样式")
+    await db.users.update_one({"_id": m["_id"]}, {"$set": {"checkout_settings": override}})
+    await audit(user, "merchant.checkout", "user", account_id,
+                {"name": m.get("name"), "style": override.get("checkout_style")}, request)
     u = await db.users.find_one({"_id": m["_id"]})
     return clean_user(u)
 
