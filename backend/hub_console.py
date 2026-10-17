@@ -329,6 +329,7 @@ async def my_password(body: PwIn, me: dict = Depends(current_hub_user)):
     return {"ok": True}
 
 
+@router.get("/ui", include_in_schema=False)
 @page_router.get(f"/{HUB_PATH}", include_in_schema=False)
 @page_router.get(f"/{HUB_PATH}/{{rest:path}}", include_in_schema=False)
 async def hub_page(rest: str = ""):

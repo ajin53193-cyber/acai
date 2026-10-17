@@ -151,3 +151,5 @@
 - 管理員：超管 = .env HUB_ADMIN_USER；其他存 `db.hub_admins` {id, username, password_hash(bcrypt), modules[], platforms[], note, enabled, last_login_at}；停用即時失效（每次請求查庫）；普通管理員可改密碼。
 - 客服：gogo589 讀 db.chat_sessions；Giftray 走 `/admin/chat/sessions`（hub_giftray.chats）；四方走 `/support/threads`；每頁有「進入該平台客服後台」按鈕。
 - 本機驗證（mock 8102/8103 + playwright）：超管全流程、受限管理員只看到勾選模組與平台、403/404/401 正確；測試資料已清除。patch.zip 已更新。
+
+- [2026-06] 總後台頁面同時可由 `/api/hub-admin/ui` 進入（預覽環境可用，正式站用 /12334）。
