@@ -78,7 +78,7 @@ def _member_row(u: dict, rate: float) -> dict:
 async def orders(p: dict, params: dict) -> dict:
     size = max(1, min(int(params.get("size") or 50), 200))
     rate = await _rate(p)
-    rows = [_order_row(o, rate) for o in _items(await _get(p, "/admin/orders", {"limit": 500}))]
+    rows = [_order_row(o, rate) for o in _items(await _get(p, "/admin/orders", {"limit": 3000}))]
     if params.get("status"):
         rows = [r for r in rows if r["status"] == params["status"]]
     if params.get("paid_since"):
@@ -89,7 +89,7 @@ async def orders(p: dict, params: dict) -> dict:
 
 async def topups(p: dict, params: dict) -> dict:
     size = max(1, min(int(params.get("size") or 50), 200))
-    rows = [_topup_row(t) for t in _items(await _get(p, "/admin/recharges", {"limit": 500}))]
+    rows = [_topup_row(t) for t in _items(await _get(p, "/admin/recharges", {"limit": 3000}))]
     if params.get("status"):
         rows = [r for r in rows if r["status"] == params["status"]]
     rows.sort(key=lambda r: r.get("created_at") or "", reverse=True)
@@ -111,8 +111,8 @@ async def stats(p: dict, params: dict) -> dict:
     days = max(1, min(int(params.get("days") or 30), 365))
     since = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
     rate = await _rate(p)
-    os_ = _items(await _get(p, "/admin/orders", {"limit": 3000}))
-    rc = _items(await _get(p, "/admin/recharges", {"limit": 1000}))
+    os_ = _items(await _get(p, "/admin/orders", {"limit": 20000}))
+    rc = _items(await _get(p, "/admin/recharges", {"limit": 5000}))
     data = await _get(p, "/admin/users", {"limit": 5000})
     us = [u for u in (data.get("items") or data.get("users") or [] if isinstance(data, dict) else data or []) if not u.get("isTest") and not u.get("is_admin")]
     recent = [o for o in os_ if o.get("status") in PAID and (o.get("createdAt") or "") >= since]
