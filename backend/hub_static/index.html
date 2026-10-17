@@ -27,7 +27,7 @@
 const $ = (s) => document.querySelector(s);
 const state = { token: localStorage.getItem("hub_token") || "", user: localStorage.getItem("hub_user") || "", page: location.hash.replace("#", "") || "dash", plats: [], days: 30, since: null, alerts: [], sound: localStorage.getItem("hub_sound") !== "0" };
 const api = async (method, url, data) => {
-  const r = await fetch("/api" + url, { method, headers: { "Content-Type": "application/json", Authorization: "Bearer " + state.token }, body: data ? JSON.stringify(data) : undefined });
+  const r = await fetch("/api/hub-admin" + url, { method, headers: { "Content-Type": "application/json", Authorization: "Bearer " + state.token }, body: data ? JSON.stringify(data) : undefined });
   if (r.status === 401 && state.token) { logout(); throw new Error("請重新登入"); }
   const j = await r.json().catch(() => ({}));
   if (!r.ok) throw new Error(j.detail || "請求失敗");
@@ -38,7 +38,7 @@ const usd = (v) => "$" + Number(v || 0).toLocaleString(undefined, { minimumFract
 const fmt = (s) => s ? new Date(s).toLocaleString("zh-TW", { hour12: false }) : "-";
 const STATUS = { completed: ["已完成", "green"], approved: ["已到帳", "green"], paid: ["已支付", "orange"], processing: ["處理中", "orange"], shipped: ["已發貨", "orange"], reviewing: ["審核中", "orange"], pending: ["待支付", "slate"], pending_payment: ["待支付", "slate"], cancelled: ["已取消", "slate"], rejected: ["已拒絕", "red"], failed: ["失敗", "red"], refunded: ["已退款", "slate"] };
 const KIND = { order: "商品訂單", giftcard: "禮品卡", topup: "充值" };
-const ptag = (p) => `<span class="tag ${p?.kind === "topup" ? "tag-green" : "tag-blue"}">${esc(p?.name || p?.id || "-")}</span>`;
+const ptag = (p) => `<span class="tag ${p?.id === "gogo589" ? "tag-orange" : p?.kind === "topup" ? "tag-green" : "tag-blue"}">${esc(p?.name || p?.id || "-")}</span>`;
 const stag = (s) => { const [l, t] = STATUS[s] || [s || "-", "slate"]; return `<span class="tag tag-${t}">${esc(l)}</span>`; };
 const toast = (msg, bad) => { const d = document.createElement("div"); d.className = `fixed top-4 right-4 z-[99] rounded-xl px-4 py-2.5 text-sm font-semibold shadow-lg ${bad ? "bg-red-600 text-white" : "bg-slate-900 text-white"}`; d.textContent = msg; document.body.appendChild(d); setTimeout(() => d.remove(), 2600); };
 const logout = () => { state.token = ""; localStorage.removeItem("hub_token"); render(); };
@@ -77,7 +77,7 @@ function loginView() {
     <button id="login-btn" class="btn w-full">登入</button></form></div>`;
 }
 
-async function loadPlats() { try { state.plats = (await api("GET", "/platforms")).platforms.filter((p) => p.enabled !== false); } catch {} }
+async function loadPlats() { try { const r = await api("GET", "/platforms"); state.plats = [{ ...r.local, kind: "shop", cs_url: "/gg589-k7p2x?s=chat-sessions", admin_url: "/gg589-k7p2x", enabled: true }, ...r.platforms.filter((p) => p.enabled !== false)]; } catch {} }
 const platSelect = (v) => `<select id="f-plat" class="inp !w-44"><option value="all">全部平台</option>${state.plats.map((p) => `<option value="${esc(p.id)}" ${v === p.id ? "selected" : ""}>${esc(p.name)}</option>`).join("")}</select>`;
 const errBox = (errs) => errs?.length ? `<div class="mb-3 rounded-xl bg-red-50 text-red-700 text-xs px-3 py-2">${errs.map((e) => esc(e.name + "：" + e.error)).join("；")}</div>` : "";
 
@@ -135,7 +135,7 @@ function csView() {
 
 async function platformsView() {
   const m = $("#main");
-  m.innerHTML = `<div class="flex items-center justify-between mb-4"><div><h1 class="text-2xl font-black">平台接入</h1><div class="text-sm text-slate-500">每個平台需提供 Hub 規範接口（/hub/stats、/hub/orders、/hub/topups、/hub/members）與 X-Hub-Key</div></div><button id="save" class="btn">儲存</button></div><div id="rows" class="space-y-3 text-sm text-slate-400">載入中…</div>`;
+  m.innerHTML = `<div class="flex items-center justify-between mb-4"><div><h1 class="text-2xl font-black">平台接入</h1><div class="text-sm text-slate-500">本站 gogo589 已自動接入；其他平台需提供 Hub 規範接口（/hub/stats、/hub/orders、/hub/topups、/hub/members）與 X-Hub-Key</div></div><button id="save" class="btn">儲存</button></div><div id="rows" class="space-y-3 text-sm text-slate-400">載入中…</div>`;
   let rows = [];
   try { rows = (await api("GET", "/platforms")).platforms; } catch (e) { toast(e.message, true); }
   const draw = () => {

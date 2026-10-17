@@ -122,3 +122,11 @@
 - (2026-06) 后台支付管理自助新增 Stripe 方式：`PaymentMethodsAdmin.jsx` 当 provider=stripe 时新增「Stripe 付款类型」下拉（`pm-form-stripe-type`），写入 `config.stripe_methods`（选项：card / link,card / pix / alipay / klarna / afterpay_clearpay / boleto），选 pix/boleto 自动把 `config.stripe_currency` 设为 brl 并提示按汇率换算。配合已有 checkout 逻辑即可自助上架任意 Stripe 标准方式，无需改代码。注意：方式能否真正收款仍取决于 Stripe 账户是否对该类型开放（如 boleto 需 charges_enabled=True）。用户 Stripe 账户 details_submitted=True 但 charges_enabled 仍 False，Boleto 暂不可用。
 
 - (2026-06) 支付/客服本轮：① 用户自有 Stripe 测试密钥写入 STRIPE_API_KEY（巴西 BR 账户，charges_enabled 当时仍 False → Alipay/PIX/Boleto 等区域方式不稳定，card/Google Pay/Link 稳定）；按方式对接独立 Stripe 类型（config.stripe_methods / stripe_currency，PIX 按汇率换 BRL），checkout 对 Link/钱包类失败自动回退 ['card']，其它方式失败抛 400（避免 Cloudflare 502 拦截）。后台 PaymentMethodsAdmin 新增「Stripe 付款类型」下拉自助上架。已加支付宝 Alipay（/payments/alipay.svg）。② 充值页 WalletTopUp.jsx：去掉「立即充值」按钮的 + 号、去掉按钮下方 footnote、去掉选中方式的「付款说明」描述面板（pm-description 整块移除）。③ 客服 ServiceWidget.jsx：手机端从全屏改悬浮小窗（left-3 right-3 bottom-[5.5rem] h-[72vh] max-h-[34rem] 圆角，md 仍右下 380x560）；接入 VisualViewport 适配 iOS 键盘；头部新增「結束」按钮（POST /api/chat/sessions/{sid}/end 删除会话+消息）；关闭窗口 POST .../close 写 closed_at，后端 chat_api.sweep_closed_sessions() 在 _giftcard_dispatch_loop(每20s) 中清理 closed_at 超过 CHAT_CLOSE_TTL=600s 的会话+消息；open_session/user_send 会清空 closed_at。iteration_43 前端 6/6 通过。
+
+## [2026-06] 總後台（多平台 Hub）改為主站隱藏路徑 /12334（取代獨立 8101 服務）
+- 用戶要求：不要單獨端口，統一用 gogo589.com/12334 進入。已刪除 /app/hub 獨立服務。
+- 新增 `backend/hub_console.py`：獨立帳號登入（HMAC token，12h，5 次失敗鎖 15 分），API 前綴 `/api/hub-admin/*`（login / platforms / platforms/{pid}/test / stats / orders / members / alerts），資料與平台設定直接複用 `hub_api.py`（與 /gg589-k7p2x 後台「平台接入」共用同一份設定，本站 gogo589 自動包含）。
+- 頁面 `backend/hub_static/index.html` 由後端在 `GET /{HUB_PATH}` 及子路徑返回（no-store）。
+- backend/.env 新增：HUB_PATH、HUB_ADMIN_USER、HUB_ADMIN_PASSWORD、HUB_SECRET（缺任一則登入回 503 提示）。
+- 部署：用戶 Nginx 需加 `location /12334 { proxy_pass http://127.0.0.1:8001; }`，見 `docs/hub_console_deploy.md`；patch.zip 含 server.py / hub_console.py / hub_api.py / hub_static / docs。
+- 預覽環境 /12334 會被 ingress 導到前端 3000，驗證用 localhost:8001/12334（本機 playwright 全流程通過）。
