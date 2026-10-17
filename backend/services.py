@@ -115,6 +115,7 @@ async def build_order(merchant: dict, amount_usdt: float, network: Optional[str]
             "out_trade_no": out_trade_no or None,
             "merchant_id": str(merchant["_id"]),
             "merchant_name": merchant["name"],
+            "api_domain": merchant.get("api_domain") or "",
             "amount_usdt": amount,
             "pay_amount": pay_amount,
             "live": live,

@@ -492,3 +492,15 @@
   - dev.py /dev/merchants 返回 gateway_code。
 - 前端 ApiDocsPage：商户凭证卡新增「专属网关 API 网址」(绿色,可复制)；接口说明 Code 块用 gwBase(=选中商户的 /api/v1/g/{code})动态拼接下单/查询网址。
 - 验证：curl 全链路 e2e 通过——专属网址下单 200(返回 order+pay_url)、查询 200、无效网关 404、api_key 与网关不匹配 401、老 /v1/orders 仍 200。前端编译通过(ApiDocsPage UI 因登录自动化受限未截图，仅展示逻辑、已编译)。用户验证待确认。
+
+## 商户专属下单域名 (2026-10-17)
+- 需求：服务器上有多条域名，让不同商户各用一条自己的域名来下单（域名本身不同，非仅路径）。前提：域名已 DNS 解析并在服务器 Nginx+SSL 指向本平台(用户已完成)。
+- 方案：管理员给每个商户配置一个 api_domain；该商户的下单/查询网址、收银台 pay_url 全部用它自己的域名；未配置则用平台默认域名(FRONTEND_URL)。
+- 后端：
+  - models.MerchantDomainUpdate{api_domain}。
+  - server.normalize_domain() 清洗(去协议/端口/路径、小写、正则校验)；PATCH /api/accounts/{id}/api-domain(admin)：唯一性校验(不可与其他商户重复)、保存 users.api_domain、失效 CORS 缓存、审计。
+  - api_pay_url(order_no, domain) 用商户域名；api_order_view 用 order.api_domain；services.build_order 下单时把 merchant.api_domain 固化进订单(api_domain 字段)。
+  - 动态 CORS：移除静态 CORSMiddleware，改为 @app.middleware 读取缓存的允许来源集合(FRONTEND_URL + 所有商户 api_domain 的 http/https + localhost，30s 缓存，改域名即失效)；命中则回显具体 Origin + allow-credentials，并处理 OPTIONS 预检(204)。
+  - dev.py /dev/merchants 返回 api_domain。
+- 前端 ApiDocsPage：商户凭证卡新增「专属下单域名」输入(管理员可改/保存，含提示)；下单网址与接口说明 Code 块用 apiBase(=商户域名或平台域名)动态拼接。
+- 验证：curl e2e——设域名(含规范化 https://pay-star.com/→pay-star.com)、非法域名 400、下单 pay_url 用商户域名、预检/GET 从商户域名回显 ACAO+credentials、平台域名仍放行、清空回退默认。前端编译通过。用户验证待确认。

@@ -25,6 +25,20 @@ function Credentials({ merchant, isAdmin, onReset }) {
   const [show, setShow] = useState(false);
   const [secret, setSecret] = useState(null);
   const [resetting, setResetting] = useState(false);
+  const [domain, setDomain] = useState(merchant.api_domain || "");
+  const [savingDom, setSavingDom] = useState(false);
+  useEffect(() => { setDomain(merchant.api_domain || ""); }, [merchant.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  const apiBase = merchant.api_domain ? `https://${merchant.api_domain}` : BASE;
+  const saveDomain = async () => {
+    setSavingDom(true);
+    try {
+      const { data } = await api.patch(`/accounts/${merchant.id}/api-domain`, { api_domain: domain });
+      onReset(merchant.id, { api_domain: data.api_domain });
+      setDomain(data.api_domain || "");
+      toast.success("下单域名已保存");
+    } catch (err) { toast.error(formatApiErrorDetail(err.response?.data?.detail)); }
+    finally { setSavingDom(false); }
+  };
   const copy = (t) => { copyText(t); toast.success("已复制"); };
   const reveal = async () => {
     if (show) { setShow(false); return; }
@@ -66,9 +80,20 @@ function Credentials({ merchant, isAdmin, onReset }) {
         <div><span className="text-slate-400">默认回调地址 (notify_url)：</span><span className="font-mono text-slate-200 break-all" data-testid="merchant-notify-url">{merchant.notify_url || "未设置"}</span></div>
         <div><span className="text-slate-400">IP 白名单：</span><span className="font-mono text-slate-200" data-testid="merchant-ip-whitelist">{merchant.ip_whitelist?.length ? merchant.ip_whitelist.join(", ") : "未启用（不限制）"}</span></div>
       </div>
-      <div className="space-y-1 pt-1"><Label className="text-xs text-slate-400">专属网关 API 网址（该商户独有）</Label>
-        <div className="flex items-center gap-2 p-2.5 rounded-lg bg-emerald-500/10 border border-emerald-500/30 font-mono text-xs"><span className="flex-1 truncate text-emerald-300" data-testid="merchant-gateway-url">{merchant.gateway_code ? `${BASE}/api/v1/g/${merchant.gateway_code}/orders` : "—"}</span>{merchant.gateway_code && <button onClick={() => copy(`${BASE}/api/v1/g/${merchant.gateway_code}/orders`)} className="text-emerald-400"><Copy className="w-3.5 h-3.5" /></button>}</div>
-        <p className="text-[11px] text-slate-500">每个商户有各自不同的下单网址；查询网址为 <span className="font-mono text-slate-300">.../orders/query</span>。请求体与签名方式与通用网址完全一致。</p>
+      <div className="space-y-1 pt-1"><Label className="text-xs text-slate-400">专属下单域名（该商户使用的独立域名，留空=平台默认域名）</Label>
+        {isAdmin ? (
+          <div className="flex items-center gap-2">
+            <Input value={domain} onChange={(e) => setDomain(e.target.value)} data-testid="api-domain-input" placeholder="pay.example.com" className="bg-slate-900/60 border-slate-700 font-mono text-xs" />
+            <Button onClick={saveDomain} disabled={savingDom} size="sm" data-testid="api-domain-save-btn" className="bg-cyan-500 text-slate-950 hover:bg-cyan-400 h-9">{savingDom ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : "保存域名"}</Button>
+          </div>
+        ) : (
+          <div className="p-2.5 rounded-lg bg-slate-900/60 border border-slate-700 font-mono text-xs text-slate-200" data-testid="api-domain-value">{merchant.api_domain || "平台默认域名"}</div>
+        )}
+        <p className="text-[11px] text-slate-500">需该域名已解析并在服务器(Nginx+SSL)指向本平台。保存后该商户的下单/查询/收银台链接自动使用此域名。</p>
+      </div>
+      <div className="space-y-1 pt-1"><Label className="text-xs text-slate-400">专属下单网址（含该商户域名）</Label>
+        <div className="flex items-center gap-2 p-2.5 rounded-lg bg-emerald-500/10 border border-emerald-500/30 font-mono text-xs"><span className="flex-1 truncate text-emerald-300" data-testid="merchant-gateway-url">{merchant.gateway_code ? `${apiBase}/api/v1/g/${merchant.gateway_code}/orders` : `${apiBase}/api/v1/orders`}</span><button onClick={() => copy(merchant.gateway_code ? `${apiBase}/api/v1/g/${merchant.gateway_code}/orders` : `${apiBase}/api/v1/orders`)} className="text-emerald-400"><Copy className="w-3.5 h-3.5" /></button></div>
+        <p className="text-[11px] text-slate-500">查询网址把结尾改为 <span className="font-mono text-slate-300">/orders/query</span>；请求体与签名方式与通用网址一致。</p>
       </div>
     </div>
   );
@@ -129,7 +154,8 @@ export default function ApiDocsPage() {
 
   if (loading) return <div className="flex items-center justify-center py-20"><Loader2 className="w-6 h-6 animate-spin text-cyan-400" /></div>;
 
-  const gwBase = sel?.gateway_code ? `${BASE}/api/v1/g/${sel.gateway_code}` : `${BASE}/api/v1`;
+  const apiBase = sel?.api_domain ? `https://${sel.api_domain}` : BASE;
+  const gwBase = sel?.gateway_code ? `${apiBase}/api/v1/g/${sel.gateway_code}` : `${apiBase}/api/v1`;
 
   return (
     <div className="space-y-6" data-testid="api-docs-page">

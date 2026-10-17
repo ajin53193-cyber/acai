@@ -24,6 +24,10 @@ class MerchantAddressesUpdate(BaseModel):
     wallet_addresses: List[str] = []
 
 
+class MerchantDomainUpdate(BaseModel):
+    api_domain: str = ""
+
+
 class PermissionsUpdate(BaseModel):
     permissions: List[str]
 

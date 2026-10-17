@@ -33,6 +33,7 @@ async def dev_list_merchants(user: dict = Depends(get_current_user)):
              "status": m.get("status", "active"),
              "api_key": m.get("api_key", ""),
              "gateway_code": m.get("gateway_code", ""),
+             "api_domain": m.get("api_domain", ""),
              "notify_url": m.get("notify_url") or "", "ip_whitelist": m.get("ip_whitelist") or []}
             for m in ms]
 

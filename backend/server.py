@@ -7,7 +7,6 @@ load_dotenv(ROOT_DIR / '.env')
 
 from fastapi import FastAPI, APIRouter, HTTPException, Depends, Request, Response, Query, Header
 from fastapi.responses import JSONResponse
-from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient  # noqa: F401  (client/db provided via core)
 from pydantic import BaseModel, Field, EmailStr
 from typing import List, Optional, Annotated, Any
@@ -206,7 +205,7 @@ from services import (
     channel_addresses, pick_address, pick_channel,
     build_order, settle_order, mark_paid,
 )
-from models import SecurityPolicy, CheckoutSettings, MerchantAddressesUpdate, MerchantCheckoutSettings  # consolidated into models.py
+from models import SecurityPolicy, CheckoutSettings, MerchantAddressesUpdate, MerchantCheckoutSettings, MerchantDomainUpdate  # consolidated into models.py
 
 
 async def _chain_throttle():
@@ -719,8 +718,9 @@ async def merchant_stats(date: Optional[str] = None, start: Optional[str] = None
 # ---------------------------------------------------------------------------
 # Merchant Open API (api_key + HMAC signature)
 # ---------------------------------------------------------------------------
-def api_pay_url(order_no: str) -> str:
-    return f"{os.environ.get('FRONTEND_URL', '')}/pay/{order_no}"
+def api_pay_url(order_no: str, domain: str = "") -> str:
+    base = f"https://{domain}" if domain else os.environ.get('FRONTEND_URL', '').rstrip("/")
+    return f"{base}/pay/{order_no}"
 
 
 async def verify_api_request(body: dict, request: Request) -> dict:
@@ -753,7 +753,7 @@ def api_order_view(o: dict) -> dict:
     return {"order_no": o["order_no"], "out_trade_no": o.get("out_trade_no"), "amount_usdt": o["amount_usdt"],
             "pay_amount": o.get("pay_amount", o["amount_usdt"]), "network": o["network"],
             "wallet_address": o["wallet_address"], "status": o["status"], "tx_id": o.get("tx_id"),
-            "paid_at": o.get("paid_at"), "expires_at": o["expires_at"], "pay_url": api_pay_url(o["order_no"])}
+            "paid_at": o.get("paid_at"), "expires_at": o["expires_at"], "pay_url": api_pay_url(o["order_no"], o.get("api_domain", ""))}
 
 
 # ---------------------------------------------------------------------------
@@ -1268,6 +1268,36 @@ async def set_merchant_checkout(account_id: str, data: MerchantCheckoutSettings,
     return clean_user(u)
 
 
+def normalize_domain(raw: str) -> str:
+    raw = (raw or "").strip()
+    if not raw:
+        return ""
+    if "://" in raw:
+        raw = urlparse(raw).netloc or ""
+    raw = raw.split("/")[0].split(":")[0].strip().lower()
+    if not re.fullmatch(r"[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+", raw):
+        raise HTTPException(status_code=400, detail="域名格式不正确，例如 pay.example.com")
+    return raw
+
+
+@api_router.patch("/accounts/{account_id}/api-domain")
+async def set_merchant_api_domain(account_id: str, data: MerchantDomainUpdate, request: Request,
+                                  user: dict = Depends(require_roles("admin"))):
+    m = await db.users.find_one({"_id": ObjectId(account_id)})
+    if not m or m.get("role") != "merchant":
+        raise HTTPException(status_code=404, detail="商户不存在")
+    dom = normalize_domain(data.api_domain)
+    if dom:
+        clash = await db.users.find_one({"api_domain": dom, "_id": {"$ne": m["_id"]}})
+        if clash:
+            raise HTTPException(status_code=400, detail=f"域名已被商户「{clash.get('name')}」占用")
+    await db.users.update_one({"_id": m["_id"]}, {"$set": {"api_domain": dom}})
+    _cors_cache["ts"] = 0.0
+    await audit(user, "merchant.api_domain", "user", account_id, {"name": m.get("name"), "api_domain": dom}, request)
+    u = await db.users.find_one({"_id": m["_id"]})
+    return clean_user(u)
+
+
 @api_router.patch("/accounts/{account_id}/permissions")
 async def update_permissions(account_id: str, data: PermissionsUpdate, request: Request, user: dict = Depends(require_roles("admin"))):
     acc = await db.users.find_one({"_id": ObjectId(account_id), "role": "operator"})
@@ -1755,10 +1785,42 @@ async def security_middleware(request: Request, call_next):
     return resp
 
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_credentials=True,
-    allow_origins=[os.environ.get("FRONTEND_URL", "http://localhost:3000")],
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+import time as _time
+
+_cors_cache = {"ts": 0.0, "origins": set()}
+
+
+async def _allowed_origins() -> set:
+    now = _time.time()
+    if _cors_cache["origins"] and now - _cors_cache["ts"] < 30:
+        return _cors_cache["origins"]
+    s = {"http://localhost:3000"}
+    fu = os.environ.get("FRONTEND_URL")
+    if fu:
+        s.add(fu.rstrip("/"))
+    async for m in db.users.find({"role": "merchant", "api_domain": {"$nin": [None, ""]}}, {"api_domain": 1}):
+        d = m.get("api_domain")
+        if d:
+            s.add("https://" + d)
+            s.add("http://" + d)
+    _cors_cache["origins"] = s
+    _cors_cache["ts"] = now
+    return s
+
+
+@app.middleware("http")
+async def dynamic_cors(request: Request, call_next):
+    origin = request.headers.get("origin")
+    allowed = bool(origin) and origin in (await _allowed_origins())
+    if request.method == "OPTIONS" and request.headers.get("access-control-request-method"):
+        resp = Response(status_code=204)
+    else:
+        resp = await call_next(request)
+    if origin and allowed:
+        resp.headers["Access-Control-Allow-Origin"] = origin
+        resp.headers["Access-Control-Allow-Credentials"] = "true"
+        resp.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, PATCH, DELETE, OPTIONS"
+        resp.headers["Access-Control-Allow-Headers"] = request.headers.get("access-control-request-headers", "*")
+        resp.headers["Access-Control-Max-Age"] = "600"
+        resp.headers["Vary"] = "Origin"
+    return resp
