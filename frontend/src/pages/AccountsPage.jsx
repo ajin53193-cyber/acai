@@ -21,6 +21,7 @@ import {
 import {
   Plus, Loader2, KeyRound, Lock, Unlock, Copy, SlidersHorizontal, Snowflake, ShieldCheck, Fingerprint, Eye, Trash2,
 } from "lucide-react";
+import { Wallet } from "lucide-react";
 import { MerchantDrawer } from "@/components/MerchantDrawer";
 
 export default function AccountsPage() {
@@ -45,6 +46,19 @@ export default function AccountsPage() {
     catch (err) { toast.error(formatApiErrorDetail(err.response?.data?.detail)); }
   };
   const togglePerm = (list, setList, p) => setList(list.includes(p) ? list.filter((x) => x !== p) : [...list, p]);
+  const [addrEdit, setAddrEdit] = useState(null);
+  const [addrVal, setAddrVal] = useState("");
+  const [savingAddr, setSavingAddr] = useState(false);
+  const saveAddr = async () => {
+    setSavingAddr(true);
+    try {
+      const ips = addrVal.split(/[\s,]+/).map((s) => s.trim()).filter(Boolean);
+      await api.patch(`/accounts/${addrEdit.id}/wallet-addresses`, { wallet_addresses: ips });
+      toast.success(ips.length ? `已保存 ${ips.length} 个收款地址` : "已清空（将回退全局通道）");
+      setAddrEdit(null); load();
+    } catch (err) { toast.error(formatApiErrorDetail(err.response?.data?.detail)); }
+    finally { setSavingAddr(false); }
+  };
   const [adjForm, setAdjForm] = useState({ amount: "", action: "credit", remark: "" });
   const [saving, setSaving] = useState(false);
 
@@ -240,6 +254,9 @@ export default function AccountsPage() {
                         <button onClick={() => setAdjust(a)} data-testid={`adjust-${a.id}`} title="调整余额" className="p-1.5 rounded-md text-cyan-400 hover:bg-cyan-400/10"><SlidersHorizontal className="w-4 h-4" /></button>
                       )}
                       {a.role === "merchant" && (
+                        <button onClick={() => { setAddrEdit(a); setAddrVal((a.wallet_addresses || []).join("\n")); }} data-testid={`edit-addresses-${a.id}`} title="收款地址" className="p-1.5 rounded-md text-emerald-400 hover:bg-emerald-400/10"><Wallet className="w-4 h-4" /></button>
+                      )}
+                      {a.role === "merchant" && (
                         <button onClick={() => resetKey(a)} data-testid={`reset-key-${a.id}`} title="重置密钥" className="p-1.5 rounded-md text-amber-400 hover:bg-amber-400/10"><KeyRound className="w-4 h-4" /></button>
                       )}
                       {user.role === "admin" && (
@@ -258,6 +275,19 @@ export default function AccountsPage() {
           </table>
         </div>
       </div>
+
+      {/* merchant receiving addresses dialog */}
+      <Dialog open={!!addrEdit} onOpenChange={(v) => !v && setAddrEdit(null)}>
+        <DialogContent className="glass border-slate-700" data-testid="addr-edit-dialog">
+          <DialogHeader><DialogTitle className="flex items-center gap-2"><Wallet className="w-4 h-4 text-emerald-400" /> 收款地址 · {addrEdit?.name}</DialogTitle></DialogHeader>
+          <div className="space-y-2">
+            <Label className="text-xs text-slate-400">该商户专属 TRC20 收款地址（每行一个；留空则回退全局通道）</Label>
+            <textarea value={addrVal} onChange={(e) => setAddrVal(e.target.value)} data-testid="addr-input" rows={6} placeholder={"T..."} className="w-full rounded-lg bg-slate-900/60 border border-slate-700 text-slate-100 text-xs font-mono p-2.5 outline-none focus:border-cyan-500" />
+            <p className="text-[11px] text-slate-500">该商户的订单将只在以上地址中按「最少挂单优先 + 2 位小数金额唯一」分配。</p>
+          </div>
+          <DialogFooter><Button onClick={saveAddr} disabled={savingAddr} data-testid="addr-save-btn" className="bg-emerald-500 text-slate-950 hover:bg-emerald-400">{savingAddr ? <Loader2 className="w-4 h-4 animate-spin" /> : "保存收款地址"}</Button></DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* adjust dialog */}
       <Dialog open={!!permEdit} onOpenChange={(v) => !v && setPermEdit(null)}>

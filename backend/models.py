@@ -17,6 +17,11 @@ class AccountCreate(BaseModel):
     rate: float = 0.03
     parent_agent_id: Optional[str] = None
     permissions: Optional[List[str]] = None
+    wallet_addresses: Optional[List[str]] = None
+
+
+class MerchantAddressesUpdate(BaseModel):
+    wallet_addresses: List[str] = []
 
 
 class PermissionsUpdate(BaseModel):

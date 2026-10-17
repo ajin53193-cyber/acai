@@ -206,7 +206,7 @@ from services import (
     channel_addresses, pick_address, pick_channel,
     build_order, settle_order, mark_paid,
 )
-from models import SecurityPolicy, CheckoutSettings  # consolidated into models.py
+from models import SecurityPolicy, CheckoutSettings, MerchantAddressesUpdate  # consolidated into models.py
 
 
 async def _chain_throttle():
@@ -1207,6 +1207,8 @@ async def create_account(data: AccountCreate, request: Request, user: dict = Dep
     if data.role == "operator":
         doc["permissions"] = data.permissions or []
         doc["rate"] = 0
+    if data.role == "merchant" and data.wallet_addresses:
+        doc["wallet_addresses"] = normalize_addresses("TRC20", data.wallet_addresses, None)
     res = await db.users.insert_one(doc)
     doc["_id"] = res.inserted_id
     await audit(user, "account.create", "user", res.inserted_id,
@@ -1217,6 +1219,20 @@ async def create_account(data: AccountCreate, request: Request, user: dict = Dep
 @api_router.get("/accounts/permissions")
 async def list_permissions(user: dict = Depends(require_roles("admin"))):
     return OPERATOR_PERMS
+
+
+@api_router.patch("/accounts/{account_id}/wallet-addresses")
+async def set_merchant_addresses(account_id: str, data: MerchantAddressesUpdate, request: Request,
+                                 user: dict = Depends(require_roles("admin"))):
+    m = await db.users.find_one({"_id": ObjectId(account_id)})
+    if not m or m.get("role") != "merchant":
+        raise HTTPException(status_code=404, detail="商户不存在")
+    addrs = normalize_addresses("TRC20", data.wallet_addresses, None)
+    await db.users.update_one({"_id": m["_id"]}, {"$set": {"wallet_addresses": addrs}})
+    await audit(user, "merchant.addresses", "user", account_id,
+                {"name": m.get("name"), "count": len(addrs)}, request)
+    u = await db.users.find_one({"_id": m["_id"]})
+    return clean_user(u)
 
 
 @api_router.patch("/accounts/{account_id}/permissions")

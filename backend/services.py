@@ -84,9 +84,15 @@ async def build_order(merchant: dict, amount_usdt: float, network: Optional[str]
     if notify_url:
         if not notify_url.startswith(("http://", "https://")) or is_private_host(urlparse(notify_url).hostname or ""):
             raise HTTPException(status_code=422, detail="notify_url 必须为公网 http(s) 地址")
-    channel = await pick_channel(network, amount_usdt)
-    if not channel:
-        raise HTTPException(status_code=400, detail="没有可用的收款通道")
+    channel = await pick_channel(network, amount_usdt) if not (merchant.get("wallet_addresses") or []) else None
+    m_addrs = merchant.get("wallet_addresses") or []
+    if m_addrs:
+        channel = {"_id": None, "name": "商户专属地址", "wallet_addresses": m_addrs}
+        channel_id_str = ""
+    else:
+        if not channel:
+            raise HTTPException(status_code=400, detail="没有可用的收款通道")
+        channel_id_str = str(channel["_id"])
     expires = now_utc() + timedelta(minutes=15)
     live = bool(channel_addresses(channel))
     amount = round(amount_usdt, 2)
@@ -116,7 +122,7 @@ async def build_order(merchant: dict, amount_usdt: float, network: Optional[str]
             "wallet_address": address,
             "tx_id": None,
             "status": "pending",
-            "channel_id": str(channel["_id"]),
+            "channel_id": channel_id_str,
             "channel_name": channel["name"],
             "remark": remark or "",
             "notify_url": notify_url or merchant.get("notify_url") or None,
@@ -153,7 +159,12 @@ def _clean_return_url(return_url: Optional[str], cfg: dict) -> str:
 async def settle_order(order: dict):
     """Compute fee/commission split and credit balances."""
     merchant = await db.users.find_one({"_id": ObjectId(order["merchant_id"])})
-    channel = await db.channels.find_one({"_id": ObjectId(order["channel_id"])})
+    channel = None
+    if order.get("channel_id"):
+        try:
+            channel = await db.channels.find_one({"_id": ObjectId(order["channel_id"])})
+        except Exception:
+            channel = None
     amount = order["amount_usdt"]
     merchant_rate = merchant.get("rate", 0.03)
     channel_rate = channel.get("fee_rate", 0.02) if channel else 0.02
