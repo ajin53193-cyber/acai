@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter,
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogDescription,
 } from "@/components/ui/dialog";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
@@ -279,7 +279,7 @@ export default function AccountsPage() {
       {/* merchant receiving addresses dialog */}
       <Dialog open={!!addrEdit} onOpenChange={(v) => !v && setAddrEdit(null)}>
         <DialogContent className="glass border-slate-700" data-testid="addr-edit-dialog">
-          <DialogHeader><DialogTitle className="flex items-center gap-2"><Wallet className="w-4 h-4 text-emerald-400" /> 收款地址 · {addrEdit?.name}</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle className="flex items-center gap-2"><Wallet className="w-4 h-4 text-emerald-400" /> 收款地址 · {addrEdit?.name}</DialogTitle><DialogDescription className="text-slate-400">配置该商户专属的 TRC20 收款地址池。</DialogDescription></DialogHeader>
           <div className="space-y-2">
             <Label className="text-xs text-slate-400">该商户专属 TRC20 收款地址（每行一个；留空则回退全局通道）</Label>
             <textarea value={addrVal} onChange={(e) => setAddrVal(e.target.value)} data-testid="addr-input" rows={6} placeholder={"T..."} className="w-full rounded-lg bg-slate-900/60 border border-slate-700 text-slate-100 text-xs font-mono p-2.5 outline-none focus:border-cyan-500" />

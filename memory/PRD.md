@@ -460,3 +460,9 @@
   - 已 e2e 验证：鉴权401、ping/stats/orders/accounts/threads/detail/reply 全通过。
   - 资金/敏感写操作已开放 (2026-10-17)：复用后台原处理函数（合成 admin actor），保证台账/审计/回调/TxID去重一致。端点：POST /orders/{order_id}/manual-callback(手动补单,差异大需force)、POST /accounts/{account_id}/adjust(credit/debit/freeze/unfreeze)、POST /accounts/{account_id}/toggle-status(冻结/解冻)、GET /settlements/payouts、POST /settlements/payouts/{id}/approve|reject(提现审核)、GET+PUT /checkout/settings(改配置)。e2e 验证通过。
   - 后台 UI (2026-10-17)：对接文档页(/developer)顶部新增管理员专属「平台管理 API」卡片(components/AdminApiPanel.jsx)——生成/重新生成 Key(只显示一次)、查看 Base URL、编辑 IP 白名单(调 GET/POST/PUT /admin-api/key*)、接口清单。对接文档文件：/app/平台管理API对接文档.md。
+
+## 商户专属收款地址 (2026-10-17)
+- 需求：每个商户用自己不同的 TRC20 收款地址。方案 1a：商户专属地址池，该商户订单只在自己地址里按"最少挂单优先+2位小数金额唯一"分配；无地址则回退全局通道；费率沿用商户 rate。
+- 后端：users.wallet_addresses 字段；services.build_order 优先走商户地址池(synth channel '商户专属地址', channel_id='')，否则 pick_channel；settle_order 对空/非法 channel_id 做保护。新增 PATCH /api/accounts/{id}/wallet-addresses(admin, normalize TRC20)。AccountCreate 支持 wallet_addresses。
+- 前端：AccountsPage 商户行新增「收款地址」(Wallet)按钮 + addr-edit-dialog 文本域(每行一个地址)，保存调 PATCH。
+- 验证：curl e2e(池内分配/回退全局/非法400) + 测试 iteration_22 前端 100%。

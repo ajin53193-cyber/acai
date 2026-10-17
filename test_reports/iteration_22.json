@@ -1,0 +1,23 @@
+{
+  "summary": "Frontend-only testing of the new per-merchant TRC20 receiving address editor on the admin Accounts page. All 5 requested scenarios passed: wallet icon button opens addr-edit-dialog, saving two valid TRC20 addresses persists them (verified by reopening dialog), invalid address keeps dialog open with 400 from backend, clearing textarea shows success toast '已清空（将回退全局通道）' and persists as empty, and regression actions (adjust balance, reset key) and operators tab still render correctly. Merchant wallet_addresses left cleared as instructed.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Addresses dialog", "issues": ["Missing Description/aria-describedby on DialogContent (a11y warning in console) — minor"]}
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "DialogContent is missing an aria-describedby/DialogDescription — React warning repeats on open. Add a short <DialogDescription> for a11y."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a", "frontend": "100%"},
+  "test_credentials": "admin: ajin53193@gmail.com / admin888 (admin path /sf-admin-k9x2m7)",
+  "seed_data_creation": "None. Tested merchant 星辰科技 (merchant@demo.com, id 6acb9d337ba6553948dee038). Wallet addresses were set then cleared back to empty at end of test, per instructions.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Per-merchant wallet address editor on AccountsPage (商户 tab) is fully functional: edit-addresses-<id> opens addr-edit-dialog with addr-input textarea and addr-save-btn. PATCH /api/accounts/{id}/wallet-addresses works for save/clear and returns 400 on invalid TRC20. Dialog closes on success, remains open on error."
+}
