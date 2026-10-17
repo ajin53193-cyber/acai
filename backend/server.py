@@ -268,7 +268,7 @@ class ChatConfig(BaseModel):
     welcome: str = "您好，欢迎来到合赢项目社！最新优质项目与合作资料都会第一时间在海鸥官方群内发布，点击下方按钮加入官方群抢先获取；有任何问题也可直接留言，客服会尽快回复您。"
     welcome_tutorial_label: str = Field(default="查看最新项目", max_length=40)
     welcome_tutorial_link: str = Field(default="/tutorials/gift-card", max_length=300)
-    welcome_group_label: str = Field(default="立即加入官方群 · 抢先获取一手项目", max_length=40)
+    welcome_group_label: str = Field(default="立即加入项目交流群", max_length=40)
     welcome_group_link: str = Field(default="/tutorials/join-group", max_length=300)
     ai_enabled: bool = True
     qr_image: str = ""
@@ -548,10 +548,10 @@ async def startup():
             })
         await db.articles.insert_many(docs)
 
-    # 一次性文案升级：把存量的旧默认进群按钮文案升级为更吸睛的新文案（用户自定义过的其它文案保留不动）
+    # 一次性文案升级：把存量的旧默认进群按钮文案升级为新文案（用户自定义过的其它文案保留不动）
     await db.settings.update_one(
-        {"key": "site", "chat.welcome_group_label": "加入海鸥官方群"},
-        {"$set": {"chat.welcome_group_label": "立即加入官方群 · 抢先获取一手项目"}},
+        {"key": "site", "chat.welcome_group_label": {"$in": ["加入海鸥官方群", "立即加入官方群 · 抢先获取一手项目"]}},
+        {"$set": {"chat.welcome_group_label": "立即加入项目交流群"}},
     )
 
     # 一次性清理：加入海鸥官方群教程的「下载 / 注册」等非二维码步骤不需要图片，清空其 image（用 migrations 标记，仅执行一次，之后用户可自由再配图）
@@ -974,7 +974,7 @@ async def generate_ai_reply(session_id: str, chat_cfg: dict):
 
         projects = await db.projects.find({"published": {"$ne": False}}, {"_id": 0, "id": 0, "created_at": 0, "published": 0}).to_list(50)
         kb = "\n".join(
-            f"· {p['title']}（{p['category']}｜{p.get('region', '')}｜投入区间{p.get('investment') or '详询客服'}｜{p.get('status', '')}）：{p.get('description', '')}"
+            f"· {p['title']}（{p['category']}｜{p.get('region', '')}｜{p.get('status', '')}）：{p.get('description', '')}"
             + (f" 亮点：{'、'.join(p.get('highlights', []))}" if p.get("highlights") else "")
             for p in projects
         )

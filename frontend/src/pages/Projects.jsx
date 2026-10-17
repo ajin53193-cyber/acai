@@ -126,7 +126,7 @@ export default function Projects() {
                         <span className="flex items-center gap-1 text-slate-400">
                           <MapPin size={12} className="text-[#D4AF37]" /> {p.region}
                         </span>
-                        <span className="text-slate-300">投入 <span className="font-bold text-[#E5C158]">{p.investment}</span></span>
+                        <span className="text-slate-300">{p.status}</span>
                       </div>
                     </div>
                   </div>
@@ -182,7 +182,6 @@ export default function Projects() {
                 <div className="flex flex-wrap gap-x-8 gap-y-2 text-sm text-slate-300">
                   <span className="flex items-center gap-1.5"><MapPin size={14} className="text-[#D4AF37]" />{active.region}</span>
                   <span>项目类别：<span className="text-[#E5C158]">{active.category}</span></span>
-                  <span>投入区间：<span className="font-bold text-[#E5C158]">{active.investment}</span></span>
                 </div>
                 <p className="mt-5 text-sm leading-relaxed text-slate-300">{active.description}</p>
                 <div className="mt-6 grid grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-3">

@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { Clock, Mail } from "lucide-react";
+import { Clock, Mail, ShieldCheck } from "lucide-react";
 import { LogoFull } from "@/components/Logo";
 import { useSettings } from "@/lib/useSettings";
 
@@ -41,6 +41,9 @@ export const Footer = () => {
       </div>
 
       <div className="border-t border-amber-500/10 py-5 pb-24 text-center text-xs text-slate-500 lg:pb-5">
+        <div className="mb-3 flex items-center justify-center gap-1.5 text-[#D4AF37]/80" data-testid="footer-compliance-badge">
+          <ShieldCheck size={13} /> 平台不收取任何费用 · 不承诺收益 · 正规合规项目
+        </div>
         <div>© 2026 合赢项目社 HEYING PROJECT CLUB · 聚力项目，合作共赢</div>
         <a
           href="https://beian.miit.gov.cn/"

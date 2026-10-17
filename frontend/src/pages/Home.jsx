@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import axios from "axios";
-import { FilePlus2, Link2, Users, Handshake, ChevronRight, ArrowRight } from "lucide-react";
+import { FilePlus2, Link2, Users, Handshake, ChevronRight, ArrowRight, ShieldCheck } from "lucide-react";
 import { Reveal, SectionHeading } from "@/components/Reveal";
 import { Marquee } from "@/components/Marquee";
 import { HeroVisual } from "@/components/HeroVisual";
@@ -128,6 +128,24 @@ export default function Home() {
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
+              transition={{ duration: 0.8, delay: 0.9 }}
+              className="mt-5 flex flex-wrap items-center justify-center gap-2 lg:justify-start"
+              data-testid="hero-compliance-badges"
+            >
+              {["平台不收取任何费用", "不承诺收益", "正规合规项目"].map((t) => (
+                <span
+                  key={t}
+                  className="inline-flex items-center gap-1.5 rounded-full border border-amber-500/25 bg-amber-500/[0.05] px-3 py-1 text-[11px] font-medium text-[#E5C158] sm:text-xs"
+                >
+                  <ShieldCheck size={12} className="text-[#D4AF37]" />
+                  {t}
+                </span>
+              ))}
+            </motion.div>
+
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
               transition={{ duration: 1, delay: 1 }}
               className="mt-12 flex justify-center gap-8 sm:gap-10 lg:justify-start"
               data-testid="hero-stats"
@@ -230,7 +248,7 @@ export default function Home() {
                     </h3>
                     <p className="mt-1.5 line-clamp-2 text-xs text-slate-400 md:mt-2 md:text-sm">{p.description}</p>
                     <div className="mt-2.5 flex items-center justify-between border-t border-amber-500/10 pt-2.5 md:mt-4 md:pt-4">
-                      <span className="text-[10px] text-slate-300 md:text-sm">投入区间 <span className="font-bold text-[#E5C158]">{p.investment}</span></span>
+                      <span className="text-[10px] text-slate-300 md:text-sm">查看详情</span>
                       <ArrowRight size={16} className="text-[#D4AF37] transition-transform duration-300 group-hover:translate-x-1.5" />
                     </div>
                   </div>
