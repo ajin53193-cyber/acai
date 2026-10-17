@@ -62,7 +62,7 @@ const can = (m) => !!state.me?.modules?.includes(m);
 async function loadMe() { const r = await api("GET", "/me"); state.me = r; state.plats = r.platforms_list; }
 
 function render() {
-  if (typeof chatTimer !== "undefined" && chatTimer) { clearInterval(chatTimer); chatTimer = null; }
+  if (typeof csTimer !== "undefined" && csTimer) { clearInterval(csTimer); csTimer = null; }
   const app = $("#app");
   if (!state.token) { app.innerHTML = loginView(); return; }
   if (!state.me) { app.innerHTML = '<div class="p-10 text-slate-400 text-sm">載入中…</div>'; return; }
@@ -148,36 +148,41 @@ function bindFilter(key, rerender) {
   document.querySelectorAll("[data-seg]").forEach((b) => (b.onclick = () => { f.seg = b.dataset.seg; rerender(); }));
   $("#f-go").onclick = go; $("#f-q").onkeydown = (e) => e.key === "Enter" && go();
 }
-const sifangTable = (rows) => `<div class="card overflow-x-auto"><table><thead><tr><th>單號</th><th>商戶</th><th>商戶單號</th><th class="text-right">金額 USDT</th><th class="text-right">實付</th><th>網絡 / 地址</th><th>TxID</th><th>狀態</th><th>建立</th><th>支付</th>${can("funds_write") && can("orders_write") ? "<th>操作</th>" : ""}</tr></thead><tbody>
-  ${rows.map((o) => `<tr data-id="${esc(o.order_no)}"><td class="font-semibold whitespace-nowrap">${esc(o.order_no)}</td><td class="whitespace-nowrap">${esc(o.merchant_name)}</td><td class="text-slate-500 text-xs">${esc(o.out_trade_no)}${o.remark ? `<div class="text-slate-400 max-w-[180px] truncate" title="${esc(o.remark)}">${esc(o.remark)}</div>` : ""}</td><td class="text-right font-bold whitespace-nowrap">${o.amount_usdt.toFixed(2)}</td><td class="text-right text-slate-500 whitespace-nowrap">${o.pay_amount || "-"}</td><td class="text-xs text-slate-500"><div>${esc(o.network)}</div><div class="font-mono max-w-[160px] truncate" title="${esc(o.wallet_address)}">${esc(o.wallet_address)}</div></td><td class="text-xs font-mono text-slate-500 max-w-[120px] truncate" title="${esc(o.tx_id)}">${esc(o.tx_id || "-")}</td><td class="whitespace-nowrap">${stag(o.status)}${o.manual_confirmed ? ' <span class="tag tag-slate">補單</span>' : ""}</td><td class="text-xs text-slate-500 whitespace-nowrap">${fmt(o.created_at)}</td><td class="text-xs text-slate-500 whitespace-nowrap">${fmt(o.paid_at)}</td>${can("funds_write") && can("orders_write") ? `<td>${o.status !== "paid" ? abtn("manual_callback", "手動補單") : ""}</td>` : ""}</tr>`).join("") || empty(11)}</tbody></table></div>`;
+const img = (plat, u) => !u ? "" : /^https?:/.test(u) ? u : (plat.kind === "local" ? "" : plat.origin || "") + u;
+const kv = (rows) => `<dl class="grid grid-cols-[110px_1fr] gap-y-1.5 gap-x-3 text-sm">${rows.filter(([, v]) => v !== undefined && v !== null && v !== "").map(([k, v]) => `<dt class="text-slate-500">${k}</dt><dd class="font-medium break-all">${v}</dd>`).join("")}</dl>`;
+const section = (title, body, extra = "") => `<div class="card p-4"><div class="flex items-center justify-between mb-3"><div class="text-sm font-bold">${title}</div>${extra}</div>${body}</div>`;
 const abtn = (k, l, cls = "") => `<button data-act="${k}" class="btn-ghost !h-7 !px-2.5 text-xs ${cls}">${l}</button>`;
-const orderActs = (r, kind) => {
+const orderActs = (r, kind, big) => {
   if (!can("orders_write") || !["local", "giftray"].includes(kind)) return "";
-  const st = r.status; const out = [];
-  if (kind === "local" && ["paid", "processing", "shipped"].includes(st)) { out.push(abtn("complete", "完成", "!text-emerald-700")); if (st !== "shipped") out.push(abtn("reject_info", "駁回資料")); out.push(abtn("cancel", "取消", "!text-red-600")); }
-  if (kind === "giftray" && ["need_info", "processing"].includes(st)) { out.push(abtn("complete", "完成", "!text-emerald-700")); if (st === "need_info") out.push(abtn("processing", "處理中")); else out.push(abtn("reject_info", "退回填寫")); out.push(abtn("cancel", "取消退款", "!text-red-600")); }
+  const st = r.status; const out = []; const B = big ? (k, l, c) => `<button data-act="${k}" class="btn ${c || ""}">${l}</button>` : abtn;
+  if (kind === "local" && ["paid", "processing", "shipped"].includes(st)) { out.push(B("complete", "完成訂單", big ? "" : "!text-emerald-700")); if (st !== "shipped") out.push(B("reject_info", "駁回資料", big ? "!bg-slate-700" : "")); if (st === "paid") out.push(B("processing", "標記處理中", big ? "!bg-slate-500" : "")); out.push(B("cancel", "取消並退款", big ? "!bg-red-600" : "!text-red-600")); }
+  if (kind === "giftray" && ["need_info", "processing"].includes(st)) { out.push(B("complete", "完成訂單", big ? "" : "!text-emerald-700")); if (st === "need_info") out.push(B("processing", "標記處理中", big ? "!bg-slate-500" : "")); else out.push(B("reject_info", "退回重新填寫", big ? "!bg-slate-700" : "")); out.push(B("cancel", "取消並退款", big ? "!bg-red-600" : "!text-red-600")); }
   return out.join(" ");
 };
-const topupActs = (r, kind) => {
+const topupActs = (r, kind, big) => {
   if (!can("topups_write") || !["local", "giftray"].includes(kind)) return "";
-  const out = []; const gw = kind === "giftray" && (r.items || []).some((i) => /快捷/.test(i));
-  if (["reviewing", "pending"].includes(r.status)) { if (gw) out.push(abtn("gateway_sync", "通道對帳")); else { out.push(abtn("approve", "確認到帳", "!text-emerald-700")); out.push(abtn("reject", "駁回", "!text-red-600")); } }
+  const out = []; const gw = kind === "giftray" && (r.items || []).some((i) => /快捷/.test(i)) || r.provider === "gateway"; const B = big ? (k, l, c) => `<button data-act="${k}" class="btn ${c || ""}">${l}</button>` : abtn;
+  if (["reviewing", "pending"].includes(r.status)) { if (gw) out.push(B("gateway_sync", "向通道對帳")); else { out.push(B("approve", "確認到帳", big ? "" : "!text-emerald-700")); out.push(B("reject", "駁回", big ? "!bg-red-600" : "!text-red-600")); } if (kind === "giftray" && !gw && r.network === "TRC20") out.push(B("reverify", "重新鏈上核驗", big ? "!bg-slate-500" : "")); }
   return out.join(" ");
 };
-const shopOrderTable = (rows, withType, kind, isTopup) => `<div class="card overflow-x-auto"><table><thead><tr>${withType ? "<th>類型</th>" : ""}<th>訂單號</th><th>用戶</th><th>商品 / 方式</th><th class="text-right">金額 (USD)</th><th>狀態</th><th>時間</th>${can(isTopup ? "topups_write" : "orders_write") ? "<th>操作</th>" : ""}</tr></thead><tbody>
-  ${rows.map((r) => `<tr data-id="${esc(r.id)}">${withType ? `<td class="text-slate-500 text-xs whitespace-nowrap">${KIND[r.type] || esc(r.type)}</td>` : ""}<td class="font-semibold whitespace-nowrap">${esc(r.order_no)}</td><td class="text-slate-600 max-w-[170px] truncate" title="${esc(r.user)}">${esc(r.user)}</td><td class="text-slate-600 max-w-[240px] truncate" title="${esc((r.items || []).join("、"))}">${esc((r.items || []).join("、"))}</td><td class="text-right font-bold whitespace-nowrap">${usd(r.amount_usd)}${r.amount_label ? `<div class="text-[11px] font-normal text-slate-400">${esc(r.amount_label)}</div>` : ""}</td><td class="whitespace-nowrap">${stag(r.status)}</td><td class="text-xs text-slate-500 w-[92px]">${fmt(r.created_at).replace(" ", "<br>")}</td>${can(isTopup ? "topups_write" : "orders_write") ? `<td class="whitespace-nowrap space-x-1">${isTopup ? topupActs(r, kind) : orderActs(r, kind)}</td>` : ""}</tr>`).join("") || empty(8)}</tbody></table></div>`;
-function bindActs(pid, isTopup) {
-  document.querySelectorAll("[data-act]").forEach((b) => (b.onclick = async () => {
-    const id = b.closest("tr").dataset.id; const a = b.dataset.act; let remark = "";
-    if (["reject_info", "cancel", "reject"].includes(a)) { remark = ask({ reject_info: "駁回原因（會通知用戶重新填寫）", cancel: "取消原因（將退款回餘額）", reject: "駁回原因" }[a]); if (remark === null) return; }
-    else if (a === "manual_callback") { const tx = ask("鏈上 TxID"); if (!tx) return; const amt = ask("實收金額 USDT"); if (!amt) return; return act("POST", `/orders/${pid}/${id}/action`, { action: a, tx_id: tx, amount: +amt, force: confirm("金額與訂單差異過大時是否強制補單？") }, "補單已提交"); }
-    else if (!confirm(b.textContent + "？")) return;
-    act("POST", `/${isTopup ? "topups" : "orders"}/${pid}/${id}/action`, { action: a, remark });
-  }));
+async function doAct(isTopup, pid, id, a, after) {
+  let remark = "";
+  if (["reject_info", "cancel", "reject"].includes(a)) { remark = ask({ reject_info: "駁回原因（會通知用戶重新填寫）", cancel: "取消原因（將退款回餘額）", reject: "駁回原因" }[a]); if (remark === null) return; }
+  else if (a === "manual_callback") { const tx = ask("鏈上 TxID"); if (!tx) return; const amt = ask("實收金額 USDT"); if (!amt) return; try { await api("POST", `/orders/${pid}/${id}/action`, { action: a, tx_id: tx, amount: +amt, force: confirm("金額與訂單差異過大時是否強制補單？") }); toast("補單已提交"); after?.(); } catch (e) { toast(e.message, true); } return; }
+  else if (!confirm("確定執行此操作？")) return;
+  try { await api("POST", `/${isTopup ? "topups" : "orders"}/${pid}/${id}/action`, { action: a, remark }); toast("操作成功"); after?.(); } catch (e) { toast(e.message, true); }
 }
+function bindActs(pid, isTopup) {
+  document.querySelectorAll("#body [data-act]").forEach((b) => (b.onclick = (e) => { e.stopPropagation(); doAct(isTopup, pid, b.closest("tr").dataset.id, b.dataset.act, render); }));
+  document.querySelectorAll("#body tr[data-id]").forEach((tr) => (tr.onclick = () => (isTopup ? openTopup : openOrder)(pid, tr.dataset.id)));
+}
+const sifangTable = (rows) => `<div class="card overflow-x-auto"><table><thead><tr><th>單號</th><th>商戶</th><th>商戶單號 / 備註</th><th class="text-right">金額 USDT</th><th class="text-right">實付</th><th>網絡 / 地址</th><th>TxID</th><th>狀態</th><th>建立</th><th>支付</th>${can("funds_write") && can("orders_write") ? "<th>操作</th>" : ""}</tr></thead><tbody>
+  ${rows.map((o) => `<tr data-id="${esc(o.order_no)}" class="cursor-pointer hover:bg-orange-50/40"><td class="font-semibold whitespace-nowrap">${esc(o.order_no)}</td><td class="whitespace-nowrap">${esc(o.merchant_name)}</td><td class="text-slate-500 text-xs">${esc(o.out_trade_no)}${o.remark ? `<div class="text-slate-400 max-w-[180px] truncate" title="${esc(o.remark)}">${esc(o.remark)}</div>` : ""}</td><td class="text-right font-bold whitespace-nowrap">${o.amount_usdt.toFixed(2)}</td><td class="text-right text-slate-500 whitespace-nowrap">${o.pay_amount || "-"}</td><td class="text-xs text-slate-500"><div>${esc(o.network)}</div><div class="font-mono max-w-[160px] truncate" title="${esc(o.wallet_address)}">${esc(o.wallet_address)}</div></td><td class="text-xs font-mono text-slate-500 max-w-[120px] truncate" title="${esc(o.tx_id)}">${esc(o.tx_id || "-")}</td><td class="whitespace-nowrap">${stag(o.status)}${o.manual_confirmed ? ' <span class="tag tag-slate">補單</span>' : ""}</td><td class="text-xs text-slate-500 w-[92px]">${fmt(o.created_at).replace(" ", "<br>")}</td><td class="text-xs text-slate-500 w-[92px]">${fmt(o.paid_at).replace(" ", "<br>")}</td>${can("funds_write") && can("orders_write") ? `<td>${o.status !== "paid" ? abtn("manual_callback", "手動補單") : ""}</td>` : ""}</tr>`).join("") || empty(11)}</tbody></table></div>`;
+const shopOrderTable = (rows, withType, kind, isTopup) => `<div class="card overflow-x-auto"><table><thead><tr>${withType ? "<th>類型</th>" : ""}<th>訂單號</th><th>用戶</th><th>商品 / 方式</th><th class="text-right">金額 (USD)</th><th>狀態</th><th>時間</th>${can(isTopup ? "topups_write" : "orders_write") ? "<th>操作</th>" : ""}</tr></thead><tbody>
+  ${rows.map((r) => `<tr data-id="${esc(r.id)}" class="cursor-pointer hover:bg-orange-50/40">${withType ? `<td class="text-slate-500 text-xs whitespace-nowrap">${KIND[r.type] || esc(r.type)}</td>` : ""}<td class="font-semibold whitespace-nowrap">${esc(r.order_no)}</td><td class="text-slate-600 max-w-[170px] truncate" title="${esc(r.user)}">${esc(r.user)}</td><td class="text-slate-600 max-w-[240px] truncate" title="${esc((r.items || []).join("、"))}">${esc((r.items || []).join("、"))}</td><td class="text-right font-bold whitespace-nowrap">${usd(r.amount_usd)}${r.amount_label ? `<div class="text-[11px] font-normal text-slate-400">${esc(r.amount_label)}</div>` : ""}</td><td class="whitespace-nowrap">${stag(r.status)}</td><td class="text-xs text-slate-500 w-[92px]">${fmt(r.created_at).replace(" ", "<br>")}</td>${can(isTopup ? "topups_write" : "orders_write") ? `<td class="whitespace-nowrap space-x-1">${isTopup ? topupActs(r, kind) : orderActs(r, kind)}</td>` : ""}</tr>`).join("") || empty(8)}</tbody></table></div>`;
 
 async function ordersView() {
-  const { pid, plat, body } = pageShell("訂單管理", "各平台訂單獨立查看與處理：待處理訂單右側有「完成 / 駁回 / 取消」按鈕；已完成或已取消的訂單不可再操作；四方收款單可手動補單", state.plats);
+  const { pid, plat, body } = pageShell("訂單管理", "點擊訂單打開詳情：查看用戶填寫資料、憑證、時間線，並直接完成 / 駁回 / 取消 / 填寫發貨備註；四方收款單可手動補單", state.plats);
   if (!pid) return; const f = F("orders:" + pid);
   try {
     if (plat.kind === "sifang") {
@@ -195,59 +200,133 @@ async function ordersView() {
   } catch (e) { fail(e, body); }
 }
 
+// ---------- order / topup detail drawers ----------
+function drawer(title, sub, inner, plat) {
+  $("#modal").innerHTML = `<div class="fixed inset-0 z-[80] flex justify-end bg-black/30" id="dw-bg"><div class="w-full max-w-3xl h-full bg-[#F6F2EC] flex flex-col shadow-2xl">
+    <div class="px-5 py-4 bg-white border-b border-slate-100 flex items-center gap-3">${ptag(plat)}<div class="flex-1 min-w-0"><div class="font-black truncate">${title}</div><div class="text-xs text-slate-500 truncate">${sub}</div></div><button id="dw-x" class="btn-ghost !h-8 !px-3">✕</button></div>
+    <div id="dw-body" class="flex-1 overflow-y-auto p-5 space-y-4">${inner}</div></div></div>`;
+  $("#dw-x").onclick = () => ($("#modal").innerHTML = "");
+  $("#dw-bg").onclick = (e) => { if (e.target.id === "dw-bg") $("#modal").innerHTML = ""; };
+}
+const timeline = (tl) => `<ol class="relative border-l border-slate-200 ml-2 space-y-3">${(tl || []).map((t) => `<li class="ml-4"><span class="absolute -left-[5px] mt-1.5 h-2.5 w-2.5 rounded-full bg-orange-400"></span><div class="text-sm font-medium">${STATUS[t.text]?.[0] || esc(t.text)}${t.by ? `<span class="text-xs text-slate-400"> · ${esc(t.by)}</span>` : ""}</div><div class="text-xs text-slate-400">${fmt(t.at)}</div></li>`).join("") || '<li class="ml-4 text-sm text-slate-400">無記錄</li>'}</ol>`;
+async function openOrder(pid, id) {
+  const plat = state.plats.find((p) => p.id === pid);
+  drawer("訂單詳情", "載入中…", '<div class="text-sm text-slate-400">載入中…</div>', plat);
+  try {
+    const d = await api("GET", `/orders/${pid}/${encodeURIComponent(id)}`);
+    const reload = () => { $("#modal").innerHTML = ""; render(); };
+    if (d.kind === "sifang") {
+      drawer(`收款單 ${esc(d.order_no)}`, `${esc(d.merchant_name)} · ${esc(d.out_trade_no)}`, section("收款資訊", kv([["狀態", stag(d.status) + (d.manual_confirmed ? ' <span class="tag tag-slate">補單</span>' : "")], ["金額", `<b>${usdt(d.amount_usdt)}</b>`], ["實付", d.pay_amount ? d.pay_amount + " USDT" : ""], ["網絡", d.network], ["收款地址", `<span class="font-mono text-xs">${esc(d.wallet_address)}</span>`], ["TxID", d.tx_id ? `<span class="font-mono text-xs">${esc(d.tx_id)}</span>` : "-"], ["商戶", d.merchant_name], ["商戶單號", d.out_trade_no], ["備註", esc(d.remark)], ["建立", fmt(d.created_at)], ["支付", fmt(d.paid_at)], ["過期", fmt(d.expires_at)]])) + (can("funds_write") && can("orders_write") && d.status !== "paid" ? section("操作", `<button data-act="manual_callback" class="btn">手動補單（鏈上核驗）</button>`) : ""), plat);
+      document.querySelectorAll("#dw-body [data-act]").forEach((b) => (b.onclick = () => doAct(false, pid, d.order_no, b.dataset.act, reload)));
+      return;
+    }
+    const fields = Object.entries(d.fields || {});
+    const inner = `
+      <div class="grid md:grid-cols-2 gap-4">
+        ${section("訂單資訊", kv([["狀態", stag(d.status)], ["類型", KIND[d.type] || d.type], ["金額", `<b>${usd(d.amount_usd)}</b>${d.amount_label ? ` <span class="text-slate-400 text-xs">${esc(d.amount_label)}</span>` : ""}`], ["付款方式", esc(d.payment_method)], ["優惠", esc(d.promo)], ["下單", fmt(d.created_at)], ["付款", fmt(d.paid_at)], ["完成", d.completed_at ? fmt(d.completed_at) : ""], ["禮品卡交易號", d.transaction_no ? `<span class="font-mono">${esc(d.transaction_no)}</span>` : ""], ...Object.entries(d.extra || {}).map(([k, v]) => [esc(k), esc(v)])]))}
+        ${section("用戶", kv([["帳號", esc(d.user)], ["聯絡", esc(d.contact)]]) + `<div class="mt-3 text-xs font-bold text-slate-500">用戶填寫資料 ${d.info_rejected ? '<span class="tag tag-orange">已駁回待重填</span>' : d.info_submitted ? '<span class="tag tag-green">已提交</span>' : '<span class="tag tag-slate">未提交</span>'}</div>` + (fields.length ? `<div class="mt-2 rounded-xl bg-orange-50 p-3">${kv(fields.map(([k, v]) => [esc(k), `<span class="select-all font-mono">${esc(typeof v === "object" ? JSON.stringify(v) : v)}</span>`]))}</div>` : `<div class="mt-2 text-sm text-slate-400">${(d.need_fields || []).length ? "需填：" + d.need_fields.map(esc).join("、") : "無需填寫"}</div>`) + (d.reject_reason ? `<div class="mt-2 text-xs text-red-600">駁回原因：${esc(d.reject_reason)}</div>` : ""))}
+      </div>
+      ${section("商品", `<table><thead><tr><th>商品</th><th>規格</th><th class="text-right">數量</th><th class="text-right">單價</th></tr></thead><tbody>${d.items.map((i) => `<tr><td class="flex items-center gap-2">${i.image ? `<img src="${esc(img(plat, i.image))}" class="h-10 w-10 rounded-lg object-cover bg-slate-100" onerror="this.style.display='none'" />` : ""}<span class="font-medium">${esc(i.name)}</span></td><td class="text-slate-600">${esc(i.spec)}</td><td class="text-right">${i.qty}</td><td class="text-right">${usd(i.price)}</td></tr>`).join("")}</tbody></table>`)}
+      ${d.images?.length ? section("憑證 / 圖片", `<div class="flex flex-wrap gap-2">${d.images.map((u) => `<a href="${esc(img(plat, u))}" target="_blank"><img src="${esc(img(plat, u))}" class="h-28 rounded-lg object-cover" /></a>`).join("")}</div>`) : ""}
+      <div class="grid md:grid-cols-2 gap-4">
+        ${section("時間線", timeline(d.timeline))}
+        ${section("發貨備註 / 管理員備註", `<textarea id="dw-note" class="inp !h-24 py-2 resize-none" ${can("orders_write") ? "" : "disabled"} placeholder="例如：已充值到帳 / 卡號已發送">${esc(d.admin_note)}</textarea>${d.type === "giftcard" && plat.kind === "giftray" && can("orders_write") ? `<input id="dw-txn" class="inp mt-2 font-mono" placeholder="禮品卡交易號（28~36 位數字）" value="${esc(d.transaction_no)}" />` : ""}${can("orders_write") ? `<button id="dw-save" class="btn-ghost mt-2">儲存備註</button>` : ""}`)}
+      </div>
+      ${can("orders_write") ? section("處理訂單", `<div class="flex flex-wrap gap-2">${orderActs(d, plat.kind, true) || '<span class="text-sm text-slate-400">此狀態的訂單無可執行操作</span>'}</div>`) : ""}`;
+    drawer(`訂單 ${esc(d.order_no)}`, `${esc(d.user)} · ${fmt(d.created_at)}`, inner, plat);
+    document.querySelectorAll("#dw-body [data-act]").forEach((b) => (b.onclick = () => doAct(false, pid, d.id, b.dataset.act, reload)));
+    const sv = $("#dw-save"); if (sv) sv.onclick = async () => { try { await api("POST", `/orders/${pid}/${encodeURIComponent(d.id)}/note`, { note: $("#dw-note").value.trim(), transaction_no: $("#dw-txn")?.value.trim() || "" }); toast("已儲存"); } catch (e) { toast(e.message, true); } };
+  } catch (e) { $("#dw-body").innerHTML = `<div class="text-red-600 text-sm">${esc(e.message)}</div>`; }
+}
+async function openTopup(pid, id) {
+  const plat = state.plats.find((p) => p.id === pid);
+  drawer("充值詳情", "載入中…", '<div class="text-sm text-slate-400">載入中…</div>', plat);
+  try {
+    const d = await api("GET", `/topups/${pid}/${encodeURIComponent(id)}`);
+    const reload = () => { $("#modal").innerHTML = ""; render(); };
+    if (d.kind === "sifang") return openOrder(pid, id);
+    const inner = `<div class="grid md:grid-cols-2 gap-4">
+        ${section("充值資訊", kv([["狀態", stag(d.status)], ["金額", `<b>${usd(d.amount_usd)}</b>${d.amount_label ? ` <span class="text-slate-400 text-xs">${esc(d.amount_label)}</span>` : ""}`], ["手續費", d.fee_usd ? usd(d.fee_usd) : ""], ["應付 / 實付", d.pay_amount ? esc(d.pay_amount) : ""], ["方式", esc(d.method || d.provider)], ["網絡", esc(d.network)], ["收款地址 / 帳戶", d.address ? `<span class="font-mono text-xs break-all">${esc(d.address)}</span>` : ""], ["鏈上 Hash", d.tx_hash ? `<span class="font-mono text-xs break-all">${esc(d.tx_hash)}</span>` : ""], ["參考碼 / 通道單號", esc(d.reference_code)], ["建立", fmt(d.created_at)], ["到帳", d.paid_at ? fmt(d.paid_at) : ""], ["過期", d.expires_at ? fmt(d.expires_at) : ""], ...Object.entries(d.extra || {}).map(([k, v]) => [esc(k), esc(v)])]))}
+        ${section("用戶", kv([["帳號", esc(d.user)], ["目前餘額", d.wallet_usd != null ? usd(d.wallet_usd) : ""], ["付款人", esc(d.payer_name)]]) + (d.bank && d.bank.bank_name ? `<div class="mt-3 rounded-xl bg-slate-50 p-3 text-xs">${kv([["銀行", esc(d.bank.bank_name)], ["戶名", esc(d.bank.account_name)], ["帳號", esc(d.bank.account_no)]])}</div>` : ""))}
+      </div>
+      ${section("付款憑證", d.proof_image ? `<div class="flex gap-4 items-start"><a href="${esc(img(plat, d.proof_image))}" target="_blank"><img src="${esc(img(plat, d.proof_image))}" class="max-h-72 rounded-xl object-contain bg-slate-100" /></a><div class="text-sm"><div class="text-slate-500 text-xs">用戶備註</div><div>${esc(d.proof_note || "-")}</div><div class="text-xs text-slate-400 mt-2">上傳於 ${fmt(d.proof_at)}</div></div></div>` : `<div class="text-sm text-slate-400">${d.tx_hash ? "鏈上直轉，無需截圖；可用鏈上 Hash 核對" : "用戶尚未上傳憑證"}</div>`)}
+      ${d.reject_reason ? `<div class="rounded-xl bg-red-50 text-red-700 text-sm px-4 py-3">駁回原因：${esc(d.reject_reason)}</div>` : ""}
+      ${can("topups_write") ? section("審核", `<div class="flex flex-wrap gap-2">${topupActs({ ...d, items: [d.method || ""] }, plat.kind, true) || '<span class="text-sm text-slate-400">此狀態無可執行操作</span>'}</div>`) : ""}`;
+    drawer(`充值單 ${esc(d.order_no)}`, `${esc(d.user)} · ${fmt(d.created_at)}`, inner, plat);
+    document.querySelectorAll("#dw-body [data-act]").forEach((b) => (b.onclick = () => doAct(true, pid, d.id, b.dataset.act, reload)));
+  } catch (e) { $("#dw-body").innerHTML = `<div class="text-red-600 text-sm">${esc(e.message)}</div>`; }
+}
+
 // ---------- topups ----------
 async function topupsView() {
-  const { pid, plat, body } = pageShell("充值管理", "各平台充值獨立查看與審核：待審核充值右側有「確認到帳 / 駁回」按鈕；四方收款平台顯示已支付成功的收款入帳", state.plats);
+  const { pid, plat, body } = pageShell("充值管理", "點擊充值單打開詳情：查看網絡 / 地址 / 鏈上 Hash / 憑證截圖，並直接確認到帳、駁回、重新核驗或通道對帳；四方收款平台顯示已支付成功的收款入帳", state.plats);
   if (!pid) return; const f = F("topups:" + pid);
   try {
     const d = await api("GET", `/topups?platform=${pid}&status=${plat.kind !== "sifang" && f.seg !== "all" ? f.seg : ""}&q=${encodeURIComponent(f.q)}&size=500`);
     if (plat.kind === "sifang") {
-      body.innerHTML = filterBar({ q: f.q, ph: "單號 / 商戶單號 / TxID / 地址 / 備註", right: `${d.rows.length} 筆入帳 · 合計 <b class="text-emerald-700">${usdt(d.rows.reduce((a, o) => a + o.amount_usdt, 0))}</b>` }) + sifangTable(d.rows);
+      body.innerHTML = filterBar({ q: f.q, ph: "單號 / 商戶單號 / TxID / 地址", right: `${d.rows.length} 筆入帳 · 合計 <b class="text-emerald-700">${usdt(d.rows.reduce((a, o) => a + o.amount_usdt, 0))}</b>` }) + sifangTable(d.rows);
     } else {
-      const segs = [["all", "全部"], ["_pending", "待審核"], ["_done", "已到帳"], ["_closed", "已拒絕 / 過期"]];
-      body.innerHTML = filterBar({ seg: segs, segVal: f.seg, q: f.q, ph: "單號 / 用戶 / 方式", right: `${d.rows.length} 筆${can("topups_write") ? ` · 待審核 <b class="text-orange-600">${d.rows.filter((r) => ["reviewing", "pending"].includes(r.status)).length}</b> 筆可操作` : ""} · 已到帳合計 <b class="text-emerald-700">${usd(d.rows.filter((r) => ["approved", "paid", "completed"].includes(r.status)).reduce((a, r) => a + Number(r.amount_usd || 0), 0))}</b>` }) + shopOrderTable(d.rows, false, plat.kind, true);
+      body.innerHTML = filterBar({ seg: [["all", "全部"], ["_pending", "待審核"], ["_done", "已到帳"], ["_closed", "已拒絕 / 過期"]], segVal: f.seg, q: f.q, ph: "單號 / 用戶 / 方式", right: `${d.rows.length} 筆${can("topups_write") ? ` · 待審核 <b class="text-orange-600">${d.rows.filter((r) => ["reviewing", "pending"].includes(r.status)).length}</b> 筆可操作` : ""} · 已到帳合計 <b class="text-emerald-700">${usd(d.rows.filter((r) => ["approved", "paid", "completed"].includes(r.status)).reduce((a, r) => a + Number(r.amount_usd || 0), 0))}</b>` }) + shopOrderTable(d.rows, false, plat.kind, true);
     }
     bindFilter("topups:" + pid, render); bindActs(pid, true);
   } catch (e) { fail(e, body); }
 }
 
-// ---------- customer service ----------
+// ---------- customer service workbench ----------
+let csTimer = null; let csLastUnread = null;
+const CS = () => (state.cs ??= { sid: null, seg: "open", q: "" });
 async function csView() {
-  const { pid, plat, body } = pageShell("客服管理", "各平台客服各自獨立；在這裡查看會話，點按鈕進入該平台客服後台回覆", state.plats);
-  if (!pid) return; const f = F("cs:" + pid); if (f.seg === "all") f.seg = "open";
-  try {
-    const d = await api("GET", `/chats?platform=${pid}&status=${f.seg}`);
-    const head = `<div class="flex flex-wrap items-center gap-2 mb-3"><div class="seg">${(plat.kind === "sifang" ? [["open", "處理中"], ["resolved", "已解決"], ["all", "全部"]] : [["open", "處理中"], [plat.kind === "local" ? "handled" : "closed", "已處理"], ["all", "全部"]]).map(([k, l]) => `<button data-seg="${k}" class="${f.seg === k ? "on" : ""}">${l}</button>`).join("")}</div>
-      <div class="text-xs text-slate-500">${d.rows.length} 個會話 · 未讀 <b class="text-red-600">${d.unread}</b></div>
-      ${d.cs_url ? `<a href="${esc(d.cs_url)}" target="_blank" rel="noopener" class="btn ml-auto leading-9">進入 ${esc(plat.name)} 客服後台回覆 ↗</a>` : '<span class="ml-auto text-xs text-slate-400">到「平台接入」填寫客服後台地址即可一鍵進入</span>'}</div>`;
-    const table = plat.kind === "sifang"
-      ? `<div class="card overflow-x-auto"><table><thead><tr><th>收款單號</th><th>客戶 / 商戶</th><th>最後訊息</th><th class="text-right">未讀</th><th>時間</th><th>狀態</th></tr></thead><tbody>${d.rows.map((t) => `<tr data-sid="${esc(t.order_no)}" class="cursor-pointer hover:bg-orange-50/50"><td class="font-semibold whitespace-nowrap">${esc(t.order_no)}</td><td>${esc(t.customer || "-")}</td><td class="text-slate-600 max-w-[320px] truncate">${esc(t.last_message || "-")}</td><td class="text-right">${t.unread ? `<span class="tag tag-red">${t.unread}</span>` : "0"}</td><td class="text-xs text-slate-500 whitespace-nowrap">${fmt(t.last_at)}</td><td>${stag(t.status)}</td></tr>`).join("") || empty(6, "目前沒有會話")}</tbody></table></div>`
-      : d.unsupported ? '<div class="card p-8 text-center text-slate-400">此平台未提供客服接口，請直接進入其客服後台</div>'
-      : `<div class="card overflow-x-auto"><table><thead><tr><th>客戶</th><th>聯絡方式</th><th>最後訊息</th><th class="text-right">未讀</th><th>最後時間</th><th>狀態</th>${plat.kind === "giftray" ? "<th>接待</th>" : ""}</tr></thead><tbody>${d.rows.map((s) => `<tr data-sid="${esc(s.id)}" class="cursor-pointer hover:bg-orange-50/50"><td class="font-semibold">${esc(s.name || "訪客")}</td><td class="text-slate-600 text-xs">${esc(s.contact || "-")}</td><td class="text-slate-600 max-w-[320px] truncate">${s.last_sender === "admin" ? '<span class="text-slate-400">[客服] </span>' : ""}${esc(s.last_message || "-")}</td><td class="text-right">${s.unread ? `<span class="tag tag-red">${s.unread}</span>` : "0"}</td><td class="text-xs text-slate-500 whitespace-nowrap">${fmt(s.last_at)}</td><td>${stag(s.status)}</td>${plat.kind === "giftray" ? `<td class="text-xs text-slate-500">${esc(s.assigned || "-")}</td>` : ""}</tr>`).join("") || empty(7, "目前沒有會話")}</tbody></table></div>`;
-    body.innerHTML = `<div class="text-xs text-slate-400 mb-2">點擊會話可直接查看訊息${can("cs_write") ? "並回覆" : ""}</div>` + head + table;
-    document.querySelectorAll("[data-seg]").forEach((b) => (b.onclick = () => { f.seg = b.dataset.seg; render(); }));
-    document.querySelectorAll("[data-sid]").forEach((tr) => (tr.onclick = () => openChat(pid, plat, tr.dataset.sid, d.rows.find((x) => (x.id || x.order_no) === tr.dataset.sid))));
-  } catch (e) { fail(e, body); }
-}
-
-// ---------- chat drawer ----------
-let chatTimer = null;
-function closeChat() { clearInterval(chatTimer); chatTimer = null; $("#modal").innerHTML = ""; }
-async function openChat(pid, plat, sid, row) {
-  closeChat();
-  const canClose = can("cs_write") && plat.kind !== "sifang";
-  $("#modal").innerHTML = `<div class="fixed inset-0 z-[80] flex justify-end bg-black/30"><div class="w-full max-w-xl h-full bg-white flex flex-col shadow-2xl">
-    <div class="px-5 py-4 border-b border-slate-100 flex items-center gap-3">${ptag(plat)}<div class="flex-1 min-w-0"><div class="font-bold truncate">${esc(row?.name || row?.customer || row?.order_no || sid)}</div><div class="text-xs text-slate-500 truncate">${esc(row?.contact || row?.order_no || "")}</div></div>
-      ${canClose ? `<button id="c-toggle" class="btn-ghost !h-8 text-xs">${["open"].includes(row?.status) ? "結束會話" : "重新開啟"}</button>` : ""}<button id="c-x" class="btn-ghost !h-8 !px-3">✕</button></div>
-    <div id="c-msgs" class="flex-1 overflow-y-auto p-5 space-y-3 bg-[#F6F2EC] text-sm">載入中…</div>
-    ${can("cs_write") ? `<form id="c-form" class="p-4 border-t border-slate-100 flex gap-2"><input id="c-text" class="inp" placeholder="輸入回覆內容，Enter 送出" autocomplete="off" /><button class="btn shrink-0 whitespace-nowrap">送出</button></form>` : '<div class="p-3 text-center text-xs text-slate-400 border-t">沒有回覆權限</div>'}</div></div>`;
-  $("#c-x").onclick = closeChat;
-  const load = async () => { try { const d = await api("GET", `/chats/${pid}/${encodeURIComponent(sid)}/messages`); const box = $("#c-msgs"); if (!box) return; const stick = box.scrollHeight - box.scrollTop - box.clientHeight < 60;
-      box.innerHTML = d.messages.map((m) => m.from === "system" ? `<div class="text-center text-[11px] text-slate-400">${esc(m.text)}</div>` : `<div class="flex ${m.from === "admin" ? "justify-end" : "justify-start"}"><div class="max-w-[78%] rounded-2xl px-3.5 py-2 ${m.from === "admin" ? "bg-orange-500 text-white" : "bg-white text-slate-800 shadow-sm"}">${m.image ? `<a href="${esc(m.image)}" target="_blank"><img src="${esc(m.image)}" class="rounded-lg max-h-48 mb-1" /></a>` : ""}${esc(m.text)}<div class="text-[10px] mt-1 ${m.from === "admin" ? "text-white/70" : "text-slate-400"}">${m.name ? esc(m.name) + " · " : ""}${fmt(m.at)}</div></div></div>`).join("") || '<div class="text-center text-slate-400">尚無訊息</div>';
-      if (stick) box.scrollTop = box.scrollHeight; } catch (e) { const box = $("#c-msgs"); if (box) box.innerHTML = `<div class="text-red-600">${esc(e.message)}</div>`; } };
-  await load(); chatTimer = setInterval(load, 5000);
-  const form = $("#c-form"); if (form) form.onsubmit = async (e) => { e.preventDefault(); const t = $("#c-text").value.trim(); if (!t) return; try { await api("POST", `/chats/${pid}/${encodeURIComponent(sid)}/reply`, { text: t }); $("#c-text").value = ""; await load(); } catch (err) { toast(err.message, true); } };
-  const tg = $("#c-toggle"); if (tg) tg.onclick = async () => { const op = row?.status === "open" ? "close" : "reopen"; if (!confirm(tg.textContent + "？")) return; try { await api("POST", `/chats/${pid}/${encodeURIComponent(sid)}/${op}`); toast("已" + tg.textContent); closeChat(); render(); } catch (err) { toast(err.message, true); } };
+  const { pid, plat, body } = pageShell("客服管理", "各平台客服工作台：左側會話列表，右側對話與客戶資料；可直接回覆、使用快捷回覆、結束 / 重開會話", state.plats);
+  if (!pid) return; const c = CS(); if (c.pid !== pid) { c.pid = pid; c.sid = null; }
+  clearInterval(csTimer);
+  body.className = "";
+  body.innerHTML = `<div class="grid grid-cols-[320px_1fr] xl:grid-cols-[320px_1fr_280px] gap-4" style="height:calc(100vh - 190px)">
+      <div class="card flex flex-col overflow-hidden"><div class="p-3 border-b border-slate-100 space-y-2"><div class="seg w-full">${(plat.kind === "sifang" ? [["open", "處理中"], ["resolved", "已解決"], ["all", "全部"]] : [["open", "處理中"], [plat.kind === "local" ? "handled" : "closed", "已處理"], ["all", "全部"]]).map(([k, l]) => `<button data-cseg="${k}" class="flex-1 ${c.seg === k ? "on" : ""}">${l}</button>`).join("")}</div><input id="cs-q" class="inp !h-9" placeholder="搜尋客戶 / 帳號 / 訊息" value="${esc(c.q)}" /></div><div id="cs-list" class="flex-1 overflow-y-auto text-sm text-slate-400 p-3">載入中…</div><div id="cs-foot" class="p-2 border-t border-slate-100 text-[11px] text-slate-400 text-center"></div></div>
+      <div class="card flex flex-col overflow-hidden" id="cs-pane"><div class="flex-1 flex items-center justify-center text-slate-400 text-sm">← 選擇左側會話開始</div></div>
+      <div class="hidden xl:flex card flex-col overflow-hidden" id="cs-info"><div class="p-4 text-sm text-slate-400">客戶資料</div></div></div>`;
+  document.querySelectorAll("[data-cseg]").forEach((b) => (b.onclick = () => { c.seg = b.dataset.cseg; render(); }));
+  $("#cs-q").oninput = () => { c.q = $("#cs-q").value.trim(); loadList(); };
+  let rows = [];
+  async function loadList() {
+    try {
+      const d = await api("GET", `/chats?platform=${pid}&status=${c.seg}`);
+      rows = d.rows.filter((s) => !c.q || [s.name, s.contact, s.last_message, s.customer, s.order_no].some((x) => String(x || "").toLowerCase().includes(c.q.toLowerCase())));
+      const list = $("#cs-list"); if (!list) return;
+      list.className = "flex-1 overflow-y-auto divide-y divide-slate-100";
+      list.innerHTML = rows.map((s) => { const id = s.id || s.order_no; return `<button data-csid="${esc(id)}" class="w-full text-left px-3 py-2.5 hover:bg-orange-50/60 ${c.sid === id ? "bg-orange-50" : ""}"><div class="flex items-center justify-between gap-2"><span class="font-semibold text-sm truncate">${esc(s.name || s.customer || s.order_no || "訪客")}</span><span class="text-[10px] text-slate-400 shrink-0">${s.last_at ? new Date(s.last_at).toLocaleTimeString("zh-TW", { hour: "2-digit", minute: "2-digit", hour12: false }) : ""}</span></div><div class="flex items-center justify-between gap-2 mt-0.5"><span class="text-xs text-slate-500 truncate">${s.last_sender === "admin" ? '<span class="text-slate-400">[客服] </span>' : ""}${esc(s.last_message || s.contact || "-")}</span>${s.unread ? `<span class="tag tag-red shrink-0">${s.unread}</span>` : ""}</div></button>`; }).join("") || '<div class="p-6 text-center text-sm text-slate-400">沒有會話</div>';
+      $("#cs-foot").textContent = `${rows.length} 個會話 · 未讀 ${d.unread}${d.cs_url ? "" : ""}`;
+      if (csLastUnread !== null && d.unread > csLastUnread) beep(); csLastUnread = d.unread;
+      list.querySelectorAll("[data-csid]").forEach((b) => (b.onclick = () => { c.sid = b.dataset.csid; loadList(); openPane(); }));
+      if (c.sid && !$("#c-msgs")) openPane();
+    } catch (e) { const list = $("#cs-list"); if (list) list.innerHTML = `<div class="p-4 text-red-600 text-sm">${esc(e.message)}</div>`; }
+  }
+  async function openPane() {
+    const row = rows.find((s) => (s.id || s.order_no) === c.sid); const sid = c.sid; if (!sid) return;
+    const canClose = can("cs_write") && plat.kind !== "sifang"; const isOpen = row ? ["open"].includes(row.status) : true;
+    $("#cs-pane").innerHTML = `<div class="px-4 py-3 border-b border-slate-100 flex items-center gap-3"><div class="flex-1 min-w-0"><div class="font-bold truncate">${esc(row?.name || row?.customer || sid)}</div><div class="text-xs text-slate-500 truncate">${esc(row?.contact || row?.order_no || "")}${row?.assigned ? ` · 接待：${esc(row.assigned)}` : ""}</div></div>${row ? stag(row.status) : ""}${canClose ? `<button id="c-toggle" class="btn-ghost !h-8 text-xs">${isOpen ? "結束會話" : "重新開啟"}</button>` : ""}${plat.cs_url ? `<a href="${esc(plat.cs_url)}" target="_blank" rel="noopener" class="btn-ghost !h-8 text-xs">原後台 ↗</a>` : ""}</div>
+      <div id="c-msgs" class="flex-1 overflow-y-auto p-4 space-y-3 bg-[#F6F2EC] text-sm">載入中…</div>
+      ${can("cs_write") ? `<div class="border-t border-slate-100"><div id="c-quick" class="flex gap-1.5 overflow-x-auto px-3 pt-2 text-xs"></div><form id="c-form" class="p-3 flex gap-2"><textarea id="c-text" class="inp !h-16 py-2 resize-none" placeholder="輸入回覆內容，Enter 送出，Shift+Enter 換行"></textarea><button class="btn shrink-0 whitespace-nowrap self-end">送出</button></form></div>` : '<div class="p-3 text-center text-xs text-slate-400 border-t">沒有回覆權限</div>'}`;
+    const loadMsgs = async () => { try { const d = await api("GET", `/chats/${pid}/${encodeURIComponent(sid)}/messages`); const box = $("#c-msgs"); if (!box || c.sid !== sid) return; const stick = box.scrollHeight - box.scrollTop - box.clientHeight < 80 || box.dataset.n !== String(d.messages.length);
+        box.innerHTML = d.messages.map((m) => m.from === "system" ? `<div class="text-center text-[11px] text-slate-400">${esc(m.text)}</div>` : `<div class="flex ${m.from === "admin" ? "justify-end" : "justify-start"}"><div class="max-w-[78%] rounded-2xl px-3.5 py-2 ${m.from === "admin" ? "bg-orange-500 text-white" : "bg-white text-slate-800 shadow-sm"}">${m.image ? `<a href="${esc(img(plat, m.image))}" target="_blank"><img src="${esc(img(plat, m.image))}" class="rounded-lg max-h-48 mb-1" /></a>` : ""}<div class="whitespace-pre-wrap break-words">${esc(m.text)}</div><div class="text-[10px] mt-1 ${m.from === "admin" ? "text-white/70" : "text-slate-400"}">${m.name ? esc(m.name) + " · " : ""}${fmt(m.at)}</div></div></div>`).join("") || '<div class="text-center text-slate-400">尚無訊息</div>';
+        box.dataset.n = String(d.messages.length); if (stick) box.scrollTop = box.scrollHeight; } catch (e) { const box = $("#c-msgs"); if (box) box.innerHTML = `<div class="text-red-600">${esc(e.message)}</div>`; } };
+    await loadMsgs();
+    const form = $("#c-form"); if (form) { const send = async () => { const t = $("#c-text").value.trim(); if (!t) return; try { await api("POST", `/chats/${pid}/${encodeURIComponent(sid)}/reply`, { text: t }); $("#c-text").value = ""; await loadMsgs(); loadList(); } catch (err) { toast(err.message, true); } }; form.onsubmit = (e) => { e.preventDefault(); send(); }; $("#c-text").onkeydown = (e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); } };
+      try { const q = await api("GET", `/chats/${pid}/quick-replies`); const qb = $("#c-quick"); if (qb) { qb.innerHTML = q.items.map((t) => `<button type="button" class="shrink-0 rounded-full bg-slate-100 hover:bg-orange-100 px-3 py-1 text-slate-600" title="${esc(t)}">${esc(t.length > 18 ? t.slice(0, 18) + "…" : t)}</button>`).join(""); qb.querySelectorAll("button").forEach((b) => (b.onclick = () => { $("#c-text").value = b.title; $("#c-text").focus(); })); } } catch {} }
+    const tg = $("#c-toggle"); if (tg) tg.onclick = async () => { const op = isOpen ? "close" : "reopen"; if (!confirm(tg.textContent + "？")) return; try { await api("POST", `/chats/${pid}/${encodeURIComponent(sid)}/${op}`); toast("已" + tg.textContent); c.sid = null; render(); } catch (err) { toast(err.message, true); } };
+    loadInfo(sid);
+    clearInterval(csTimer); csTimer = setInterval(() => { if (!$("#c-msgs")) return clearInterval(csTimer); loadMsgs(); loadList(); }, 5000);
+  }
+  async function loadInfo(sid) {
+    const box = $("#cs-info"); if (!box) return; box.innerHTML = '<div class="p-4 text-sm text-slate-400">載入客戶資料…</div>';
+    try { const d = await api("GET", `/chats/${pid}/${encodeURIComponent(sid)}/customer`); if (c.sid !== sid) return;
+      box.innerHTML = `<div class="p-4 space-y-4 overflow-y-auto text-sm"><div><div class="text-xs font-bold text-slate-500 mb-2">客戶</div>${d.user ? kv([["帳號", esc(d.user.email)], ["暱稱", esc(d.user.name)], ["餘額", `<b>${usd(d.user.wallet_usd)}</b>${d.user.wallet_label ? ` <span class="text-xs text-slate-400">${esc(d.user.wallet_label)}</span>` : ""}`], ["訂單數", d.user.order_count ?? ""], ["註冊", fmt(d.user.created_at)]]) : `<div class="text-slate-400">訪客（未登入）${d.session?.contact ? "<br>聯絡：" + esc(d.session.contact) : ""}</div>`}${d.session?.page ? `<div class="text-[11px] text-slate-400 mt-2 truncate" title="${esc(d.session.page)}">來源頁：${esc(d.session.page)}</div>` : ""}</div>
+        <div><div class="text-xs font-bold text-slate-500 mb-2">最近訂單</div>${d.orders.length ? d.orders.map((o) => `<button data-oo="${esc(o.id)}" class="w-full text-left rounded-lg bg-slate-50 hover:bg-orange-50 px-3 py-2 mb-1.5"><div class="flex justify-between gap-2"><span class="font-mono text-xs truncate">${esc(o.order_no)}</span>${stag(o.status)}</div><div class="flex justify-between text-xs text-slate-500 mt-0.5"><span class="truncate">${esc((o.items || []).join("、"))}</span><b class="shrink-0">${usd(o.amount_usd)}</b></div></button>`).join("") : '<div class="text-slate-400 text-xs">無</div>'}</div>
+        <div><div class="text-xs font-bold text-slate-500 mb-2">最近充值</div>${d.topups.length ? d.topups.map((t) => `<div class="rounded-lg bg-slate-50 px-3 py-2 mb-1.5"><div class="flex justify-between gap-2"><span class="font-mono text-xs truncate">${esc(t.order_no)}</span>${stag(t.status)}</div><div class="flex justify-between text-xs text-slate-500 mt-0.5"><span>${fmt(t.created_at)}</span><b>${usd(t.amount_usd)}</b></div></div>`).join("") : '<div class="text-slate-400 text-xs">無</div>'}</div></div>`;
+      box.querySelectorAll("[data-oo]").forEach((b) => (b.onclick = () => can("orders") && openOrder(pid, b.dataset.oo)));
+    } catch (e) { box.innerHTML = `<div class="p-4 text-xs text-red-600">${esc(e.message)}</div>`; }
+  }
+  await loadList();
+  if (c.sid) openPane();
 }
 
 // ---------- members ----------
@@ -349,7 +428,7 @@ function renderAlert() {
     <ul class="max-h-72 overflow-y-auto divide-y divide-slate-100">${state.alerts.map((o) => `<li class="px-5 py-3 text-sm"><div class="flex items-center justify-between gap-2"><span class="font-semibold flex items-center gap-1.5">${ptag(o.platform)}${o.type === "sifang" ? '<span class="tag tag-green">四方收款</span>' : ""} #${esc(o.order_no)}</span><span class="font-black text-orange-600">${o.type === "sifang" ? usdt(o.amount_usd) : usd(o.amount_usd)}</span></div><div class="text-xs text-slate-500 truncate">${esc((o.items || []).join("，"))}</div><div class="text-[11px] text-slate-400">${esc(o.user)}</div></li>`).join("")}</ul>
     <div class="px-5 py-4 flex gap-3 bg-slate-50"><button id="al-later" class="btn-ghost flex-1">稍後處理</button><button id="al-view" class="btn flex-1">查看訂單</button></div></div></div>`;
   $("#al-later").onclick = () => { state.alerts = []; renderAlert(); };
-  $("#al-view").onclick = () => { const first = state.alerts[0]; state.alerts = []; state.page = "orders"; state.tab.orders = first.platform.id; location.hash = "orders"; render(); };
+  $("#al-view").onclick = () => { const first = state.alerts[0]; state.alerts = []; state.page = "orders"; state.tab.orders = first.platform.id; location.hash = "orders"; render(); if (can("orders")) setTimeout(() => openOrder(first.platform.id, first.type === "sifang" ? first.order_no : first.id), 300); };
 }
 async function poll() {
   if (!state.token || !can("orders")) return;

@@ -166,3 +166,8 @@
 - 驗證：mock Giftray 寫接口 + 本站真實 reply/processing + playwright 全流程通過；真實 Giftray / 四方僅做讀取測試，未對其做寫操作。
 
 - [2026-06] 訂單/充值頁新增狀態分組篩選（全部/待處理/已完成/已取消 → META_STATUS/TOPUP_META 於 hub_console）、類型下拉、「待處理 N 筆可操作」提示；列表上限提高到 500。Giftray 真實客服回覆已實測成功（訪客 7108C8）。
+
+## [2026-06] 總後台改為「工作台」介面（用戶：要像原平台後台一樣完整操作，選 a 三平台統一介面）
+- 後端新增：`GET /orders/{platform}/{oid}`（詳情：items/fields/need_fields/timeline/admin_note/transaction_no/extra；local 讀 db.orders；giftray 從 /admin/orders 快取找；sifang /orders/{no}）、`GET /topups/{platform}/{tid}`（網絡/地址/tx_hash/憑證 proof_image/bank/extra）、`GET /chats/{platform}/{sid}/customer`（客戶 + 最近訂單/充值）、`GET /chats/{platform}/quick-replies`、`POST /orders/{platform}/{oid}/note`（備註 / Giftray 交易號）。`/me` 平台含 origin 供相對圖片 URL 補全。
+- 前端：訂單/充值列表點行開右側詳情抽屜（含大按鈕操作）；客服改三欄工作台（列表 + 對話 + 客戶資料），Enter 送出、快捷回覆、結束/重開、5 秒輪詢、未讀增加提示音；新訂單彈窗「查看訂單」直接開詳情。
+- 驗證：playwright 全流程（gogo589 + Giftray 真實資料讀取、本站回覆）通過。patch.zip 已更新。

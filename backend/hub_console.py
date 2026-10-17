@@ -121,7 +121,7 @@ async def _all_platforms() -> List[dict]:
 
 
 async def _visible(me: dict) -> List[dict]:
-    return [{"id": p["id"], "name": p["name"], "kind": p.get("kind", "shop"), "cs_url": p.get("cs_url", "/gg589-k7p2x?s=chat-sessions" if p["id"] == LOCAL["id"] else ""),
+    return [{"id": p["id"], "name": p["name"], "kind": p.get("kind", "shop"), "origin": re.sub(r"^(https?://[^/]+).*$", r"\1", p.get("base_url") or ""), "cs_url": p.get("cs_url", "/gg589-k7p2x?s=chat-sessions" if p["id"] == LOCAL["id"] else ""),
              "admin_url": p.get("admin_url", "/gg589-k7p2x" if p["id"] == LOCAL["id"] else "")} for p in await _all_platforms() if _allowed(me, p["id"])]
 
 
@@ -518,6 +518,169 @@ async def sifang_payout_op(platform: str, pid: str, op: str, me: dict = Depends(
 @router.get("/logs")
 async def hub_logs(size: int = 200, me: dict = Depends(need("admins"))):
     return {"rows": await db.hub_logs.find({}, {"_id": 0}).sort("at", -1).to_list(max(1, min(size, 500)))}
+
+
+# ----------------------------- detail panels -----------------------------
+def _hk(v, rate):
+    return f"HK${float(v or 0):,.0f}"
+
+
+def _local_order_detail(o: dict) -> dict:
+    fields = {}
+    for pid, f in (o.get("delivery_info") or {}).items():
+        if isinstance(f, dict):
+            fields.update(f)
+    if o.get("recharge_account"):
+        fields.setdefault("充值帳號", o["recharge_account"])
+    if o.get("recharge_note"):
+        fields.setdefault("備註", o["recharge_note"])
+    return {"id": o["id"], "order_no": o.get("order_no"), "type": "giftcard" if o.get("is_giftcard_order") else "order", "status": o.get("status"), "user": o.get("user_email"), "contact": o.get("contact") or "",
+            "amount_usd": float(o.get("total_usd") or 0), "amount_label": "", "payment_method": o.get("payment_method") or "", "promo": o.get("promo_code") or o.get("cart_promo_title") or "",
+            "items": [{"name": i.get("product_name"), "spec": i.get("spec_label") or "", "qty": i.get("quantity") or 1, "price": float(i.get("unit_price_usd") or 0), "image": i.get("image") or ""} for i in o.get("items", [])],
+            "fields": fields, "info_submitted": bool(o.get("info_submitted")), "info_rejected": bool(o.get("info_rejected")), "admin_note": o.get("admin_note") or "", "images": [],
+            "timeline": [{"at": t.get("at"), "text": t.get("status"), "by": ""} for t in o.get("timeline", [])], "created_at": o.get("created_at"), "paid_at": o.get("paid_at"), "completed_at": None, "transaction_no": o.get("transaction_no") or "",
+            "extra": {k: v for k, v in {"等級": o.get("level_name"), "積分折抵": o.get("points_discount_usd"), "優惠": o.get("discount_usd")}.items() if v}}
+
+
+def _giftray_order_detail(o: dict, rate: float) -> dict:
+    tl = [{"at": o.get("createdAt"), "text": "下單（餘額扣款）", "by": ""}]
+    if o.get("completedAt"):
+        tl.append({"at": o["completedAt"], "text": "完成", "by": ""})
+    if o.get("redeemedAt"):
+        tl.append({"at": o["redeemedAt"], "text": "禮品卡已核銷", "by": o.get("redeemedBy") or ""})
+    gift = bool(o.get("transactionNo") or o.get("autoReview") or o.get("redeemed"))
+    return {"id": o.get("id"), "order_no": o.get("id"), "type": "giftcard" if gift else "order", "status": hub_giftray.STATUS.get(o.get("status"), o.get("status")), "user": o.get("email") or "", "contact": o.get("email") or "",
+            "amount_usd": hub_giftray._usd(o.get("amount"), rate), "amount_label": _hk(o.get("amount"), rate), "payment_method": "餘額", "promo": "",
+            "items": [{"name": o.get("productName"), "spec": o.get("denom") or "", "qty": o.get("qty") or 1, "price": hub_giftray._usd(float(o.get("amount") or 0) / max(1, int(o.get("qty") or 1)), rate), "image": o.get("image") or ""}],
+            "fields": o.get("fields") or {}, "need_fields": o.get("needFields") or [], "info_submitted": bool(o.get("fields")), "info_rejected": o.get("status") == "need_info", "admin_note": o.get("deliveryNote") or "", "reject_reason": o.get("rejectReason") or "",
+            "images": [], "timeline": tl, "created_at": o.get("createdAt"), "paid_at": o.get("createdAt"), "completed_at": o.get("completedAt"), "transaction_no": o.get("transactionNo") or "",
+            "extra": {k: v for k, v in {"自動審核": {"matched": "號碼庫命中", "unmatched": "需人工"}.get(o.get("autoReview"), o.get("autoReview")), "已核銷": "是" if o.get("redeemed") else None, "測試單": "是" if o.get("isTest") else None}.items() if v}}
+
+
+@router.get("/orders/{platform}/{oid}")
+async def order_detail(platform: str, oid: str, me: dict = Depends(need("orders"))):
+    p = await _plat(me, platform)
+    k = _k(p)
+    if k == "local":
+        o = await db.orders.find_one({"id": oid}, {"_id": 0})
+        if not o:
+            raise HTTPException(status_code=404, detail="訂單不存在")
+        return {"kind": "shop", **_local_order_detail(o)}
+    if k == "giftray":
+        rate = await hub_giftray._rate(p)
+        o = next((x for x in hub_giftray._items(await hub_giftray._get(p, "/admin/orders", {"limit": 3000})) if x.get("id") == oid), None)
+        if not o:
+            raise HTTPException(status_code=404, detail="訂單不存在")
+        return {"kind": "shop", **_giftray_order_detail(o, rate)}
+    if k == "sifang":
+        o = await hub_sifang._get(p, f"/orders/{oid}")
+        return {"kind": "sifang", **hub_sifang._row(o if isinstance(o, dict) else {}), "raw": o}
+    raise HTTPException(status_code=400, detail="此平台不支援")
+
+
+@router.get("/topups/{platform}/{tid}")
+async def topup_detail(platform: str, tid: str, me: dict = Depends(need("topups"))):
+    p = await _plat(me, platform)
+    k = _k(p)
+    if k == "local":
+        t = await db.topup_orders.find_one({"id": tid}, {"_id": 0})
+        if not t:
+            raise HTTPException(status_code=404, detail="充值單不存在")
+        u = await db.users.find_one({"user_id": t.get("user_id")}, {"_id": 0, "email": 1, "wallet_balance_usd": 1})
+        bank = t.get("bank") or {}
+        return {"kind": "shop", "id": t["id"], "order_no": t.get("out_trade_no") or t["id"], "status": t.get("status"), "user": (u or {}).get("email", ""), "wallet_usd": float((u or {}).get("wallet_balance_usd") or 0),
+                "amount_usd": float(t.get("amount_usd") or 0), "fee_usd": float(t.get("fee_usd") or 0), "pay_amount": t.get("pay_amount"), "method": t.get("method_name") or "", "provider": t.get("provider") or "", "network": t.get("network") or "",
+                "address": bank.get("account_no") or "", "bank": bank, "tx_hash": "", "reference_code": t.get("reference_code") or "", "payer_name": t.get("payer_name") or "", "proof_image": t.get("proof_image") or "", "proof_note": t.get("proof_note") or "", "proof_at": t.get("proof_at"),
+                "reject_reason": t.get("reject_reason") or "", "created_at": t.get("created_at"), "expires_at": t.get("expires_at"), "paid_at": t.get("paid_at") or t.get("approved_at"), "extra": {}}
+    if k == "giftray":
+        t = next((x for x in hub_giftray._items(await hub_giftray._get(p, "/admin/recharges", {"limit": 3000})) if x.get("id") == tid), None)
+        if not t:
+            raise HTTPException(status_code=404, detail="充值單不存在")
+        rate = await hub_giftray._rate(p)
+        return {"kind": "shop", "id": t["id"], "order_no": t["id"], "status": hub_giftray.STATUS.get(t.get("status"), t.get("status")), "user": t.get("email") or "", "wallet_usd": None,
+                "amount_usd": round(float(t.get("usdt") or 0), 2), "amount_label": _hk(t.get("hkd"), rate), "fee_usd": 0, "pay_amount": t.get("payAmount"), "method": hub_giftray.SOURCE.get(t.get("source") or "", t.get("source")), "provider": t.get("source") or "usdt", "network": t.get("network") or "",
+                "address": t.get("address") or "", "tx_hash": t.get("txHash") or "", "reference_code": t.get("outTradeNo") or t.get("gatewayOrderNo") or "", "payer_name": "", "proof_image": "", "proof_note": "", "proof_at": None,
+                "reject_reason": t.get("rejectReason") or "", "created_at": t.get("createdAt"), "expires_at": None, "paid_at": t.get("approvedAt"),
+                "extra": {k2: v for k2, v in {"鏈上核驗": t.get("verifyStatus"), "核驗說明": t.get("verifyReason"), "審核人": t.get("approvedBy") or t.get("rejectedBy"), "通道狀態": t.get("gatewayStatus"), "原申請 USDT": t.get("originalUsdt") if t.get("amountAdjusted") else None, "測試單": "是" if t.get("isTest") else None}.items() if v}}
+    if k == "sifang":
+        o = await hub_sifang._get(p, f"/orders/{tid}")
+        return {"kind": "sifang", **hub_sifang._row(o if isinstance(o, dict) else {}), "raw": o}
+    raise HTTPException(status_code=400, detail="此平台不支援")
+
+
+@router.get("/chats/{platform}/{sid}/customer")
+async def chat_customer(platform: str, sid: str, me: dict = Depends(need("cs"))):
+    p = await _plat(me, platform)
+    k = _k(p)
+    if k == "local":
+        sess = await db.chat_sessions.find_one({"id": sid}, {"_id": 0})
+        if not sess:
+            raise HTTPException(status_code=404, detail="會話不存在")
+        u = await db.users.find_one({"user_id": sess.get("user_id")}, {"_id": 0}) if sess.get("user_id") else None
+        if not u and sess.get("contact"):
+            u = await db.users.find_one({"email": sess["contact"]}, {"_id": 0})
+        orders, topups = [], []
+        if u:
+            orders = [hub_api._order_row(o) for o in await db.orders.find({"user_id": u["user_id"]}, {"_id": 0}).sort("created_at", -1).to_list(10)]
+            topups = [{"id": t["id"], "order_no": t.get("out_trade_no") or t["id"], "status": t.get("status"), "amount_usd": float(t.get("amount_usd") or 0), "created_at": t.get("created_at")} for t in await db.topup_orders.find({"user_id": u["user_id"]}, {"_id": 0}).sort("created_at", -1).to_list(10)]
+        return {"guest": not u, "session": {"id": sid, "name": sess.get("name"), "contact": sess.get("contact"), "status": sess.get("status"), "page": sess.get("page"), "created_at": sess.get("created_at")},
+                "user": {"email": u.get("email"), "name": u.get("name"), "wallet_usd": float(u.get("wallet_balance_usd") or 0), "created_at": u.get("created_at"), "order_count": len(orders)} if u else None, "orders": orders, "topups": topups}
+    if k == "giftray":
+        d = await hub_giftray._get(p, f"/admin/chat/sessions/{sid}/customer")
+        rate = await hub_giftray._rate(p)
+        u = d.get("user") or None
+        return {"guest": bool(d.get("guest")) or not u, "session": {"id": sid, "name": (d.get("session") or {}).get("name"), "contact": (d.get("session") or {}).get("account"), "status": (d.get("session") or {}).get("status")},
+                "user": {"email": u.get("account") or u.get("email"), "name": u.get("name"), "wallet_usd": hub_giftray._usd(u.get("balance"), rate), "wallet_label": _hk(u.get("balance"), rate), "created_at": u.get("createdAt"), "order_count": u.get("orderCount")} if u else None,
+                "orders": [hub_giftray._order_row(o, rate) for o in d.get("orders") or []], "topups": [hub_giftray._topup_row(t) for t in d.get("recharges") or []]}
+    if k == "sifang":
+        try:
+            o = await hub_sifang._get(p, f"/orders/{sid}")
+        except HTTPException:
+            o = None
+        return {"guest": True, "session": {"id": sid, "name": sid, "contact": "", "status": ""}, "user": None, "orders": [], "topups": [{**hub_sifang._topup_row(o), "order_no": o.get("order_no")}] if isinstance(o, dict) and o.get("order_no") else []}
+    raise HTTPException(status_code=400, detail="此平台不支援")
+
+
+@router.get("/chats/{platform}/quick-replies")
+async def chat_quick_replies(platform: str, me: dict = Depends(need("cs"))):
+    p = await _plat(me, platform)
+    k = _k(p)
+    if k == "local":
+        return {"items": [(i.get("a") or i.get("q")) for i in await chat_api.get_quick_replies()]}
+    if k == "giftray":
+        try:
+            d = await hub_giftray._get(p, "/admin/chat/settings")
+            return {"items": [x for x in (d.get("quickReplies") or []) if x]}
+        except HTTPException:
+            return {"items": []}
+    return {"items": []}
+
+
+class NoteIn(BaseModel):
+    note: str = ""
+    transaction_no: str = ""
+
+
+@router.post("/orders/{platform}/{oid}/note")
+async def order_note(platform: str, oid: str, body: NoteIn, me: dict = Depends(need("orders_write"))):
+    p = await _plat(me, platform)
+    k = _k(p)
+    if k == "local":
+        r = await db.orders.update_one({"id": oid}, {"$set": {"admin_note": body.note}})
+        if not r.matched_count:
+            raise HTTPException(status_code=404, detail="訂單不存在")
+    elif k == "giftray":
+        if body.transaction_no:
+            await hub_giftray.post(p, f"/admin/orders/{oid}/txn", {"transactionNo": body.transaction_no})
+        if body.note:
+            o = next((x for x in hub_giftray._items(await hub_giftray._get(p, "/admin/orders", {"limit": 3000})) if x.get("id") == oid), None)
+            if not o:
+                raise HTTPException(status_code=404, detail="訂單不存在")
+            await hub_giftray.post(p, f"/admin/orders/{oid}/status", {"status": o.get("status"), "remark": body.note})
+    else:
+        raise HTTPException(status_code=400, detail="此平台不支援")
+    await _log(me, p, "order:note", oid, body.note or body.transaction_no)
+    return {"ok": True}
 
 
 @router.get("/ui", include_in_schema=False)
