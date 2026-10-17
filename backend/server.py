@@ -1986,6 +1986,7 @@ async def _gift_auto_review(o: dict) -> dict:
         await db.orders.update_one({"id": o["id"]}, {"$unset": {"gift_dispatch_at": 1}})
         asyncio.create_task(_fail_giftcard_at(o["id"], delay))
     else:
+        upd["gift_manual_at"] = now_iso()
         await db.orders.update_one({"id": o["id"]}, {"$unset": {"gift_dispatch_at": 1, "gift_fail_at": 1, "gift_countdown_at": 1}})
         asyncio.create_task(giftcard_api.op_log("system", f"⚠️ 禮品卡自動審核未匹配，已轉人工 · 訂單 {o.get('order_no', '')}", 202))
     return upd

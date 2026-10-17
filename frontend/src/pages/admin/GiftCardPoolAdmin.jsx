@@ -67,7 +67,7 @@ const stateOf = (o) => o.redeemed ? ["已核銷", "violet"] : o.status === "comp
 const infoText = (o) => Object.values(o.delivery_info || {}).flatMap((d) => Object.entries(d || {})).filter(([, v]) => v).map(([k, v]) => `${k}: ${v}`).join("，") || "-";
 
 export function GiftCardOrdersAdmin({ callApi }) {
-  const [status, setStatus] = useState("");
+  const [status, setStatus] = useState(() => { const s = sessionStorage.getItem("gco-status") || ""; sessionStorage.removeItem("gco-status"); return s; });
   const [q, setQ] = useState("");
   const [data, setData] = useState({ rows: [], counts: {} });
   const [sel, setSel] = useState([]);
@@ -130,7 +130,7 @@ export function GiftCardOrdersAdmin({ callApi }) {
               <td className="px-4 py-3 whitespace-nowrap"><div className="font-mono text-xs font-semibold text-slate-800">{o.order_no}</div><div className="text-[11px] text-slate-400">{fmt(o.created_at)}</div>{o.gift_dispatch_at && o.status === "processing" && <div className="text-[10px] text-amber-600">{tr("預計完成")} {fmt(o.gift_dispatch_at)}</div>}{o.matchedKey && <div className="text-[10px] text-emerald-600">{tr("命中")} {o.matchedKey}</div>}</td>
               <td className="px-4 py-3 whitespace-nowrap"><div className="font-head font-bold text-xs text-slate-800">{o.account_no}</div><div className="text-[11px] text-slate-400 truncate max-w-[150px]">{o.user_email}</div></td>
               <td className="px-4 py-3 min-w-[170px]">{(o.items || []).map((i, k) => <div key={k} className="text-xs"><span className="text-slate-800">{i.product_name}</span><br /><span className="text-slate-400">{i.spec_label} ×{i.quantity}</span></div>)}</td>
-              <td className="px-4 py-3 text-xs text-slate-600 max-w-[200px] min-w-[150px] break-all">{infoText(o)}{o.info_rejected && o.status === "paid" && <div className="text-[10px] text-red-500 mt-1">{tr("駁回：{0}", o.info_reject_reason)}</div>}</td>
+              <td className="px-4 py-3 text-xs text-slate-600 max-w-[200px] min-w-[150px] break-all">{infoText(o)}{o.info_rejected && o.status === "paid" && <div className="text-[10px] text-red-500 mt-1">{tr("駁回：{0}", o.info_reject_reason)}</div>}{o.status === "processing" && o.gift_manual && <div className="text-[10px] text-red-600 font-semibold mt-1" data-testid={`gco-manual-hint-${o.id}`}>{o.gift_auto_failed ? tr("用戶已重新提交帳號 · 請人工轉贈後點「完成」") : tr("待人工轉贈 · 完成後點「完成」")}{o.info_submitted_at && <span className="text-slate-400 font-normal"> {fmt(o.info_submitted_at)}</span>}</div>}</td>
               <td className="px-4 py-3 whitespace-nowrap font-semibold text-orange-600">USD {(+o.total_usd || 0).toFixed(2)}</td>
               <td className="px-4 py-3">{(o.gift_trade_nos || []).length === 0 ? <span className="text-xs text-slate-400">-</span> : o.gift_trade_nos.map((g, i) => <div key={i} className="font-mono text-[11px] text-violet-700" data-testid={`gco-trade-${o.id}-${i}`}>{g.trade_no}</div>)}</td>
               <td className="px-4 py-3 whitespace-nowrap"><Pill tone={tone}>{tr(lbl)}</Pill></td>

@@ -232,6 +232,11 @@ function useAdminAlerts(callApi, go, onOrders) {
             onOrders(d.orders);
             notify(tr("新訂單：{0} 筆已支付", d.orders.length), d.orders.slice(0, 3).map((o) => `#${o.order_no || o.id.slice(0, 8)} $${o.total_usd}`).join("、"), "admin-order");
           }
+          if (d.manual?.length) {
+            playAlert("order", prefs);
+            onOrders(d.manual.map((o) => ({ ...o, manual: true })));
+            notify(tr("待人工轉贈：{0} 筆", d.manual.length), d.manual.slice(0, 3).map((o) => `#${o.order_no || o.id.slice(0, 8)} ${o.recharge_account || ""}`).join("、"), "admin-manual", () => { sessionStorage.setItem("orders-hub-tab", "gift"); sessionStorage.setItem("gco-status", "manual"); go("giftcard-orders"); });
+          }
           fire("topup", d.topups.length, tr("充值審核：{0} 筆新憑證", d.topups.length), d.topups.slice(0, 3).map((t) => `${t.method_name || t.provider || ""} $${t.amount_usd}`).join("、"), "topups");
           fire("chat", d.chats.length, tr("客服：{0} 則新訊息", d.chats.length), d.chats.slice(0, 2).map((c) => c.text || tr("[圖片]")).join(" / "), "chat-sessions");
           if (d.chats.length) window.dispatchEvent(new Event("admin-badge-refresh"));
@@ -286,7 +291,7 @@ function AdminInner() {
   const [newOrders, setNewOrders] = useState([]);
   const [hubPlats, setHubPlats] = useState([]);
   useEffect(() => { callApi({ method: "GET", url: "/admin/hub/platforms/public" }).then((r) => setHubPlats(r.data.platforms.filter((x) => x.cs_url))).catch(() => {}); }, [callApi]);
-  const onOrders = useCallback((list) => setNewOrders((prev) => { const ids = new Set(prev.map((o) => o.id)); return [...list.filter((o) => !ids.has(o.id)), ...prev].slice(0, 20); }), []);
+  const onOrders = useCallback((list) => setNewOrders((prev) => { const ids = new Set(list.map((o) => o.id)); return [...list, ...prev.filter((o) => !ids.has(o.id))].slice(0, 20); }), []);
   const toggleCollapsed = () => setCollapsed((c) => { localStorage.setItem("admin_sidebar_collapsed", c ? "0" : "1"); return !c; });
   const pushUrl = (k) => { const u = new URL(window.location.href); u.searchParams.set("s", k); window.history.pushState({}, "", u); };
   const setSection = useCallback((k) => { setSectionState(k); setTabs((t) => (t.includes(k) ? t : [...t, k].slice(-MAX_TABS))); pushUrl(k); }, []);
@@ -362,7 +367,7 @@ function AdminInner() {
           <KeyRound className="h-4 w-4" /> {!collapsed && <span>{tr("修改密碼")}</span>}
         </button>
         {pwOpen && <ChangePasswordDialog callApi={callApi} onClose={() => setPwOpen(false)} />}
-        <NewOrderAlert orders={newOrders} onClose={() => setNewOrders([])} onView={() => { setNewOrders([]); sessionStorage.setItem("orders-hub-tab", "all"); go("giftcard-orders"); }} />
+        <NewOrderAlert orders={newOrders} onClose={() => setNewOrders([])} onView={() => { const manual = newOrders.some((o) => o.manual); setNewOrders([]); sessionStorage.setItem("orders-hub-tab", manual ? "gift" : "all"); if (manual) sessionStorage.setItem("gco-status", "manual"); go("giftcard-orders"); }} />
         <button data-testid="admin-logout" title={tr("登出後台")} onClick={() => { localStorage.removeItem("admin_token"); window.location.href = ADMIN_LOGIN; }} className={`flex items-center gap-2 py-2.5 text-xs text-slate-500 hover:text-red-500 border-t border-slate-800 shrink-0 ${collapsed ? "justify-center" : "px-4"}`}><ShieldAlert className="h-4 w-4" /> {!collapsed && <span>{tr("登出後台")}</span>}</button>
         <Link to="/" title={tr("返回商城")} className={`flex items-center gap-2 py-3 text-xs text-slate-500 hover:text-white border-t border-slate-800 shrink-0 ${collapsed ? "justify-center" : "px-4"}`}>
           <ArrowLeft className="h-4 w-4" /> {!collapsed && <span>{tr("返回商城")}</span>}
