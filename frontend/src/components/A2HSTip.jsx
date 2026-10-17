@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { X } from "lucide-react";
 import { tr } from "@/i18n";
 import { track, isStandalone } from "@/lib/track";
+import { isAdminPath } from "@/lib/adminPath";
 
 const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 
