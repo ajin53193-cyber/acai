@@ -1666,6 +1666,8 @@ from routes.support import router as support_router  # noqa: E402
 app.include_router(support_router)
 from routes.tronhooks import router as tronhooks_router  # noqa: E402
 app.include_router(tronhooks_router)
+from routes.admin_api import router as admin_api_router  # noqa: E402
+app.include_router(admin_api_router)
 
 
 RATE_LIMIT_MAX = int(os.environ.get("RATE_LIMIT_MAX", "300"))

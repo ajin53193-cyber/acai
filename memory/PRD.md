@@ -450,3 +450,11 @@
   - 前端 lib/format.js: fmtDate 加 timeZone Asia/Shanghai；新增 bjToday/bjMonth/bjYesterday；Dashboard/MerchantStats/BalanceLedger/ProfitSnapshots/Commission/MerchantStatement 默认筛选改北京日期；CheckoutPage/ChannelsPage 时间显示加 Asia/Shanghai。
   - 例外（有意保留 UTC）：Dashboard 的 TronGrid 额度面板日期与 24h 图标注仍为 UTC（供应商额度按 UTC 零点重置）。
   - 测试 iteration_20：后端 12/12 通过，前端 0 报错。
+
+## 安全验证弹窗修复 + 平台管理 API (2026-10-17)
+- StepUpModal 修复：原来挂在 Radix 弹窗外，被 pointer-events:none+焦点锁定导致输入框打不了字。改为使用项目 Radix Dialog 组件成为最顶层，输入正常。测试 iteration_21 前端 100% 通过。
+- 平台管理 API（routes/admin_api.py，前缀 /api/admin-api）：供外部“一个后台管多个平台”的聚合系统用 API Key 拉取/管理本平台数据。
+  - 鉴权：请求头 X-Api-Key（HTTPS）。Key 由管理员 JWT 调 POST /api/admin-api/key/rotate 生成（只存 sha256，明文仅返回一次）；GET /api/admin-api/key 查看前缀/状态；PUT /api/admin-api/key/ip-whitelist 设 IP 白名单。设置存 db.settings._id='admin_api'。
+  - 数据端点（均需 X-Api-Key）：GET /ping、GET /stats?date=、GET /orders(分页/筛选 status,network,merchant_id,keyword,date,start,end)、GET /orders/{order_no}、GET /accounts?role=、GET /support/threads?status=、GET /support/threads/{order_no}、POST /support/threads/{order_no}/reply。
+  - 时间字段同时给 ISO(UTC) 与 *_bj 北京时间；stats/orders 按北京日切。
+  - 已 e2e 验证：鉴权401、ping/stats/orders/accounts/threads/detail/reply 全通过。
