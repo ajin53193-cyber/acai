@@ -33,7 +33,7 @@ curl -X POST https://四方域名/api/admin-api/key/rotate -H "Authorization: Be
 | 類型 | **Giftray 商城（直接對接）** | **四方 USDT 收款平台（直接對接）** |
 | 接口地址前綴 | `https://lpw-888.com/api` | `https://print8.8bc8uyz.com/api/admin-api` |
 | 金鑰 | `ak_…`（Giftray 後台管理 API 金鑰） | `ak_…`（四方 X-Api-Key） |
-| 客服後台地址 | `https://lpw-888.com/admin`（或其客服頁網址） | 四方後台客服頁網址 |
+| 客服後台地址 | `https://lpw-888.com/lpw-boss-7q3x9`（Giftray 真實後台入口） | 四方後台客服頁網址 |
 
 → 儲存 → 每行點「測試連線」，顯示「連線成功：Giftray，近 7 天訂單 N 筆」即接通。
 

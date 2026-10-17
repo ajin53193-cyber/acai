@@ -126,10 +126,18 @@ async def _all_platforms() -> List[dict]:
 LOCAL_URLS = {"admin_url": "/gg589-k7p2x", "cs_url": "/gg589-k7p2x?s=chat-sessions", "orders_url": "/gg589-k7p2x?s=giftcard-orders", "topups_url": "/gg589-k7p2x?s=topups", "members_url": "/gg589-k7p2x?s=members"}
 
 
+GIFTRAY_ADMIN_URL = "https://lpw-888.com/lpw-boss-7q3x9"
+
+
 def _urls(p: dict) -> dict:
     local = p["id"] == LOCAL["id"]
-    admin = p.get("admin_url") or ("" if not local else LOCAL_URLS["admin_url"])
-    return {k: (p.get(k) or (LOCAL_URLS[k] if local else admin)) for k in ("admin_url", "cs_url", "orders_url", "topups_url", "members_url")}
+    giftray = not local and "lpw-888.com" in (p.get("base_url") or "")
+
+    def fix(u: str) -> str:
+        return GIFTRAY_ADMIN_URL if giftray and (not u or u.rstrip("/") == "https://lpw-888.com/admin") else u
+
+    admin = fix(p.get("admin_url") or ("" if not local else LOCAL_URLS["admin_url"]))
+    return {k: (fix(p.get(k) or "") or (LOCAL_URLS[k] if local else admin)) for k in ("admin_url", "cs_url", "orders_url", "topups_url", "members_url")}
 
 
 async def _visible(me: dict) -> List[dict]:

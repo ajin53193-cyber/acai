@@ -186,3 +186,8 @@
 - 備註歷史 db.hub_order_notes（每筆帶操作者與時間，含操作附帶原因）；`GET/POST /orders/{p}/{oid}/notes|note`。
 - `GET /cs-unread`（側欄客服徽章 + 新訊息提示音，10 秒輪詢）、`GET /today`（數據概覽合計頁「今日 vs 昨日」條，北京日切）、前端 CSV 匯出（篩選結果，BOM，Excel 可開）。
 - 日報：用戶選擇不要發送，未做。
+
+## 2026-10-17 更新
+- Hub 總後台：Giftray 平台（base_url 含 lpw-888.com）的 admin/orders/topups/members/cs 五個入口，若未填或仍是舊預設 `https://lpw-888.com/admin`，自動改為真實後台 `https://lpw-888.com/lpw-boss-7q3x9`（`hub_console.py: _urls`）。平台接入頁佔位提示與 docs 同步更新。
+- 補丁包 `/app/export/patch.zip`（hub_console.py / hub_static/index.html / docs）可經 `/api/_export/<DATA_EXPORT_TOKEN>/patch.zip` 下載。
+- 待辦 P1：translate.py 改用用戶自有 OpenAI Key（等待用戶提供）。
