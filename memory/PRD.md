@@ -458,3 +458,4 @@
   - 数据端点（均需 X-Api-Key）：GET /ping、GET /stats?date=、GET /orders(分页/筛选 status,network,merchant_id,keyword,date,start,end)、GET /orders/{order_no}、GET /accounts?role=、GET /support/threads?status=、GET /support/threads/{order_no}、POST /support/threads/{order_no}/reply。
   - 时间字段同时给 ISO(UTC) 与 *_bj 北京时间；stats/orders 按北京日切。
   - 已 e2e 验证：鉴权401、ping/stats/orders/accounts/threads/detail/reply 全通过。
+  - 资金/敏感写操作已开放 (2026-10-17)：复用后台原处理函数（合成 admin actor），保证台账/审计/回调/TxID去重一致。端点：POST /orders/{order_id}/manual-callback(手动补单,差异大需force)、POST /accounts/{account_id}/adjust(credit/debit/freeze/unfreeze)、POST /accounts/{account_id}/toggle-status(冻结/解冻)、GET /settlements/payouts、POST /settlements/payouts/{id}/approve|reject(提现审核)、GET+PUT /checkout/settings(改配置)。e2e 验证通过。

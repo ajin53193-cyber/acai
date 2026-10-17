@@ -22,6 +22,14 @@ from core import db
 from utils import iso, now_utc, client_ip, bj_day_bounds, bj_str
 from deps import require_roles
 from routes.support import _touch_thread, _store_image, _get_order
+from models import BalanceAdjust, CheckoutSettings
+from routes.orders import manual_callback as _manual_callback, ManualCallbackIn
+from routes.settlements import approve_payout as _approve_payout, reject_payout as _reject_payout
+from server import (adjust_balance as _adjust_balance, toggle_status as _toggle_status,
+                    put_checkout_settings as _put_checkout_settings, DEFAULT_CHECKOUT_SETTINGS)
+
+# Synthetic actor used for audit/ledger when actions come in via the Admin API key.
+SYS_ACTOR = {"_id": "admin-api", "email": "admin-api", "role": "admin", "name": "平台管理API"}
 
 router = APIRouter(prefix="/api/admin-api", tags=["admin-api"])
 
@@ -258,3 +266,64 @@ async def support_reply(order_no: str, data: ReplyIn, cfg: dict = Depends(requir
     r = await db.support_messages.insert_one(doc)
     await _touch_thread(o, text, "agent", reopen=False)
     return {"code": 0, "msg": "success", "data": {"id": str(r.inserted_id), "created_at": doc["created_at"]}}
+
+
+# ---------------------------------------------------------------------------
+# Fund / sensitive write operations (X-Api-Key) — reuse the exact admin handlers
+# ---------------------------------------------------------------------------
+@router.post("/orders/{order_id}/manual-callback")
+async def api_manual_callback(order_id: str, data: ManualCallbackIn, request: Request,
+                              cfg: dict = Depends(require_admin_api)):
+    """手动补单：输入链上 TxID + 金额，核验后按实际到账金额确认订单并触发商户回调。
+    差异过大需 force=true。"""
+    return {"code": 0, "msg": "success", "data": await _manual_callback(order_id, data, request, user=SYS_ACTOR)}
+
+
+@router.post("/accounts/{account_id}/adjust")
+async def api_adjust_balance(account_id: str, data: BalanceAdjust, request: Request,
+                             cfg: dict = Depends(require_admin_api)):
+    """调整余额：action = credit 增加 / debit 扣减 / freeze 冻结 / unfreeze 解冻。"""
+    return {"code": 0, "msg": "success", "data": await _adjust_balance(account_id, data, request, user=SYS_ACTOR, _su={})}
+
+
+@router.post("/accounts/{account_id}/toggle-status")
+async def api_toggle_status(account_id: str, request: Request, cfg: dict = Depends(require_admin_api)):
+    """冻结/解冻账户（在 active 与 frozen 之间切换）。"""
+    return {"code": 0, "msg": "success", "data": await _toggle_status(account_id, request, user=SYS_ACTOR, _su={})}
+
+
+@router.get("/settlements/payouts")
+async def api_list_payouts(status: str = Query("pending"), cfg: dict = Depends(require_admin_api)):
+    q = {} if status == "all" else {"status": status}
+    rows = await db.payouts.find(q).sort("created_at", -1).limit(500).to_list(500)
+    return {"code": 0, "msg": "success", "data": [{
+        "id": str(p["_id"]), "merchant_id": p.get("merchant_id"), "merchant_name": p.get("merchant_name"),
+        "amount": p.get("amount"), "address": p.get("address"), "network": p.get("network"),
+        "status": p.get("status"), "created_at": p.get("created_at"),
+        "created_at_bj": bj_str(p.get("created_at"), "%Y-%m-%d %H:%M:%S"), "approved_at": p.get("approved_at"),
+    } for p in rows]}
+
+
+@router.post("/settlements/payouts/{payout_id}/approve")
+async def api_approve_payout(payout_id: str, request: Request, cfg: dict = Depends(require_admin_api)):
+    """审核提现：通过放款。"""
+    return {"code": 0, "msg": "success", "data": await _approve_payout(payout_id, request, user=SYS_ACTOR)}
+
+
+@router.post("/settlements/payouts/{payout_id}/reject")
+async def api_reject_payout(payout_id: str, request: Request, cfg: dict = Depends(require_admin_api)):
+    """审核提现：驳回并退回余额。"""
+    return {"code": 0, "msg": "success", "data": await _reject_payout(payout_id, request, user=SYS_ACTOR)}
+
+
+@router.get("/checkout/settings")
+async def api_get_checkout_settings(cfg: dict = Depends(require_admin_api)):
+    doc = await db.settings.find_one({"_id": "checkout"}) or {}
+    doc.pop("_id", None)
+    return {"code": 0, "msg": "success", "data": {**DEFAULT_CHECKOUT_SETTINGS, **doc}}
+
+
+@router.put("/checkout/settings")
+async def api_put_checkout_settings(data: CheckoutSettings, request: Request, cfg: dict = Depends(require_admin_api)):
+    """改配置：收银台/品牌/能量等配置。"""
+    return {"code": 0, "msg": "success", "data": await _put_checkout_settings(data, request, user=SYS_ACTOR)}
