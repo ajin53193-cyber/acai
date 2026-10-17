@@ -179,9 +179,10 @@ function SoundControl() {
     setPerm(r);
     if (r !== "granted") return toast.error(tr("未取得通知權限，請在瀏覽器網址列的鎖頭圖示中允許通知"));
     update({ desktop: true });
-    new Notification(tr("桌面通知已開啟"), { body: tr("後台頁面在背景時也會收到訂單 / 充值 / 客服提醒"), icon: "/icons/app-icon-512.png" });
+    new Notification(tr("桌面通知已開啟"), { body: tr("收到新訂單 / 充值憑證 / 客服訊息時，瀏覽器會彈出提示"), icon: "/icons/app-icon-512.png" });
   };
   useEffect(() => { if (!open) return; const h = () => setOpen(false); window.addEventListener("click", h); return () => window.removeEventListener("click", h); }, [open]);
+  useEffect(() => { const h = () => setPerm(typeof Notification !== "undefined" ? Notification.permission : "unsupported"); window.addEventListener("focus", h); return () => window.removeEventListener("focus", h); }, []);
   return (
     <div className="relative self-center ml-2 shrink-0" onClick={(e) => e.stopPropagation()}>
       <button data-testid="admin-sound-toggle" title={prefs.enabled ? tr("聲音提醒：開") : tr("聲音提醒：關")} onClick={() => { unlockAudio(); setOpen((o) => !o); }}
@@ -191,7 +192,7 @@ function SoundControl() {
       {open && (
         <div data-testid="admin-sound-panel" className="absolute right-0 top-10 z-50 w-64 rounded-xl bg-white shadow-xl border border-slate-200 p-3.5 text-slate-700">
           <label className="flex items-center justify-between text-sm font-semibold"><span>{tr("聲音提醒")}</span><Switch data-testid="admin-sound-enabled" checked={prefs.enabled} onCheckedChange={(v) => { unlockAudio(); update({ enabled: v }); }} /></label>
-          <label className="flex items-center justify-between text-sm font-semibold mt-2"><span>{tr("桌面通知")}<span className="block text-[10px] font-normal text-slate-400">{perm === "denied" ? tr("已被瀏覽器封鎖") : tr("頁面在背景時也會彈出")}</span></span><Switch data-testid="admin-desktop-enabled" checked={!!prefs.desktop && perm === "granted"} onCheckedChange={toggleDesktop} /></label>
+          <label className="flex items-center justify-between text-sm font-semibold mt-2"><span>{tr("桌面通知")}<span className="block text-[10px] font-normal text-slate-400">{perm === "denied" ? tr("已被瀏覽器封鎖") : tr("瀏覽器彈窗提示新訂單 / 充值 / 客服")}</span></span><Switch data-testid="admin-desktop-enabled" checked={prefs.desktop !== false && perm === "granted"} onCheckedChange={toggleDesktop} /></label>
           <div className="mt-3 text-xs text-slate-500">{tr("音量")} {Math.round(prefs.volume * 100)}%</div>
           <input data-testid="admin-sound-volume" type="range" min="0" max="1" step="0.05" value={prefs.volume} onChange={(e) => update({ volume: +e.target.value })} className="w-full accent-orange-500" />
           <div className="mt-3 text-xs text-slate-500">{tr("試聽")}</div>
@@ -209,7 +210,7 @@ function SoundControl() {
 function useAdminAlerts(callApi, go, onOrders) {
   const sinceRef = useRef(null);
   useEffect(() => {
-    const unlock = () => unlockAudio();
+    const unlock = () => { unlockAudio(); if (typeof Notification !== "undefined" && Notification.permission === "default") Notification.requestPermission().catch(() => {}); };
     window.addEventListener("pointerdown", unlock, { once: true });
     const tick = async () => {
       try {
@@ -217,18 +218,19 @@ function useAdminAlerts(callApi, go, onOrders) {
         const d = r.data;
         if (sinceRef.current) {
           const prefs = loadSoundPrefs();
-          const desktop = prefs.desktop && typeof Notification !== "undefined" && Notification.permission === "granted";
+          const desktop = prefs.desktop !== false && typeof Notification !== "undefined" && Notification.permission === "granted";
+          const notify = (title, body, tag, onClick) => { if (!desktop) return; try { const nt = new Notification(title, { body, icon: "/icons/app-icon-512.png", tag, renotify: true }); nt.onclick = () => { window.focus(); onClick?.(); nt.close(); }; } catch {} };
           const fire = (kind, n, title, desc, section) => {
             if (!n) return;
             playAlert(kind, prefs);
             const jump = () => { if (section === "orders") sessionStorage.setItem("orders-hub-tab", "all"); go(section === "orders" ? "giftcard-orders" : section); };
             toast(title, { description: desc, duration: 10000, action: { label: tr("查看"), onClick: jump } });
-            if (desktop && document.hidden) { try { const nt = new Notification(title, { body: desc, icon: "/icons/app-icon-512.png", tag: `admin-${kind}` }); nt.onclick = () => { window.focus(); jump(); nt.close(); }; } catch {} }
+            notify(title, desc, `admin-${kind}`, jump);
           };
           if (d.orders.length) {
             playAlert("order", prefs);
             onOrders(d.orders);
-            if (desktop && document.hidden) { try { const nt = new Notification(tr("新訂單：{0} 筆已支付", d.orders.length), { body: d.orders.slice(0, 3).map((o) => `#${o.order_no || o.id.slice(0, 8)} $${o.total_usd}`).join("、"), icon: "/icons/app-icon-512.png", tag: "admin-order" }); nt.onclick = () => { window.focus(); nt.close(); }; } catch {} }
+            notify(tr("新訂單：{0} 筆已支付", d.orders.length), d.orders.slice(0, 3).map((o) => `#${o.order_no || o.id.slice(0, 8)} $${o.total_usd}`).join("、"), "admin-order");
           }
           fire("topup", d.topups.length, tr("充值審核：{0} 筆新憑證", d.topups.length), d.topups.slice(0, 3).map((t) => `${t.method_name || t.provider || ""} $${t.amount_usd}`).join("、"), "topups");
           fire("chat", d.chats.length, tr("客服：{0} 則新訊息", d.chats.length), d.chats.slice(0, 2).map((c) => c.text || tr("[圖片]")).join(" / "), "chat-sessions");

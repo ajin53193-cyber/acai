@@ -1,15 +1,8 @@
-import { useEffect } from "react";
 import { BellRing, Gift, Package } from "lucide-react";
-import { playAlert, loadSoundPrefs } from "@/lib/adminSounds";
 import { tr } from "@/i18n";
 
-// Persistent new-order popup: stays until acknowledged, re-plays the order sound every 12s while open.
+// Persistent new-order popup: stays until acknowledged; sound plays once (from useAdminAlerts).
 export function NewOrderAlert({ orders, onView, onClose }) {
-  useEffect(() => {
-    if (!orders.length) return;
-    const id = setInterval(() => playAlert("order", loadSoundPrefs()), 12000);
-    return () => clearInterval(id);
-  }, [orders.length]);
   if (!orders.length) return null;
   return (
     <div data-testid="new-order-alert" className="fixed inset-0 z-[9000] flex items-center justify-center bg-black/40 p-4">

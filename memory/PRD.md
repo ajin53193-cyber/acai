@@ -191,3 +191,5 @@
 - Hub 總後台：Giftray 平台（base_url 含 lpw-888.com）的 admin/orders/topups/members/cs 五個入口，若未填或仍是舊預設 `https://lpw-888.com/admin`，自動改為真實後台 `https://lpw-888.com/lpw-boss-7q3x9`（`hub_console.py: _urls`）。平台接入頁佔位提示與 docs 同步更新。
 - 補丁包 `/app/export/patch.zip`（hub_console.py / hub_static/index.html / docs）可經 `/api/_export/<DATA_EXPORT_TOKEN>/patch.zip` 下載。
 - 待辦 P1：translate.py 改用用戶自有 OpenAI Key（等待用戶提供）。
+- 提醒邏輯調整：新訂單彈窗不再每 12 秒重播音效（只響一次，`NewOrderAlert.jsx`）；桌面通知（Notification）改為只要權限已允許就彈出（不限頁面在背景），首次點擊頁面自動請求通知權限；`desktop` 偏好預設開啟。
+- 新增 `backend/reset_for_launch.py`：正式上線清數據腳本（預覽模式 / `--yes` 執行，先備份 zip）。清除會員(非 admin)、訂單、充值、錢包/積分流水、聊天、日誌、抽獎、驗證碼等；保留商品/分類/評價/設定/管理員/翻譯。用戶選擇：reviews 保留、admin 保留、僅在 Windows 伺服器執行（預覽環境未清）。
