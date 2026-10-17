@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { toast } from "sonner";
-import { UserPlus, ShieldCheck, Crown, Trash2, BadgeCheck } from "lucide-react";
+import { UserPlus, ShieldCheck, Crown, Trash2, BadgeCheck, KeyRound } from "lucide-react";
+import { ChangePasswordDialog } from "@/pages/admin/ChangePasswordDialog";
 import { tr } from "@/i18n";
 import { Head, Btn, Input, Table, Pill, Card } from "./ui";
 
@@ -8,6 +9,7 @@ export function AdminsAdmin({ callApi }) {
   const [admins, setAdmins] = useState(null);
   const [roles, setRoles] = useState([]);
   const [email, setEmail] = useState("");
+  const [resetTarget, setResetTarget] = useState(null);
   const [roleId, setRoleId] = useState("");
   const load = useCallback(() => {
     callApi({ method: "GET", url: "/admin/admins" }).then((r) => setAdmins(r.data)).catch((e) => toast.error(e.response?.data?.detail || tr("載入失敗")));
@@ -62,12 +64,14 @@ export function AdminsAdmin({ callApi }) {
             <td className="px-4 py-3">{a.twofa ? <Pill tone="emerald"><span className="inline-flex items-center gap-1"><BadgeCheck className="h-3 w-3" />{tr("已啟用")}</span></Pill> : <Pill tone="slate">{tr("未啟用")}</Pill>}</td>
             <td className="px-4 py-3">
               <div className="flex gap-1.5">
+                <Btn kind="ghost" data-testid={`admin-reset-pw-${a.user_id}`} onClick={() => setResetTarget(a)}><KeyRound className="h-3.5 w-3.5" />{tr("重設密碼")}</Btn>
                 {!a.is_super && <Btn kind="ghost" data-testid={`admin-super-${a.user_id}`} onClick={() => makeSuper(a.user_id)}><ShieldCheck className="h-3.5 w-3.5" />{tr("設超管")}</Btn>}
                 {!a.is_self && <Btn kind="danger" data-testid={`admin-revoke-${a.user_id}`} onClick={() => revoke(a.user_id)}><Trash2 className="h-3.5 w-3.5" /></Btn>}
               </div>
             </td>
           </tr>
         )} />
+      {resetTarget && <ChangePasswordDialog callApi={callApi} target={resetTarget} onClose={() => setResetTarget(null)} />}
     </div>
   );
 }

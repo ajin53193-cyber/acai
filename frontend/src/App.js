@@ -29,6 +29,8 @@ import WalletTransactions from "@/pages/account/WalletTransactions";
 import WalletTopups from "@/pages/account/WalletTopups";
 import GoogleCallback from "@/pages/GoogleCallback";
 import AdminLogin from "@/pages/AdminLogin";
+import NotFound from "@/pages/NotFound";
+import { ADMIN_BASE, ADMIN_LOGIN } from "@/lib/adminPath";
 import Info from "@/pages/Info";
 import ArticleCenter from "@/pages/ArticleCenter";
 import ArticleDetail from "@/pages/ArticleDetail";
@@ -99,9 +101,10 @@ function App() {
                   </Route>
                   <Route path="/sign-in/*" element={<AuthRedirect />} />
                   <Route path="/sign-up/*" element={<AuthRedirect />} />
+                  <Route path="*" element={<NotFound />} />
                 </Route>
-                <Route path="/admin/login" element={<AdminLogin />} />
-                <Route path="/admin" element={<Admin />} />
+                <Route path={ADMIN_LOGIN} element={<AdminLogin />} />
+                <Route path={ADMIN_BASE} element={<Admin />} />
                 <Route path="/auth/google" element={<GoogleCallback />} />
                 <Route path="/sso-callback" element={<AuthenticateWithRedirectCallback signInFallbackRedirectUrl="/" signUpFallbackRedirectUrl="/" />} />
               </Routes>

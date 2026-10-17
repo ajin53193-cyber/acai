@@ -5,6 +5,7 @@ import { useClerk } from "@clerk/react";
 import { toast } from "sonner";
 import { publicApi } from "@/lib/api";
 import { tr } from "@/i18n";
+import { ADMIN_BASE } from "@/lib/adminPath";
 
 const inp = "w-full h-12 rounded-xl bg-slate-100 px-4 text-sm outline-none focus:ring-2 focus:ring-orange-300 placeholder:text-slate-400";
 const err = (e, f) => e?.response?.data?.detail || e?.errors?.[0]?.message || f;
@@ -40,7 +41,7 @@ export default function AdminLogin() {
       const si = await signIn.create({ strategy: "ticket", ticket: r.data.ticket });
       await setActive({ session: si.createdSessionId });
       toast.success(tr("後台登入成功"));
-      navigate("/admin", { replace: true });
+      navigate(ADMIN_BASE, { replace: true });
     } catch (e) { toast.error(err(e, tr("驗證失敗"))); }
     setBusy(false);
   };

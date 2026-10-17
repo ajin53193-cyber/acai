@@ -1665,6 +1665,60 @@ async def admin_role_delete(rid: str, admin: dict = Depends(require_super)):
     return {"ok": True}
 
 
+# ---- Admin passwords ----
+class AdminChangePwIn(BaseModel):
+    old_password: str
+    new_password: str
+
+
+class AdminResetPwIn(BaseModel):
+    new_password: str
+
+
+PW_RULE = "密碼需 8~32 位，且同時包含字母與數字"
+
+
+def _admin_pw_ok(p: str) -> bool:
+    return 8 <= len(p) <= 32 and bool(re.search(r"[0-9]", p)) and bool(re.search(r"[a-zA-Z]", p))
+
+
+async def _set_clerk_password(uid: str, new_password: str):
+    r = await email_auth._clerk("PATCH", f"/users/{uid}", json={"password": new_password, "sign_out_of_other_sessions": True})
+    if r.status_code >= 300:
+        code = ((r.json().get("errors") or [{}])[0].get("code") or "") if r.headers.get("content-type", "").startswith("application/json") else ""
+        if code == "form_password_pwned":
+            raise HTTPException(status_code=400, detail="此密碼曾出現在外洩資料庫中，請換一個更安全的密碼")
+        if code.startswith("form_password"):
+            raise HTTPException(status_code=400, detail=PW_RULE)
+        raise HTTPException(status_code=502, detail="密碼服務暫時無法使用，請稍後再試")
+
+
+@router.post("/me/password")
+async def admin_change_own_password(body: AdminChangePwIn, admin: dict = Depends(current_admin)):
+    if not _admin_pw_ok(body.new_password):
+        raise HTTPException(status_code=400, detail=PW_RULE)
+    if body.new_password == body.old_password:
+        raise HTTPException(status_code=400, detail="新密碼不可與舊密碼相同")
+    r = await email_auth._clerk("POST", f"/users/{admin['user_id']}/verify_password", json={"password": body.old_password})
+    if r.status_code != 200 or not r.json().get("verified"):
+        raise HTTPException(status_code=401, detail="舊密碼錯誤")
+    await _set_clerk_password(admin["user_id"], body.new_password)
+    await record_admin_log(admin["user_id"], admin.get("email", ""), "PASSWORD", "管理員修改自己的密碼", 200)
+    return {"ok": True}
+
+
+@router.post("/admins/{uid}/password")
+async def admin_reset_password(uid: str, body: AdminResetPwIn, admin: dict = Depends(require_super)):
+    if not _admin_pw_ok(body.new_password):
+        raise HTTPException(status_code=400, detail=PW_RULE)
+    target = await db.users.find_one({"user_id": uid}, {"_id": 0, "email": 1, "role": 1})
+    if not target or target.get("role") != "admin":
+        raise HTTPException(status_code=404, detail="管理員不存在")
+    await _set_clerk_password(uid, body.new_password)
+    await record_admin_log(admin["user_id"], admin.get("email", ""), "PASSWORD", f"重設管理員密碼 {target.get('email', uid)}", 200)
+    return {"ok": True}
+
+
 # ---- Admins ----
 class PromoteIn(BaseModel):
     email: str

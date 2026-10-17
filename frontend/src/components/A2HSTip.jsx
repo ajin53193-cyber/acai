@@ -9,7 +9,7 @@ const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 export function A2HSTip({ onOpen, pathname }) {
   const [show, setShow] = useState(false);
   useEffect(() => {
-    if (!isMobile || isStandalone() || pathname.startsWith("/admin") || sessionStorage.getItem("a2hs_tip_shown")) return;
+    if (!isMobile || isStandalone() || isAdminPath(pathname) || sessionStorage.getItem("a2hs_tip_shown")) return;
     const t = setTimeout(() => { sessionStorage.setItem("a2hs_tip_shown", "1"); setShow(true); track("a2hs_tip_shown", "popup"); }, 3000);
     return () => clearTimeout(t);
   }, [pathname]);

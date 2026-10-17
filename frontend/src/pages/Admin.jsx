@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Show, useUser } from "@clerk/react";
-import { LayoutDashboard, Package, ShoppingBag, Star, DollarSign, Tag, Users, Plus, Pencil, Trash2, X, Loader2, ArrowLeft, TrendingUp, Clock, ShieldAlert, Settings, CreditCard, ArrowUp, ArrowDown, ImagePlus, Wallet, BadgeCheck, MessageSquare, Globe, Bell, Megaphone, LayoutGrid, Gift, ShieldCheck, ChevronDown, Construction, PanelLeftClose, PanelLeftOpen, Headphones, Volume2, VolumeX } from "lucide-react";
+import { KeyRound, LayoutDashboard, Package, ShoppingBag, Star, DollarSign, Tag, Users, Plus, Pencil, Trash2, X, Loader2, ArrowLeft, TrendingUp, Clock, ShieldAlert, Settings, CreditCard, ArrowUp, ArrowDown, ImagePlus, Wallet, BadgeCheck, MessageSquare, Globe, Bell, Megaphone, LayoutGrid, Gift, ShieldCheck, ChevronDown, Construction, PanelLeftClose, PanelLeftOpen, Headphones, Volume2, VolumeX } from "lucide-react";
 import { toast } from "sonner";
 import { useApi, publicApi } from "@/lib/api";
 import { STATUS_LABELS, STATUS_ORDER, StatusBadge } from "@/lib/status";
@@ -17,6 +17,8 @@ import { NotificationsAdmin } from "@/pages/admin/NotificationsAdmin";
 import { ActivitiesAdmin } from "@/pages/admin/ActivitiesAdmin";
 import { SiteConfigAdmin } from "@/pages/admin/SiteConfigAdmin";
 import { FooterAdmin } from "@/pages/admin/FooterAdmin";
+import { ChangePasswordDialog } from "@/pages/admin/ChangePasswordDialog";
+import { ADMIN_BASE, ADMIN_LOGIN } from "@/lib/adminPath";
 import { ProductsAdmin } from "@/pages/admin/ProductsAdmin";
 import { CategoriesAdmin } from "@/pages/admin/CategoriesAdmin";
 import { ReviewsAdmin } from "@/pages/admin/ReviewsAdmin";
@@ -78,7 +80,7 @@ const NavGroup = ({ gkey, g, Icon, items, section, setSection, open, toggle, bad
         <div className="w-44 rounded-xl bg-white shadow-xl border border-slate-200 py-1.5 admin-flyout">
           <div className="px-3 py-1.5 text-[11px] font-bold text-slate-400 uppercase tracking-wide">{g}</div>
           {items.map(([k, label]) => (
-            <a key={k} href={`/admin?s=${k}`} data-testid={`admin-nav-${k}`} onClick={(e) => { if (e.metaKey || e.ctrlKey || e.shiftKey || e.button === 1) return; e.preventDefault(); setSection(k); }}
+            <a key={k} href={`${ADMIN_BASE}?s=${k}`} data-testid={`admin-nav-${k}`} onClick={(e) => { if (e.metaKey || e.ctrlKey || e.shiftKey || e.button === 1) return; e.preventDefault(); setSection(k); }}
               className={`flex items-center gap-2 mx-1.5 rounded-md px-2.5 py-1.5 text-[13px] transition-colors ${section === k ? "bg-orange-500 text-white font-semibold" : "text-slate-600 hover:bg-slate-100"}`}>
               <span className="truncate">{label}</span><Badge n={badges[k] || 0} testId={`admin-nav-badge-${k}`} />
             </a>
@@ -98,7 +100,7 @@ const NavGroup = ({ gkey, g, Icon, items, section, setSection, open, toggle, bad
       {open && (
         <div className="mt-0.5 mb-1 ml-3.5 pl-3 border-l border-slate-200 space-y-0.5">
           {items.map(([k, label]) => (
-            <a key={k} href={`/admin?s=${k}`} data-testid={`admin-nav-${k}`} onClick={(e) => { if (e.metaKey || e.ctrlKey || e.shiftKey || e.button === 1) return; e.preventDefault(); setSection(k); }}
+            <a key={k} href={`${ADMIN_BASE}?s=${k}`} data-testid={`admin-nav-${k}`} onClick={(e) => { if (e.metaKey || e.ctrlKey || e.shiftKey || e.button === 1) return; e.preventDefault(); setSection(k); }}
               className={`w-full flex items-center gap-2 rounded-md px-2.5 py-1.5 text-[13px] transition-colors ${section === k ? "bg-orange-500 text-white font-semibold" : "text-slate-500 hover:bg-slate-100 hover:text-slate-800"}`}>
               <span className="truncate">{label}</span>
               <Badge n={badges[k] || 0} testId={`admin-nav-badge-${k}`} />
@@ -269,6 +271,7 @@ function AdminInner() {
   const [tabs, setTabs] = useState(() => { const t = readTabs(); return t.includes(initialSection) ? t : [...t, initialSection].slice(-MAX_TABS); });
   useEffect(() => { localStorage.setItem("admin_tabs", JSON.stringify(tabs)); }, [tabs]);
   const [collapsed, setCollapsed] = useState(() => localStorage.getItem("admin_sidebar_collapsed") === "1");
+  const [pwOpen, setPwOpen] = useState(false);
   const toggleCollapsed = () => setCollapsed((c) => { localStorage.setItem("admin_sidebar_collapsed", c ? "0" : "1"); return !c; });
   const pushUrl = (k) => { const u = new URL(window.location.href); u.searchParams.set("s", k); window.history.pushState({}, "", u); };
   const setSection = useCallback((k) => { setSectionState(k); setTabs((t) => (t.includes(k) ? t : [...t, k].slice(-MAX_TABS))); pushUrl(k); }, []);
@@ -329,14 +332,18 @@ function AdminInner() {
           {visibleMenu.map((m) => <NavGroup key={m.key} gkey={m.key} g={m.g} Icon={m.icon} items={m.items} section={section} setSection={go} open={open.includes(m.key)} toggle={() => toggle(m.key)} badges={badges} collapsed={collapsed} />)}
           <div className="pt-2 mt-2 border-t border-slate-800">
             {LEAVES.map(([k, label, Icon]) => (
-              <a key={k} href={`/admin?s=${k}`} data-testid={`admin-nav-${k}`} title={label} onClick={(e) => { if (e.metaKey || e.ctrlKey || e.shiftKey || e.button === 1) return; e.preventDefault(); setSection(k); }}
+              <a key={k} href={`${ADMIN_BASE}?s=${k}`} data-testid={`admin-nav-${k}`} title={label} onClick={(e) => { if (e.metaKey || e.ctrlKey || e.shiftKey || e.button === 1) return; e.preventDefault(); setSection(k); }}
                 className={`w-full flex items-center gap-2.5 rounded-lg text-sm font-semibold transition-colors ${collapsed ? "justify-center h-10 px-0" : "px-3 py-2"} ${section === k ? "bg-orange-500 text-white" : "text-slate-600 hover:bg-slate-100"}`}>
                 <Icon className={collapsed ? "h-[18px] w-[18px]" : "h-4 w-4 shrink-0"} />{!collapsed && <span className="truncate">{label}</span>}
               </a>
             ))}
           </div>
         </nav>
-        <button data-testid="admin-logout" title={tr("登出後台")} onClick={() => { localStorage.removeItem("admin_token"); window.location.href = "/admin/login"; }} className={`flex items-center gap-2 py-2.5 text-xs text-slate-500 hover:text-red-500 border-t border-slate-800 shrink-0 ${collapsed ? "justify-center" : "px-4"}`}><ShieldAlert className="h-4 w-4" /> {!collapsed && <span>{tr("登出後台")}</span>}</button>
+        <button data-testid="admin-change-password" title={tr("修改密碼")} onClick={() => setPwOpen(true)} className={`flex items-center gap-2 py-2.5 text-xs text-slate-400 hover:text-white border-t border-slate-800 shrink-0 ${collapsed ? "justify-center" : "px-4"}`}>
+          <KeyRound className="h-4 w-4" /> {!collapsed && <span>{tr("修改密碼")}</span>}
+        </button>
+        {pwOpen && <ChangePasswordDialog callApi={callApi} onClose={() => setPwOpen(false)} />}
+        <button data-testid="admin-logout" title={tr("登出後台")} onClick={() => { localStorage.removeItem("admin_token"); window.location.href = ADMIN_LOGIN; }} className={`flex items-center gap-2 py-2.5 text-xs text-slate-500 hover:text-red-500 border-t border-slate-800 shrink-0 ${collapsed ? "justify-center" : "px-4"}`}><ShieldAlert className="h-4 w-4" /> {!collapsed && <span>{tr("登出後台")}</span>}</button>
         <Link to="/" title={tr("返回商城")} className={`flex items-center gap-2 py-3 text-xs text-slate-500 hover:text-white border-t border-slate-800 shrink-0 ${collapsed ? "justify-center" : "px-4"}`}>
           <ArrowLeft className="h-4 w-4" /> {!collapsed && <span>{tr("返回商城")}</span>}
         </Link>
@@ -469,9 +476,9 @@ export default function Admin() {
 
   useEffect(() => {
     if (!isLoaded) return;
-    if (!isSignedIn || !localStorage.getItem("admin_token")) { navigate("/admin/login", { replace: true }); return; }
+    if (!isSignedIn || !localStorage.getItem("admin_token")) { navigate(ADMIN_LOGIN, { replace: true }); return; }
     callApi({ method: "GET", url: "/me" }).then((r) => setRole(r.data.role)).catch(() => setRole("member"));
-    callApi({ method: "GET", url: "/admin/notifications" }).catch((e) => { if (e.response?.status === 401) { localStorage.removeItem("admin_token"); navigate("/admin/login", { replace: true }); } });
+    callApi({ method: "GET", url: "/admin/notifications" }).catch((e) => { if (e.response?.status === 401) { localStorage.removeItem("admin_token"); navigate(ADMIN_LOGIN, { replace: true }); } });
   }, [isLoaded, isSignedIn, callApi, navigate]);
 
   if (!isLoaded || (isSignedIn && role === null)) return <div className="min-h-screen bg-slate-950 flex items-center justify-center"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>;

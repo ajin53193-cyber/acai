@@ -15,6 +15,7 @@ import { AddToHomeDialog } from "@/components/AddToHomeDialog";
 import { A2HSTip } from "@/components/A2HSTip";
 import { logoTap } from "@/lib/vpDebug";
 import { isStandalone } from "@/lib/track";
+import { ADMIN_BASE } from "@/lib/adminPath";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -241,7 +242,7 @@ export default function Header() {
                   <span className="text-[13px] text-slate-700">{tr("新增桌面")}</span>
                 </button>
                 {isAdmin && (
-                  <Link to="/admin" onClick={() => setMobileNav(false)} className="flex flex-col items-center gap-2.5">
+                  <Link to={ADMIN_BASE} onClick={() => setMobileNav(false)} className="flex flex-col items-center gap-2.5">
                     <span className="h-[62px] w-[62px] rounded-[18px] bg-gradient-to-br from-slate-700 to-slate-900 text-white flex items-center justify-center"><Shield className="h-7 w-7" strokeWidth={1.9} /></span>
                     <span className="text-[13px] text-slate-700">{tr("管理後台")}</span>
                   </Link>
