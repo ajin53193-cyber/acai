@@ -153,3 +153,5 @@
 - 本機驗證（mock 8102/8103 + playwright）：超管全流程、受限管理員只看到勾選模組與平台、403/404/401 正確；測試資料已清除。patch.zip 已更新。
 
 - [2026-06] 總後台頁面同時可由 `/api/hub-admin/ui` 進入（預覽環境可用，正式站用 /12334）。
+
+- [2026-06] 四方真實平台已接入預覽 Hub：base https://print8.8bc8uyz.com/api/admin-api（key 存於 settings.hub_platforms），實測 58 單 / 9 paid / 2660.9 USDT 與其 /stats 一致；sifang row 新增 remark 欄並可搜尋。

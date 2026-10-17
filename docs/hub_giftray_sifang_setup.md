@@ -31,7 +31,7 @@ curl -X POST https://四方域名/api/admin-api/key/rotate -H "Authorization: Be
 | 代號 | `giftray` | `sifang` |
 | 名稱 | `Giftray` | `四方USDT` |
 | 類型 | **Giftray 商城（直接對接）** | **四方 USDT 收款平台（直接對接）** |
-| 接口地址前綴 | `https://lpw-888.com/api` | `https://四方域名/api/admin-api` |
+| 接口地址前綴 | `https://lpw-888.com/api` | `https://print8.8bc8uyz.com/api/admin-api` |
 | 金鑰 | `ak_…`（Giftray 後台管理 API 金鑰） | `ak_…`（四方 X-Api-Key） |
 | 客服後台地址 | `https://lpw-888.com/admin`（或其客服頁網址） | 四方後台客服頁網址 |
 

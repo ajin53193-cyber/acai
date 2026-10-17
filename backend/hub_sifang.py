@@ -121,7 +121,7 @@ def _row(o: dict) -> dict:
     addr = o.get("wallet_address") or ""
     return {"order_no": o.get("order_no"), "out_trade_no": o.get("out_trade_no") or "", "merchant_id": o.get("merchant_id") or "", "merchant_name": o.get("merchant_name") or o.get("merchant_id") or "",
             "amount_usdt": round(float(o.get("amount_usdt") or 0), 2), "pay_amount": round(float(o.get("pay_amount") or 0), 4), "network": o.get("network") or "", "wallet_address": addr,
-            "status": o.get("status"), "tx_id": o.get("tx_id") or "", "manual_confirmed": bool(o.get("manual_confirmed")), "created_at": o.get("created_at"), "paid_at": o.get("paid_at"), "expires_at": o.get("expires_at")}
+            "status": o.get("status"), "tx_id": o.get("tx_id") or "", "manual_confirmed": bool(o.get("manual_confirmed")), "remark": o.get("remark") or "", "created_at": o.get("created_at"), "paid_at": o.get("paid_at"), "expires_at": o.get("expires_at")}
 
 
 async def overview(p: dict, days: int) -> dict:
@@ -163,7 +163,7 @@ async def order_list(p: dict, status: str = "", merchant: str = "", network: str
         rows = [o for o in rows if o["network"] == network]
     if q:
         ql = q.lower()
-        rows = [o for o in rows if ql in o["order_no"].lower() or ql in o["out_trade_no"].lower() or ql in o["tx_id"].lower() or ql in o["wallet_address"].lower() or ql in o["merchant_name"].lower()]
+        rows = [o for o in rows if ql in o["order_no"].lower() or ql in o["out_trade_no"].lower() or ql in o["tx_id"].lower() or ql in o["wallet_address"].lower() or ql in o["merchant_name"].lower() or ql in o["remark"].lower()]
     rows.sort(key=lambda o: o.get("created_at") or "", reverse=True)
     return {"platform": _tag(p), "total": len(rows), "rows": rows[:max(1, min(size, 500))], "merchants": sorted({o["merchant_name"] for o in rows if o["merchant_name"]}), "networks": sorted({o["network"] for o in rows if o["network"]})}
 
