@@ -113,25 +113,6 @@ export default function WalletTopUp() {
           </div>
         )}
 
-        {pending && pending.status === "pending" && (
-          <div className="mt-4 rounded-2xl bg-white border-2 border-orange-400 overflow-hidden" data-testid="usdt-pending-panel">
-            <div className="flex items-center gap-2 px-4 py-3 bg-orange-50/70">
-              <span className="h-2 w-2 rounded-full bg-orange-500 animate-pulse" />
-              <span className="text-[14px] font-bold text-slate-900">{tr("USDT 充值單等待付款中")}</span>
-              <span className="rounded-full bg-orange-500 text-white text-[11px] font-semibold px-2 py-0.5">{pending.network}</span>
-            </div>
-            <div className="px-4 py-3 text-sm">
-              <div className="flex items-baseline gap-2"><span className="text-slate-600">{tr("應付金額")}</span><span className="font-head text-2xl font-extrabold text-orange-500" data-testid="usdt-pay-amount">{pending.pay_amount} <span className="text-sm">USDT</span></span><span className="text-[11px] text-slate-400">{tr("請精確轉帳此金額")}</span></div>
-              {pending.wallet_address && <div className="mt-2 rounded-lg bg-slate-100 px-3 py-2 text-[11px] text-slate-600 break-all">{tr("收款地址：")}<span className="font-mono text-slate-800" data-testid="usdt-wallet-address">{pending.wallet_address}</span></div>}
-              <div className="mt-3 flex flex-wrap items-center gap-2">
-                <a href={pending.pay_url} target="_blank" rel="noreferrer" data-testid="usdt-open-cashier" className="h-9 px-5 rounded-full bg-orange-500 hover:bg-orange-600 text-white text-xs font-semibold flex items-center transition-colors">{tr("重新開啟收銀台")}</a>
-                <button data-testid="usdt-cancel-pending" onClick={() => setPending(null)} className="h-9 px-5 rounded-full bg-orange-50 text-orange-500 text-xs font-semibold hover:bg-orange-100 transition-colors">{tr("關閉")}</button>
-                <span className="text-[11px] text-slate-400 ml-auto">{tr("付款完成後自動入帳（每 5 秒查詢）")}</span>
-              </div>
-            </div>
-          </div>
-        )}
-
         <div className="mt-5 pt-4 border-t border-dashed border-slate-200 flex flex-col sm:flex-row sm:items-center gap-4">
           <div className="flex-1 flex items-center gap-3">
             <span className="text-sm text-slate-600">{tr("充值金額")}</span>
