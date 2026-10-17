@@ -19,6 +19,8 @@ import { SiteConfigAdmin } from "@/pages/admin/SiteConfigAdmin";
 import { FooterAdmin } from "@/pages/admin/FooterAdmin";
 import { ChangePasswordDialog } from "@/pages/admin/ChangePasswordDialog";
 import { NewOrderAlert } from "@/pages/admin/NewOrderAlert";
+import { HubPlatformsAdmin } from "@/pages/admin/HubPlatformsAdmin";
+import { HubMembersAdmin } from "@/pages/admin/HubAdmin";
 import { ADMIN_BASE, ADMIN_LOGIN } from "@/lib/adminPath";
 import { ProductsAdmin } from "@/pages/admin/ProductsAdmin";
 import { CategoriesAdmin } from "@/pages/admin/CategoriesAdmin";
@@ -52,13 +54,13 @@ import { tr } from "@/i18n";
 // Full admin IA — collapsible two-level menu. Keys map to real pages in PAGES; everything else renders <Soon/>.
 const MENU = [
   { key: "dashboard", g: tr("儀表盤"), icon: LayoutDashboard, defaultOpen: true, items: [["overview", tr("數據概覽")], ["sales-analysis", tr("銷售分析")], ["download-reports", tr("下載報表")]] },
-  { key: "users", g: tr("用戶管理"), icon: Users, defaultOpen: true, items: [["members", tr("用戶列表")], ["user-tags", tr("用戶標籤")], ["member-assets", tr("會員資產")], ["blacklist", tr("黑名單管理")], ["user-logs", tr("用戶日誌")], ["verifications", tr("用戶認證")], ["user-batch", tr("用戶批量操作")], ["feedback", tr("用戶反饋")], ["user-reports", tr("用戶報表統計")]] },
+  { key: "users", g: tr("用戶管理"), icon: Users, defaultOpen: true, items: [["members", tr("用戶列表")], ["hub-members", tr("多平台會員")], ["user-tags", tr("用戶標籤")], ["member-assets", tr("會員資產")], ["blacklist", tr("黑名單管理")], ["user-logs", tr("用戶日誌")], ["verifications", tr("用戶認證")], ["user-batch", tr("用戶批量操作")], ["feedback", tr("用戶反饋")], ["user-reports", tr("用戶報表統計")]] },
   { key: "support", g: tr("客服"), icon: Headphones, defaultOpen: true, items: [["chat-sessions", tr("客服會話")]] },
   { key: "products", g: tr("商品管理"), icon: Package, items: [["products", tr("商品列表")], ["categories", tr("商品分類")], ["reviews", tr("商品評論")]] },
   { key: "giftcards", g: tr("禮品卡"), icon: Gift, items: [["giftcard-list", tr("禮品卡列表")], ["giftcard-pool", tr("號碼庫")], ["giftcard-orders", tr("訂單管理")], ["giftcard-new", tr("添加禮品卡")], ["giftcard-trade-query", tr("交易號查詢")], ["giftcard-api", tr("核銷接口API")], ["giftcard-report", tr("稽核報表")]] },
   { key: "ops", g: tr("運營管理"), icon: Megaphone, items: [["home-decoration", tr("首頁裝修")], ["activities", tr("新聞 & 促銷")], ["banners", tr("橫幅 / 輪播圖")], ["footer", tr("頁尾管理")], ["recommendations", tr("推薦位管理")], ["promos", tr("優惠券管理")], ["notifications", tr("消息中心")], ["announcements", tr("公告管理")]] },
   { key: "finance", g: tr("財務管理"), icon: DollarSign, items: [["order-settlement", tr("訂單結算")], ["topups", tr("充值審核")], ["payments", tr("支付渠道配置")], ["reconciliation", tr("財務對賬")], ["currencies", tr("匯率配置")], ["finance-reports", tr("財務報表")]] },
-  { key: "system", g: tr("系統配置"), icon: Settings, items: [["siteconfig", tr("基礎設置")], ["admins", tr("管理員管理")], ["roles", tr("角色權限管理")], ["operation-logs", tr("操作日誌")], ["sms-config", tr("短信配置")], ["email-config", tr("郵箱配置")], ["oauth-config", tr("授權配置")], ["translations", tr("翻譯管理")], ["paylogos", tr("頁尾支付Logo")]] },
+  { key: "system", g: tr("系統配置"), icon: Settings, items: [["siteconfig", tr("基礎設置")], ["hub-platforms", tr("平台接入")], ["admins", tr("管理員管理")], ["roles", tr("角色權限管理")], ["operation-logs", tr("操作日誌")], ["sms-config", tr("短信配置")], ["email-config", tr("郵箱配置")], ["oauth-config", tr("授權配置")], ["translations", tr("翻譯管理")], ["paylogos", tr("頁尾支付Logo")]] },
 ];
 const LEAVES = [["security", tr("安全配置"), ShieldCheck]];
 const SECTION_LABEL = Object.fromEntries([...MENU.flatMap((m) => m.items), ...LEAVES.map(([k, l]) => [k, l])]);
@@ -136,6 +138,8 @@ const PAGES = {
   siteconfig: (p) => <SiteConfigAdmin {...p} />,
   banners: (p) => <SiteConfigAdmin {...p} only={["top_promo", "hero", "promo_banners", "detail_banners", "announcement"]} title={tr("橫幅 / 輪播圖管理")} sub={tr("頂部推廣條、首頁主橫幅、活動橫幅、商品頁 Banner 與公告條皆在此修改；首頁輪播大圖請到「首頁裝修」。")} />,
   footer: (p) => <FooterAdmin {...p} />,
+  "hub-platforms": (p) => <HubPlatformsAdmin {...p} />,
+  "hub-members": (p) => <HubMembersAdmin {...p} />,
   translations: (p) => <TranslationsAdmin {...p} />,
   paylogos: (p) => <PaymentLogos {...p} />,
   "download-reports": (p) => <ReportsAdmin {...p} />,
@@ -278,6 +282,8 @@ function AdminInner() {
   const [collapsed, setCollapsed] = useState(() => localStorage.getItem("admin_sidebar_collapsed") === "1");
   const [pwOpen, setPwOpen] = useState(false);
   const [newOrders, setNewOrders] = useState([]);
+  const [hubPlats, setHubPlats] = useState([]);
+  useEffect(() => { callApi({ method: "GET", url: "/admin/hub/platforms/public" }).then((r) => setHubPlats(r.data.platforms.filter((x) => x.cs_url))).catch(() => {}); }, [callApi]);
   const onOrders = useCallback((list) => setNewOrders((prev) => { const ids = new Set(prev.map((o) => o.id)); return [...list.filter((o) => !ids.has(o.id)), ...prev].slice(0, 20); }), []);
   const toggleCollapsed = () => setCollapsed((c) => { localStorage.setItem("admin_sidebar_collapsed", c ? "0" : "1"); return !c; });
   const pushUrl = (k) => { const u = new URL(window.location.href); u.searchParams.set("s", k); window.history.pushState({}, "", u); };
@@ -317,9 +323,13 @@ function AdminInner() {
   }, [callApi]);
 
   const allowed = (k) => !me || me.is_super || (me.permissions || []).includes(k);
+  const extCs = hubPlats.map((p) => [`ext-cs:${p.id}`, `${p.name} ${tr("客服")}`]);
+  const menuWithExt = extCs.length ? MENU.map((m) => (m.key === "support" ? { ...m, items: [...m.items, ...extCs] } : m)) : MENU;
   const visibleMenu = (me && !me.is_super)
-    ? MENU.map((m) => ({ ...m, items: m.items.filter(([k]) => allowed(k)) })).filter((m) => m.items.length)
-    : MENU;
+    ? menuWithExt.map((m) => ({ ...m, items: m.items.filter(([k]) => k.startsWith("ext-cs:") ? allowed("chat-sessions") : allowed(k)) })).filter((m) => m.items.length)
+    : menuWithExt;
+  // External platform customer-service entries open that platform's console in a new tab.
+  const setSectionOrExt = (k) => { if (k.startsWith("ext-cs:")) { const p = hubPlats.find((x) => `ext-cs:${x.id}` === k); if (p?.cs_url) window.open(p.cs_url, "_blank", "noopener"); return; } setSection(k); };
 
   useEffect(() => { if (me && !allowed(section)) { const first = visibleMenu[0]?.items[0]?.[0] || "security"; setSection(first); } }, [me]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -336,7 +346,7 @@ function AdminInner() {
         </div>
         {collapsed && <button data-testid="admin-sidebar-toggle" onClick={toggleCollapsed} title={tr("展開導航")} className="mx-auto mt-2 h-8 w-10 rounded-lg flex items-center justify-center text-slate-400 hover:bg-slate-100 hover:text-slate-700 shrink-0"><PanelLeftOpen className="h-4 w-4" /></button>}
         <nav className={`flex-1 py-3 space-y-0.5 px-2 ${collapsed ? "overflow-visible" : "overflow-y-auto"}`}>
-          {visibleMenu.map((m) => <NavGroup key={m.key} gkey={m.key} g={m.g} Icon={m.icon} items={m.items} section={section} setSection={go} open={open.includes(m.key)} toggle={() => toggle(m.key)} badges={badges} collapsed={collapsed} />)}
+          {visibleMenu.map((m) => <NavGroup key={m.key} gkey={m.key} g={m.g} Icon={m.icon} items={m.items} section={section} setSection={(k) => (k.startsWith("ext-cs:") ? setSectionOrExt(k) : go(k))} open={open.includes(m.key)} toggle={() => toggle(m.key)} badges={badges} collapsed={collapsed} />)}
           <div className="pt-2 mt-2 border-t border-slate-800">
             {LEAVES.map(([k, label, Icon]) => (
               <a key={k} href={`${ADMIN_BASE}?s=${k}`} data-testid={`admin-nav-${k}`} title={label} onClick={(e) => { if (e.metaKey || e.ctrlKey || e.shiftKey || e.button === 1) return; e.preventDefault(); setSection(k); }}

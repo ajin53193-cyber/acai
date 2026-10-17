@@ -24,7 +24,7 @@ export function NewOrderAlert({ orders, onView, onClose }) {
               <span className={`mt-0.5 h-8 w-8 rounded-lg flex items-center justify-center shrink-0 ${o.is_giftcard_order ? "bg-pink-50 text-pink-500" : "bg-orange-50 text-orange-500"}`}>{o.is_giftcard_order ? <Gift className="h-4 w-4" /> : <Package className="h-4 w-4" />}</span>
               <div className="min-w-0 flex-1">
                 <div className="flex items-center justify-between gap-2"><span className="font-semibold text-slate-800">#{o.order_no || o.id.slice(0, 8)}</span><span className="font-bold text-orange-600">${o.total_usd}</span></div>
-                <div className="text-xs text-slate-500 truncate">{(o.items || []).map((it) => `${it.product_name || ""} ${it.spec_label || ""} ×${it.qty || 1}`).join("，")}</div>
+                <div className="text-xs text-slate-500 truncate">{(o.items || []).map((it) => `${it.product_name || ""} ${it.spec_label || ""} ×${it.qty || it.quantity || 1}`).join("，")}</div>
                 {o.user_email && <div className="text-[11px] text-slate-400 truncate">{o.user_email}</div>}
               </div>
             </li>

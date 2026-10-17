@@ -26,6 +26,7 @@ import cms_api
 import payments_api
 import chat_api
 import review_auto
+import hub_api
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -417,7 +418,7 @@ async def download_export(token: str):
 @api_router.get("/_export/{token}/{name}")
 async def download_export_file(token: str, name: str):
     expected = os.environ.get("DATA_EXPORT_TOKEN")
-    files = {"storage.py": Path("/app/backend/storage.py"), "data.zip": Path("/app/export/gogo589_data.zip"), "patch.zip": Path("/app/export/patch.zip")}
+    files = {"storage.py": Path("/app/backend/storage.py"), "data.zip": Path("/app/export/gogo589_data.zip"), "patch.zip": Path("/app/export/patch.zip"), "hub_platform_spec.md": Path("/app/docs/hub_platform_spec.md")}
     if not expected or not hmac.compare_digest(token, expected) or name not in files:
         raise HTTPException(status_code=404)
     from fastapi.responses import FileResponse
@@ -3337,6 +3338,8 @@ chat_api.db = db
 chat_api.upload_b64 = _upload_b64
 app.include_router(chat_api.router)
 review_auto.db = db
+hub_api.db = db
+app.include_router(hub_api.router)
 review_auto.upload_b64 = _upload_b64
 app.include_router(review_auto.router)
 app.include_router(giftcard_api.router, prefix="/api")

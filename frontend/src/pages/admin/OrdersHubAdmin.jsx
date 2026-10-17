@@ -1,10 +1,11 @@
 import { useState } from "react";
-import { Gift, ListOrdered } from "lucide-react";
+import { Gift, ListOrdered, Layers } from "lucide-react";
 import { tr } from "@/i18n";
 import { OrdersAdmin } from "@/pages/admin/OrdersAdmin";
 import { GiftCardOrdersAdmin } from "@/pages/admin/GiftCardPoolAdmin";
+import { HubOrdersAdmin } from "@/pages/admin/HubAdmin";
 
-const TABS = [["gift", tr("禮品卡訂單"), Gift], ["all", tr("全部訂單"), ListOrdered]];
+const TABS = [["gift", tr("禮品卡訂單"), Gift], ["all", tr("全部訂單"), ListOrdered], ["hub", tr("多平台訂單 / 充值"), Layers]];
 
 export function OrdersHubAdmin({ callApi, defaultTab = "gift" }) {
   const [tab, setTab] = useState(() => { sessionStorage.removeItem("orders-hub-tab"); return defaultTab; });
@@ -18,7 +19,7 @@ export function OrdersHubAdmin({ callApi, defaultTab = "gift" }) {
           </button>
         ))}
       </div>
-      {tab === "gift" ? <GiftCardOrdersAdmin callApi={callApi} /> : <OrdersAdmin callApi={callApi} />}
+      {tab === "gift" ? <GiftCardOrdersAdmin callApi={callApi} /> : tab === "hub" ? <HubOrdersAdmin callApi={callApi} /> : <OrdersAdmin callApi={callApi} />}
     </div>
   );
 }

@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { Card, Head, Pill, fmt } from "@/pages/admin/ui";
 import { STATUS_LABELS, StatusBadge } from "@/lib/status";
 import { tr } from "@/i18n";
+import { HubStatsCards } from "@/pages/admin/HubAdmin";
 
 const COLORS = ["#f97316", "#fb923c", "#fdba74", "#f59e0b", "#84cc16", "#06b6d4", "#8b5cf6", "#ec4899"];
 const RANGES = [[7, tr("近 7 天")], [30, tr("近 30 天")], [90, tr("近 90 天")]];
@@ -80,6 +81,7 @@ export function DashboardAdmin({ callApi, go }) {
       <Head title={tr("總覽儀表板")} sub={tr("營收、充值、用戶與訂單走勢一覽；點擊待辦可直接前往處理。")}
         right={<div className="flex gap-1 bg-white border border-slate-200 rounded-lg p-0.5">{RANGES.map(([k, l]) => <button key={k} data-testid={`dash-range-${k}`} onClick={() => setDays(k)} className={`h-8 px-3 rounded-md text-xs font-semibold ${days === k ? "bg-orange-500 text-white" : "text-slate-600 hover:bg-slate-100"}`}>{l}</button>)}</div>} />
 
+      <HubStatsCards callApi={callApi} days={days} />
       <div className="grid grid-cols-2 xl:grid-cols-4 gap-4 mb-5">
         <Kpi testId="kpi-revenue" icon={TrendingUp} color="bg-orange-500" label={tr("期間營收 (USD)")} value={money(c.revenue_usd)} sub={<Delta cur={c.revenue_usd} prev={p.revenue_usd} />} />
         <Kpi testId="kpi-orders" icon={ShoppingBag} color="bg-sky-500" label={tr("期間訂單數")} value={c.orders} sub={<Delta cur={c.orders} prev={p.orders} />} />
