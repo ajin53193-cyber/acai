@@ -1,20 +1,7 @@
 @echo off
-rem ============================================================
-rem  四方收款平台 - 宝塔一键部署
-rem  用法：宝塔面板 -> 计划任务 -> Shell脚本 -> 执行
-rem  作用：拉取最新代码 -> 装依赖 -> 构建前端 -> 重启后端(8011)
-rem ============================================================
-setlocal
-echo ============================================================
-echo  四方收款平台 一键部署  %date% %time%
-echo ============================================================
-
-rem %~dp0 = 本脚本所在目录(...\deploy\windows\)，保证路径可移植
+REM ============================================================
+REM  Sifang Pay - one-click deploy (run in Baota terminal)
+REM  Usage: D:\wwwroot\sifang\deploy\windows\baota_deploy.bat
+REM  Pull latest code -> deps -> build frontend -> restart backend(8011)
+REM ============================================================
 powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0update.ps1" -Port 8011
-
-echo.
-echo ============================================================
-echo  部署流程结束。请确认上方出现 "后端健康: HTTP 200 (8011)" 与 "完成"。
-echo  完成后浏览器 Ctrl+F5 刷新即可。
-echo ============================================================
-endlocal
