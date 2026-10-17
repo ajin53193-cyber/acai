@@ -2,6 +2,7 @@ import { copyText } from "@/lib/clipboard";
 import { useState, useEffect, useCallback } from "react";
 import api, { formatApiErrorDetail } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
+import AdminApiPanel from "@/components/AdminApiPanel";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -147,6 +148,8 @@ export default function ApiDocsPage() {
           </div>
         </div>
       </div>
+
+      {isAdmin && <AdminApiPanel />}
 
       {sel && <Credentials merchant={sel} isAdmin={isAdmin} onReset={onReset} />}
 
