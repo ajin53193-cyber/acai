@@ -115,3 +115,15 @@ schtasks /query /tn HeyingBackend
 - **提示找不到 python / node / git**：安装后没有重新打开终端；或 Python 安装时没勾 Add to PATH（重装勾上）
 - **AI 客服不回复**：`AI_API_KEY` 为空或 DeepSeek 余额不足
 - **备份**：定期备份 MongoDB（宝塔 → 数据库 → MongoDB → 备份）和 `D:\wwwroot\heying\uploads` 目录
+
+## 搜索引擎收录（百度 / Google）
+
+站点地图由后端动态生成：`https://eztyv.com/sitemap.xml`（nginx 把 `/sitemap.xml` 代理到 `/api/sitemap.xml`，见 `nginx-site.conf`；更新 nginx 配置后在宝塔「重载配置」）。
+后端 `.env` 可加 `SITE_URL=https://eztyv.com`（默认即该域名）。
+
+1. 百度站长：https://ziyuan.baidu.com → 用户中心 → 站点管理 → 添加网站 `https://eztyv.com`
+   → 验证方式选「文件验证」，下载 `baidu_verify_xxx.html`，用宝塔文件管理上传到 `D:\wwwroot\heying\frontend\build\`（同时放一份到 `frontend/public/` 并提交代码，避免重新构建后丢失）
+   → 验证通过后：普通收录 → sitemap → 提交 `https://eztyv.com/sitemap.xml`
+2. Google Search Console：https://search.google.com/search-console → 添加资源（网址前缀）`https://eztyv.com`
+   → 验证方式选「HTML 文件」，同样上传到 build 根目录 → 站点地图 → 提交 `sitemap.xml`
+3. 两边都验证后，1~3 天开始收录；可在百度「普通收录 → 手动提交」里额外粘贴首页/合作页 URL 加速。

@@ -1,0 +1,30 @@
+{
+  "summary": "Verified new copy admin + hotline/wechat + sitemap features. Backend: 5/5 pytest cases pass (GET /api/settings returns copy with defaults compliance_badges + nav/home/cooperation/about/contact/footer, home.hero_title1 default '合赢项目社', contact.hotline/wechat default ''; PUT /api/admin/settings/copy without token returns 401; with admin token updates hero_title1='测试标题' and compliance_badges=['A','B'] then restores; PUT /api/admin/settings sets hotline='138-0000-0000'/wechat='hy_kefu' with 200 AND preserves copy sub-doc (not reset), then restores to empty; GET /api/sitemap.xml returns application/xml containing https://eztyv.com/, /projects, /cooperation, /news, /about, /contact, /tutorials/gift-card). Frontend / : hero-compliance-badges has 3 items; hero shows '合赢项目社'/'聚力项目，合作共赢'; 4 service cards; no '投入区间' anywhere; footer-compliance-badge shows '平台不收取任何费用 · 不承诺收益 · 正规合规项目'; footer-icp-link '桂ICP备2026019806号-2'. Admin /admin: login via admin-username/password/login-btn, admin-tab-copy opens copy-admin, modified copy-home-hero_title1 to '测试文案XYZ', copy-save-btn saves and front page updated, then restored to '合赢项目社'. copy-section-toggle-cooperation expands with 3 modes each having points-0 field. copy-section-toggle-compliance expands and the badge list editor is editable (with testid copy-compliance-compliance_badges-0 — see note). Admin settings tab: settings-hotline-input + settings-wechat-input exist; filled, saved via settings-save-btn; /contact shows contact-hotline + contact-wechat and footer shows footer-hotline + footer-wechat; cleared and re-saved to confirm fields no longer appear. Nav shows 6 links + 联系客服 button with correct text.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_copy_sitemap_contact.py",
+    "/app/test_reports/pytest/copy_sitemap.xml"
+  ],
+  "action_items": [
+    "Minor spec/testid mismatch (non-blocking): review_request mentions data-testid 'copy-compliance_badges-0' but the actual DOM uses section-prefixed id 'copy-compliance-compliance_badges-0' (CopyAdmin.jsx:79 → `copy-${section.key}-${field.key}`). Either update the brief or add an unprefixed alias for root-level fields.",
+    "Nit: service-card data-testid selector '[data-testid^=\"service-card-\"]' matches 8 nodes (4 cards each with wrapper + inner element). If tests rely on exact=4, consider making one unique per card."
+  ],
+  "critical_code_review_comments": [
+    "PUT /admin/settings uses $set with {**doc, 'key': 'site'}; because SiteSettings model excludes `copy`, saving settings correctly preserves copy sub-doc. Good. However this still fully replaces chat/contact/tiers etc.; if a future field is added to any sub-model and an older client posts a payload missing it, the field will be silently dropped. Consider explicit sub-path $set.",
+    "server.py has grown to ~1860 lines mixing models, seeds, routes, and sitemap. Still exceeds the 700-line guideline — split into routes/, models/, seeds/ modules.",
+    "sitemap_xml route is mounted under api_router (/api/sitemap.xml). Production nginx must be configured to proxy /sitemap.xml → /api/sitemap.xml. Confirmed working via /api/sitemap.xml; direct /sitemap.xml not tested here.",
+    "update_site_copy stores entire SiteCopy without any migration/versioning. If SiteCopy schema evolves (new nested object), legacy docs will be re-serialized but any extra fields saved earlier will be dropped silently."
+  ],
+  "updated_files": ["/app/backend/tests/test_copy_sitemap_contact.py"],
+  "success_rate": {"backend": "100% (5/5)", "frontend": "100%"},
+  "test_credentials": "admin / Heying@2026 via POST /api/admin/login (not /api/auth/login as mentioned in brief) — verified.",
+  "seed_data_creation": "No residual data. All copy fields, hotline, and wechat were restored to defaults (hero_title1='合赢项目社', compliance_badges=['平台不收取任何费用','不承诺收益','正规合规项目'], hotline='', wechat='').",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Backend login endpoint is POST /api/admin/login (returns {token, username}); brief incorrectly says /api/auth/login. Copy section field testids follow pattern 'copy-{section_key}-{field_key}' (e.g. copy-compliance-compliance_badges-0 for the root compliance_badges list — not copy-compliance_badges-0). Admin settings save button is [data-testid=settings-save-btn]. Sitemap served at /api/sitemap.xml (api_router prefix)."
+}
