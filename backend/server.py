@@ -1953,6 +1953,9 @@ async def wallet_topup_status(tid: str, request: Request, member: dict = Depends
                 t["status"] = gw["status"]
         except HTTPException:
             pass
+    if t.get("own_wallet"):
+        pm2 = await db.payment_methods.find_one({"id": t.get("method_id")}, {"_id": 0, "config": 1})
+        t["energy_trx_address"] = ((pm2 or {}).get("config") or {}).get("energy_trx_address") or t.get("energy_trx_address") or ""
     t["balance_usd"] = await _wallet(member["user_id"])
     return t
 
