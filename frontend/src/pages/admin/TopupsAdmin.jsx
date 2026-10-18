@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
-import { Search, RefreshCw, CheckCircle2, XCircle, HandCoins, Radar, Image as ImageIcon, Copy, CalendarDays, X } from "lucide-react";
+import { Search, RefreshCw, CheckCircle2, XCircle, HandCoins, Radar, Image as ImageIcon, Copy, CalendarDays, X, FileSearch } from "lucide-react";
 import { tr } from "@/i18n";
 import { Btn, Card, Head, Pill } from "./ui";
 import { MemberDetail } from "./MembersAdmin";
 import { CreditHashDialog } from "@/pages/admin/CreditHashDialog";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
 
 const TONE = { pending: "orange", reviewing: "sky", paid: "emerald", expired: "slate", cancelled: "slate", closed: "slate", failed: "red", rejected: "red" };
 const LABEL = { pending: tr("待付款"), reviewing: tr("待審核"), paid: tr("已到帳"), rejected: tr("已駁回"), expired: tr("已過期"), cancelled: tr("已取消"), closed: tr("已關閉"), failed: tr("失敗") };
@@ -38,6 +39,7 @@ export function TopupsAdmin({ callApi }) {
   const [loading, setLoading] = useState(true);
   const [member, setMember] = useState(null);
   const [creditOrder, setCreditOrder] = useState(null);
+  const [detail, setDetail] = useState(null);
   const [proof, setProof] = useState(null);
   const [pmImg, setPmImg] = useState({});
   useEffect(() => { callApi({ method: "GET", url: "/admin/payment-methods" }).then((r) => setPmImg(Object.fromEntries(r.data.map((m) => [m.id, m.image])))).catch(() => {}); }, [callApi]);
@@ -100,7 +102,6 @@ export function TopupsAdmin({ callApi }) {
               const [d, tm] = fmtDT(t.created_at);
               const prov = t.provider || "crypto";
               const isCrypto = prov === "crypto" && !t.own_wallet;
-              const reviewable = MANUAL.includes(prov) || !!t.own_wallet;
               return (
                 <tr key={t.id} data-testid={`topup-admin-row-${t.id}`} className="hover:bg-orange-50/30 transition-colors">
                   <td className="px-4 py-3 whitespace-nowrap"><div className="text-slate-800 font-medium">{d}</div><div className="text-[11px] text-slate-400 font-mono">{tm}</div></td>
@@ -128,16 +129,9 @@ export function TopupsAdmin({ callApi }) {
                     {t.reject_reason && <div className="mt-0.5 text-red-500 font-sans truncate max-w-[220px]" title={t.reject_reason}>{tr("駁回：")}{t.reject_reason}</div>}
                   </td>
                   <td className="px-4 py-3">
-                    <div className="flex items-center gap-2 flex-wrap">
+                    <div className="flex items-center gap-2">
                       <span className="shrink-0"><Pill tone={TONE[t.status] || "slate"}>{LABEL[t.status] || t.status}</Pill>{t.manual_credit && <span className="ml-1 text-[10px] text-slate-400">{tr("手動補單")}</span>}</span>
-                      {(t.proof_image || t.tx_hash) && <ActionBtn tone="slate" icon={ImageIcon} data-testid={`topup-proof-${t.id}`} onClick={() => setProof(t)}>{tr("憑證")}</ActionBtn>}
-                      {isCrypto && t.status === "pending" && <ActionBtn tone="slate" icon={Radar} data-testid={`topup-requery-${t.id}`} onClick={() => act(t, "requery", {}, (r) => tr("網關狀態：{0}", r.gateway?.status || "-"))}>{tr("重查網關")}</ActionBtn>}
-                      {reviewable && ["pending", "reviewing", "rejected"].includes(t.status) && <>
-                        <ActionBtn tone="ok" icon={CheckCircle2} data-testid={`topup-approve-${t.id}`} onClick={() => approve(t)}>{tr("審核通過")}</ActionBtn>
-                        {t.status !== "rejected" && <ActionBtn tone="danger" icon={XCircle} data-testid={`topup-reject-${t.id}`} onClick={() => reject(t)}>{tr("駁回")}</ActionBtn>}
-                      </>}
-                      {t.own_wallet && t.status !== "paid" && <ActionBtn tone="ok" icon={HandCoins} data-testid={`topup-credit-hash-${t.id}`} onClick={() => creditHash(t)}>{tr("哈希補單")}</ActionBtn>}
-                      {!MANUAL.includes(prov) && t.status !== "paid" && <ActionBtn tone="sky" icon={HandCoins} data-testid={`topup-credit-${t.id}`} onClick={() => credit(t)}>{tr("手動入帳")}</ActionBtn>}
+                      <button data-testid={`topup-open-${t.id}`} onClick={() => setDetail(t)} className="h-8 px-3 rounded-lg bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold flex items-center gap-1.5 transition-colors"><FileSearch className="h-3.5 w-3.5" />{tr("詳情 / 操作")}</button>
                     </div>
                   </td>
                 </tr>
@@ -149,6 +143,53 @@ export function TopupsAdmin({ callApi }) {
 
       {member && <MemberDetail uid={member} callApi={callApi} onClose={() => setMember(null)} onChanged={load} />}
       <CreditHashDialog order={creditOrder} callApi={callApi} onClose={() => setCreditOrder(null)} onDone={load} />
+      <Dialog open={!!detail} onOpenChange={(o) => !o && setDetail(null)}>
+        <DialogContent className="max-w-lg p-0 overflow-hidden" data-testid="topup-detail-dialog">
+          {detail && (() => {
+            const prov = detail.provider || "crypto";
+            const isCrypto = prov === "crypto" && !detail.own_wallet;
+            const reviewable = MANUAL.includes(prov) || !!detail.own_wallet;
+            const canReview = reviewable && ["pending", "reviewing", "rejected"].includes(detail.status);
+            const Info = ({ label, children }) => (
+              <div className="flex items-start justify-between gap-3 py-2 border-b border-slate-100 last:border-0">
+                <span className="text-[13px] text-slate-500 shrink-0">{label}</span>
+                <span className="text-[13px] text-slate-800 text-right break-all">{children}</span>
+              </div>
+            );
+            return (
+              <div>
+                <div className="bg-gradient-to-br from-slate-800 to-slate-900 text-white px-5 py-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <div className="text-[12px] text-white/70">{tr("帳戶ID")}</div>
+                      <button onClick={() => { setDetail(null); setMember(detail.user_id); }} className="font-head text-2xl font-extrabold hover:underline" data-testid="topup-detail-member">{detail.account_no}</button>
+                    </div>
+                    <Pill tone={TONE[detail.status] || "slate"}>{LABEL[detail.status] || detail.status}</Pill>
+                  </div>
+                </div>
+                <div className="px-5 py-3 max-h-[46vh] overflow-y-auto">
+                  <Info label={tr("日期時間")}>{(detail.created_at || "").slice(0, 19).replace("T", " ")}</Info>
+                  <Info label={tr("付款方式")}>{prov.toUpperCase()} · {detail.channel_no}</Info>
+                  <Info label={tr("付款金額")}><b>USD$ {Number(detail.amount_usd).toFixed(2)}</b>{(isCrypto || Number(detail.pay_amount) !== Number(detail.amount_usd)) && <span className="text-orange-600 ml-1">({tr("應付")} {detail.pay_amount} {isCrypto ? "USDT" : "USD"})</span>}</Info>
+                  <Info label={tr("單號")}><span className="font-mono">{detail.out_trade_no}</span></Info>
+                  {detail.reference_code && <Info label={tr("轉帳碼")}><b className="text-orange-600 font-mono">{detail.reference_code}</b></Info>}
+                  {(detail.tx_id || detail.tx_hash) && <Info label="TXID"><span className="font-mono">{detail.tx_id || detail.tx_hash}</span></Info>}
+                  {detail.own_wallet && <Info label={tr("收款地址")}><span className="font-mono">{detail.wallet_address}</span> · {detail.network}</Info>}
+                  {detail.reject_reason && <Info label={tr("駁回原因")}><span className="text-red-500">{detail.reject_reason}</span></Info>}
+                </div>
+                <div className="px-5 py-3 border-t border-slate-100 flex flex-wrap items-center gap-2 justify-end bg-slate-50/60">
+                  {(detail.proof_image || detail.tx_hash) && <ActionBtn tone="slate" icon={ImageIcon} data-testid="topup-detail-proof" onClick={() => { const t = detail; setDetail(null); setProof(t); }}>{tr("憑證")}</ActionBtn>}
+                  {isCrypto && detail.status === "pending" && <ActionBtn tone="slate" icon={Radar} data-testid="topup-detail-requery" onClick={() => act(detail, "requery", {}, (r) => tr("網關狀態：{0}", r.gateway?.status || "-"))}>{tr("重查網關")}</ActionBtn>}
+                  {canReview && <ActionBtn tone="ok" icon={CheckCircle2} data-testid="topup-detail-approve" onClick={() => { const t = detail; setDetail(null); approve(t); }}>{tr("審核通過")}</ActionBtn>}
+                  {canReview && detail.status !== "rejected" && <ActionBtn tone="danger" icon={XCircle} data-testid="topup-detail-reject" onClick={() => { const t = detail; setDetail(null); reject(t); }}>{tr("駁回")}</ActionBtn>}
+                  {detail.own_wallet && detail.status !== "paid" && <ActionBtn tone="ok" icon={HandCoins} data-testid="topup-detail-credit-hash" onClick={() => { const t = detail; setDetail(null); creditHash(t); }}>{tr("哈希補單")}</ActionBtn>}
+                  {!MANUAL.includes(prov) && detail.status !== "paid" && <ActionBtn tone="sky" icon={HandCoins} data-testid="topup-detail-credit" onClick={() => { const t = detail; setDetail(null); credit(t); }}>{tr("手動入帳")}</ActionBtn>}
+                </div>
+              </div>
+            );
+          })()}
+        </DialogContent>
+      </Dialog>
       {proof && (
         <div className="fixed inset-0 z-50 bg-slate-900/60 flex items-center justify-center p-4" onClick={() => setProof(null)} data-testid="topup-proof-modal">
           <div className="bg-white rounded-2xl max-w-2xl w-full overflow-hidden" onClick={(e) => e.stopPropagation()}>

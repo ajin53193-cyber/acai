@@ -280,3 +280,8 @@
 - **補單操作日誌**：`record_admin_log` 增加 `detail` 欄位；credit-hash / manual-match / manual-match-all 三個補單接口成功後寫入詳細日誌（method=CREDIT，detail 含 訂單號/金額/TXID/是否強制、批量含成功跳過筆數），並從通用 `audit_admin` 中間件排除這些路徑避免重複記錄。OperationLogsAdmin 表格與 CSV 匯出新增「詳情」列。已驗證 detail 入庫與讀取正常。
 - **後台 IP 白名單**：新增 `GEO_ALLOW_IPS`（逗號分隔）env，名單內 IP 直接放行、不受地區限制（出差用固定 IP 進後台）。新增 `_client_ip`(X-Forwarded-For/X-Real-IP/client.host) 與 `_ip_whitelisted`；geo_gate 中間件與 /geo/guard 均先判白名單再判國家，guard 返回 `ip_whitelisted`。已單測白名單命中/不命中正確。`.env.production.example` 已補說明。
 - i18n 新增「詳情」1 條。源碼包已重打 `/app/export/patch.zip`。
+
+## 2026-10-18 更新（充值審核頁精簡：收合為「詳情/操作」彈窗）
+- 用戶反饋充值審核頁每行堆了審核通過/駁回/哈希補單/手動入帳多個按鈕太亂。改為每行只留「狀態 Pill + 詳情/操作」單一按鈕。
+- 點擊打開 `topup-detail-dialog`（shadcn Dialog）：深色頭顯示帳戶ID(可點開會員資料)+狀態；信息區列出 日期/付款方式/付款金額(含應付)/單號/轉帳碼/TXID/收款地址/駁回原因；底部按條件顯示 憑證/重查網關/審核通過/駁回/哈希補單/手動入帳 操作按鈕（點擊後關閉彈窗並執行原邏輯，哈希補單接 CreditHashDialog）。
+- 已登入截圖驗證：表格清爽、彈窗信息與操作按鈕渲染正常。i18n 新增 2 條。源碼包已重打 `/app/export/patch.zip`。
