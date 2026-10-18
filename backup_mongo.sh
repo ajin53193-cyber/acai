@@ -47,11 +47,21 @@ else
 fi
 ok "备份完成：$OUT（$(du -h "$OUT" | cut -f1)）"
 
+# ---- 本地图片目录一并备份（设置了 LOCAL_STORAGE_DIR 时）----
+LOCAL_DIR="${LOCAL_STORAGE_DIR:-$(readenv LOCAL_STORAGE_DIR)}"
+if [ -n "$LOCAL_DIR" ] && [ -d "$LOCAL_DIR" ]; then
+  IMG_OUT="$BACKUP_DIR/gogo589_uploads_${STAMP}.tar.gz"
+  tar -czf "$IMG_OUT" -C "$(dirname "$LOCAL_DIR")" "$(basename "$LOCAL_DIR")"
+  ok "图片目录备份完成：$IMG_OUT（$(du -h "$IMG_OUT" | cut -f1)）"
+  find "$BACKUP_DIR" -name 'gogo589_uploads_*.tar.gz' -mtime +"$KEEP_DAYS" -delete
+fi
+
 DEL=$(find "$BACKUP_DIR" -name 'gogo589_*.archive.gz' -mtime +"$KEEP_DAYS" -print -delete | wc -l)
 [ "$DEL" -gt 0 ] && echo "➤ 已清理 $DEL 个超过 ${KEEP_DAYS} 天的旧备份"
 
 if [ -n "$REMOTE" ]; then
   if scp -q "$OUT" "$REMOTE/"; then ok "已异地同步到 $REMOTE"; else warn "异地同步失败，请检查 REMOTE 与免密 SSH（ssh-copy-id）"; fi
+  [ -n "${IMG_OUT:-}" ] && [ -f "${IMG_OUT:-}" ] && scp -q "$IMG_OUT" "$REMOTE/" 2>/dev/null && ok "图片备份已异地同步"
 else
   warn "未设置 REMOTE，跳过异地同步。设置示例：REMOTE='user@备份机:/backup/gogo589' bash backup_mongo.sh"
 fi

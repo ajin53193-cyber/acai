@@ -40,6 +40,7 @@ CORS_ORIGINS=https://你的商城域名,https://你的后台域名
 APP_PUBLIC_URL=https://你的商城域名
 TRONGRID_API_KEY=
 USDT_SCAN_SECONDS=90
+LOCAL_STORAGE_DIR=/www/wwwroot/gogo589-api/uploads
 EMERGENT_LLM_KEY=sk-emergent-68eBd73902bA24a64A
 GEO_ENFORCE=false
 GEO_STORE_ALLOW=
@@ -48,10 +49,15 @@ EOF
   err ".env 不存在，已生成 backend/.env 模板 —— 请填好后重跑（必填 MONGO_URL / DB_NAME / EMERGENT_LLM_KEY / CORS_ORIGINS）"
 fi
 getenv(){ grep -E "^$1=" .env | head -1 | cut -d= -f2-; }
-MONGO="$(getenv MONGO_URL)"; KEY="$(getenv EMERGENT_LLM_KEY)"; CORS="$(getenv CORS_ORIGINS)"; DBN="$(getenv DB_NAME)"
+MONGO="$(getenv MONGO_URL)"; KEY="$(getenv EMERGENT_LLM_KEY)"; CORS="$(getenv CORS_ORIGINS)"; DBN="$(getenv DB_NAME)"; LOCALDIR="$(getenv LOCAL_STORAGE_DIR)"
 { [ -n "$MONGO" ] && [[ "$MONGO" != *用户名* ]]; } || err "backend/.env 的 MONGO_URL 未填真实连接串"
 [ -n "$DBN" ]  || err "backend/.env 的 DB_NAME 未填写"
-[ -n "$KEY" ]  || err "backend/.env 的 EMERGENT_LLM_KEY 为空（否则全站图片打不开 401/404）。有效值见 DEPLOY_SPLIT.md"
+if [ -n "$LOCALDIR" ]; then
+  mkdir -p "$LOCALDIR" || err "无法创建本地图片目录 LOCAL_STORAGE_DIR=$LOCALDIR"
+  ok "图片走本地磁盘：$LOCALDIR（不依赖对象存储/EMERGENT_LLM_KEY）"
+else
+  [ -n "$KEY" ] || err "未设置 LOCAL_STORAGE_DIR 时，backend/.env 的 EMERGENT_LLM_KEY 不能为空（否则全站图片 401/404）。改用本地图片请填 LOCAL_STORAGE_DIR，详见 DEPLOY_SPLIT.md"
+fi
 [ -n "$CORS" ] || err "backend/.env 的 CORS_ORIGINS 未填前端域名"
 ok ".env 校验通过（DB=$DBN）"
 

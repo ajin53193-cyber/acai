@@ -17,11 +17,31 @@
   - APP_PUBLIC_URL=https://print8.8bc8uyz.com
   - TRONGRID_API_KEY=（USDT 自动扫链到账必填，免费申请 trongrid.io/dashboard；不填会 429 限流）
   - USDT_SCAN_SECONDS=90（后台自动扫链周期，秒）
-  - EMERGENT_LLM_KEY=sk-emergent-68eBd73902bA24a64A ⚠️必填（商品/分类/评价等所有图片走 Emergent 对象存储，靠此 key 访问；留空或填错 → 全站图片 401/404 打不开。自动翻译脚本也用它）
+  - **LOCAL_STORAGE_DIR=/www/wwwroot/gogo589-api/uploads（★本地图片存储，自托管推荐）**
+    设置后所有图片存/读本服务器本地磁盘，彻底不依赖对象存储与 EMERGENT_LLM_KEY。用绝对路径，须纳入每日备份。
+    留空则回退到 Emergent 对象存储（需有效 EMERGENT_LLM_KEY）。
+  - EMERGENT_LLM_KEY=sk-emergent-...（设了 LOCAL_STORAGE_DIR 后图片已不需要它；仅"首次迁移老图"与自动翻译脚本用）
   - GEO_ENFORCE=true / GEO_STORE_ALLOW=...（正式环境地区限制，按需配置；预览环境保持 false）
 - frontend/.env：
   - REACT_APP_BACKEND_URL=https://www.apy-gogo-pay-589ppyppgkn.com
 - 改完 `cd frontend && yarn build`，把 build 传到商城与后台站点目录。
+
+---
+
+## 一·补：本地图片存储 + 老图迁移（彻底摆脱对象存储依赖）
+
+自托管推荐把图片放本服务器本地磁盘，避免 EMERGENT_LLM_KEY 失效导致全站图 401/404。
+
+1. backend/.env 设置 `LOCAL_STORAGE_DIR=/www/wwwroot/gogo589-api/uploads`（绝对路径）。
+2. **保留现有图片**：切本地前，趁 EMERGENT_LLM_KEY 仍有效，先把对象存储里的老图全部拉到本地：
+   ```bash
+   # 在后端 API 服务器仓库根目录（已先跑过 deploy.sh backend 建好 venv、.env 已填好）
+   bash migrate_images.sh
+   # 它会扫描数据库里所有图片引用，直连对象存储下载到 LOCAL_STORAGE_DIR；可重复运行（已下载自动跳过）
+   ```
+3. 迁移完成后 `bash healthcheck.sh` 验证图片可访问；此后图片全走本地，不再依赖对象存储。
+4. **务必备份**：`backup_mongo.sh` 已会在设置 LOCAL_STORAGE_DIR 时自动把 uploads 目录一并打包备份。
+5. 若要搬到另一台机，直接把整个 uploads 目录随 MongoDB 备份一起迁移即可。
 
 ---
 

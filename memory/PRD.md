@@ -332,3 +332,14 @@
 - **後台統一視覺系統**：design_agent 產出 `/app/design_guidelines.json`（淺色 tactical 風格 + 橙色強調 + 深色側邊欄token/狀態色/表格/按鈕/彈窗規範）。採「升級共享 ui 基元」策略一次統一所有後台頁：重寫 `admin/ui.jsx`——Btn(inline-flex 居中對齊 + primary/secondary/ghost/danger/ok + sm/md/lg)、Card(圓角+細陰影)、Input(白底+橙 focus ring)、Pill(帶邊框狀態膠囊+可選圓點，改用靜態 pillTone 避免 JIT purge)、Table(大寫表頭+字距+hover+空狀態)、Head(頁首+底邊線)、Modal(slate-50 頭/腳+右對齊按鈕)、Field；新增 StatCard、toneText、pillTone。
 - 數據表遵循：表頭左對齊、金額右對齊 font-mono、狀態/操作居中（符合用戶「數據表整潔明了」+「按鈕統一樣式對齊，文字對齊你定」）。shell 本身由 index.css `.admin-light` 強制淺色，無需改動。
 - 已截圖驗證 充值審核、USDT通道(統計卡+地址表+最近記錄+補單按鈕) 兩個最複雜頁渲染乾淨統一；Btn kind 全覆蓋(danger/ghost/ok/primary)。前端編譯通過。為「分批」重排的批次1（基礎統一層）。源碼包已重打 `/app/export/patch.zip`。
+
+## 2026-06 更新（图片改为本地磁盘存储 + 老图迁移脚本）
+- 用户自托管需求：不再依赖 Emergent 对象存储（怕 EMERGENT_LLM_KEY 失效全站图片 401/404），改为图片存服务器本地磁盘。
+- 代码本就支持（storage.py 读 LOCAL_STORAGE_DIR 即走本地），本次补齐配置与迁移：
+  - backend/.env.production.example 新增 LOCAL_STORAGE_DIR 并说明 EMERGENT_LLM_KEY 对图片非必填。
+  - deploy_backend.sh：设置 LOCAL_STORAGE_DIR 时自动建目录并跳过 EMERGENT_LLM_KEY 强制校验；未设置时仍要求 key。
+  - 新增 backend/migrate_images_local.py + migrate_images.sh：扫描 Mongo 全部集合里的图片引用(/api/img/gogo589/... 及 KYC 裸路径)，直连对象存储下载到 LOCAL_STORAGE_DIR，可重复运行幂等跳过。
+  - backup_mongo.sh：设置 LOCAL_STORAGE_DIR 时自动 tar 打包 uploads 目录一并备份（含异地同步）。
+  - DEPLOY_SPLIT.md 增补"本地图片存储+老图迁移"章节。
+- 预览环境实测：migrate_images_local.py 扫出 2560 个图片路径，全量下载成功(新下载1904/跳过656/404=0/失败=0)；storage.get_object 本地读取链路验证通过。商品图完整(266-379KB)。
+- 迁移操作顺序（用户在后端服务器执行）：填好 .env(含 LOCAL_STORAGE_DIR 与仍有效的 EMERGENT_LLM_KEY) → deploy.sh backend 建 venv → bash migrate_images.sh 下载老图 → healthcheck.sh 验证。
