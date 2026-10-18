@@ -19,12 +19,20 @@ export function CartProvider({ children }) {
 
   const key = (pid, sid) => `${pid}__${sid}`;
 
+  const specMaxQty = (spec) => {
+    const kind = ["daily", "weekly", "monthly", "lifetime", "newcomer"].includes(spec.limit) ? spec.limit
+      : spec.limit === "none" ? null
+      : /每月一單|每月一单|monthly|每日一單|每日一单|daily|新客|新用戶|新用户|new (user|customer)/i.test(spec.badge || "") ? "badge" : null;
+    return kind ? Math.max(1, +spec.limit_count || 1) : 99;
+  };
+
   const addItem = (product, spec, quantity = 1) => {
     setItems((prev) => {
       const k = key(product.id, spec.id);
+      const max = specMaxQty(spec);
       const existing = prev.find((i) => i.key === k);
       if (existing) {
-        return prev.map((i) => (i.key === k ? { ...i, quantity: i.quantity + quantity } : i));
+        return prev.map((i) => (i.key === k ? { ...i, max_qty: max, quantity: Math.min(max, i.quantity + quantity) } : i));
       }
       return [
         ...prev,
@@ -39,14 +47,15 @@ export function CartProvider({ children }) {
           spec_label: spec.label,
           badge: spec.badge || "",
           unit_price_usd: spec.price_usd,
-          quantity,
+          max_qty: max,
+          quantity: Math.min(max, quantity),
         },
       ];
     });
   };
 
   const updateQty = (k, quantity) =>
-    setItems((prev) => prev.map((i) => (i.key === k ? { ...i, quantity: Math.max(1, quantity) } : i)));
+    setItems((prev) => prev.map((i) => (i.key === k ? { ...i, quantity: Math.min(i.max_qty || 99, Math.max(1, quantity)) } : i)));
   const removeItem = (k) => setItems((prev) => prev.filter((i) => i.key !== k));
   const clear = () => setItems([]);
 

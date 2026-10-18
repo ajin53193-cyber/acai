@@ -65,8 +65,9 @@ export default function CartDrawer() {
                         <span className="px-2 text-sm font-semibold w-8 text-center">{i.quantity}</span>
                         <button
                           data-testid={`cart-inc-${i.key}`}
+                          disabled={i.quantity >= (i.max_qty || 99)}
                           onClick={() => updateQty(i.key, i.quantity + 1)}
-                          className="p-1.5 text-slate-500 hover:text-orange-500"
+                          className="p-1.5 text-slate-500 hover:text-orange-500 disabled:opacity-30 disabled:cursor-not-allowed"
                         >
                           <Plus className="h-3 w-3" />
                         </button>

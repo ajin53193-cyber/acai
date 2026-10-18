@@ -162,7 +162,7 @@ function CheckoutInner() {
                     <div className="flex items-center h-9 md:h-11 rounded-lg md:rounded-xl border border-slate-200 bg-white">
                       <button data-testid={`cart-dec-${i.key}`} onClick={() => updateQty(i.key, Math.max(1, i.quantity - 1))} className="h-9 w-8 md:h-11 md:w-11 flex items-center justify-center text-slate-500 hover:text-orange-500"><Minus className="h-3.5 w-3.5 md:h-4 md:w-4" /></button>
                       <span className="w-6 md:w-8 text-center text-sm font-semibold" data-testid={`cart-qty-${i.key}`}>{i.quantity}</span>
-                      <button data-testid={`cart-inc-${i.key}`} onClick={() => updateQty(i.key, Math.min(99, i.quantity + 1))} className="h-9 w-8 md:h-11 md:w-11 flex items-center justify-center text-slate-500 hover:text-orange-500"><Plus className="h-3.5 w-3.5 md:h-4 md:w-4" /></button>
+                      <button data-testid={`cart-inc-${i.key}`} disabled={i.quantity >= (i.max_qty || 99)} onClick={() => updateQty(i.key, Math.min(i.max_qty || 99, i.quantity + 1))} className="h-9 w-8 md:h-11 md:w-11 flex items-center justify-center text-slate-500 hover:text-orange-500 disabled:opacity-30 disabled:cursor-not-allowed"><Plus className="h-3.5 w-3.5 md:h-4 md:w-4" /></button>
                     </div>
                     <button data-testid={`cart-remove-${i.key}`} onClick={() => removeItem(i.key)} className="text-slate-400 hover:text-red-500"><Trash2 className="h-4 w-4 md:h-5 md:w-5" /></button>
                   </div>
