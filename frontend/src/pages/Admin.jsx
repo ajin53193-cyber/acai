@@ -512,6 +512,16 @@ export default function Admin() {
 
 const readFile = (f) => new Promise((res) => { const r = new FileReader(); r.onload = () => res({ image_b64: r.result, image_name: f.name }); r.readAsDataURL(f); });
 
+function LogoThumb({ src, name }) {
+  const [err, setErr] = useState(false);
+  return (
+    <span className="bg-white border border-slate-200 rounded-md h-10 min-w-[76px] px-3 flex items-center justify-center overflow-hidden shrink-0">
+      {src && !err ? <img src={src} alt={name} className="h-6 max-w-[110px] object-contain" onError={() => setErr(true)} />
+        : <span className="text-[11px] font-semibold text-slate-400 truncate max-w-[70px]">{name || tr("無圖")}</span>}
+    </span>
+  );
+}
+
 function PaymentLogos({ callApi }) {
   const [list, setList] = useState([]);
   const [name, setName] = useState("");
@@ -534,31 +544,31 @@ function PaymentLogos({ callApi }) {
     await update(list[i].id, { sort_order: list[j].sort_order }); await update(list[j].id, { sort_order: list[i].sort_order });
   };
   const replaceImg = async (id, f) => { if (!f) return; await update(id, await readFile(f)); toast.success(tr("圖片已更新")); };
-  const inp = "h-11 rounded-xl bg-slate-800 border border-slate-700 px-4 text-sm text-white outline-none focus:border-orange-400";
+  const inp = "h-11 rounded-xl bg-slate-100 border border-slate-200 px-4 text-sm text-slate-800 outline-none focus:ring-2 focus:ring-orange-300";
 
   return (
     <div>
       <SectionHeader title={tr("支付方式 Logo（頁尾顯示）")} />
-      <div className="bg-slate-800/60 rounded-2xl p-5 mb-6 flex flex-wrap items-end gap-3">
-        <label className="text-sm text-slate-300">{tr("名稱")}<br /><input data-testid="paylogo-name" value={name} onChange={(e) => setName(e.target.value)} placeholder={tr("例如 VISA")} className={`${inp} mt-1 w-48`} /></label>
-        <label className="text-sm text-slate-300">{tr("圖片（PNG/SVG/JPG，≤2M，建議透明底）")}<br />
-          <input data-testid="paylogo-file" type="file" accept="image/*" onChange={(e) => setFile(e.target.files?.[0] || null)} className="mt-1 block text-xs text-slate-400 file:mr-3 file:rounded-full file:border-0 file:bg-orange-500 file:px-4 file:py-2 file:text-white" />
+      <div className="bg-white border border-slate-200 rounded-2xl p-5 mb-6 flex flex-wrap items-end gap-3">
+        <label className="text-sm text-slate-600">{tr("名稱")}<br /><input data-testid="paylogo-name" value={name} onChange={(e) => setName(e.target.value)} placeholder={tr("例如 VISA")} className={`${inp} mt-1 w-48`} /></label>
+        <label className="text-sm text-slate-600">{tr("圖片（PNG/SVG/JPG，≤2M，建議透明底）")}<br />
+          <input data-testid="paylogo-file" type="file" accept="image/*" onChange={(e) => setFile(e.target.files?.[0] || null)} className="mt-1 block text-xs text-slate-500 file:mr-3 file:rounded-full file:border-0 file:bg-orange-500 file:px-4 file:py-2 file:text-white" />
         </label>
         <button data-testid="paylogo-add" onClick={add} disabled={busy} className="h-11 px-6 rounded-full bg-orange-500 hover:bg-orange-600 text-white font-semibold disabled:opacity-60 flex items-center gap-2"><Plus className="h-4 w-4" />{tr("新增")}</button>
-        <span className="text-xs text-slate-500">{tr("未新增任何 Logo 時，頁尾顯示系統內建的預設樣式。")}</span>
+        <span className="text-xs text-slate-400">{tr("未新增任何 Logo 時，頁尾顯示系統內建的預設樣式。")}</span>
       </div>
       <div className="space-y-2">
-        {list.length === 0 && <div className="text-slate-500 text-sm">{tr("尚無上傳的 Logo")}</div>}
+        {list.length === 0 && <div className="text-slate-400 text-sm">{tr("尚無上傳的 Logo")}</div>}
         {list.map((l, i) => (
-          <div key={l.id} data-testid={`paylogo-row-${l.id}`} className={`flex items-center gap-4 bg-slate-800/60 rounded-xl px-4 py-3 ${l.active ? "" : "opacity-50"}`}>
-            <span className="bg-white rounded-md h-10 px-3 flex items-center justify-center"><img src={l.image} alt={l.name} className="h-6 max-w-[110px] object-contain" /></span>
+          <div key={l.id} data-testid={`paylogo-row-${l.id}`} className={`flex items-center gap-4 bg-white border border-slate-200 rounded-xl px-4 py-3 ${l.active ? "" : "opacity-60"}`}>
+            <LogoThumb src={l.image} name={l.name} />
             <input defaultValue={l.name} onBlur={(e) => e.target.value !== l.name && update(l.id, { name: e.target.value })} className={`${inp} w-44`} data-testid={`paylogo-name-${l.id}`} />
-            <label className="h-9 px-3 rounded-full bg-slate-700 text-xs text-slate-200 flex items-center gap-1 cursor-pointer hover:bg-slate-600"><ImagePlus className="h-3.5 w-3.5" />{tr("更換圖片")}<input type="file" accept="image/*" className="hidden" onChange={(e) => replaceImg(l.id, e.target.files?.[0])} /></label>
-            <button onClick={() => update(l.id, { active: !l.active })} data-testid={`paylogo-toggle-${l.id}`} className={`h-9 px-3 rounded-full text-xs ${l.active ? "bg-emerald-500/20 text-emerald-300" : "bg-slate-700 text-slate-300"}`}>{l.active ? tr("顯示中") : tr("已隱藏")}</button>
+            <label className="h-9 px-3 rounded-full bg-slate-100 border border-slate-200 text-xs text-slate-600 flex items-center gap-1 cursor-pointer hover:bg-slate-200"><ImagePlus className="h-3.5 w-3.5" />{tr("更換圖片")}<input type="file" accept="image/*" className="hidden" onChange={(e) => replaceImg(l.id, e.target.files?.[0])} /></label>
+            <button onClick={() => update(l.id, { active: !l.active })} data-testid={`paylogo-toggle-${l.id}`} className={`h-9 px-3 rounded-full text-xs font-semibold border ${l.active ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-slate-100 text-slate-500 border-slate-200"}`}>{l.active ? tr("顯示中") : tr("已隱藏")}</button>
             <div className="ml-auto flex items-center gap-1">
-              <button onClick={() => move(i, -1)} className="h-8 w-8 rounded-lg bg-slate-700 flex items-center justify-center text-slate-300 hover:text-white"><ArrowUp className="h-4 w-4" /></button>
-              <button onClick={() => move(i, 1)} className="h-8 w-8 rounded-lg bg-slate-700 flex items-center justify-center text-slate-300 hover:text-white"><ArrowDown className="h-4 w-4" /></button>
-              <button onClick={() => remove(l.id)} data-testid={`paylogo-delete-${l.id}`} className="h-8 w-8 rounded-lg bg-red-500/20 flex items-center justify-center text-red-300 hover:text-red-200"><Trash2 className="h-4 w-4" /></button>
+              <button onClick={() => move(i, -1)} className="h-8 w-8 rounded-lg bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-500 hover:text-orange-600"><ArrowUp className="h-4 w-4" /></button>
+              <button onClick={() => move(i, 1)} className="h-8 w-8 rounded-lg bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-500 hover:text-orange-600"><ArrowDown className="h-4 w-4" /></button>
+              <button onClick={() => remove(l.id)} data-testid={`paylogo-delete-${l.id}`} className="h-8 w-8 rounded-lg bg-red-50 border border-red-100 flex items-center justify-center text-red-500 hover:bg-red-100"><Trash2 className="h-4 w-4" /></button>
             </div>
           </div>
         ))}

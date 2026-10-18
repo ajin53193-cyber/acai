@@ -5,6 +5,7 @@ import { tr } from "@/i18n";
 import { Btn, Card, Head, Pill } from "./ui";
 import { MemberDetail } from "./MembersAdmin";
 import { CreditHashDialog } from "@/pages/admin/CreditHashDialog";
+import { AccountRecentActivity } from "@/pages/admin/AccountRecentActivity";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 
 const TONE = { pending: "orange", reviewing: "sky", paid: "emerald", expired: "slate", cancelled: "slate", closed: "slate", failed: "red", rejected: "red" };
@@ -176,6 +177,7 @@ export function TopupsAdmin({ callApi }) {
                   {(detail.tx_id || detail.tx_hash) && <Info label="TXID"><span className="font-mono">{detail.tx_id || detail.tx_hash}</span></Info>}
                   {detail.own_wallet && <Info label={tr("收款地址")}><span className="font-mono">{detail.wallet_address}</span> · {detail.network}</Info>}
                   {detail.reject_reason && <Info label={tr("駁回原因")}><span className="text-red-500">{detail.reject_reason}</span></Info>}
+                  <AccountRecentActivity uid={detail.user_id} callApi={callApi} />
                 </div>
                 <div className="px-5 py-3 border-t border-slate-100 flex flex-wrap items-center gap-2 justify-end bg-slate-50/60">
                   {(detail.proof_image || detail.tx_hash) && <ActionBtn tone="slate" icon={ImageIcon} data-testid="topup-detail-proof" onClick={() => { const t = detail; setDetail(null); setProof(t); }}>{tr("憑證")}</ActionBtn>}

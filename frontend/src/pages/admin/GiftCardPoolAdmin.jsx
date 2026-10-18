@@ -5,6 +5,7 @@ import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { tr } from "@/i18n";
 import { Head, Card, Btn, Input, Field, Table, Pill, fmt } from "./ui";
+import { AccountRecentActivity } from "@/pages/admin/AccountRecentActivity";
 
 export function GiftCardPoolAdmin({ callApi }) {
   const [q, setQ] = useState("");
@@ -178,6 +179,7 @@ export function GiftCardOrdersAdmin({ callApi }) {
                   {o.gift_dispatch_at && o.status === "processing" && <Info label={tr("預計完成")}>{fmt(o.gift_dispatch_at)}</Info>}
                   {o.info_rejected && o.info_reject_reason && <Info label={tr("駁回原因")}><span className="text-red-500">{o.info_reject_reason}</span></Info>}
                   {o.status === "processing" && o.gift_manual && <div className="mt-2 text-[12px] text-red-600 font-semibold">{o.gift_auto_failed ? tr("用戶已重新提交帳號 · 請人工轉贈後點「完成」") : tr("待人工轉贈 · 完成後點「完成」")}</div>}
+                  <AccountRecentActivity uid={o.user_id} callApi={callApi} />
                 </div>
                 {["paid", "processing"].includes(o.status) && (
                   <div className="px-5 py-3 border-t border-slate-100 flex flex-wrap items-center gap-2 justify-end bg-slate-50/60">

@@ -297,3 +297,9 @@
 - 新增 `gco-detail-dialog`：深色頭顯示 訂單號/時間 + 狀態；信息區列 帳戶ID/用戶/商品/轉贈資料/金額/交易號/命中號碼/預計完成/駁回原因/人工轉贈提示；底部按狀態(paid/processing)顯示 完成/駁回/補號重審/取消（點擊先關彈窗再觸發原 act()，cancel/reject/supplement 仍走原確認彈窗）。
 - 用 detailId 從 data.rows 派生當前訂單，操作後 load() 刷新自動更新/自動關閉。至此 充值審核 / 全部訂單 / 禮品卡訂單 三頁風格統一。
 - 前端編譯通過、截圖確認新表格「操作」列與布局正常（預覽無禮品卡訂單數據，故無行可開，與已驗證彈窗同模式）。i18n 新增 1 條。源碼包已重打 `/app/export/patch.zip`。
+
+## 2026-10-18 更新（頁尾支付Logo頁修復 + 詳情彈窗同帳戶近期記錄 + 操作日誌只看補單）
+- **頁尾支付Logo頁 (Admin.jsx PaymentLogos)**：原為深色主題(slate-800)與淺色後台衝突（表現為深色色塊），改為淺色主題（白卡/slate-200邊框/orange按鈕/emerald顯示中膠囊）；新增 `LogoThumb` 圖片容錯——圖片損壞/為空時顯示名稱佔位，不再出現「?」破圖。已截圖驗證乾淨。
+- **同帳戶近期記錄**：後端新增 `GET /api/admin/members/{uid}/recent`（近 6 單 + 近 6 充值 + 累計單數/充值筆數/消費額）。新增復用組件 `AccountRecentActivity.jsx`，加入 訂單管理/充值審核/禮品卡訂單 三個詳情彈窗底部。已截圖驗證充值審核彈窗顯示近期記錄（STRIPE/USDT 列表 + 累計摘要），便於審核時識別刷單/異常。
+- **操作日誌只看補單**：後端 `/operation-logs`(+export) 增加 `method` 參數並把 detail 納入搜索；前端加「只看補單」綠色切換(method=CREDIT)，METHOD_TONE 補 CREDIT。
+- i18n 新增約 11 條手動合併簡體。源碼包已重打 `/app/export/patch.zip`。

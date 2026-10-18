@@ -6,21 +6,23 @@ import { tr } from "@/i18n";
 import { Head, Btn, Input, Table, Pill, fmt } from "./ui";
 import { API } from "@/lib/api";
 
-const METHOD_TONE = { POST: "emerald", PUT: "amber", DELETE: "red", PATCH: "violet" };
+const METHOD_TONE = { POST: "emerald", PUT: "amber", DELETE: "red", PATCH: "violet", CREDIT: "emerald" };
 
 export function OperationLogsAdmin({ callApi }) {
   const { getToken } = useAuth();
   const [q, setQ] = useState("");
+  const [onlyCredit, setOnlyCredit] = useState(false);
   const [page, setPage] = useState(1);
   const [data, setData] = useState(null);
   const size = 50;
-  const load = useCallback(() => callApi({ method: "GET", url: `/admin/operation-logs?q=${encodeURIComponent(q)}&page=${page}&size=${size}` }).then((r) => setData(r.data)).catch((e) => toast.error(e.response?.data?.detail || tr("載入失敗"))), [callApi, q, page]);
+  const methodParam = onlyCredit ? "&method=CREDIT" : "";
+  const load = useCallback(() => callApi({ method: "GET", url: `/admin/operation-logs?q=${encodeURIComponent(q)}${onlyCredit ? "&method=CREDIT" : ""}&page=${page}&size=${size}` }).then((r) => setData(r.data)).catch((e) => toast.error(e.response?.data?.detail || tr("載入失敗"))), [callApi, q, onlyCredit, page]);
   useEffect(() => { load(); }, [load]);
 
   const exportCsv = async () => {
     try {
       const token = await getToken();
-      const r = await fetch(`${API}/admin/operation-logs/export?q=${encodeURIComponent(q)}`, { headers: { Authorization: `Bearer ${token}`, "X-Admin-Token": localStorage.getItem("admin_token") || "" } });
+      const r = await fetch(`${API}/admin/operation-logs/export?q=${encodeURIComponent(q)}${methodParam}`, { headers: { Authorization: `Bearer ${token}`, "X-Admin-Token": localStorage.getItem("admin_token") || "" } });
       const blob = await r.blob();
       const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "operation_logs.csv"; a.click();
     } catch { toast.error(tr("匯出失敗")); }
@@ -37,6 +39,7 @@ export function OperationLogsAdmin({ callApi }) {
           <Input data-testid="oplog-search" className="w-64 pl-8" value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={(e) => e.key === "Enter" && (setPage(1), load())} placeholder={tr("搜尋路徑或管理員信箱")} />
         </div>
         <Btn kind="ghost" data-testid="oplog-search-btn" onClick={() => { setPage(1); load(); }}>{tr("查詢")}</Btn>
+        <button data-testid="oplog-only-credit" onClick={() => { setOnlyCredit((v) => !v); setPage(1); }} className={`h-9 px-3 rounded-lg text-xs font-semibold border transition-colors ${onlyCredit ? "bg-emerald-500 text-white border-emerald-500" : "bg-white text-slate-600 border-slate-200 hover:border-emerald-300"}`}>{tr("只看補單")}</button>
         <span className="text-xs text-slate-400 ml-auto">{tr("共 {0} 條", total)}</span>
       </div>
       <Table testId="oplog-table" cols={[tr("時間"), tr("管理員"), tr("方法"), tr("路徑"), tr("狀態"), tr("詳情")]}

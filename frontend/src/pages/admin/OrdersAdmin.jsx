@@ -5,6 +5,7 @@ import { Card, Btn, Input, Pill, Head } from "@/pages/admin/ui";
 import { STATUS_LABELS, StatusBadge } from "@/lib/status";
 import { tr } from "@/i18n";
 import { UserInfoDialog } from "@/pages/admin/UserInfoDialog";
+import { AccountRecentActivity } from "@/pages/admin/AccountRecentActivity";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 
 const selBase = "h-9 rounded-lg bg-slate-100 px-3 text-sm outline-none focus:ring-2 focus:ring-orange-300";
@@ -146,6 +147,7 @@ export function OrdersAdmin({ callApi }) {
                   <Info label={tr("完成時間")}>{fmt(o.completed_at)}{o.confirmed_by && ` · ${o.confirmed_by}`}</Info>
                   {o.admin_note && <Info label={tr("客服備註")}><span className="text-emerald-600">{o.admin_note}</span></Info>}
                   {o.refunded_at && <Info label={tr("退款")}><span className="text-emerald-600">{tr("已退回錢包 USD$ {0}", Number(o.refund_usd || 0).toFixed(2))}</span></Info>}
+                  <AccountRecentActivity uid={o.user_id} callApi={callApi} />
                 </div>
                 <div className="px-5 py-3 border-t border-slate-100 flex flex-wrap items-center gap-2 justify-end bg-slate-50/60">
                   {["paid", "processing", "shipped"].includes(o.status) && <button data-testid={`admin-order-confirm-${o.id}`} onClick={() => confirmTopup(o)} className="text-xs h-8 px-3 rounded-lg bg-emerald-500 text-white font-semibold">{tr("確認充值完成")}</button>}

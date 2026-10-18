@@ -288,6 +288,18 @@ async def admin_member_detail(uid: str, admin: dict = Depends(current_admin)):
             "last_sign_in_at": c.get("last_sign_in_at"), "orders": orders, "transactions": txs, "balance_usd": balance}
 
 
+@router.get("/members/{uid}/recent")
+async def admin_member_recent(uid: str, admin: dict = Depends(current_admin)):
+    """Compact recent activity for a user — shown in order detail dialogs to spot abuse/刷单."""
+    orders = await db.orders.find({"user_id": uid}, {"_id": 0, "id": 1, "order_no": 1, "total_usd": 1, "status": 1, "created_at": 1, "items": 1}).sort("created_at", -1).to_list(6)
+    topups = await db.topup_orders.find({"user_id": uid}, {"_id": 0, "id": 1, "order_no": 1, "out_trade_no": 1, "amount_usd": 1, "status": 1, "provider": 1, "own_wallet": 1, "created_at": 1}).sort("created_at", -1).to_list(6)
+    oc = await db.orders.count_documents({"user_id": uid})
+    tc = await db.topup_orders.count_documents({"user_id": uid})
+    agg = await db.orders.aggregate([{"$match": {"user_id": uid}}, {"$group": {"_id": None, "s": {"$sum": "$total_usd"}}}]).to_list(1)
+    return {"orders": orders, "topups": topups, "order_count": oc, "topup_count": tc,
+            "spent_usd": round((agg[0]["s"] if agg else 0) or 0, 2), "account_no": account_no(uid)}
+
+
 class BanIn(BaseModel):
     reason: str = ""
 
@@ -1829,21 +1841,25 @@ async def admin_admins_revoke(uid: str, admin: dict = Depends(require_super)):
 
 # ---- Operation logs ----
 @router.get("/operation-logs")
-async def admin_operation_logs(q: str = "", page: int = 1, size: int = 50, admin: dict = Depends(require_super)):
+async def admin_operation_logs(q: str = "", method: str = "", page: int = 1, size: int = 50, admin: dict = Depends(require_super)):
     page, size = max(1, page), min(max(1, size), 200)
     query = {}
+    if method:
+        query["method"] = method
     if q:
-        query["$or"] = [{"path": {"$regex": re.escape(q)}}, {"admin_email": {"$regex": re.escape(q), "$options": "i"}}]
+        query["$or"] = [{"path": {"$regex": re.escape(q)}}, {"admin_email": {"$regex": re.escape(q), "$options": "i"}}, {"detail": {"$regex": re.escape(q), "$options": "i"}}]
     total = await db.admin_logs.count_documents(query)
     rows = await db.admin_logs.find(query, {"_id": 0}).sort("created_at", -1).skip((page - 1) * size).limit(size).to_list(size)
     return {"rows": rows, "total": total, "page": page, "size": size}
 
 
 @router.get("/operation-logs/export")
-async def admin_operation_logs_export(q: str = "", admin: dict = Depends(require_super)):
+async def admin_operation_logs_export(q: str = "", method: str = "", admin: dict = Depends(require_super)):
     query = {}
+    if method:
+        query["method"] = method
     if q:
-        query["$or"] = [{"path": {"$regex": re.escape(q)}}, {"admin_email": {"$regex": re.escape(q), "$options": "i"}}]
+        query["$or"] = [{"path": {"$regex": re.escape(q)}}, {"admin_email": {"$regex": re.escape(q), "$options": "i"}}, {"detail": {"$regex": re.escape(q), "$options": "i"}}]
     rows = await db.admin_logs.find(query, {"_id": 0}).sort("created_at", -1).limit(5000).to_list(5000)
     buf = io.StringIO()
     w = csv.writer(buf)
