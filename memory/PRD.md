@@ -6,6 +6,7 @@
 
 ## 已实现（截至 2026-06）
 - 前端：首页、分类、商品详情、购物车、结账、用户账户、多货币。
+- [2026-06-18] 新增终端运维脚本(自有宝塔):`setup_server.sh`(全新 Ubuntu 一键装 git/Node20/yarn/pm2,backend 额外 Python3.11+MongoDB7)、`deploy.sh`/`deploy_backend.sh`/`deploy_frontend.sh`(一键部署/更新+.env 校验+pm2+健康检查)、`backup_mongo.sh`(每日 mongodump+保留+可选异地 scp,`--install-cron` 装定时)、`healthcheck.sh`(三站体检:API 200 / 对象存储图片可取 / 前台后台可达)。均通过 bash -n 与对预览后端的冒烟验证;DEPLOY_SPLIT.md 已补 0)环境安装与 六)运维脚本 两节。
 - [2026-06-18] 部署就绪检查(自有宝塔双机):修复启动 `seed()` 的删库风险——`SEED_VERSION` 变化时不再 `delete_many` 清空 categories/products/reviews/promos(迁移旧数据后不会被清),seeding 仅在集合为空时执行。DEPLOY_SPLIT.md 补充 `EMERGENT_LLM_KEY`(图片对象存储必填,否则全站图片 401)与 GEO 配置提醒。.gitignore 屏蔽 .env、用 PM2(非 supervisor)为自托管正确配置,保持不变。
 - [2026-06-18] 后台提醒改为「仅声音、不弹窗」：移除新订单模态弹窗(NewOrderAlert) + 新订单/充值/客服/人工转赠的 in-app toast；保留 `playAlert` 声音与(可在铃铛开关控制的)桌面通知。`useAdminAlerts` 去掉 onOrders/newOrders。
 - [2026-06-18] 礼品卡『按数量拆成多个独立订单』+ 修复 fork 后图片 401：

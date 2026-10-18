@@ -78,6 +78,14 @@ server {
 
 ## 三、部署步骤
 
+### 0）全新服务器先装环境（什么都没装时，先跑这个）
+```bash
+# 需 root/sudo。会装 git / Node20 / yarn / pm2；backend 角色额外装 Python3.11 + MongoDB7
+sudo bash setup_server.sh backend     # 在后端 API 服务器
+sudo bash setup_server.sh frontend    # 在前端/后台服务器
+# Nginx 与 SSL 建议用宝塔面板 GUI 一键完成（也可只用本脚本+手装 Nginx）
+```
+
 ### ✅ 一键脚本（推荐，可重复运行；首次部署与日后更新都用它）
 ```bash
 # 先装好环境：宝塔软件商店 → Nginx、PM2管理器(Node 20)、MongoDB 7.x、Python 3.11；并 npm i -g yarn
@@ -122,3 +130,16 @@ cd /www/wwwroot/gogo589-front/frontend && yarn && yarn build
 - 后端 8001 仅监听 127.0.0.1；MongoDB bindIp=127.0.0.1 + 账号密码。
 - 三站全上 SSL；宝塔面板改端口 + 两步验证 + 堡塔防火墙。
 - 系统防火墙只开 80/443，SSH 22 限 IP；每天备份 MongoDB 并异地同步。
+
+## 六、运维脚本（上线后常用）
+```bash
+# 三站一键体检（API 200 / 对象存储图片可取 / 前台后台可达）
+bash healthcheck.sh
+#（可覆盖域名）API_URL=... FRONT_URL=... ADMIN_URL=... bash healthcheck.sh
+
+# 立即备份一次 MongoDB（自动读 backend/.env 的 MONGO_URL/DB_NAME）
+bash backup_mongo.sh
+# 安装每日 03:30 自动备份（可选异地同步到备份机）
+REMOTE='user@备份机:/backup/gogo589' bash backup_mongo.sh --install-cron
+# 还原：mongorestore --uri="$MONGO_URL" --archive=/www/backup/mongo/gogo589_YYYYMMDD_HHMMSS.archive.gz --gzip --drop
+```
