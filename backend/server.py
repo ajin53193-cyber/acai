@@ -1980,40 +1980,16 @@ async def usdt_notify(request: Request):
     return PlainTextResponse("success")
 
 
-_UNIT_SUFFIX_RE = re.compile(r"^(.*)（第(\d+)份）$")
-
-
-def _unit_key(name: str, u: int) -> str:
-    return f"{name}（第{u + 1}份）"
-
-
-def _units_by_pid(o: dict, products: Dict[str, dict]) -> Dict[str, int]:
-    """Gift cards need one account set per unit; everything else needs one."""
-    out: Dict[str, int] = {}
+def _info_complete(o: dict, products: Dict[str, dict]) -> bool:
     for it in o.get("items", []):
         p = products.get(it["product_id"]) or {}
-        q = int(it.get("quantity") or 1)
-        out[it["product_id"]] = out.get(it["product_id"], 0) + (q if p.get("is_giftcard") else 1)
-    return out
-
-
-def _info_complete(o: dict, products: Dict[str, dict]) -> bool:
-    units_by_pid = _units_by_pid(o, products)
-    for pid, units in units_by_pid.items():
-        p = products.get(pid) or {}
         fields = p.get("delivery_fields") or []
-        vals = (o.get("delivery_info") or {}).get(pid) or {}
-        if units > 1:
-            for u in range(units):
-                for f in fields:
-                    if f.get("required") and not (vals.get(_unit_key(f["name"], u)) or "").strip():
-                        return False
-        else:
-            for f in fields:
-                if f.get("required") and not (vals.get(f["name"]) or "").strip():
-                    return False
-            if not fields and not (o.get("recharge_account") or "").strip() and not vals:
+        vals = (o.get("delivery_info") or {}).get(it["product_id"]) or {}
+        for f in fields:
+            if f.get("required") and not (vals.get(f["name"]) or "").strip():
                 return False
+        if not fields and not (o.get("recharge_account") or "").strip() and not vals:
+            return False
     return True
 
 
@@ -2025,7 +2001,7 @@ async def pay_order_wallet(order_id: str, member: dict = Depends(current_member)
     if o["status"] != "pending_payment":
         return o
     await _wallet_tx(member["user_id"], "payment", -float(o["total_usd"]), f"訂單付款 {o['order_no']}", o["id"])
-    prods = {it["product_id"]: (await db.products.find_one({"id": it["product_id"]}, {"_id": 0, "delivery_fields": 1, "is_giftcard": 1}) or {}) for it in o["items"]}
+    prods = {it["product_id"]: (await db.products.find_one({"id": it["product_id"]}, {"_id": 0, "delivery_fields": 1}) or {}) for it in o["items"]}
     complete = _info_complete(o, prods)
     tl = o.get("timeline", []) + [{"status": "paid", "at": now_iso()}]
     upd = {"status": "paid", "paid_at": now_iso(), "timeline": tl, "payment_method": "wallet", "info_submitted": complete}
@@ -2048,7 +2024,7 @@ async def submit_order_info(order_id: str, body: OrderInfoIn, member: dict = Dep
         raise HTTPException(status_code=400, detail="此訂單已在處理中，無法修改資料")
     if o.get("info_submitted") and not o.get("info_rejected"):
         raise HTTPException(status_code=400, detail="充值資料已提交，如需修改請聯繫客服，待平台駁回後再重新填寫")
-    prods = {it["product_id"]: (await db.products.find_one({"id": it["product_id"]}, {"_id": 0, "delivery_fields": 1, "is_giftcard": 1}) or {}) for it in o["items"]}
+    prods = {it["product_id"]: (await db.products.find_one({"id": it["product_id"]}, {"_id": 0, "delivery_fields": 1}) or {}) for it in o["items"]}
     # Field labels reach the client localized (zh-CN / en); map submitted keys back to the canonical field name first.
     incoming = {}
     for pid, vals in (body.delivery_info or {}).items():
@@ -2057,15 +2033,13 @@ async def submit_order_info(order_id: str, body: OrderInfoIn, member: dict = Dep
         fields = (prods.get(pid) or {}).get("delivery_fields") or []
         fixed = {}
         for k, v in vals.items():
-            m = _UNIT_SUFFIX_RE.match(k)
-            base, suffix = (m.group(1), f"（第{m.group(2)}份）") if m else (k, "")
-            canon = base
+            canon = k
             for f in fields:
                 name = f["name"]
-                if base == name or base in {to_simplified(name), to_traditional(name), translator.en.get(name, ""), f.get("code", "")} or to_traditional(base) == to_traditional(name):
+                if k == name or k in {to_simplified(name), to_traditional(name), translator.en.get(name, ""), f.get("code", "")} or to_traditional(k) == to_traditional(name):
                     canon = name
                     break
-            fixed[canon + suffix] = v
+            fixed[canon] = v
         incoming[pid] = fixed
     merged = {**(o.get("delivery_info") or {})}
     for pid, vals in incoming.items():

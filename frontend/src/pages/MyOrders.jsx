@@ -26,23 +26,14 @@ function OrderInfoForm({ order, callApi, onDone }) {
     const ids = [...new Set(order.items.map((i) => i.product_id))];
     Promise.all(ids.map((pid) => publicApi.get(`/products/${pid}`).then((r) => [pid, r.data]).catch(() => [pid, null]))).then((rs) => {
       const d = {};
-      rs.forEach(([pid, p]) => { if (p) d[pid] = { name: p.name, isGiftcard: !!p.is_giftcard, fields: p.delivery_fields?.length ? p.delivery_fields : [{ name: p.account_field_label || tr("充值帳號 / ID"), required: true, type: "text", options: [] }] }; });
+      rs.forEach(([pid, p]) => { if (p) d[pid] = { name: p.name, fields: p.delivery_fields?.length ? p.delivery_fields : [{ name: p.account_field_label || tr("充值帳號 / ID"), required: true, type: "text", options: [] }] }; });
       setDefs(d);
     });
   }, [order.id]); // eslint-disable-line react-hooks/exhaustive-deps
-  const unitKey = (name, u) => `${name}（第${u + 1}份）`;
-  const unitsOf = (pid) => (defs[pid]?.isGiftcard ? order.items.filter((i) => i.product_id === pid).reduce((s, i) => s + (+i.quantity || 1), 0) : 1);
   const set = (pid, name, v) => setVals((d) => ({ ...d, [pid]: { ...(d[pid] || {}), [name]: v } }));
   const [confirming, setConfirming] = useState(false);
   const submit = () => {
-    for (const pid of Object.keys(defs)) {
-      const units = unitsOf(pid);
-      if (units > 1) {
-        for (let u = 0; u < units; u++) for (const f of defs[pid].fields) if (f.required && !(vals[pid]?.[unitKey(f.name, u)] || "").trim()) return toast.error(tr("請填寫第 {0} 份的「{1}」", u + 1, f.name));
-      } else {
-        for (const f of defs[pid].fields) if (f.required && !(vals[pid]?.[f.name] || "").trim()) return toast.error(tr("請填寫「{0}」", f.name));
-      }
-    }
+    for (const pid of Object.keys(defs)) for (const f of defs[pid].fields) if (f.required && !(vals[pid]?.[f.name] || "").trim()) return toast.error(tr("請填寫「{0}」", f.name));
     setConfirming(true);
   };
   const doSubmit = async () => {
@@ -63,52 +54,31 @@ function OrderInfoForm({ order, callApi, onDone }) {
       <div className="font-bold text-slate-900">{tr("請填寫充值資料")}<span className="text-orange-500">{tr("，提交後開始人工充值")}</span></div>
       {order.info_rejected && <div data-testid="order-info-reject-reason" className="rounded-lg bg-red-50 border border-red-200 text-red-600 text-xs px-3 py-2 font-semibold">{order.gift_auto_failed ? order.info_reject_reason : <>{tr("平台駁回：")}{order.info_reject_reason}{tr("，請重新填寫後提交")}</>}</div>}
       <div className="text-[11px] text-slate-500">{tr("提交後將無法自行修改，請務必核對無誤")}</div>
-      {Object.entries(defs).map(([pid, d]) => {
-        const units = unitsOf(pid);
-        const renderField = (f, key, tid) => (
-          <div key={key}>
-            <div className="text-xs text-slate-600 mb-1">{f.required && <span className="text-red-500">*</span>}{f.name}</div>
-            {f.type === "select" ? (
-              <select data-testid={tid} value={vals[pid]?.[key] || ""} onChange={(e) => set(pid, key, e.target.value)} className={inp}><option value="">{tr("請選擇")}</option>{f.options.map((o) => <option key={o}>{o}</option>)}</select>
-            ) : (
-              <input data-testid={tid} type={f.type === "password" ? "password" : "text"} value={vals[pid]?.[key] || ""} onChange={(e) => set(pid, key, e.target.value)} placeholder={f.placeholder || tr("請輸入{0}", f.name)} className={inp} />
-            )}
-            {f.tips && <div className="text-[11px] text-orange-500 mt-1">{f.tips}</div>}
-          </div>
-        );
-        return (
-          <div key={pid} className="space-y-2">
-            {Object.keys(defs).length > 1 && <div className="text-xs font-semibold text-slate-500">{d.name}</div>}
-            {units > 1 ? (
-              <div className="space-y-3" data-testid={`order-info-units-${pid}`}>
-                <div className="text-[11px] text-orange-600 bg-orange-50 rounded-lg px-3 py-2">{tr("此禮品卡共 {0} 份，請逐份填寫收款帳號（每份將分別轉贈）", units)}</div>
-                {Array.from({ length: units }).map((_, u) => (
-                  <div key={u} className="rounded-xl border border-slate-200 p-3 space-y-2" data-testid={`order-info-unit-${pid}-${u}`}>
-                    <div className="text-xs font-bold text-orange-600">{tr("第 {0} 份", u + 1)}</div>
-                    {d.fields.map((f) => renderField(f, unitKey(f.name, u), `order-info-${pid}-${u}-${f.name}`))}
-                  </div>
-                ))}
-              </div>
-            ) : (
-              d.fields.map((f) => renderField(f, f.name, `order-info-${pid}-${f.name}`))
-            )}
-          </div>
-        );
-      })}
+      {Object.entries(defs).map(([pid, d]) => (
+        <div key={pid} className="space-y-2">
+          {Object.keys(defs).length > 1 && <div className="text-xs font-semibold text-slate-500">{d.name}</div>}
+          {d.fields.map((f) => (
+            <div key={f.name}>
+              <div className="text-xs text-slate-600 mb-1">{f.required && <span className="text-red-500">*</span>}{f.name}</div>
+              {f.type === "select" ? (
+                <select data-testid={`order-info-${pid}-${f.name}`} value={vals[pid]?.[f.name] || ""} onChange={(e) => set(pid, f.name, e.target.value)} className={inp}><option value="">{tr("請選擇")}</option>{f.options.map((o) => <option key={o}>{o}</option>)}</select>
+              ) : (
+                <input data-testid={`order-info-${pid}-${f.name}`} type={f.type === "password" ? "password" : "text"} value={vals[pid]?.[f.name] || ""} onChange={(e) => set(pid, f.name, e.target.value)} placeholder={f.placeholder || tr("請輸入{0}", f.name)} className={inp} />
+              )}
+              {f.tips && <div className="text-[11px] text-orange-500 mt-1">{f.tips}</div>}
+            </div>
+          ))}
+        </div>
+      ))}
       <button data-testid="order-info-submit" onClick={submit} disabled={busy} className="w-full h-11 rounded-full bg-orange-500 text-white font-bold hover:bg-orange-600 disabled:opacity-60">{busy ? tr("提交中…") : tr("提交充值資料")}</button>
-      {confirming && <InfoConfirm defs={defs} vals={vals} unitsOf={unitsOf} onBack={() => setConfirming(false)} onConfirm={doSubmit} />}
+      {confirming && <InfoConfirm defs={defs} vals={vals} onBack={() => setConfirming(false)} onConfirm={doSubmit} />}
     </div>
   );
 }
 
-function InfoConfirm({ defs, vals, unitsOf, onBack, onConfirm }) {
-  const unitKey = (name, u) => `${name}（第${u + 1}份）`;
-  const rows = Object.entries(defs).flatMap(([pid, d]) => {
-    const units = unitsOf ? unitsOf(pid) : 1;
-    if (units > 1) return Array.from({ length: units }).flatMap((_, u) => d.fields.map((f) => ({ key: `${pid}-${u}-${f.name}`, product: `${d.name} · ${tr("第 {0} 份", u + 1)}`, label: f.name, value: f.type === "password" ? "••••••" : (vals[pid]?.[unitKey(f.name, u)] || "") })));
-    return d.fields.map((f) => ({ key: `${pid}-${f.name}`, product: d.name, label: f.name, value: f.type === "password" ? "••••••" : (vals[pid]?.[f.name] || "") }));
-  });
-  const multi = Object.keys(defs).length > 1 || Object.keys(defs).some((pid) => (unitsOf ? unitsOf(pid) : 1) > 1);
+function InfoConfirm({ defs, vals, onBack, onConfirm }) {
+  const rows = Object.entries(defs).flatMap(([pid, d]) => d.fields.map((f) => ({ key: `${pid}-${f.name}`, product: d.name, label: f.name, value: f.type === "password" ? "••••••" : (vals[pid]?.[f.name] || "") })));
+  const multi = Object.keys(defs).length > 1;
   return (
         <div data-testid="order-info-confirm" className="fixed inset-0 z-[80] flex items-center justify-center bg-black/50 p-4" onClick={onBack}>
       <div className="w-full max-w-sm rounded-2xl bg-white p-5 shadow-2xl space-y-4" onClick={(e) => e.stopPropagation()}>

@@ -50,6 +50,7 @@ function CheckoutInner() {
   const { user } = useUser();
   const { items, subtotalUsd, clear, updateQty, removeItem } = useCart();
   const { format, code } = useCurrency();
+  const hasGift = items.some((i) => i.is_giftcard);
 
   const [promoInput, setPromoInput] = useState("");
   const [promo, setPromo] = useState(null);
@@ -63,12 +64,14 @@ function CheckoutInner() {
   useEffect(() => { callApi({ method: "GET", url: "/me/wallet" }).then((r) => setWallet(r.data.balance_usd)).catch(() => setWallet(0)); }, [callApi]);
   useEffect(() => { if (promo && subtotalUsd < (promo.min_order_usd || 0)) setPromo(null); }, [subtotalUsd, promo]);
 
+  useEffect(() => { if (hasGift && promo) setPromo(null); }, [hasGift, promo]);
+
   const itemsKey = JSON.stringify(items.map((i) => [i.product_id, i.spec_id, i.quantity]));
   useEffect(() => {
     if (items.length === 0) return;
-    callApi({ method: "POST", url: "/orders/quote", data: { items: items.map((i) => ({ product_id: i.product_id, spec_id: i.spec_id, quantity: i.quantity})), currency: code, recharge_account: "", promo_code: promo?.code || null } })
+    callApi({ method: "POST", url: "/orders/quote", data: { items: items.map((i) => ({ product_id: i.product_id, spec_id: i.spec_id, quantity: i.quantity})), currency: code, recharge_account: "", promo_code: hasGift ? null : (promo?.code || null) } })
       .then((r) => setQuote(r.data)).catch(() => setQuote(null));
-  }, [callApi, itemsKey, promo, code]); // eslint-disable-line
+  }, [callApi, itemsKey, promo, code, hasGift]); // eslint-disable-line
 
 
 
@@ -106,24 +109,26 @@ function CheckoutInner() {
     }
     setLoading(true);
     try {
-      const orderRes = await callApi({
-        method: "POST",
-        url: "/orders",
-        data: {
-          items: items.map((i) => ({ product_id: i.product_id, spec_id: i.spec_id, quantity: i.quantity})),
-          currency: code,
-          recharge_account: "",
-          delivery_info: {},
-          recharge_note: "",
-          contact: userLabel(user),
-          promo_code: promo?.code || null,
-        },
-      });
-      const order = orderRes.data;
-      const paid = await callApi({ method: "POST", url: `/orders/${order.id}/pay-wallet` });
+      // Gift cards are split into one independent order per unit; non-gift items stay combined.
+      const giftUnits = [];
+      items.filter((i) => i.is_giftcard).forEach((i) => { for (let n = 0; n < i.quantity; n++) giftUnits.push({ product_id: i.product_id, spec_id: i.spec_id, quantity: 1 }); });
+      const normalItems = items.filter((i) => !i.is_giftcard).map((i) => ({ product_id: i.product_id, spec_id: i.spec_id, quantity: i.quantity }));
+      const payloads = [];
+      if (normalItems.length) payloads.push({ items: normalItems, promo_code: hasGift ? null : (promo?.code || null) });
+      giftUnits.forEach((u) => payloads.push({ items: [u], promo_code: null }));
+
+      const createdIds = [];
+      for (const pl of payloads) {
+        const res = await callApi({ method: "POST", url: "/orders", data: { items: pl.items, currency: code, recharge_account: "", delivery_info: {}, recharge_note: "", contact: userLabel(user), promo_code: pl.promo_code } });
+        createdIds.push(res.data.id);
+      }
+      for (const oid of createdIds) {
+        await callApi({ method: "POST", url: `/orders/${oid}/pay-wallet` });
+      }
       clear();
-      toast.success(paid.data.info_submitted ? tr("錢包付款成功，訂單等待人工充值") : tr("錢包付款成功，請到訂單填寫充值資料"), { duration: 6000 });
-      navigate(`/orders?order=${order.id}`);
+      const multi = createdIds.length > 1;
+      toast.success(multi ? tr("付款成功，已建立 {0} 筆訂單，請到「我的訂單」分別填寫充值資料", createdIds.length) : tr("錢包付款成功，請到訂單填寫充值資料"), { duration: 6000 });
+      navigate(multi ? "/orders" : `/orders?order=${createdIds[0]}`);
     } catch (e) {
       toast.error(e.response?.data?.detail || tr("下單失敗，請稍後再試"), { duration: e.response?.status === 409 ? 7000 : 4000 });
     } finally {
@@ -176,6 +181,9 @@ function CheckoutInner() {
         {/* 滿減進度提示 */}
 
         {/* Coupons */}
+        {hasGift ? (
+          <div className="bg-white rounded-3xl shadow-sm p-4 sm:p-6 text-sm text-slate-500" data-testid="checkout-coupon-disabled">{tr("禮品卡訂單將依數量分拆為多筆獨立訂單，暫不支援優惠券。")}</div>
+        ) : (
         <div className="bg-white rounded-3xl shadow-sm p-4 sm:p-8" data-testid="checkout-coupon-card">
           <div className="flex items-center justify-between gap-4 flex-wrap">
             <SectionTitle>{tr("優惠券")}</SectionTitle>
@@ -190,6 +198,7 @@ function CheckoutInner() {
             {promos.map((p) => <CouponCard key={p.code} p={p} subtotalUsd={subtotalUsd} applied={promo?.code === p.code} onApply={applyPromo} format={format} />)}
           </div>
         </div>
+        )}
 
         {/* Payment + summary */}
         <div className="bg-white rounded-3xl shadow-sm overflow-hidden" data-testid="checkout-summary-card">
