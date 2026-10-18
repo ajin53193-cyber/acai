@@ -2250,6 +2250,8 @@ async def admin_usdt_overview(range: str = "today", date_from: str = "", date_to
     recent = await db.topup_orders.find({"own_wallet": True, **dmatch},
         {"_id": 0, "id": 1, "user_id": 1, "out_trade_no": 1, "order_no": 1, "amount_usd": 1, "pay_amount": 1, "wallet_address": 1, "network": 1, "status": 1, "tx_id": 1, "created_at": 1, "paid_at": 1, "method_name": 1}
     ).sort("created_at", -1).limit(80).to_list(80)
+    for rec in recent:
+        rec["account_id"] = admin_api.account_no(rec["user_id"]) if rec.get("user_id") else ""
     return {"addresses": addrs, "address_count": len(addrs), "range": range, "summary": summary, "success_rate": success_rate,
             "per_address": per_address, "recent": recent, "scan_seconds": int(os.environ.get("USDT_SCAN_SECONDS") or 90)}
 

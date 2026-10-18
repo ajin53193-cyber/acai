@@ -136,7 +136,7 @@ function UsdtData({ callApi }) {
             <thead><tr className="text-left text-xs text-slate-500 border-b border-slate-200 bg-slate-50/70">
               <th className="px-5 py-2.5 font-semibold">{tr("時間")}</th>
               <th className="px-5 py-2.5 font-semibold">{tr("訂單號")}</th>
-              <th className="px-5 py-2.5 font-semibold">{tr("用戶ID")}</th>
+              <th className="px-5 py-2.5 font-semibold">{tr("帳戶ID")}</th>
               <th className="px-5 py-2.5 font-semibold text-right">{tr("金額")}</th>
               <th className="px-5 py-2.5 font-semibold text-right">{tr("到賬金額")}</th>
               <th className="px-5 py-2.5 font-semibold">{tr("收款地址")}</th>
@@ -151,7 +151,7 @@ function UsdtData({ callApi }) {
                   <tr key={t.id} data-testid={`usdt-recent-${t.id}`} className="hover:bg-orange-50/30">
                     <td className="px-5 py-3 text-[12px] text-slate-500 whitespace-nowrap">{fmtTime(t.created_at)}</td>
                     <td className="px-5 py-3 font-mono text-[12px] text-slate-700 whitespace-nowrap"><button onClick={() => copy(ono)} className="inline-flex items-center gap-1 hover:text-orange-600">{ono}<Copy className="h-3 w-3 opacity-60" /></button></td>
-                    <td className="px-5 py-3 font-mono text-[12px] text-slate-500 whitespace-nowrap"><button onClick={() => copy(t.user_id)} className="inline-flex items-center gap-1 hover:text-orange-600" title={t.user_id}>{short(t.user_id)}<Copy className="h-3 w-3 opacity-60" /></button></td>
+                    <td className="px-5 py-3 font-mono text-[13px] text-slate-700 whitespace-nowrap"><button onClick={() => copy(t.account_id || t.user_id)} className="inline-flex items-center gap-1 font-bold hover:text-orange-600" title={t.user_id}>{t.account_id || short(t.user_id)}<Copy className="h-3 w-3 opacity-50" /></button></td>
                     <td className="px-5 py-3 text-right font-semibold text-slate-700">${t.amount_usd}</td>
                     <td className="px-5 py-3 text-right font-mono text-[13px] text-slate-600">{t.pay_amount} U</td>
                     <td className="px-5 py-3 font-mono text-[12px] text-slate-500">{short(t.wallet_address)}</td>
