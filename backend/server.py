@@ -3653,11 +3653,10 @@ async def seed():
     }
     SEED_VERSION = 9
     meta = await db.meta.find_one({"_id": "seed"})
+    # Production-safe: NEVER delete existing catalog data on version change.
+    # All seeding below is guarded by `count_documents({}) == 0`, so it only
+    # populates an empty database and leaves migrated/real data untouched.
     if not meta or meta.get("version") != SEED_VERSION:
-        await db.categories.delete_many({})
-        await db.products.delete_many({})
-        await db.reviews.delete_many({})
-        await db.promos.delete_many({})
         await db.meta.update_one({"_id": "seed"}, {"$set": {"version": SEED_VERSION}}, upsert=True)
 
     CATS = [

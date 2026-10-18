@@ -17,6 +17,8 @@
   - APP_PUBLIC_URL=https://print8.8bc8uyz.com
   - TRONGRID_API_KEY=（USDT 自动扫链到账必填，免费申请 trongrid.io/dashboard；不填会 429 限流）
   - USDT_SCAN_SECONDS=90（后台自动扫链周期，秒）
+  - EMERGENT_LLM_KEY=sk-emergent-68eBd73902bA24a64A ⚠️必填（商品/分类/评价等所有图片走 Emergent 对象存储，靠此 key 访问；留空或填错 → 全站图片 401/404 打不开。自动翻译脚本也用它）
+  - GEO_ENFORCE=true / GEO_STORE_ALLOW=...（正式环境地区限制，按需配置；预览环境保持 false）
 - frontend/.env：
   - REACT_APP_BACKEND_URL=https://www.apy-gogo-pay-589ppyppgkn.com
 - 改完 `cd frontend && yarn build`，把 build 传到商城与后台站点目录。

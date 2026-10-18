@@ -6,6 +6,7 @@
 
 ## 已实现（截至 2026-06）
 - 前端：首页、分类、商品详情、购物车、结账、用户账户、多货币。
+- [2026-06-18] 部署就绪检查(自有宝塔双机):修复启动 `seed()` 的删库风险——`SEED_VERSION` 变化时不再 `delete_many` 清空 categories/products/reviews/promos(迁移旧数据后不会被清),seeding 仅在集合为空时执行。DEPLOY_SPLIT.md 补充 `EMERGENT_LLM_KEY`(图片对象存储必填,否则全站图片 401)与 GEO 配置提醒。.gitignore 屏蔽 .env、用 PM2(非 supervisor)为自托管正确配置,保持不变。
 - [2026-06-18] 后台提醒改为「仅声音、不弹窗」：移除新订单模态弹窗(NewOrderAlert) + 新订单/充值/客服/人工转赠的 in-app toast；保留 `playAlert` 声音与(可在铃铛开关控制的)桌面通知。`useAdminAlerts` 去掉 onOrders/newOrders。
 - [2026-06-18] 礼品卡『按数量拆成多个独立订单』+ 修复 fork 后图片 401：
   - 修复:fork 后 `backend/.env` 的 `EMERGENT_LLM_KEY` 为旧失效 key → 对象存储 init 401 → 全站图片 404；已更新为当前有效通用 key，图片恢复。
