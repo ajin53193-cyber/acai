@@ -2205,7 +2205,7 @@ async def admin_usdt_overview(admin: dict = Depends(require_role("admin"))):
         per_address.append({"address": a, "paid_count": paid["count"], "paid_amount": paid["amount"], "pending_count": pending})
     per_address.sort(key=lambda x: x["paid_amount"], reverse=True)
     recent = await db.topup_orders.find({"own_wallet": True},
-        {"_id": 0, "id": 1, "user_id": 1, "amount_usd": 1, "pay_amount": 1, "wallet_address": 1, "network": 1, "status": 1, "tx_id": 1, "created_at": 1, "paid_at": 1, "method_name": 1}
+        {"_id": 0, "id": 1, "user_id": 1, "out_trade_no": 1, "order_no": 1, "amount_usd": 1, "pay_amount": 1, "wallet_address": 1, "network": 1, "status": 1, "tx_id": 1, "created_at": 1, "paid_at": 1, "method_name": 1}
     ).sort("created_at", -1).limit(50).to_list(50)
     return {"addresses": addrs, "address_count": len(addrs), "summary": summary, "per_address": per_address, "recent": recent, "scan_seconds": int(os.environ.get("USDT_SCAN_SECONDS") or 90)}
 
