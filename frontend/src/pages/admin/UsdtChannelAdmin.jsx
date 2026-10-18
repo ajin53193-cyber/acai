@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import { tr } from "@/i18n";
 import { Card, Head } from "./ui";
 import PaymentMethodsAdmin from "@/pages/admin/PaymentMethodsAdmin";
+import { UserInfoDialog } from "@/pages/admin/UserInfoDialog";
 
 const ST = {
   pending: [tr("待付款"), "text-amber-600 bg-amber-50 border-amber-200", Clock],
@@ -37,6 +38,7 @@ export function UsdtChannelAdmin({ callApi }) {
 
 function UsdtData({ callApi }) {
   const [d, setD] = useState(null);
+  const [viewUid, setViewUid] = useState("");
   const [range, setRange] = useState("today");
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
@@ -151,7 +153,7 @@ function UsdtData({ callApi }) {
                   <tr key={t.id} data-testid={`usdt-recent-${t.id}`} className="hover:bg-orange-50/30">
                     <td className="px-5 py-3 text-[12px] text-slate-500 whitespace-nowrap">{fmtTime(t.created_at)}</td>
                     <td className="px-5 py-3 font-mono text-[12px] text-slate-700 whitespace-nowrap"><button onClick={() => copy(ono)} className="inline-flex items-center gap-1 hover:text-orange-600">{ono}<Copy className="h-3 w-3 opacity-60" /></button></td>
-                    <td className="px-5 py-3 font-mono text-[13px] text-slate-700 whitespace-nowrap"><button onClick={() => copy(t.account_id || t.user_id)} className="inline-flex items-center gap-1 font-bold hover:text-orange-600" title={t.user_id}>{t.account_id || short(t.user_id)}<Copy className="h-3 w-3 opacity-50" /></button></td>
+                    <td className="px-5 py-3 font-mono text-[13px] text-slate-700 whitespace-nowrap"><button onClick={() => setViewUid(t.user_id)} data-testid={`usdt-user-${t.account_id}`} className="inline-flex items-center gap-1 font-bold text-orange-600 hover:underline" title={tr("查看用戶信息")}>{t.account_id || short(t.user_id)}</button></td>
                     <td className="px-5 py-3 text-right font-semibold text-slate-700">${t.amount_usd}</td>
                     <td className="px-5 py-3 text-right font-mono text-[13px] text-slate-600">{t.pay_amount} U</td>
                     <td className="px-5 py-3 font-mono text-[12px] text-slate-500">{short(t.wallet_address)}</td>
@@ -164,6 +166,7 @@ function UsdtData({ callApi }) {
           </table></div>
         )}
       </Card>
+      <UserInfoDialog uid={viewUid} callApi={callApi} onClose={() => setViewUid("")} />
     </div>
   );
 }
