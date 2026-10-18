@@ -2411,6 +2411,9 @@ async def admin_usdt_manual_match(body: UsdtMatchIn, admin: dict = Depends(requi
     r = await _usdt_match_one(body.address, body.tx_id, body.amount, body.payer)
     if not r:
         raise HTTPException(status_code=404, detail="找不到該地址上金額相符的待付/過期訂單，無法自動補單")
+    await admin_api.record_admin_log(admin.get("user_id", ""), admin.get("email", ""), "CREDIT",
+        "/api/admin/usdt/manual-match", 200,
+        detail=f"查鏈補單 訂單{r.get('order_no') or r.get('out_trade_no')} 金額{r.get('amount_usd')}USD TXID={body.tx_id}")
     return {"ok": True, "order_no": r.get("order_no") or r.get("out_trade_no"),
             "account_id": admin_api.account_no(r.get("user_id")) if r.get("user_id") else "", "amount_usd": r.get("amount_usd")}
 
@@ -2430,6 +2433,9 @@ async def admin_usdt_manual_match_all(hours: int = 48, admin: dict = Depends(req
         except Exception as e:
             logger.info("batch match failed %s: %s", it.get("tx_id"), e)
             skipped += 1
+    await admin_api.record_admin_log(admin.get("user_id", ""), admin.get("email", ""), "CREDIT",
+        "/api/admin/usdt/manual-match-all", 200,
+        detail=f"一鍵全部補單 成功{matched}筆/跳過{skipped}筆 共{len(items)}筆")
     return {"ok": ok, "matched": matched, "skipped": skipped, "total": len(items)}
 
 
@@ -2522,6 +2528,9 @@ async def admin_topup_credit_hash(order_id: str, body: CreditHashIn, admin: dict
     if payer:
         await db.topup_orders.update_one({"id": t["id"]}, {"$set": {"payer_address": payer}})
     r = await _usdt_settle(t, {"paid_at": paid_at, "tx_id": tx})
+    await admin_api.record_admin_log(admin.get("user_id", ""), admin.get("email", ""), "CREDIT",
+        f"/api/admin/topups/{order_id}/credit-hash", 200,
+        detail=f"哈希補單 訂單{r.get('order_no') or r.get('out_trade_no')} 金額{r.get('amount_usd')}USD TXID={tx} {'強制(未校驗)' if body.force else '鏈上校驗通過'}")
     return {"ok": True, "order_no": r.get("order_no") or r.get("out_trade_no"), "amount_usd": r.get("amount_usd"), "verified": not body.force}
 
 
@@ -2538,6 +2547,18 @@ def _client_country(request: Request) -> str:
     return ""
 
 
+def _client_ip(request: Request) -> str:
+    xff = (request.headers.get("x-forwarded-for") or "").strip()
+    if xff:
+        return xff.split(",")[0].strip()
+    return (request.headers.get("x-real-ip") or "").strip() or (request.client.host if request.client else "")
+
+
+def _ip_whitelisted(request: Request) -> bool:
+    ips = {x.strip() for x in _geo_flag("GEO_ALLOW_IPS", "").split(",") if x.strip()}
+    return bool(ips) and _client_ip(request) in ips
+
+
 def _geo_allowed(country: str, scope: str) -> bool:
     if _geo_flag("GEO_ENFORCE", "false").lower() != "true":
         return True
@@ -2552,7 +2573,8 @@ def _geo_allowed(country: str, scope: str) -> bool:
 async def geo_guard(request: Request, scope: str = "store"):
     scope = "admin" if scope == "admin" else "store"
     country = _client_country(request)
-    return {"allowed": _geo_allowed(country, scope), "country": country,
+    wl = _ip_whitelisted(request)
+    return {"allowed": wl or _geo_allowed(country, scope), "country": country, "ip_whitelisted": wl,
             "enforce": _geo_flag("GEO_ENFORCE", "false").lower() == "true", "scope": scope}
 
 
@@ -3901,7 +3923,8 @@ async def audit_admin(request: Request, call_next):
     resp = await call_next(request)
     try:
         p = request.url.path
-        if request.method in ("POST", "PUT", "DELETE", "PATCH") and p.startswith("/api/admin") and "/auth/" not in p and "/operation-logs" not in p:
+        if request.method in ("POST", "PUT", "DELETE", "PATCH") and p.startswith("/api/admin") and "/auth/" not in p and "/operation-logs" not in p \
+                and "/credit-hash" not in p and "/verify-hash" not in p and "/manual-match" not in p:
             data = admin_api._verify(request.headers.get("x-admin-token", ""))
             uid = data.get("uid") if data else None
             if uid:
@@ -3915,7 +3938,7 @@ async def audit_admin(request: Request, call_next):
 async def geo_gate(request: Request, call_next):
     if _geo_flag("GEO_ENFORCE", "false").lower() == "true":
         p = request.url.path
-        if p.startswith("/api") and not p.startswith(GEO_SKIP):
+        if p.startswith("/api") and not p.startswith(GEO_SKIP) and not _ip_whitelisted(request):
             scope = "admin" if p.startswith("/api/admin") else "store"
             if not _geo_allowed(_client_country(request), scope):
                 return Response(content=json.dumps({"detail": "Not Found"}), status_code=404, media_type="application/json")

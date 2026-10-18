@@ -39,7 +39,7 @@ export function OperationLogsAdmin({ callApi }) {
         <Btn kind="ghost" data-testid="oplog-search-btn" onClick={() => { setPage(1); load(); }}>{tr("查詢")}</Btn>
         <span className="text-xs text-slate-400 ml-auto">{tr("共 {0} 條", total)}</span>
       </div>
-      <Table testId="oplog-table" cols={[tr("時間"), tr("管理員"), tr("方法"), tr("路徑"), tr("狀態")]}
+      <Table testId="oplog-table" cols={[tr("時間"), tr("管理員"), tr("方法"), tr("路徑"), tr("狀態"), tr("詳情")]}
         empty={data === null ? tr("載入中…") : tr("暫無日誌")} rows={data?.rows || []} render={(r, i) => (
           <tr key={i} data-testid={`oplog-row-${i}`} className="hover:bg-slate-50">
             <td className="px-4 py-2.5 text-slate-500 whitespace-nowrap">{fmt(r.created_at)}</td>
@@ -47,6 +47,7 @@ export function OperationLogsAdmin({ callApi }) {
             <td className="px-4 py-2.5"><Pill tone={METHOD_TONE[r.method] || "slate"}>{r.method}</Pill></td>
             <td className="px-4 py-2.5 font-mono text-[12px] text-slate-600">{r.path}</td>
             <td className="px-4 py-2.5"><span className={(r.status >= 200 && r.status < 300) ? "text-emerald-600 font-semibold" : "text-red-500 font-semibold"}>{r.status}</span></td>
+            <td className="px-4 py-2.5 text-[12px] text-slate-600 max-w-[320px] break-all">{r.detail || "-"}</td>
           </tr>
         )} />
       {pages > 1 && (

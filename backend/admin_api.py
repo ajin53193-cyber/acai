@@ -1847,9 +1847,9 @@ async def admin_operation_logs_export(q: str = "", admin: dict = Depends(require
     rows = await db.admin_logs.find(query, {"_id": 0}).sort("created_at", -1).limit(5000).to_list(5000)
     buf = io.StringIO()
     w = csv.writer(buf)
-    w.writerow(["time", "admin", "method", "path", "status"])
+    w.writerow(["time", "admin", "method", "path", "status", "detail"])
     for r in rows:
-        w.writerow([r.get("created_at", ""), r.get("admin_email", ""), r.get("method", ""), r.get("path", ""), r.get("status", "")])
+        w.writerow([r.get("created_at", ""), r.get("admin_email", ""), r.get("method", ""), r.get("path", ""), r.get("status", ""), r.get("detail", "")])
     buf.seek(0)
     return StreamingResponse(iter([buf.getvalue()]), media_type="text/csv",
                              headers={"Content-Disposition": "attachment; filename=operation_logs.csv"})
@@ -1931,13 +1931,13 @@ async def load_integration_settings():
         logger.error("load_integration_settings failed: %s", e)
 
 
-async def record_admin_log(uid: str, email: str, method: str, path: str, status: int):
+async def record_admin_log(uid: str, email: str, method: str, path: str, status: int, detail: str = ""):
     try:
         if not email and uid:
             u = await db.users.find_one({"user_id": uid}, {"_id": 0, "email": 1})
             email = (u or {}).get("email", "")
         await db.admin_logs.insert_one({"id": uuid.uuid4().hex, "admin_user_id": uid, "admin_email": email,
-                                        "method": method, "path": path, "status": status,
+                                        "method": method, "path": path, "status": status, "detail": detail,
                                         "created_at": datetime.now(timezone.utc).isoformat()})
     except Exception:
         pass

@@ -275,3 +275,8 @@
 - 新增 `POST /api/admin/topups/{id}/verify-hash`（只讀）：對指定訂單查該 TXID 的鏈上轉入信息，返回 {found, amount, from, ts, expected, amount_match, duplicate, dup_order_no, already_paid, has_key}，不入帳。
 - 新增前端 `CreditHashDialog.jsx`：輸入 TXID →「鏈上核對」→ 展示鏈上到賬金額(綠/紅對比應付)/付款方/到賬時間/是否轉入本訂單地址/是否重複/是否已入帳 + TronScan 外鏈；核對通過才亮起「確認補單入帳」，不通過則提供「跳過校驗強制補單」(force)。替換了 UsdtChannelAdmin 最近充值記錄「補單」與 TopupsAdmin「哈希補單」原來的 window.prompt 流程。
 - 已登入截圖驗證：輸入假哈希核對後正確顯示紅色「找不到該哈希轉入記錄」+ 強制補單/取消按鈕；`verify-hash` 只讀不入帳（verify 端到端確認假哈希→None、真哈希→正確金額/付款方）。i18n 新增 17 條手動合併簡體。源碼包已重打 `/app/export/patch.zip`。
+
+## 2026-10-18 更新（補單操作日誌 + 後台 IP 白名單）
+- **補單操作日誌**：`record_admin_log` 增加 `detail` 欄位；credit-hash / manual-match / manual-match-all 三個補單接口成功後寫入詳細日誌（method=CREDIT，detail 含 訂單號/金額/TXID/是否強制、批量含成功跳過筆數），並從通用 `audit_admin` 中間件排除這些路徑避免重複記錄。OperationLogsAdmin 表格與 CSV 匯出新增「詳情」列。已驗證 detail 入庫與讀取正常。
+- **後台 IP 白名單**：新增 `GEO_ALLOW_IPS`（逗號分隔）env，名單內 IP 直接放行、不受地區限制（出差用固定 IP 進後台）。新增 `_client_ip`(X-Forwarded-For/X-Real-IP/client.host) 與 `_ip_whitelisted`；geo_gate 中間件與 /geo/guard 均先判白名單再判國家，guard 返回 `ip_whitelisted`。已單測白名單命中/不命中正確。`.env.production.example` 已補說明。
+- i18n 新增「詳情」1 條。源碼包已重打 `/app/export/patch.zip`。
