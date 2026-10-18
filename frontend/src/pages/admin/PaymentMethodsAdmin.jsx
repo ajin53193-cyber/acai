@@ -4,7 +4,7 @@ import { toast } from "sonner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Switch } from "@/components/ui/switch";
 import { tr } from "@/i18n";
-import { Btn, Card, Head } from "./ui";
+import { Btn, Card, Head, Modal } from "./ui";
 
 const inp = "w-full h-10 rounded-lg bg-white border border-slate-200 px-3 text-sm text-slate-900 outline-none focus:ring-2 focus:ring-orange-300";
 const CATS = { usdt: "USDT", card: tr("卡支付"), ewallet: tr("電子錢包"), bank: tr("銀行轉賬") };
@@ -121,10 +121,13 @@ function MethodForm({ f, setF, onSave, onClose, onTest, onDelete }) {
   const set = (k, v) => setF((p) => ({ ...p, [k]: v }));
   const setCfg = (k, v) => setF((p) => ({ ...p, config: { ...p.config, [k]: v } }));
   return (
-    <Dialog open onOpenChange={onClose}>
-      <DialogContent className="bg-white max-w-2xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader><DialogTitle className="text-slate-900">{f.id ? tr("編輯支付方式") : tr("新增支付方式")}</DialogTitle></DialogHeader>
-        <div className="space-y-3">
+    <Modal testId="pm-form-modal" size="xl" title={f.id ? tr("編輯支付方式") : tr("新增支付方式")} onClose={onClose}
+      footer={<>
+        {f.id && <button data-testid={`pm-delete-${f.id}`} onClick={() => { onClose(); onDelete(f); }} className="h-9 px-4 rounded-lg border border-red-200 text-red-600 text-sm font-semibold flex items-center gap-1.5 mr-auto hover:bg-red-50 transition-colors"><Trash2 className="h-4 w-4" />{tr("刪除")}</button>}
+        <Btn kind="secondary" onClick={onClose}>{tr("取消")}</Btn>
+        <Btn data-testid="pm-form-save" onClick={() => onSave(f)}>{tr("儲存")}</Btn>
+      </>}>
+      <div className="space-y-3">
           <div className="grid grid-cols-2 gap-3">
             <div><label className="text-xs text-slate-500 font-medium">{tr("名稱")}</label><input data-testid="pm-form-name" className={inp} value={f.name} onChange={(e) => set("name", e.target.value)} placeholder={tr("例如 VISA / MasterCard")} /></div>
             <div><label className="text-xs text-slate-500 font-medium">{tr("分類")}</label>
@@ -158,25 +161,26 @@ function MethodForm({ f, setF, onSave, onClose, onTest, onDelete }) {
               </div>
             )}
             {f.id && ["paypal", "stripe"].includes(f.provider) && <button type="button" data-testid={`pm-test-${f.id}`} onClick={() => onTest(f)} className="h-9 px-3.5 rounded-lg bg-sky-500 hover:bg-sky-600 text-white text-xs font-semibold flex items-center gap-1.5 transition-colors"><Plug className="h-3.5 w-3.5" />{tr("測試連線（使用已儲存的參數）")}</button>}
+            {f.provider === "crypto" && <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 pt-1">{tr("自有錢包收款（推薦）")}</div>}
             <div className="grid grid-cols-2 gap-3">
-              {(CONFIG_FIELDS[f.provider] || []).map(([k, l]) => (
+              {(CONFIG_FIELDS[f.provider] || []).map(([k, l]) => {
+                const sep = f.provider === "crypto" && k === "base_url"
+                  ? <div key="pm-cfg-sep" className="col-span-2 mt-1 pt-3 border-t border-slate-200 text-[11px] font-semibold uppercase tracking-wider text-slate-400">{tr("網關對接模式（選填，使用自有地址時可全部留空）")}</div>
+                  : null;
+                const field = (
                 <div key={k} className={["account_info", "wallet_addresses", "wallet_note"].includes(k) ? "col-span-2" : ""}><label className="text-xs text-slate-500 font-medium">{l}</label>
                   {k === "env" ? <select data-testid="pm-form-cfg-env" className={inp} value={f.config.env || "sandbox"} onChange={(e) => setCfg("env", e.target.value)}><option value="sandbox">{tr("沙盒（測試）")}</option><option value="live">{tr("正式（live）")}</option></select>
                     : ["account_info", "bank_note", "wallet_note", "wallet_addresses"].includes(k) ? <textarea data-testid={`pm-form-cfg-${k}`} className={inp + " h-24 py-2" + (k === "wallet_addresses" ? " font-mono text-xs leading-5" : "")} value={k === "wallet_addresses" ? (f.config.wallet_addresses ?? f.config.wallet_address ?? "") : (f.config[k] || "")} onChange={(e) => setCfg(k, e.target.value)} placeholder={k === "wallet_addresses" ? "每行一個地址（可多個）：\nT...\nT..." : ""} />
                     : <input data-testid={`pm-form-cfg-${k}`} className={inp + (k === "wallet_address" ? " font-mono" : "")} value={f.config[k] || ""} onChange={(e) => setCfg(k, e.target.value)} placeholder={["api_key", "api_secret", "webhook_secret"].includes(k) ? tr("儲存後將遮罩顯示") : k === "wallet_address" ? "T..." : k === "network" ? "TRC20" : ""} />}
                 </div>
-              ))}
+                );
+                return sep ? [sep, field] : field;
+              })}
             </div>
             
           </div>
           <label className="flex items-center gap-2 text-sm"><Switch checked={f.active} onCheckedChange={(v) => set("active", v)} /> {tr("啟用（會員可選）")}</label>
-        </div>
-        <DialogFooter>
-          {f.id && <button data-testid={`pm-delete-${f.id}`} onClick={() => { onClose(); onDelete(f); }} className="h-10 px-4 rounded-lg border border-red-200 text-red-600 text-sm font-semibold flex items-center gap-1.5 mr-auto hover:bg-red-50 transition-colors"><Trash2 className="h-4 w-4" />{tr("刪除")}</button>}
-          <button onClick={onClose} className="h-10 px-4 rounded-lg border border-slate-300 text-slate-600 text-sm">{tr("取消")}</button>
-          <button data-testid="pm-form-save" onClick={() => onSave(f)} className="h-10 px-5 rounded-lg bg-orange-500 hover:bg-orange-600 text-white text-sm font-semibold">{tr("儲存")}</button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+      </div>
+    </Modal>
   );
 }

@@ -50,10 +50,11 @@ export const StatCard = ({ label, value, sub, tone = "slate", icon: Icon }) => (
   </Card>
 );
 
-export function Modal({ title, onClose, children, footer, testId }) {
+const MODAL_W = { sm: "max-w-md", md: "max-w-lg", lg: "max-w-xl", xl: "max-w-2xl" };
+export function Modal({ title, onClose, children, footer, testId, size = "sm" }) {
   return (
     <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4" onClick={onClose}>
-      <div data-testid={testId} className="bg-white rounded-xl w-full max-w-md max-h-[90vh] overflow-y-auto shadow-2xl border border-slate-200" onClick={(e) => e.stopPropagation()}>
+      <div data-testid={testId} className={`bg-white rounded-xl w-full ${MODAL_W[size] || MODAL_W.sm} max-h-[90vh] overflow-y-auto shadow-2xl border border-slate-200`} onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-slate-50/50 sticky top-0"><h3 className="font-head font-bold text-slate-900">{title}</h3><button onClick={onClose} className="h-8 w-8 rounded-full bg-slate-100 flex items-center justify-center hover:bg-slate-200 text-slate-500 text-lg leading-none transition-colors">×</button></div>
         <div className="p-6 space-y-3">{children}</div>
         {footer && <div className="px-6 py-3.5 border-t border-slate-100 bg-slate-50/50 flex items-center justify-end gap-2 sticky bottom-0">{footer}</div>}

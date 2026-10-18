@@ -49,6 +49,7 @@ import { SalesAnalysisAdmin } from "@/pages/admin/SalesAnalysisAdmin";
 import { UserBatchAdmin } from "@/pages/admin/UserBatchAdmin";
 import { UserReportsAdmin } from "@/pages/admin/UserReportsAdmin";
 import { tr } from "@/i18n";
+import { Modal, Input, Field, Btn } from "@/pages/admin/ui";
 
 // Full admin IA — collapsible two-level menu. Keys map to real pages in PAGES; everything else renders <Soon/>.
 const MENU = [
@@ -66,6 +67,7 @@ const SECTION_LABEL = Object.fromEntries([...MENU.flatMap((m) => m.items), ...LE
 
 const ALL_STATUSES = Object.keys(STATUS_LABELS);
 const inputCls = "w-full h-10 rounded-lg bg-slate-800 border border-slate-700 px-3 text-sm text-slate-100 outline-none focus:border-primary";
+const selCls = "w-full h-10 rounded-lg bg-white border border-slate-200 px-3 text-sm text-slate-900 outline-none focus:ring-2 focus:ring-orange-200 focus:border-orange-400";
 
 const Badge = ({ n, testId }) => (n > 0 ? <span data-testid={testId} className="ml-auto shrink-0 min-w-[18px] h-[18px] px-1.5 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center leading-none">{n > 99 ? "99+" : n}</span> : null);
 
@@ -94,16 +96,16 @@ const NavGroup = ({ gkey, g, Icon, items, section, setSection, open, toggle, bad
   return (
     <div>
       <button data-testid={`admin-group-${gkey}`} onClick={toggle}
-        className={`w-full flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-semibold transition-colors ${active ? "text-orange-600" : "text-slate-600 hover:bg-slate-100"}`}>
+        className={`w-full flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-semibold transition-colors ${active ? "text-orange-600 bg-orange-50/70" : "text-slate-600 hover:bg-slate-100"}`}>
         <Icon className="h-4 w-4 shrink-0" /><span className="flex-1 text-left truncate">{g}</span>
         {!open && <Badge n={groupBadge} testId={`admin-group-badge-${gkey}`} />}
         <ChevronDown className={`h-3.5 w-3.5 shrink-0 transition-transform ${open ? "rotate-180" : ""}`} />
       </button>
       {open && (
-        <div className="mt-0.5 mb-1 ml-3.5 pl-3 border-l border-slate-200 space-y-0.5">
+        <div className="mt-1 mb-1.5 ml-4 pl-3 border-l border-slate-200 space-y-0.5">
           {items.map(([k, label]) => (
             <a key={k} href={`${ADMIN_BASE}?s=${k}`} data-testid={`admin-nav-${k}`} onClick={(e) => { if (e.metaKey || e.ctrlKey || e.shiftKey || e.button === 1) return; e.preventDefault(); setSection(k); }}
-              className={`w-full flex items-center gap-2 rounded-md px-2.5 py-1.5 text-[13px] transition-colors ${section === k ? "bg-orange-500 text-white font-semibold" : "text-slate-500 hover:bg-slate-100 hover:text-slate-800"}`}>
+              className={`relative w-full flex items-center gap-2 rounded-md px-3 py-1.5 text-[13px] transition-colors ${section === k ? "bg-orange-50 text-orange-600 font-semibold before:absolute before:-left-[13px] before:top-1.5 before:bottom-1.5 before:w-[2px] before:rounded-full before:bg-orange-500" : "text-slate-500 hover:bg-slate-100 hover:text-slate-800"}`}>
               <span className="truncate">{label}</span>
               <Badge n={badges[k] || 0} testId={`admin-nav-badge-${k}`} />
             </a>
@@ -349,7 +351,7 @@ function AdminInner() {
           <div className="pt-2 mt-2 border-t border-slate-800">
             {LEAVES.map(([k, label, Icon]) => (
               <a key={k} href={`${ADMIN_BASE}?s=${k}`} data-testid={`admin-nav-${k}`} title={label} onClick={(e) => { if (e.metaKey || e.ctrlKey || e.shiftKey || e.button === 1) return; e.preventDefault(); setSection(k); }}
-                className={`w-full flex items-center gap-2.5 rounded-lg text-sm font-semibold transition-colors ${collapsed ? "justify-center h-10 px-0" : "px-3 py-2"} ${section === k ? "bg-orange-500 text-white" : "text-slate-600 hover:bg-slate-100"}`}>
+                className={`w-full flex items-center gap-2.5 rounded-lg text-sm font-semibold transition-colors ${collapsed ? "justify-center h-10 px-0" : "px-3 py-2"} ${section === k ? (collapsed ? "bg-orange-500 text-white" : "bg-orange-50 text-orange-600") : "text-slate-600 hover:bg-slate-100"}`}>
                 <Icon className={collapsed ? "h-[18px] w-[18px]" : "h-4 w-4 shrink-0"} />{!collapsed && <span className="truncate">{label}</span>}
               </a>
             ))}
@@ -456,28 +458,20 @@ function Promos({ callApi }) {
         ))}
       </div>
       {editing && (
-        <Dialog open onOpenChange={() => setEditing(null)}>
-          <DialogContent className="bg-slate-900 border-slate-800 text-slate-200">
-            <DialogHeader><DialogTitle className="text-white">{editing.id ? tr("編輯優惠碼") : tr("新增優惠碼")}</DialogTitle></DialogHeader>
-            <div className="space-y-3">
-              <div><label className="text-xs text-slate-400">{tr("優惠碼")}</label><input data-testid="promo-code-input" className={inputCls} value={editing.code} onChange={(e) => setEditing({ ...editing, code: e.target.value.toUpperCase() })} /></div>
-              <div className="grid grid-cols-2 gap-3">
-                <div><label className="text-xs text-slate-400">{tr("類型")}</label>
-                  <select className={inputCls} value={editing.discount_type} onChange={(e) => setEditing({ ...editing, discount_type: e.target.value })}>
-                    <option value="percent">{tr("百分比 %")}</option><option value="fixed_usd">{tr("固定金額 USD")}</option>
-                  </select></div>
-                <div><label className="text-xs text-slate-400">{tr("折扣值")}</label><input type="number" step="0.01" className={inputCls} value={editing.value} onChange={(e) => setEditing({ ...editing, value: +e.target.value })} /></div>
-                <div><label className="text-xs text-slate-400">{tr("最低訂單 USD")}</label><input type="number" step="0.01" className={inputCls} value={editing.min_order_usd} onChange={(e) => setEditing({ ...editing, min_order_usd: +e.target.value })} /></div>
-                <div><label className="text-xs text-slate-400">{tr("到期日")}</label><input type="date" className={inputCls} value={editing.expires_at} onChange={(e) => setEditing({ ...editing, expires_at: e.target.value })} /></div>
-              </div>
-              <label className="flex items-center gap-2 text-sm"><Switch checked={editing.active} onCheckedChange={(v) => setEditing({ ...editing, active: v })} /> {tr("啟用")}</label>
-            </div>
-            <DialogFooter>
-              <button onClick={() => setEditing(null)} className="h-10 px-4 rounded-lg border border-slate-700 text-slate-300 text-sm">{tr("取消")}</button>
-              <button data-testid="promo-save-btn" onClick={() => save(editing)} className="h-10 px-5 rounded-lg bg-primary text-white text-sm font-semibold">{tr("儲存")}</button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+        <Modal testId="promo-dialog" title={editing.id ? tr("編輯優惠碼") : tr("新增優惠碼")} onClose={() => setEditing(null)}
+          footer={<><Btn kind="secondary" onClick={() => setEditing(null)}>{tr("取消")}</Btn><Btn data-testid="promo-save-btn" onClick={() => save(editing)}>{tr("儲存")}</Btn></>}>
+          <Field label={tr("優惠碼")}><Input data-testid="promo-code-input" className="w-full" value={editing.code} onChange={(e) => setEditing({ ...editing, code: e.target.value.toUpperCase() })} /></Field>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label={tr("類型")}>
+              <select className={selCls} value={editing.discount_type} onChange={(e) => setEditing({ ...editing, discount_type: e.target.value })}>
+                <option value="percent">{tr("百分比 %")}</option><option value="fixed_usd">{tr("固定金額 USD")}</option>
+              </select></Field>
+            <Field label={tr("折扣值")}><Input type="number" step="0.01" className="w-full" value={editing.value} onChange={(e) => setEditing({ ...editing, value: +e.target.value })} /></Field>
+            <Field label={tr("最低訂單 USD")}><Input type="number" step="0.01" className="w-full" value={editing.min_order_usd} onChange={(e) => setEditing({ ...editing, min_order_usd: +e.target.value })} /></Field>
+            <Field label={tr("到期日")}><Input type="date" className="w-full" value={editing.expires_at} onChange={(e) => setEditing({ ...editing, expires_at: e.target.value })} /></Field>
+          </div>
+          <label className="flex items-center gap-2 text-sm text-slate-700"><Switch checked={editing.active} onCheckedChange={(v) => setEditing({ ...editing, active: v })} /> {tr("啟用")}</label>
+        </Modal>
       )}
     </div>
   );

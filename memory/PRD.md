@@ -6,6 +6,12 @@
 
 ## 已实现（截至 2026-06）
 - 前端：首页、分类、商品详情、购物车、结账、用户账户、多货币。
+- [2026-06-18] 后台 UI 三项精修（纯样式，不动功能/接口）：
+  1. 侧边栏打磨（`Admin.jsx` NavGroup）：子菜单激活态由实心橙块改为「浅橙底 + 文字橙 + 左侧 2px 橙色竖条」更精致；分组标题激活态加浅橙底；安全配置等 LEAVES 展开态同步浅橙；缩进/间距微调（ml-4 pl-3）。注：`.admin-light` CSS 将整个后台（含 `bg-slate-900` 侧栏）强制渲染为浅色，侧栏实为白底。
+  2. `ui.jsx` Modal 新增 `size` 属性（sm/md/lg/xl）。
+  3. 弹窗/页面统一：`Admin.jsx` 优惠券 Promos 弹窗（原深色 Dialog）→ 统一浅色 Modal + ui Input/Field/Btn；`PaymentMethodsAdmin` MethodForm → Modal(size=xl)，并将 crypto 配置分为「自有钱包收款（推荐）」与「网关对接模式（选填）」两组；`SupportAdmin`（认证审核/用户反馈，原整页深色主题）整页重写为 ui.jsx 浅色组件（Card/Btn/Pill/Head/Modal）。
+  - i18n：`python3 scripts/i18n_codemod.py keys` + `gen_i18n_dicts.py cn` 已重生成 zh-CN.json（1950 键，admin 永远 zh-CN，显示正常）。en.json 有 62 新键未翻译——因 `translate.py` 的 OpenAI Key 无效（已知待办：换用户自有 Key），但 en 缺失键会回退 zh-CN，且相关页面均为 admin（zh-CN），无影响。
+
 - [2026-06] 礼花升级：转赠完成瞬间 confetti 从礼物盒图标位置迸发（giftRef getBoundingClientRect → 归一化 origin），并弹出庆祝浮层「禮品卡已轉贈到您的{channel}賬戶！」（channel 由 delivery_info 字段名动态推导，默认 Alipay HK），4.8s 自动消失。celebrate(origin) 支持自定义迸发点。浮层内按订单面额显示对应 SHKP 礼品卡卡面（/giftcards/hkd-{200,500,1000,5000,8000}.png，已 PIL 预裁掉米色留白、统一尺寸 object-cover 显示）；giftCardImageFor() 从 spec_label 的 HKD 金额映射。
 - [2026-06] 分享图自定义祝福语：详情交易号卡新增祝福语输入框（上限 40 字），生成的分享图中以橙色浅底框展示祝福语（动态高度+自动换行）。
 - [2026-06] 我的订单按交易号/订单编号搜索：列表顶部搜索框客户端过滤（匹配 order_no 或 gift_trade_nos[].trade_no），带清除按钮与空态提示。
