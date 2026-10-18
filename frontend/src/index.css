@@ -24,7 +24,7 @@ html.ios.shell, html.ios.shell body { height: 100%; overflow: hidden; overscroll
 html.ios.shell body { position: fixed; inset: 0; width: 100%; }
 html.ios.shell #root { height: 100%; min-height: 0; display: flex; flex-direction: column; }
 html.ios.shell #root > .App { height: 100%; min-height: 0; display: flex; flex-direction: column; }
-html.ios.shell .site-bg { height: 100%; min-height: 0 !important; }
+html.ios.shell .site-bg, html.ios.shell .shell-root { height: 100%; min-height: 0 !important; }
 html.ios.shell #site-scroll { flex: 1 1 auto; min-height: 0; overflow-y: auto; overflow-x: clip; -webkit-overflow-scrolling: touch; overscroll-behavior-y: contain; }
 html.ios.shell body.gt-scroll-locked #site-scroll { overflow: hidden; }
 /* Home-screen app: extend the bar under the home indicator */

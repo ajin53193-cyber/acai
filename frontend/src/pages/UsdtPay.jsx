@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { QRCodeSVG } from "qrcode.react";
-import { Clock, Copy, Check, X, Loader2, ChevronDown, Leaf } from "lucide-react";
+import { Clock, Copy, Check, X, Loader2, ChevronDown, ChevronLeft, Leaf } from "lucide-react";
+import { isIOS } from "@/lib/track";
 import { toast } from "sonner";
 import { useApi } from "@/lib/api";
 import { openService } from "@/components/ServiceWidget";
@@ -112,18 +113,25 @@ export default function UsdtPay() {
   const paid = t?.status === "paid";
   const dead = t && !["pending", "paid"].includes(t.status);
 
+  // iOS App Shell（同 StoreLayout）：窗口不滚动，内容在 #site-scroll 内滚，header 固定不漂移
+  useLayoutEffect(() => { document.documentElement.classList.add("shell"); return () => document.documentElement.classList.remove("shell"); }, []);
+  const ios = isIOS();
+
   return (
-    <div className="relative min-h-screen overflow-hidden bg-gradient-to-b from-[#fff3e6] via-[#fff8f0] to-[#fffdfb] text-slate-800 pb-10" data-testid="usdt-pay-page">
+    <div className="shell-root relative min-h-screen overflow-hidden flex flex-col bg-gradient-to-b from-[#fff3e6] via-[#fff8f0] to-[#fffdfb] text-slate-800" data-testid="usdt-pay-page">
       <div className="pointer-events-none absolute inset-0 overflow-hidden z-0" aria-hidden="true">
         <div className="absolute -top-28 -left-24 h-80 w-80 rounded-full bg-orange-300/25 blur-3xl" />
         <div className="absolute -top-12 -right-16 h-72 w-72 rounded-full bg-amber-200/35 blur-3xl" />
         <img src="/gogo589-wordmark.png" alt="" className="absolute bottom-10 -right-10 w-72 opacity-[0.04] rotate-[-8deg]" />
       </div>
-      <header className="relative z-10 bg-white/90 backdrop-blur border-b border-orange-100 shadow-sm">
+      <header className={`${ios ? "relative" : "sticky top-0"} z-20 bg-white/90 backdrop-blur border-b border-orange-100 shadow-sm`}>
         <div className="mx-auto max-w-[360px] sm:max-w-[420px] h-14 flex items-center justify-between px-3">
-          <Link to="/" className="flex items-center min-w-0" data-testid="usdt-pay-logo">
-            <img src="/gogo589-wordmark.png" alt="gogo589" className="h-7 w-auto object-contain" />
-          </Link>
+          <div className="flex items-center gap-1 min-w-0">
+            <Link to="/account/wallet/topups" aria-label="back" data-testid="usdt-pay-back" className="-ml-1 p-1 rounded-lg text-orange-500"><ChevronLeft className="h-6 w-6" strokeWidth={2.5} /></Link>
+            <Link to="/" className="flex items-center min-w-0" data-testid="usdt-pay-logo">
+              <img src="/gogo589-wordmark.png" alt="gogo589" className="h-7 w-auto object-contain" />
+            </Link>
+          </div>
           <label className="relative text-[13px] text-slate-700 flex items-center gap-1 cursor-pointer">
             <select data-testid="usdt-pay-lang" value={LANG} onChange={(e) => setLang(e.target.value)} className="appearance-none bg-transparent pr-4 outline-none cursor-pointer">{LANGS.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select>
             <ChevronDown className="h-3.5 w-3.5 absolute right-0 pointer-events-none" />
@@ -131,7 +139,8 @@ export default function UsdtPay() {
         </div>
       </header>
 
-      <main className="relative z-10 mx-auto max-w-[360px] sm:max-w-[420px] mt-3 px-3 sm:px-0">
+      <div id="site-scroll" className="relative z-10 flex-1 flex flex-col pb-10">
+      <main className="relative mx-auto w-full max-w-[360px] sm:max-w-[420px] mt-3 px-3 sm:px-0">
         {t?.energy_trx_address && !paid && !dead && <EnergyCard addr={t.energy_trx_address} />}
         {err && <div className="rounded-2xl bg-white shadow-sm p-8 text-center text-sm text-slate-500" data-testid="usdt-pay-error">{err}<div className="mt-4"><Link to="/account/wallet/topup" className="text-orange-500 font-semibold">{tr("返回充值")}</Link></div></div>}
         {t && (
@@ -186,6 +195,7 @@ export default function UsdtPay() {
           </div>
         )}
       </main>
+      </div>
 
       {showWin && (
         <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/45 backdrop-blur-sm px-8 animate-in fade-in duration-200" data-testid="usdt-pay-success-modal" onClick={() => setShowWin(false)}>
