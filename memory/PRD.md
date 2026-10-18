@@ -225,3 +225,8 @@
 - 後台收款方式(crypto) config 欄位由 `energy_url` 改為 `energy_trx_address`（填 TRON TRX 收款地址）；`wallet_topup_usdt` own_wallet 分支改寫入 `energy_trx_address`，前台填了才顯示能量卡。i18n 新增 11 keys（含長說明，zh-CN 用參考頁簡體原文、en 另譯）。
 - 收銀台背景加品牌水印/光暈：頁面容器 `relative overflow-hidden`，底層裝飾（orange-300/25 與 amber-200/35 兩個 blur-3xl 光暈 + 右下 gogo589 字標 opacity 0.04 浮水印），header/main 加 `relative z-10` 浮於其上。
 - 驗證：`tests/test_usdt_energy_chat.py` 更新為 energy_trx_address，重跑 ALL PASS（passthrough + 到賬入帳 + 聊天通知）；前端編譯成功；截圖確認字標 Logo / 橙漸層 / 光暈 / 右下浮水印均正常渲染（能量卡因需登入 top-up 無法無頭截圖，已以後端 passthrough + 編譯 + 代碼比對確認）。
+
+## 2026-10-18 更新（USDT 多收款地址池 + 分離部署方案）
+- **多地址收款池**（應對 2 萬用戶高併發；原單地址「唯一小數尾數」每地址僅約 99 筆並發上限）：後台「支付渠道 → USDT」的收款地址欄改為**多行文本框 `wallet_addresses`**（每行一個 TRON 地址），向下兼容舊的單地址 `wallet_address`。下單時 `_wallet_pool` 解析地址池，`_pick_wallet_and_amount` 選**當前待付最少的地址**再在該地址上生成唯一小數金額，容量≈地址數×99。鏈上對賬仍按訂單自身地址查 TronGrid，天然支持多地址。已後端測試：9 筆同額訂單在 3 地址上均勻分配 3/3/3、每地址金額唯一、舊單地址仍可用。
+- **前後端分離部署方案**（兩台全新 Ubuntu 22.04 + 寶塔）：商城前台 `print8.8bc8uyz.com`/`print8.2bc8uyz.com`、管理後台 `print8.1bc8uyz.com`、後端 API `www.apy-gogo-pay-589ppyppgkn.com`。CORS 已從 `.env` `CORS_ORIGINS` 讀取、鑑權走 Bearer+X-Admin-Token（非 Cookie），跨根域可用。產出 `backend/.env.production.example`、`frontend/.env.production.example`、`DEPLOY_SPLIT.md`（含三份 Nginx、MongoDB 遷移 mongodump/mongorestore、PM2、SSL、防火牆）。完整源碼包（含 package.json/requirements.txt/yarn.lock，不含真實 .env）已打進 patch.zip。
+- **USDT 自動到賬機制說明**：非第三方 webhook，而是「唯一金額 + 前端輪詢 → 後端查 TronGrid」；`_own_wallet_check`（8s 節流）→ `_tron_find_payment`（精確金額匹配 + 防重複 TXID）→ `_usdt_settle`。局限：僅在用戶打開該訂單收銀台頁（24h 內）時觸發查鏈；關頁後到賬需重開頁或人工補單。待辦：可加後台定時掃鏈任務。

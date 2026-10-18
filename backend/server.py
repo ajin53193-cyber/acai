@@ -1827,6 +1827,29 @@ async def _unique_usdt_amount(address: str, amount: float) -> float:
     return round(amount + 1.01, 2)
 
 
+def _wallet_pool(cfg: dict) -> list:
+    """Parse one-or-many USDT receiving addresses from config (newline/comma/space separated)."""
+    raw = (cfg.get("wallet_addresses") or cfg.get("wallet_address") or "").strip()
+    seen, pool = set(), []
+    for a in re.split(r"[\s,;]+", raw):
+        a = a.strip()
+        if a and a not in seen:
+            seen.add(a)
+            pool.append(a)
+    return pool
+
+
+async def _pick_wallet_and_amount(pool: list, amount: float) -> tuple:
+    """Round-robin by load: pick the least-busy address, then a unique decimal amount on it."""
+    counts = []
+    for addr in pool:
+        n = await db.topup_orders.count_documents({"wallet_address": addr, "status": "pending", "own_wallet": True})
+        counts.append((n, addr))
+    counts.sort(key=lambda x: x[0])
+    addr = counts[0][1]
+    return addr, await _unique_usdt_amount(addr, amount)
+
+
 async def _tron_find_payment(address: str, amount: float, since_iso: str) -> Optional[dict]:
     """Look up a confirmed TRC20-USDT transfer to `address` matching `amount` (TronGrid public API)."""
     since_ms = int(datetime.fromisoformat(since_iso).timestamp() * 1000) - 10 * 60 * 1000
@@ -1872,9 +1895,9 @@ async def wallet_topup_usdt(body: TopUpIn, request: Request, member: dict = Depe
     tid = new_id()
     out_trade_no = f"TU{tid[:12].upper()}"
     amount = round(float(body.amount_usd), 2)
-    if (cfg.get("wallet_address") or "").strip():
-        address = cfg["wallet_address"].strip()
-        pay_amount = await _unique_usdt_amount(address, amount)
+    pool = _wallet_pool(cfg)
+    if pool:
+        address, pay_amount = await _pick_wallet_and_amount(pool, amount)
         doc = {"id": tid, "user_id": member["user_id"], "method_id": pm["id"], "method_name": pm["name"], "provider": "crypto", "own_wallet": True, "amount_usd": amount,
                "status": "pending", "out_trade_no": out_trade_no, "order_no": "", "pay_amount": pay_amount, "network": (cfg.get("network") or "TRC20").strip().upper(),
                "wallet_address": address, "wallet_note": cfg.get("wallet_note") or "", "energy_trx_address": (cfg.get("energy_trx_address") or "").strip(), "pay_url": f"/pay/usdt/{tid}",
