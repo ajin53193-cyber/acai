@@ -6,6 +6,14 @@
 
 ## 已实现（截至 2026-06）
 - 前端：首页、分类、商品详情、购物车、结账、用户账户、多货币。
+- [2026-06-18] 礼品卡『按数量逐份填写收款账户』功能 + 修复 fork 后图片 401：
+  - 修复:fork 后 `backend/.env` 的 `EMERGENT_LLM_KEY` 为旧失效 key → 对象存储 init 401 → 全站图片 404；已更新为当前有效通用 key，图片恢复。
+  - 新功能(仅礼品卡商品):付款后在『我的订单』按购买数量 N 逐份填写收款账户(用该商品『下單需填寫』字段，如 AlipayHK 帳號)，N 份重复 N 组；普通充值商品维持填 1 次。
+    - 后端 server.py：`delivery_info[pid]` 用后缀键 `字段名（第N份）` 存多份(兼容所有既有消费者:号码库匹配/后台展示/交易号生成不变)；`_info_complete` 改为 per-unit 校验(`_units_by_pid`/`_unit_key`)；`submit_order_info` 的 canon remap 增加 `_UNIT_SUFFIX_RE` 处理后缀+简繁英映射；info_complete 投影补 `is_giftcard`。
+    - 前端 MyOrders.jsx：`OrderInfoForm` 按 `unitsOf(pid)` 渲染逐份块(data-testid order-info-unit-{pid}-{u})，per-unit 必填校验与错误提示；`InfoConfirm` 逐份核对行。
+    - 每日限购(按规格 limit=daily/limit_count)为既有能力，前台已显示并封顶数量，无需改动。
+  - 测试:testing_agent 端到端 100% 通过(iteration_50)；无代码问题。
+
 - [2026-06-18] 后台弹窗全量统一到 ui.jsx `Modal`（零差异收尾，纯样式，逻辑/接口不变）：
   - `Modal` 增强：新增 `size`（sm/md/lg/xl/2xl/3xl/full）与 `bare` 模式（bare 用于保留品牌化渐变头的弹窗，仅统一外壳：遮罩+毛玻璃+圆角+点击外部关闭）。
   - 已转换的弹窗：Promos、PaymentMethods(MethodForm)、Categories、Activities(ActivityForm)、Footer(PageEditor)、Reviews(编辑/回覆/模板 3 个)、Products(ProductForm full)、ChangePasswordDialog（标准 Modal）；UserInfoDialog、AddressChainDialog、CreditHashDialog、Orders 详情、Topups 详情+憑證、GiftCardOrders 操作+详情（bare 保留橙/翠/深色渐变头，右上角补 × 关闭）。

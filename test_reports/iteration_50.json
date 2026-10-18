@@ -1,0 +1,32 @@
+{
+  "summary": "Iter50 — Frontend e2e of the new 『礼品卡逐份填收款账户』flow. Member login via Clerk +clerk_test account succeeded (no device-trust prompt in headless because the +clerk_test account's device/session is already trusted). Opened /product/75642883-bad1-47eb-ab1a-37ef091a903d, selected 『200HKD 85折』spec, verified daily-limit-notice='此规格为「每日限购 5 份」特价：每个帐号每天限购 5 份。', qty-inc stops at 5 (data-testid=qty-inc.disabled=true at qty=5). Added via mobile-buy-now-btn → /checkout showed 200HKD 85折 × 5 at USD 108.70; wallet pay (pay-method-wallet) + agree + checkout-mobile-pay-btn created order 5de46167-… and redirected to /orders?order=…. OrderInfoForm renders exactly as specified: container data-testid=order-info-units-{pid}, header '此礼品卡共 5 份，请逐份填写收款帐号（每份将分别转赠）', 5 unit blocks order-info-unit-{pid}-0..4 each with 'AlipayHK 帐号' input (data-testid order-info-{pid}-{u}-AlipayHK 帐号). Partial-submit (filled 3/5) → toast '请填写第 4 份的「AlipayHK 帐号」' ✓. Filled all 5 with alipayhk-user-1..5 → order-info-confirm modal lists 5 rows (order-info-confirm-{pid}-{u}-AlipayHK 帐号) matching the entered values; confirm-ok submitted. GET /api/orders/{id} after submit returned status=processing, info_submitted=true, is_giftcard_order=true, delivery_info[pid] contained 5 keys 'AlipayHK 帳號（第1份）' … '（第5份）' with the correct values (traditional 帳號 canonicalization worked). UI then showed '系统转赠中…' countdown and listed all 5 AlipayHK 帳號（第N份） → alipayhk-user-N rows. Regression (non-giftcard with qty>1) validated by code inspection of MyOrders.jsx:34 (unitsOf returns 1 unless is_giftcard) — no live non-giftcard qty>=2 order existed to pay again; the per-unit block is guarded by units>1 so non-giftcard orders always render the single-field path.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "DB product 75642883…/spec 4596cc9c… 200HKD 85折", "issue": "Was seeded with in_stock=false while daily-limit remaining=5 and limit_count=5. UI (ProductDetail disabled={!s.in_stock}) made the spec unselectable so the whole 5-份 flow was blocked. Flipped to in_stock=true via one-off mongo update to proceed. Main agent should confirm the seed/admin flow sets in_stock=true for a limit=5 daily spec, otherwise the feature appears broken on fresh envs."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "AuthModal", "issues": ["Clicking auth-agree checkbox is intercepted by auth-terms-link overlay (minor, checkbox is already checked by default so flow works; still fails any explicit toggle test)."]}
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [
+    "Verify data seeding / admin inventory UI so that a spec with daily limit >1 ships with in_stock=true (currently 200HKD 85折 had in_stock=false blocking the feature)."
+  ],
+  "critical_code_review_comments": [
+    "MyOrders.jsx:34 unitsOf correctly aggregates quantity across split cart lines of the same giftcard product — good. InfoConfirm reuses unitKey format `（第N份）` matching backend _UNIT_SUFFIX_RE; verified by delivery_info keys being accepted and stored.",
+    "ProductDetail.jsx:225 qty-inc disabled when qty>=limit_count; UI relies on button-disable to block over-limit. A direct 立即购买 click above the limit still triggers toast via line 131 fallback — defense in depth is fine.",
+    "AuthModal: data-testid=auth-agree is on the <input> but the surrounding label's <button>auth-terms-link intercepts pointer events, so Playwright cannot toggle the checkbox. Not functionally blocking (default checked), but worth moving the <input> above the button or wrapping label click to trigger toggle."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a (frontend-only run)", "frontend": "100% of the giftcard per-unit scenarios in scope"},
+  "test_credentials": "member tester+clerk_test@shop.com / Gogo589!Tester#4m9Z (headless login worked without the 424242 device-trust step on this run).",
+  "seed_data_creation": "Order 5de46167-0ef0-4249-8f3f-a054748e77fa (giftcard 200HKD 85折 ×5) created & submitted (now in processing/系统转赠中). Mongo: products.75642883….specs.4596cc9c….in_stock flipped from false→true (left as true — see action item).",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Giftcard per-unit flow is confirmed working end-to-end. If retesting, note the 200HKD 85折 spec may now be in used_spec_ids for tester+clerk_test@shop.com (daily remaining=0) until the daily cutoff — pick a fresh day or a different spec. /api/cart endpoint does not exist (frontend-local zustand cart via localStorage); you cannot manipulate cart via REST, go through UI."
+}
