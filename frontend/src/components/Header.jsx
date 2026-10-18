@@ -2,7 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useUser } from "@clerk/react";
 import { Search, ShoppingCart, Headphones, ChevronDown, ChevronRight, Shield, Package, Menu, X, UserRound, Gift, Wallet, Home, LayoutGrid,
-  Tv, Gamepad2, MessageCircle, Music, Smile, Mic, HeartHandshake, CreditCard, BookOpen, Rocket, Cpu } from "lucide-react";
+  Tv, Gamepad2, MessageCircle, Music, Smile, Mic, HeartHandshake, CreditCard, BookOpen, Rocket, Cpu, ChevronLeft } from "lucide-react";
 import { SearchBox } from "@/components/SearchBox";
 import { publicApi, useApi } from "@/lib/api";
 import { useCart } from "@/context/CartContext";
@@ -14,7 +14,7 @@ import { useSiteConfig } from "@/lib/siteConfig";
 import { AddToHomeDialog } from "@/components/AddToHomeDialog";
 import { A2HSTip } from "@/components/A2HSTip";
 import { logoTap } from "@/lib/vpDebug";
-import { isStandalone } from "@/lib/track";
+import { isStandalone, isIOS } from "@/lib/track";
 import { ADMIN_BASE } from "@/lib/adminPath";
 import {
   DropdownMenu,
@@ -68,7 +68,10 @@ export default function Header() {
 
   const headRef = useRef(null);
   const [headH, setHeadH] = useState(0);
-  const standalone = isStandalone();
+  // iOS (Safari + home-screen app): WebKit drifts position:fixed/sticky bars by the status-bar height after the keyboard
+  // was used, so on iPhone the header is a plain in-flow block (scrolls with the page) and nothing can drift.
+  const ios = isIOS();
+  const standalone = isStandalone() && !ios;
   useLayoutEffect(() => {
     const el = headRef.current;
     if (!el || !standalone) return;
@@ -77,12 +80,13 @@ export default function Header() {
     setHeadH(el.getBoundingClientRect().height);
     return () => ro.disconnect();
   }, [standalone]);
+  const showBack = pathname !== "/" && !pathname.startsWith("/gg589");
 
   return (
     <>
-    {/* Home-screen PWA: fixed header + spacer, pinned to the visual viewport via --vv-top (lib/vvAnchor.js); browser: plain sticky */}
+    {/* Home-screen PWA: fixed header + spacer, pinned to the visual viewport via --vv-top (lib/vvAnchor.js); browser: plain sticky; iOS: static */}
     {standalone && <div style={{ height: headH }} aria-hidden="true" data-testid="header-spacer" />}
-    <header ref={headRef} data-testid="site-header" className={`${standalone ? "fixed top-0 inset-x-0" : "sticky top-0"} z-40 w-full bg-[#FFF4EA]`} style={standalone ? { top: "var(--vv-top, 0px)" } : undefined}>
+    <header ref={headRef} data-testid="site-header" className={`${ios ? "relative" : standalone ? "fixed top-0 inset-x-0" : "sticky top-0"} z-40 w-full bg-[#FFF4EA]`} style={standalone ? { top: "var(--vv-top, 0px)" } : undefined}>
       <div style={{ height: "env(safe-area-inset-top)" }} />
       {/* Top promo bar */}
       {cfg.top_promo.enabled !== false && cfg.top_promo.image && (
@@ -94,8 +98,13 @@ export default function Header() {
       {/* Main header */}
       <div className="bg-white md:border-b border-orange-100 shadow-sm relative">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-14 md:h-[72px] flex items-center gap-3 md:gap-5">
-          {/* Mobile hamburger */}
-          <button data-testid="mobile-nav-toggle" onClick={() => setMobileNav((v) => !v)} className="md:hidden -ml-1 p-1 rounded-lg text-orange-500">
+          {/* Mobile back + hamburger */}
+          {showBack && (
+            <button data-testid="mobile-back-btn" aria-label="back" onClick={() => (window.history.length > 1 ? navigate(-1) : navigate("/"))} className="md:hidden -ml-1 p-1 rounded-lg text-orange-500">
+              <ChevronLeft className="h-6 w-6" strokeWidth={2.5} />
+            </button>
+          )}
+          <button data-testid="mobile-nav-toggle" onClick={() => setMobileNav((v) => !v)} className={`md:hidden p-1 rounded-lg text-orange-500 ${showBack ? "" : "-ml-1"}`}>
             {mobileNav ? <X className="h-6 w-6" strokeWidth={2.5} /> : <Menu className="h-6 w-6" strokeWidth={2.5} />}
           </button>
           {/* Logo */}

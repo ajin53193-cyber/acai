@@ -8,11 +8,14 @@ export const isStandalone = () =>
     ? window.navigator.standalone
     : (!!window.matchMedia?.("(display-mode: standalone), (display-mode: fullscreen)")?.matches || sessionStorage.getItem("pwa_source") === "1");
 
+export const isIOS = () => typeof navigator !== "undefined" && (/iPhone|iPad|iPod/i.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1));
+
 export function track(event, source = "") {
   publicApi.post("/track", { event, source, path: window.location.pathname, standalone: isStandalone() }).catch(() => {});
 }
 
 if (typeof window !== "undefined" && isStandalone()) document.documentElement.classList.add("pwa");
+if (typeof window !== "undefined" && isIOS()) document.documentElement.classList.add("ios");
 if (typeof window !== "undefined" && isStandalone() && !sessionStorage.getItem("pwa_launch_tracked")) {
   sessionStorage.setItem("pwa_launch_tracked", "1");
   track("pwa_launch", "standalone");

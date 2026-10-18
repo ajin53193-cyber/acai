@@ -42,7 +42,7 @@ export default function Home() {
   return (
     <div>
       {!isSignedIn && register.enabled !== false && (
-        <div data-testid="mobile-register-bar" className="md:hidden fixed inset-x-0 bottom-0 z-40 bg-[#5a3a22] text-white px-4 h-14 flex items-center gap-3 safe-bottom-box">
+        <div data-testid="mobile-register-bar" className="ios-inflow md:hidden fixed inset-x-0 bottom-0 z-40 bg-[#5a3a22] text-white px-4 h-14 flex items-center gap-3 safe-bottom-box">
           <Gift className="h-6 w-6 text-orange-300 shrink-0" />
           <span className="text-sm font-medium truncate">{register.bar_text} <span className="text-lg font-bold">{register.percent}</span>{register.bar_suffix}</span>
           <button data-testid="mobile-register-btn" onClick={openAuth} className="ml-auto shrink-0 h-9 px-5 rounded-full bg-orange-500 text-white text-sm font-bold">{register.button}</button>

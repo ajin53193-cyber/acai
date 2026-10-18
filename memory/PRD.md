@@ -333,7 +333,18 @@
 - 數據表遵循：表頭左對齊、金額右對齊 font-mono、狀態/操作居中（符合用戶「數據表整潔明了」+「按鈕統一樣式對齊，文字對齊你定」）。shell 本身由 index.css `.admin-light` 強制淺色，無需改動。
 - 已截圖驗證 充值審核、USDT通道(統計卡+地址表+最近記錄+補單按鈕) 兩個最複雜頁渲染乾淨統一；Btn kind 全覆蓋(danger/ghost/ok/primary)。前端編譯通過。為「分批」重排的批次1（基礎統一層）。源碼包已重打 `/app/export/patch.zip`。
 
+## 2026-06-18 正式上线（Ubuntu 双机，用户已跑通）
+- 后端机 192.238.202.3 → `www.apy-gogo-pay-589ppyppgkn.com`（Nginx 反代 8001，PM2 `gogo589-backend`，MongoDB7 账号 gogo589，`LOCAL_STORAGE_DIR=/www/wwwroot/gogo589-api/uploads` 2560 张图已落盘，每日 03:30 备份 cron 已装，pm2 startup 已配）。数据来自预览库导出 `preview_db.archive.gz`（商品 2499/评价 5901，测试订单剔除）。
+- 前端机 137.220.157.109 → print8.8/2bc8uyz.com（商城）、print8.1bc8uyz.com（后台，只放行 /gg589-k7p2x）。★图片为相对路径 `/api/img/...`，前端两站点必须 `location ^~ /api/ { proxy_pass https://后端域名 }`（放在宝塔 extension 目录 `api_proxy.conf`）。
+- 踩坑已修进脚本：`deploy_backend.sh` pip 加 `--no-deps`；`migrate_mongo.sh` mongorestore URI 去库名 + `--nsInclude`；`deploy_frontend.sh` 构建前清宝塔 `.user.ini`(+i)。`server.py` `_export` 增加 env.production / env.frontend / preview_db.archive.gz / uploads.tar.gz 下载项（DATA_EXPORT_TOKEN 保护）。
+- 部署流程：改后端→后端机 `git pull && bash deploy.sh backend`；改前端→前端机 `git pull && bash deploy.sh frontend`；每次先 Save to GitHub。
+- 购物车限购封顶：CartContext 条目带 `max_qty`（按规格 limit/limit_count 或 badge 推断），addItem/updateQty 封顶，CartDrawer/Checkout「+」到顶置灰。
+- 全站统一北京时间：后端 `bjtime.py`（today/days_ago/day/rng/today_q/MONGO_DAY），admin_api/server 统计按北京日切（created_at 仍存 UTC）；前端 `lib/bjtime.js` fmtBJ + index.js `installBJLocale()` 覆写 Date.toLocale*String 默认 Asia/Shanghai，所有 `slice().replace("T")` 原始显示已换 fmtBJ；analytics tz_offset 固定 -480。
+- iOS 漂移根治方案（待用户真机验证）：`html.ios`（track.js isIOS）下 Header 改 `relative`（不 fixed/不 sticky），ProductDetail/Checkout/Home 底栏加 `.ios-inflow` → iOS 上静态随内容排布；手机端非首页 Header 左侧统一「←」返回按钮 `mobile-back-btn`。非 iOS 平台行为不变。
+- 待办：用户在 iPhone 验证后若仍漂移，剩余 fixed 元素为 ServiceWidget/回顶按钮；Clerk/Stripe/Google 回调域名切换；GEO_ENFORCE 上线后再开；reset_for_launch.py 清测试余额账号。
+
 ## 2026-06 更新（图片改为本地磁盘存储 + 老图迁移脚本）
+
 - 用户自托管需求：不再依赖 Emergent 对象存储（怕 EMERGENT_LLM_KEY 失效全站图片 401/404），改为图片存服务器本地磁盘。
 - 代码本就支持（storage.py 读 LOCAL_STORAGE_DIR 即走本地），本次补齐配置与迁移：
   - backend/.env.production.example 新增 LOCAL_STORAGE_DIR 并说明 EMERGENT_LLM_KEY 对图片非必填。

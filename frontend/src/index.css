@@ -18,6 +18,9 @@ html { touch-action: manipulation; }
 .safe-bottom-pad { padding-bottom: calc(1rem + env(safe-area-inset-bottom)); }
 /* Browser: keep the bar above the (iOS 26 translucent) toolbar so Safari tints the toolbar with the page colour, not the bar's brown */
 .safe-bottom-box { height: 3.5rem; margin-bottom: env(safe-area-inset-bottom); }
+/* iOS (Safari + 主屏幕 App)：WebKit 键盘后 fixed/sticky 底栏会随滚动漂移，iPhone 上底栏改为随内容排布，不再悬浮 */
+html.ios .ios-inflow { position: static !important; border-radius: 1rem; margin: 1rem 0.75rem 0; box-shadow: 0 6px 20px -10px rgba(0,0,0,.18); }
+html.ios [data-testid="product-detail"], html.ios [data-testid="checkout-page"] { padding-bottom: 1.5rem !important; }
 /* Home-screen app: extend the bar under the home indicator */
 /* Mobile browser: float the bar slightly above the edge so Safari's toolbar tints from the page background, not the bar */
 html:not(.pwa) [data-testid="mobile-register-bar"] { left: 12px; right: 12px; bottom: 10px; border-radius: 16px; margin-bottom: 0; box-shadow: 0 10px 24px -12px rgba(90, 58, 34, 0.55); }
