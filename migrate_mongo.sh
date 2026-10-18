@@ -62,13 +62,15 @@ if [ -n "$SRC_URI" ]; then
 fi
 
 # 3) 导入新库（--drop 覆盖，--nsFrom/--nsTo 处理库名不同）
+# mongorestore 的 --uri 若带库名会被当作 --db 过滤导致 0 条导入，这里去掉库名只保留认证参数
+RESTORE_URI="$(printf '%s' "$DST_URI" | sed -E 's#^(mongodb(\+srv)?://[^/]+)/[^?]*#\1/#')"
 info "导入新库（$SRC_DB → $DST_DB，--drop）..."
 if [ -d "$DUMP" ]; then
   # 目录形式的 dump
-  mongorestore --uri="$DST_URI" --drop --nsFrom="${SRC_DB}.*" --nsTo="${DST_DB}.*" "$DUMP"
+  mongorestore --uri="$RESTORE_URI" --drop --nsInclude="${SRC_DB}.*" --nsFrom="${SRC_DB}.*" --nsTo="${DST_DB}.*" "$DUMP"
 else
   # 归档形式
-  mongorestore --uri="$DST_URI" --drop --gzip --nsFrom="${SRC_DB}.*" --nsTo="${DST_DB}.*" --archive="$DUMP"
+  mongorestore --uri="$RESTORE_URI" --drop --gzip --nsInclude="${SRC_DB}.*" --nsFrom="${SRC_DB}.*" --nsTo="${DST_DB}.*" --archive="$DUMP"
 fi
 ok "导入完成"
 
