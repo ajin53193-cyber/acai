@@ -348,7 +348,7 @@ export default function ProductDetail() {
       {a2hs && <AddToHomeDialog source="detail-banner" onClose={() => setA2hs(false)} />}
 
       {/* Mobile sticky bar */}
-      <div className="ios-inflow fixed bottom-0 left-0 right-0 bg-white rounded-t-3xl px-4 pt-3 pb-4 z-30 flex items-center gap-3 md:hidden safe-bottom-pad shadow-[0_-8px_30px_-12px_rgba(0,0,0,0.15)]">
+      <div className="fixed bottom-0 left-0 right-0 bg-white rounded-t-3xl px-4 pt-3 pb-4 z-30 flex items-center gap-3 md:hidden safe-bottom-pad shadow-[0_-8px_30px_-12px_rgba(0,0,0,0.15)]">
         <button data-testid="mobile-cart-btn" onClick={() => setOpen(true)} className="relative h-12 w-12 shrink-0 rounded-full bg-slate-900 text-white flex items-center justify-center">
           <ShoppingCart className="h-5 w-5" />
           <span className="absolute -top-1 -right-1 h-4 min-w-4 px-1 rounded-full bg-orange-500 text-[10px] font-bold flex items-center justify-center">{count}</span>

@@ -2,7 +2,7 @@ import "@/App.css";
 import { BrowserRouter, Routes, Route, Outlet, useLocation } from "react-router-dom";
 import { scrollPageTo } from "@/lib/scroller";
 import { AuthenticateWithRedirectCallback, useUser } from "@clerk/react";
-import { useEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import ClerkAuthProvider from "@/components/auth/ClerkAuthProvider";
 import { AuthModalProvider, useAuthModal } from "@/components/auth/AuthModal";
@@ -42,6 +42,8 @@ if (typeof window !== "undefined" && "scrollRestoration" in window.history) wind
 function StoreLayout() {
   const { pathname } = useLocation();
   useEffect(() => { scrollPageTo({ top: 0 }); }, [pathname]);
+  // iOS App Shell (index.css html.ios.shell): only while the store layout with #site-scroll is mounted
+  useLayoutEffect(() => { document.documentElement.classList.add("shell"); return () => document.documentElement.classList.remove("shell"); }, []);
   const hideFooterOnMobile = ["/product/", "/checkout", "/account", "/orders", "/article", "/info"].some((p) => pathname.startsWith(p));
   return (
     <AuthModalProvider>

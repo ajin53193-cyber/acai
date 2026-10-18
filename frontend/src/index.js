@@ -5,6 +5,7 @@ import "@/index.css";
 import "@/lib/iosViewportFix";
 import "@/lib/track";
 import "@/lib/vvAnchor";
+import "@/lib/iosShell";
 import "@/lib/vpDebug";
 import { installBJLocale } from "@/lib/bjtime";
 installBJLocale();

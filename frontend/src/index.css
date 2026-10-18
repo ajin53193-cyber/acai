@@ -18,9 +18,15 @@ html { touch-action: manipulation; }
 .safe-bottom-pad { padding-bottom: calc(1rem + env(safe-area-inset-bottom)); }
 /* Browser: keep the bar above the (iOS 26 translucent) toolbar so Safari tints the toolbar with the page colour, not the bar's brown */
 .safe-bottom-box { height: 3.5rem; margin-bottom: env(safe-area-inset-bottom); }
-/* iOS (Safari + 主屏幕 App)：WebKit 键盘后 fixed/sticky 底栏会随滚动漂移，iPhone 上底栏改为随内容排布，不再悬浮 */
-html.ios .ios-inflow { position: static !important; border-radius: 1rem; margin: 1rem 0.75rem 0; box-shadow: 0 6px 20px -10px rgba(0,0,0,.18); }
-html.ios [data-testid="product-detail"], html.ios [data-testid="checkout-page"] { padding-bottom: 1.5rem !important; }
+/* iOS (Safari + 主屏幕 App) App Shell：窗口本身永不滚动（body fixed），页面在 #site-scroll 内滚动。
+   Header 在滚动容器之外、底栏 fixed 于不动的窗口视口 → WebKit 的工具栏/状态栏/键盘导致的 fixed 漂移无从发生。 */
+html.ios.shell, html.ios.shell body { height: 100%; overflow: hidden; overscroll-behavior: none; }
+html.ios.shell body { position: fixed; inset: 0; width: 100%; }
+html.ios.shell #root { height: 100%; min-height: 0; display: flex; flex-direction: column; }
+html.ios.shell #root > .App { height: 100%; min-height: 0; display: flex; flex-direction: column; }
+html.ios.shell .site-bg { height: 100%; min-height: 0 !important; }
+html.ios.shell #site-scroll { flex: 1 1 auto; min-height: 0; overflow-y: auto; overflow-x: clip; -webkit-overflow-scrolling: touch; overscroll-behavior-y: contain; }
+html.ios.shell body.gt-scroll-locked #site-scroll { overflow: hidden; }
 /* Home-screen app: extend the bar under the home indicator */
 /* Mobile browser: float the bar slightly above the edge so Safari's toolbar tints from the page background, not the bar */
 html:not(.pwa) [data-testid="mobile-register-bar"] { left: 12px; right: 12px; bottom: 10px; border-radius: 16px; margin-bottom: 0; box-shadow: 0 10px 24px -12px rgba(90, 58, 34, 0.55); }

@@ -340,7 +340,7 @@
 - 部署流程：改后端→后端机 `git pull && bash deploy.sh backend`；改前端→前端机 `git pull && bash deploy.sh frontend`；每次先 Save to GitHub。
 - 购物车限购封顶：CartContext 条目带 `max_qty`（按规格 limit/limit_count 或 badge 推断），addItem/updateQty 封顶，CartDrawer/Checkout「+」到顶置灰。
 - 全站统一北京时间：后端 `bjtime.py`（today/days_ago/day/rng/today_q/MONGO_DAY），admin_api/server 统计按北京日切（created_at 仍存 UTC）；前端 `lib/bjtime.js` fmtBJ + index.js `installBJLocale()` 覆写 Date.toLocale*String 默认 Asia/Shanghai，所有 `slice().replace("T")` 原始显示已换 fmtBJ；analytics tz_offset 固定 -480。
-- iOS 漂移根治方案（待用户真机验证）：`html.ios`（track.js isIOS）下 Header 改 `relative`（不 fixed/不 sticky），ProductDetail/Checkout/Home 底栏加 `.ios-inflow` → iOS 上静态随内容排布；手机端非首页 Header 左侧统一「←」返回按钮 `mobile-back-btn`。非 iOS 平台行为不变。
+- iOS 漂移根治方案 v2（App Shell，待用户真机验证）：`html.ios`（track.js isIOS）+ StoreLayout 挂载时加 `html.shell` → index.css 让 body `position:fixed; overflow:hidden`，页面在既有 `#site-scroll` 容器内滚动；Header 在容器外（`relative`），底栏仍 `fixed bottom-0`（窗口不滚动故不漂移）；`lib/iosShell.js` 键盘收起后 `scrollTo(0,0)` 归零；滚动锁定时 `#site-scroll overflow:hidden`。注意 DOM 链 `#root > .App > .site-bg > #site-scroll`，CSS 需逐层 height:100%。手机端非首页 Header 左侧「←」返回按钮 `mobile-back-btn`。非 iOS 平台行为不变。
 - 待办：用户在 iPhone 验证后若仍漂移，剩余 fixed 元素为 ServiceWidget/回顶按钮；Clerk/Stripe/Google 回调域名切换；GEO_ENFORCE 上线后再开；reset_for_launch.py 清测试余额账号。
 
 ## 2026-06 更新（图片改为本地磁盘存储 + 老图迁移脚本）
