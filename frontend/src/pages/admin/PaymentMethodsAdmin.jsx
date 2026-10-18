@@ -36,7 +36,7 @@ const PROVIDER_HINT = {
 const readFile = (f) => new Promise((res) => { const r = new FileReader(); r.onload = () => res({ image_b64: r.result, image_name: f.name }); r.readAsDataURL(f); });
 const empty = { name: "", category: "card", provider: "manual", description: "", config: {}, min_usd: 50, max_usd: 10000, fee_percent: 0, active: true };
 
-export default function PaymentMethodsAdmin({ callApi }) {
+export default function PaymentMethodsAdmin({ callApi, scope = "all" }) {
   const [list, setList] = useState(null);
   const [editing, setEditing] = useState(null);
   const testConn = async (m) => {
@@ -46,12 +46,14 @@ export default function PaymentMethodsAdmin({ callApi }) {
       toast.success(r.data.provider === "paypal" ? tr("PayPal 連線成功（{0} · {1}）", r.data.env, src) : tr("Stripe 連線成功"), { description: tr("Webhook 網址：{0}", r.data.webhook_url), duration: 8000 });
     } catch (e) { toast.error(e.response?.data?.detail || tr("連線失敗")); }
   };
+  const flt = (arr) => scope === "crypto" ? arr.filter((m) => m.provider === "crypto") : scope === "other" ? arr.filter((m) => m.provider !== "crypto") : arr;
   const load = useCallback(() => callApi({ method: "GET", url: "/admin/payment-methods" }).then((r) => setList(r.data)).catch(() => setList([])), [callApi]);
   useEffect(() => { load(); }, [load]);
+  const newEmpty = () => scope === "crypto" ? { ...empty, provider: "crypto", category: "usdt", name: "USDT (TRC20)" } : { ...empty };
 
   const update = async (id, data) => { try { await callApi({ method: "PUT", url: `/admin/payment-methods/${id}`, data }); load(); } catch (e) { toast.error(e.response?.data?.detail || tr("更新失敗")); } };
   const remove = async (m) => { if (!window.confirm(tr("確定刪除「{0}」？", m.name))) return; await callApi({ method: "DELETE", url: `/admin/payment-methods/${m.id}` }); toast.success(tr("已刪除")); load(); };
-  const move = async (i, dir) => { const j = i + dir; if (j < 0 || j >= list.length) return; await update(list[i].id, { sort_order: list[j].sort_order }); await update(list[j].id, { sort_order: list[i].sort_order }); };
+  const move = async (i, dir) => { const j = i + dir; if (j < 0 || j >= items.length) return; await update(items[i].id, { sort_order: items[j].sort_order }); await update(items[j].id, { sort_order: items[i].sort_order }); };
   const save = async (f) => {
     if (!f.name.trim()) return toast.error(tr("請輸入名稱"));
     const { id, image, created_at, ...body } = f;
@@ -63,13 +65,14 @@ export default function PaymentMethodsAdmin({ callApi }) {
   };
 
   const iconBtn = "h-9 w-9 rounded-lg border border-slate-200 bg-white text-slate-500 flex items-center justify-center hover:bg-slate-50 hover:text-slate-900 disabled:opacity-30 disabled:hover:bg-white transition-colors";
+  const items = list === null ? null : flt(list);
   return (
     <div data-testid="payment-methods-admin">
-      <Head title={tr("支付管理 · 錢包充值方式")} sub={tr("會員在「我的錢包」充值時可選擇以下方式；Logo、付款說明、對接參數皆可在此維護。Stripe / PayPal 付款成功自動入帳；銀行轉帳需上傳憑證由後台審核。")}
-        right={<Btn data-testid="pm-add-btn" onClick={() => setEditing({ ...empty })} className="h-10 px-4 text-sm"><Plus className="h-4 w-4 inline -mt-0.5 mr-1" />{tr("新增支付方式")}</Btn>} />
-      {list === null ? <Loader2 className="h-6 w-6 animate-spin text-orange-500" /> : (
+      <Head title={scope === "crypto" ? tr("USDT 收款地址配置") : tr("支付管理 · 錢包充值方式")} sub={scope === "crypto" ? tr("每個 USDT 通道可填多個收款地址（每行一個），系統下單時自動分配並按地址對賬。") : tr("會員在「我的錢包」充值時可選擇以下方式；Logo、付款說明、對接參數皆可在此維護。Stripe / PayPal 付款成功自動入帳；銀行轉帳需上傳憑證由後台審核。")}
+        right={<Btn data-testid="pm-add-btn" onClick={() => setEditing(newEmpty())} className="h-10 px-4 text-sm"><Plus className="h-4 w-4 inline -mt-0.5 mr-1" />{tr("新增支付方式")}</Btn>} />
+      {items === null ? <Loader2 className="h-6 w-6 animate-spin text-orange-500" /> : (
         <Card className="overflow-hidden">
-          {list.length === 0 ? <div className="p-10 text-center text-sm text-slate-400">{tr("尚未設定支付方式")}</div> : (
+          {items.length === 0 ? <div className="p-10 text-center text-sm text-slate-400">{tr("尚未設定支付方式")}</div> : (
             <table className="w-full text-sm" data-testid="pm-table">
               <thead>
                 <tr className="text-left text-xs text-slate-500 border-b border-slate-200 bg-slate-50/70">
@@ -81,7 +84,7 @@ export default function PaymentMethodsAdmin({ callApi }) {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {list.map((m, i) => (
+                {items.map((m, i) => (
                   <tr key={m.id} data-testid={`pm-row-${m.id}`} className={`hover:bg-orange-50/30 transition-colors ${m.active ? "" : "opacity-60"}`}>
                     <td className="px-5 py-3.5 whitespace-nowrap"><span data-testid={`pm-channel-${m.id}`} className="font-mono text-sm font-bold text-slate-800">{m.channel_no}</span></td>
                     <td className="px-5 py-3.5">
@@ -99,7 +102,7 @@ export default function PaymentMethodsAdmin({ callApi }) {
                     <td className="px-5 py-3.5">
                       <div className="flex items-center gap-1 justify-center">
                         <button aria-label="up" disabled={i === 0} onClick={() => move(i, -1)} className={iconBtn}><ArrowUp className="h-4 w-4" /></button>
-                        <button aria-label="down" disabled={i === list.length - 1} onClick={() => move(i, 1)} className={iconBtn}><ArrowDown className="h-4 w-4" /></button>
+                        <button aria-label="down" disabled={i === items.length - 1} onClick={() => move(i, 1)} className={iconBtn}><ArrowDown className="h-4 w-4" /></button>
                       </div>
                     </td>
                   </tr>

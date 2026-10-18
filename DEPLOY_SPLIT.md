@@ -15,6 +15,8 @@
 - backend/.env：
   - CORS_ORIGINS=https://print8.8bc8uyz.com,https://print8.2bc8uyz.com,https://print8.1bc8uyz.com
   - APP_PUBLIC_URL=https://print8.8bc8uyz.com
+  - TRONGRID_API_KEY=（USDT 自动扫链到账必填，免费申请 trongrid.io/dashboard；不填会 429 限流）
+  - USDT_SCAN_SECONDS=90（后台自动扫链周期，秒）
 - frontend/.env：
   - REACT_APP_BACKEND_URL=https://www.apy-gogo-pay-589ppyppgkn.com
 - 改完 `cd frontend && yarn build`，把 build 传到商城与后台站点目录。

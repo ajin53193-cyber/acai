@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Switch } from "@/components/ui/switch";
 import { VerificationsAdmin, FeedbackAdmin } from "@/pages/admin/SupportAdmin";
 import PaymentMethodsAdmin from "@/pages/admin/PaymentMethodsAdmin";
+import { UsdtChannelAdmin } from "@/pages/admin/UsdtChannelAdmin";
 import { MembersAdmin } from "@/pages/admin/MembersAdmin";
 import { TopupsAdmin } from "@/pages/admin/TopupsAdmin";
 import { ReportsAdmin } from "@/pages/admin/ReportsAdmin";
@@ -57,7 +58,7 @@ const MENU = [
   { key: "products", g: tr("商品管理"), icon: Package, items: [["products", tr("商品列表")], ["categories", tr("商品分類")], ["reviews", tr("商品評論")]] },
   { key: "giftcards", g: tr("禮品卡"), icon: Gift, items: [["giftcard-list", tr("禮品卡列表")], ["giftcard-pool", tr("號碼庫")], ["giftcard-orders", tr("訂單管理")], ["giftcard-new", tr("添加禮品卡")], ["giftcard-trade-query", tr("交易號查詢")], ["giftcard-api", tr("核銷接口API")], ["giftcard-report", tr("稽核報表")]] },
   { key: "ops", g: tr("運營管理"), icon: Megaphone, items: [["home-decoration", tr("首頁裝修")], ["activities", tr("新聞 & 促銷")], ["banners", tr("橫幅 / 輪播圖")], ["footer", tr("頁尾管理")], ["recommendations", tr("推薦位管理")], ["promos", tr("優惠券管理")], ["notifications", tr("消息中心")], ["announcements", tr("公告管理")]] },
-  { key: "finance", g: tr("財務管理"), icon: DollarSign, items: [["order-settlement", tr("訂單結算")], ["topups", tr("充值審核")], ["payments", tr("支付渠道配置")], ["reconciliation", tr("財務對賬")], ["currencies", tr("匯率配置")], ["finance-reports", tr("財務報表")]] },
+  { key: "finance", g: tr("財務管理"), icon: DollarSign, items: [["order-settlement", tr("訂單結算")], ["topups", tr("充值審核")], ["usdt-channel", tr("USDT 通道")], ["payments", tr("支付渠道配置")], ["reconciliation", tr("財務對賬")], ["currencies", tr("匯率配置")], ["finance-reports", tr("財務報表")]] },
   { key: "system", g: tr("系統配置"), icon: Settings, items: [["siteconfig", tr("基礎設置")], ["admins", tr("管理員管理")], ["roles", tr("角色權限管理")], ["operation-logs", tr("操作日誌")], ["sms-config", tr("短信配置")], ["email-config", tr("郵箱配置")], ["oauth-config", tr("授權配置")], ["translations", tr("翻譯管理")], ["paylogos", tr("頁尾支付Logo")]] },
 ];
 const LEAVES = [["security", tr("安全配置"), ShieldCheck]];
@@ -131,7 +132,8 @@ const PAGES = {
   notifications: (p) => <NotificationsAdmin {...p} />,
   activities: (p) => <ActivitiesAdmin {...p} />,
   topups: (p) => <TopupsAdmin {...p} />,
-  payments: (p) => <PaymentMethodsAdmin {...p} />,
+  payments: (p) => <PaymentMethodsAdmin {...p} scope="other" />,
+  "usdt-channel": (p) => <UsdtChannelAdmin {...p} />,
   currencies: (p) => <Currencies {...p} />,
   siteconfig: (p) => <SiteConfigAdmin {...p} />,
   banners: (p) => <SiteConfigAdmin {...p} only={["top_promo", "hero", "promo_banners", "detail_banners", "announcement"]} title={tr("橫幅 / 輪播圖管理")} sub={tr("頂部推廣條、首頁主橫幅、活動橫幅、商品頁 Banner 與公告條皆在此修改；首頁輪播大圖請到「首頁裝修」。")} />,

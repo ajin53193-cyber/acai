@@ -2158,6 +2158,55 @@ async def _giftcard_dispatch_loop():
         await asyncio.sleep(20)
 
 
+async def _usdt_scan_loop():
+    """Background on-chain scan: auto-credits own-wallet USDT top-ups even if the payer closed the page."""
+    await asyncio.sleep(25)
+    interval = int(os.environ.get("USDT_SCAN_SECONDS") or 90)
+    while True:
+        try:
+            cutoff = (datetime.now(timezone.utc) - timedelta(hours=24)).isoformat()
+            stale = (datetime.now(timezone.utc) - timedelta(seconds=55)).isoformat()
+            q = {"own_wallet": True, "network": "TRC20", "status": {"$in": ["pending", "expired"]},
+                 "created_at": {"$gt": cutoff}, "$or": [{"chain_checked_at": {"$exists": False}}, {"chain_checked_at": {"$lt": stale}}]}
+            pend = await db.topup_orders.find(q, {"_id": 0}).sort("created_at", -1).limit(200).to_list(200)
+            for t in pend:
+                try:
+                    await _own_wallet_check(t)
+                except Exception as e:
+                    logger.info("usdt scan check %s: %s", t.get("id"), e)
+                await asyncio.sleep(0.25)
+        except Exception as e:
+            logger.warning(f"usdt scan loop error: {e}")
+        await asyncio.sleep(interval)
+
+
+@api_router.get("/admin/usdt/overview")
+async def admin_usdt_overview(admin: dict = Depends(require_role("admin"))):
+    methods = await db.payment_methods.find({"provider": "crypto"}, {"_id": 0}).to_list(100)
+    addrs = []
+    for m in methods:
+        for a in _wallet_pool(m.get("config") or {}):
+            if a not in addrs:
+                addrs.append(a)
+
+    async def _agg(match):
+        cur = db.topup_orders.aggregate([{"$match": match}, {"$group": {"_id": None, "n": {"$sum": 1}, "amt": {"$sum": "$amount_usd"}}}])
+        d = await cur.to_list(1)
+        return {"count": (d[0]["n"] if d else 0), "amount": round(float(d[0]["amt"]), 2) if d else 0.0}
+
+    summary = {s: await _agg({"own_wallet": True, "status": s}) for s in ["pending", "reviewing", "paid", "expired", "rejected"]}
+    per_address = []
+    for a in addrs:
+        paid = await _agg({"own_wallet": True, "status": "paid", "wallet_address": a})
+        pending = await db.topup_orders.count_documents({"own_wallet": True, "status": "pending", "wallet_address": a})
+        per_address.append({"address": a, "paid_count": paid["count"], "paid_amount": paid["amount"], "pending_count": pending})
+    per_address.sort(key=lambda x: x["paid_amount"], reverse=True)
+    recent = await db.topup_orders.find({"own_wallet": True},
+        {"_id": 0, "id": 1, "user_id": 1, "amount_usd": 1, "pay_amount": 1, "wallet_address": 1, "network": 1, "status": 1, "tx_id": 1, "created_at": 1, "paid_at": 1, "method_name": 1}
+    ).sort("created_at", -1).limit(50).to_list(50)
+    return {"addresses": addrs, "address_count": len(addrs), "summary": summary, "per_address": per_address, "recent": recent, "scan_seconds": int(os.environ.get("USDT_SCAN_SECONDS") or 90)}
+
+
 class RejectInfoIn(BaseModel):
     reason: str = ""
 
@@ -3494,6 +3543,7 @@ async def on_startup():
     await admin_api.load_integration_settings()
     asyncio.create_task(_giftcard_dispatch_loop())
     asyncio.create_task(review_auto.loop())
+    asyncio.create_task(_usdt_scan_loop())
 
 
 @app.middleware("http")

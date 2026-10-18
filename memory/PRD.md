@@ -230,3 +230,12 @@
 - **多地址收款池**（應對 2 萬用戶高併發；原單地址「唯一小數尾數」每地址僅約 99 筆並發上限）：後台「支付渠道 → USDT」的收款地址欄改為**多行文本框 `wallet_addresses`**（每行一個 TRON 地址），向下兼容舊的單地址 `wallet_address`。下單時 `_wallet_pool` 解析地址池，`_pick_wallet_and_amount` 選**當前待付最少的地址**再在該地址上生成唯一小數金額，容量≈地址數×99。鏈上對賬仍按訂單自身地址查 TronGrid，天然支持多地址。已後端測試：9 筆同額訂單在 3 地址上均勻分配 3/3/3、每地址金額唯一、舊單地址仍可用。
 - **前後端分離部署方案**（兩台全新 Ubuntu 22.04 + 寶塔）：商城前台 `print8.8bc8uyz.com`/`print8.2bc8uyz.com`、管理後台 `print8.1bc8uyz.com`、後端 API `www.apy-gogo-pay-589ppyppgkn.com`。CORS 已從 `.env` `CORS_ORIGINS` 讀取、鑑權走 Bearer+X-Admin-Token（非 Cookie），跨根域可用。產出 `backend/.env.production.example`、`frontend/.env.production.example`、`DEPLOY_SPLIT.md`（含三份 Nginx、MongoDB 遷移 mongodump/mongorestore、PM2、SSL、防火牆）。完整源碼包（含 package.json/requirements.txt/yarn.lock，不含真實 .env）已打進 patch.zip。
 - **USDT 自動到賬機制說明**：非第三方 webhook，而是「唯一金額 + 前端輪詢 → 後端查 TronGrid」；`_own_wallet_check`（8s 節流）→ `_tron_find_payment`（精確金額匹配 + 防重複 TXID）→ `_usdt_settle`。局限：僅在用戶打開該訂單收銀台頁（24h 內）時觸發查鏈；關頁後到賬需重開頁或人工補單。待辦：可加後台定時掃鏈任務。
+
+## 2026-10-18 更新（USDT 定時掃鏈自動到賬 + 獨立 USDT 通道後台）
+- **後台定時掃鏈 `_usdt_scan_loop`**（server.py，startup 啟動）：每 `USDT_SCAN_SECONDS`（預設 90s）掃一遍「24h 內、pending/expired、55s 未查過」的自有錢包 TRC20 訂單（每輪上限 200、0.25s 節流），調 `_own_wallet_check` 自動入賬——**用戶關閉收銀台頁也能自動到賬**，大幅減少人工補單。⚠️ 必須配置 `TRONGRID_API_KEY`，否則公共額度 429 限流（已在預覽驗證 loop 正常運行並調用 TronGrid）。
+- **獨立「USDT 通道」後台頁 `UsdtChannelAdmin.jsx`**（財務管理選單新增，與其它支付渠道分開）：
+  - 「收款數據」頁籤：待付/審核中/已到賬/已過期 統計卡（筆數+金額）、**地址收款統計**表（每地址 待付中/到賬筆數/累計到賬USD，可複製地址）、最近 50 筆充值記錄（含狀態、到賬金額、TXID 連 Tronscan）。數據來自新接口 `GET /api/admin/usdt/overview`。
+  - 「通道配置」頁籤：複用 `PaymentMethodsAdmin scope="crypto"`，只顯示 USDT 通道；地址欄為多行多地址。
+  - 原「支付渠道配置」頁改 `scope="other"`，不再顯示 crypto（USDT 統一在新頁管理）。
+  - 後端新增 `GET /api/admin/usdt/overview`（require_role admin）：彙總各狀態筆數/金額、各地址收款統計、最近記錄。已後端直測通過（A1 2筆/300、A2 1筆/300 等統計準確）。
+  - i18n 新增約 20 keys；RolesAdmin 加 `usdt-channel` 權限。
