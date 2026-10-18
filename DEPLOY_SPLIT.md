@@ -143,3 +143,13 @@ bash backup_mongo.sh
 REMOTE='user@备份机:/backup/gogo589' bash backup_mongo.sh --install-cron
 # 还原：mongorestore --uri="$MONGO_URL" --archive=/www/backup/mongo/gogo589_YYYYMMDD_HHMMSS.archive.gz --gzip --drop
 ```
+
+## 七、旧库迁移（上线前把旧服务器数据搬到新库）
+```bash
+# 在新服务器直接从旧库拉取并导入（旧库名默认 test_database，按实际改 SRC_DB）
+SRC_URI="mongodb://旧账号:旧密码@旧服务器IP:27017/test_database?authSource=admin" \
+DST_URI="mongodb://新账号:新密码@127.0.0.1:27017/gogo589?authSource=admin" \
+SRC_DB=test_database bash migrate_mongo.sh
+# 或：已有旧库导出文件时  DUMP=/路径/archive.gz DST_URI=... bash migrate_mongo.sh
+```
+> 用 `--drop` 覆盖同名集合并自动把旧库名映射到新库名；迁移前会先给新库做一次安全备份；完成后跑 `bash healthcheck.sh` 验证。

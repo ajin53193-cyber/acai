@@ -19,8 +19,8 @@ info "前端目录：$FRONT"
 command -v yarn >/dev/null 2>&1 || err "未找到 yarn，请先安装：npm i -g yarn"
 
 if [ ! -f .env ]; then
-  [ -f .env.production.example ] && cp .env.production.example .env
-  err "已从模板生成 frontend/.env —— 请填好 REACT_APP_BACKEND_URL（后端 API 域名）后重跑"
+  if [ -f .env.production.example ]; then cp .env.production.example .env; else echo 'REACT_APP_BACKEND_URL=https://你的后端API域名' > .env; fi
+  err "已生成 frontend/.env 模板 —— 请填好 REACT_APP_BACKEND_URL（后端 API 域名）后重跑"
 fi
 BURL="$(grep -E '^REACT_APP_BACKEND_URL=' .env | head -1 | cut -d= -f2-)"
 [ -n "$BURL" ] || err "frontend/.env 的 REACT_APP_BACKEND_URL 未填写（后端 API 域名）"

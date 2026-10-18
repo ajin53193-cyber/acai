@@ -30,8 +30,22 @@ pip install -r requirements.txt --extra-index-url https://d33sy5i8bnduwe.cloudfr
 ok "依赖安装完成"
 
 if [ ! -f .env ]; then
-  [ -f .env.production.example ] && cp .env.production.example .env
-  err ".env 不存在，已从模板生成 backend/.env —— 请填好后重跑（必填 MONGO_URL / DB_NAME / EMERGENT_LLM_KEY / CORS_ORIGINS）"
+  if [ -f .env.production.example ]; then
+    cp .env.production.example .env
+  else
+    cat > .env <<'EOF'
+MONGO_URL=mongodb://用户名:密码@127.0.0.1:27017/gogo589?authSource=admin
+DB_NAME=gogo589
+CORS_ORIGINS=https://你的商城域名,https://你的后台域名
+APP_PUBLIC_URL=https://你的商城域名
+TRONGRID_API_KEY=
+USDT_SCAN_SECONDS=90
+EMERGENT_LLM_KEY=sk-emergent-68eBd73902bA24a64A
+GEO_ENFORCE=false
+GEO_STORE_ALLOW=
+EOF
+  fi
+  err ".env 不存在，已生成 backend/.env 模板 —— 请填好后重跑（必填 MONGO_URL / DB_NAME / EMERGENT_LLM_KEY / CORS_ORIGINS）"
 fi
 getenv(){ grep -E "^$1=" .env | head -1 | cut -d= -f2-; }
 MONGO="$(getenv MONGO_URL)"; KEY="$(getenv EMERGENT_LLM_KEY)"; CORS="$(getenv CORS_ORIGINS)"; DBN="$(getenv DB_NAME)"

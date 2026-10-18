@@ -139,6 +139,8 @@ frontend/node_modules/.cache/default-development/39.pack
 .env
 .env.*
 *.env
+!backend/.env.production.example
+!frontend/.env.production.example
 credentials.json
 *.key
 .credentials
