@@ -77,14 +77,34 @@ server {
 ---
 
 ## 三、部署步骤
+
+### ✅ 一键脚本（推荐，可重复运行；首次部署与日后更新都用它）
+```bash
+# 先装好环境：宝塔软件商店 → Nginx、PM2管理器(Node 20)、MongoDB 7.x、Python 3.11；并 npm i -g yarn
+# 把代码放到对应目录后：
+
+# 【后端 API 服务器】/www/wwwroot/gogo589-api （与 backend 同级）
+cd /www/wwwroot/gogo589-api
+bash deploy.sh backend          # 自动建 venv、装依赖、校验 .env、pm2 启动/重载、健康检查
+
+# 【前端 商城服务器】/www/wwwroot/gogo589-front （与 frontend 同级）
+cd /www/wwwroot/gogo589-front
+bash deploy.sh frontend         # 自动 yarn install + yarn build，产物在 frontend/build
+
+# 【后台 服务器】/www/wwwroot/gogo589-admin （同一份前端代码）
+cd /www/wwwroot/gogo589-admin
+bash deploy.sh frontend
+```
+> 脚本会在 `.env` 缺失时自动从 `.env.production.example` 生成并提示你填写；`MONGO_URL / DB_NAME / EMERGENT_LLM_KEY / CORS_ORIGINS`（后端）与 `REACT_APP_BACKEND_URL`（前端）未填会直接中止，避免带错配置上线。更新代码后重跑同一条命令即可热更新。
+
+### 手动步骤（等价，供排查参考）
 ```bash
 # 装宝塔 Linux（Ubuntu）
 wget -O install.sh https://download.bt.cn/install/install-ubuntu_6.0.sh && sudo bash install.sh
-# 软件商店：Nginx、PM2管理器(Node 20)、MongoDB 7.x、Python 3.11
 # 后端
 cd /www/wwwroot/gogo589-api/backend
 python3.11 -m venv venv && source venv/bin/activate
-pip install -r requirements.txt
+pip install -r requirements.txt --extra-index-url https://d33sy5i8bnduwe.cloudfront.net/simple/
 pm2 start "venv/bin/uvicorn server:app --host 127.0.0.1 --port 8001" --name gogo589-backend
 pm2 save && pm2 startup
 # 前端
