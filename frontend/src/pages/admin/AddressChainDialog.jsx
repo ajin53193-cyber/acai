@@ -13,6 +13,7 @@ export function AddressChainDialog({ address, callApi, onClose, onMatched }) {
   const [d, setD] = useState(null);
   const [err, setErr] = useState("");
   const [busy, setBusy] = useState("");
+  const [onlyUnmatched, setOnlyUnmatched] = useState(false);
   const load = useCallback(() => {
     if (!address) return;
     setD(null); setErr("");
@@ -31,6 +32,8 @@ export function AddressChainDialog({ address, callApi, onClose, onMatched }) {
     setBusy("");
   };
   const txs = d?.transfers || [];
+  const nUn = txs.filter((t) => !t.matched).length;
+  const shown = onlyUnmatched ? txs.filter((t) => !t.matched) : txs;
   return (
     <Dialog open={!!address} onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="max-w-3xl p-0 overflow-hidden" data-testid="addr-chain-dialog">
@@ -42,7 +45,13 @@ export function AddressChainDialog({ address, callApi, onClose, onMatched }) {
           </div>
         </div>
         <div className="flex items-center justify-between px-5 py-2.5 border-b border-slate-100 bg-slate-50/60">
-          <span className="text-[12px] text-slate-500">{tr("僅顯示轉入本地址的 USDT (TRC20) 記錄，用於對帳")}</span>
+          <div className="flex items-center gap-2.5">
+            <span className="text-[12px] text-slate-500">{tr("僅顯示轉入本地址的 USDT (TRC20) 記錄，用於對帳")}</span>
+            <button data-testid="addr-chain-only-unmatched" onClick={() => setOnlyUnmatched((v) => !v)}
+              className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-semibold transition-colors ${onlyUnmatched ? "bg-amber-500 text-white" : "bg-white border border-slate-200 text-slate-600 hover:border-amber-300"}`}>
+              <AlertCircle className="h-3 w-3" />{tr("只看未對應")}{nUn > 0 ? ` (${nUn})` : ""}
+            </button>
+          </div>
           <div className="flex items-center gap-3">
             {d && d.balance != null && <span className="text-[12px] font-semibold text-emerald-600">{tr("餘額")} {Number(d.balance).toLocaleString()} U</span>}
             <a href={`https://tronscan.org/#/address/${address}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-[12px] font-semibold text-orange-600 hover:underline" data-testid="addr-chain-tronscan"><ExternalLink className="h-3.5 w-3.5" />{tr("在 TronScan 查看")}</a>
@@ -53,6 +62,7 @@ export function AddressChainDialog({ address, callApi, onClose, onMatched }) {
             : !d ? <div className="py-16 flex justify-center"><Loader2 className="h-6 w-6 animate-spin text-orange-500" /></div>
             : !d.has_key ? <div className="py-12 px-6 text-center text-sm text-amber-600" data-testid="addr-chain-nokey">{tr("尚未配置 TRONGRID_API_KEY，無法查詢鏈上記錄")}</div>
             : txs.length === 0 ? <div className="py-12 text-center text-sm text-slate-400">{tr("近期無轉入記錄")}</div>
+            : shown.length === 0 ? <div className="py-12 text-center text-sm text-emerald-500" data-testid="addr-chain-all-matched">{tr("沒有未對應記錄，全部已入帳 ✓")}</div>
             : (
               <table className="w-full text-sm" data-testid="addr-chain-table">
                 <thead><tr className="text-left text-xs text-slate-500 border-b border-slate-200 bg-slate-50/70 sticky top-0">
@@ -63,7 +73,7 @@ export function AddressChainDialog({ address, callApi, onClose, onMatched }) {
                   <th className="px-4 py-2.5 font-semibold text-right">{tr("對帳狀態")}</th>
                 </tr></thead>
                 <tbody className="divide-y divide-slate-100">
-                  {txs.map((t) => (
+                  {shown.map((t) => (
                     <tr key={t.tx_id} data-testid={`addr-chain-tx-${(t.tx_id || "").slice(-6)}`} className={t.matched ? "hover:bg-emerald-50/40" : "bg-amber-50/40 hover:bg-amber-50/70"}>
                       <td className="px-4 py-3 font-head font-bold text-slate-900 whitespace-nowrap">
                         <span className="inline-flex items-center gap-1.5">

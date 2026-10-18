@@ -257,3 +257,9 @@
 - **未對應到賬告警**：新端點 `GET /api/admin/usdt/unmatched`（掃各地址近 48h 轉入、未命中 `topup_orders.tx_id` 的到賬=漏單）。UsdtChannelAdmin 首頁頂部紅色橫幅「有 N 筆鏈上到賬未對應訂單」，點擊直接打開該地址查鏈彈窗核對。
 - **一鍵補單**：查鏈彈窗「未對應」行加「手動入帳」綠色按鈕 → `POST /api/admin/usdt/manual-match`（找該地址上金額相符的待付/過期訂單，attach 該 tx 並 `_usdt_settle` 入帳+發通知+積分）。已用臨時待付單端到端驗證：候選匹配→結算 status=paid→錢包入帳均正常（測試副作用已清理還原 demo 數據）。
 - i18n 新增 20 條詞條（13+6+1）均手動合併簡體寫入 `zh-CN.json`（禁用全量重生避免「通道→信道」回歸）。源碼包已重打 `/app/export/patch.zip`（不含真實 .env）。
+
+## 2026-10-18 更新（只看未對應篩選 + 每日漏單統計 + 一鍵全部補單）
+- **查鏈彈窗「只看未對應」開關**（AddressChainDialog）：頭部加橙色切換膠囊（帶未對應筆數），開啟後表格只顯示未對應到賬；全部已入帳時顯示「沒有未對應記錄，全部已入帳 ✓」。已登入截圖驗證開關渲染正常。
+- **每日漏單小統計**：UsdtChannelAdmin 告警橫幅下方按日期分組顯示近 5 天漏單（日期 · N筆 · 金額），數據由 `/admin/usdt/unmatched` items 前端分組。
+- **一鍵全部補單**：後端新增 `POST /api/admin/usdt/manual-match-all`（重掃未對應→逐筆 `_usdt_match_one` 入帳，返回 matched/skipped/total）；重構出 `_usdt_collect_addresses` / `_usdt_unmatched_items` / `_usdt_match_one` 共用函數。前端告警橫幅拆為「逐筆核對」+ 綠色「一鍵全部補單」兩個按鈕。已驗證端點註冊(401)與單筆補單邏輯端到端（批量為單筆循環）。
+- i18n 新增 9 條詞條手動合併簡體寫入 zh-CN.json。源碼包已重打 `/app/export/patch.zip`。

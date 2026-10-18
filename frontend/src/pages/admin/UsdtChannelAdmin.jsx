@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from "react";
-import { Loader2, Clock, FileSearch, CheckCircle2, XCircle, Ban, Copy, Wallet, Settings2, BarChart3, RefreshCw, Search, AlertTriangle } from "lucide-react";
+import { Loader2, Clock, FileSearch, CheckCircle2, XCircle, Ban, Copy, Wallet, Settings2, BarChart3, RefreshCw, Search, AlertTriangle, HandCoins } from "lucide-react";
 import { toast } from "sonner";
 import { tr } from "@/i18n";
 import { Card, Head } from "./ui";
@@ -52,8 +52,25 @@ function UsdtData({ callApi }) {
   }, [callApi]);
   const loadBal = useCallback(() => { setBal("loading"); callApi({ method: "GET", url: "/admin/usdt/balances" }).then((r) => setBal(r.data)).catch(() => setBal({ balances: {}, total: 0, ok: false })); }, [callApi]);
   const loadUnmatched = useCallback(() => { callApi({ method: "GET", url: "/admin/usdt/unmatched" }).then((r) => setUnmatched(r.data)).catch(() => setUnmatched(null)); }, [callApi]);
+  const [batching, setBatching] = useState(false);
   useEffect(() => { load("today"); loadBal(); loadUnmatched(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const pick = (rng) => { setRange(rng); if (rng !== "custom") load(rng); };
+  const batchCredit = async () => {
+    if (!window.confirm(tr("確認對所有未對應到賬嘗試一鍵補單？系統會為每筆找金額相符的待付訂單入帳。"))) return;
+    setBatching(true);
+    try {
+      const r = await callApi({ method: "POST", url: "/admin/usdt/manual-match-all" });
+      toast.success(tr("已補 {0} 筆，{1} 筆無匹配訂單", r.data.matched, r.data.skipped));
+      load(range, from, to); loadBal(); loadUnmatched();
+    } catch (e) { toast.error(e.response?.data?.detail || tr("批量補單失敗")); }
+    setBatching(false);
+  };
+  const missByDay = Object.entries((unmatched?.items || []).reduce((acc, it) => {
+    const day = (it.ts || "").slice(0, 10) || "—";
+    acc[day] = acc[day] || { n: 0, amt: 0 };
+    acc[day].n += 1; acc[day].amt += Number(it.amount) || 0;
+    return acc;
+  }, {})).sort((a, b) => b[0].localeCompare(a[0])).slice(0, 5);
   if (!d) return <Loader2 className="h-6 w-6 animate-spin text-orange-500" />;
   const s = d.summary || {};
   const RANGES = [["today", tr("今日")], ["yesterday", tr("昨日")], ["week", tr("本週")], ["month", tr("本月")], ["lastmonth", tr("上月")], ["all", tr("全部")], ["custom", tr("自定義")]];
@@ -84,15 +101,29 @@ function UsdtData({ callApi }) {
       <div className="text-[12px] text-slate-400">{tr("共 {0} 個收款地址 · 掃鏈週期 {1} 秒", d.address_count || 0, d.scan_seconds || 90)}</div>
 
       {unmatched && unmatched.count > 0 && (
-        <button data-testid="usdt-unmatched-alert" onClick={() => setViewAddr(unmatched.items[0].address)}
-          className="w-full flex items-center gap-2.5 rounded-xl bg-red-50 border border-red-200 px-4 py-3 text-left hover:bg-red-100/70 transition-colors">
-          <span className="h-8 w-8 rounded-full bg-red-500 text-white flex items-center justify-center shrink-0"><AlertTriangle className="h-4 w-4" /></span>
-          <span className="flex-1">
-            <span className="block text-sm font-bold text-red-700">{tr("有 {0} 筆鏈上到賬未對應訂單", unmatched.count)}</span>
-            <span className="block text-[12px] text-red-500/90">{tr("可能是用戶已付款但系統未確認的漏單，點擊查看並一鍵補單")}</span>
-          </span>
-          <span className="text-[12px] font-semibold text-red-600 shrink-0">{tr("立即核對")} →</span>
-        </button>
+        <div data-testid="usdt-unmatched-alert" className="rounded-xl bg-red-50 border border-red-200 overflow-hidden">
+          <div className="flex items-center gap-2.5 px-4 py-3">
+            <span className="h-8 w-8 rounded-full bg-red-500 text-white flex items-center justify-center shrink-0"><AlertTriangle className="h-4 w-4" /></span>
+            <span className="flex-1 min-w-0">
+              <span className="block text-sm font-bold text-red-700">{tr("有 {0} 筆鏈上到賬未對應訂單", unmatched.count)}</span>
+              <span className="block text-[12px] text-red-500/90">{tr("可能是用戶已付款但系統未確認的漏單，可逐筆核對或一鍵全部補單")}</span>
+            </span>
+            <button data-testid="usdt-unmatched-view" onClick={() => setViewAddr(unmatched.items[0].address)} className="h-8 px-3 rounded-lg border border-red-300 bg-white text-[12px] font-semibold text-red-600 hover:bg-red-100 transition-colors shrink-0">{tr("逐筆核對")}</button>
+            <button data-testid="usdt-unmatched-batch" onClick={batchCredit} disabled={batching} className="h-8 px-3 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white text-[12px] font-semibold flex items-center gap-1.5 transition-colors disabled:opacity-50 shrink-0">{batching ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <HandCoins className="h-3.5 w-3.5" />}{tr("一鍵全部補單")}</button>
+          </div>
+          {missByDay.length > 0 && (
+            <div className="flex flex-wrap items-center gap-2 px-4 pb-3 pt-0" data-testid="usdt-miss-by-day">
+              <span className="text-[11px] font-semibold text-red-400">{tr("每日漏單")}</span>
+              {missByDay.map(([day, v]) => (
+                <span key={day} className="inline-flex items-center gap-1.5 rounded-full bg-white border border-red-200 px-2.5 py-0.5 text-[11px]">
+                  <span className="font-mono text-red-500">{day.slice(5) || day}</span>
+                  <span className="font-bold text-red-700">{v.n} {tr("筆")}</span>
+                  <span className="text-red-400">{v.amt.toLocaleString()} U</span>
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
       )}
 
       <div className="grid grid-cols-2 lg:grid-cols-2 gap-4">
