@@ -4,9 +4,9 @@ import { QRCodeSVG } from "qrcode.react";
 import { Clock, Copy, Check, X, Loader2, ChevronDown, Zap, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
 import { useApi } from "@/lib/api";
-import { useSiteConfig } from "@/lib/siteConfig";
 import { openService } from "@/components/ServiceWidget";
 import ServiceWidget from "@/components/ServiceWidget";
+import { celebrate } from "@/lib/celebrate";
 import { tr, LANG, LANGS, setLang } from "@/i18n";
 
 const COIN = "/payments/tether-coin.svg";
@@ -52,9 +52,10 @@ const FAQ = [tr("什麼是USDT"), tr("如何購買"), tr("充幣多久能到賬/
 export default function UsdtPay() {
   const { tid } = useParams();
   const callApi = useApi();
-  const cfg = useSiteConfig();
   const [t, setT] = useState(null);
   const [err, setErr] = useState("");
+  const [showWin, setShowWin] = useState(false);
+  const wonRef = useRef(false);
   const qrRef = useRef(null);
   const load = useCallback(async () => {
     try { const r = await callApi({ method: "GET", url: `/me/wallet/topup/${tid}` }); setT(r.data); return r.data; }
@@ -63,7 +64,7 @@ export default function UsdtPay() {
   useEffect(() => { load(); }, [load]);
   useEffect(() => {
     if (!t || t.status !== "pending") return;
-    const id = setInterval(async () => { const d = await load(); if (d?.status === "paid") toast.success(tr("USDT 已到賬，餘額已更新")); }, 5000);
+    const id = setInterval(async () => { const d = await load(); if (d?.status === "paid" && !wonRef.current) { wonRef.current = true; celebrate(); setShowWin(true); } }, 5000);
     return () => clearInterval(id);
   }, [t?.status, load]); // eslint-disable-line react-hooks/exhaustive-deps
   const left = useCountdown(t?.expires_at, t?.status === "pending");
@@ -74,12 +75,11 @@ export default function UsdtPay() {
   const dead = t && !["pending", "paid"].includes(t.status);
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-800 pb-10" data-testid="usdt-pay-page">
-      <header className="bg-white border-b border-orange-100 shadow-sm">
+    <div className="min-h-screen bg-gradient-to-b from-[#fff3e6] via-[#fff8f0] to-[#fffdfb] text-slate-800 pb-10" data-testid="usdt-pay-page">
+      <header className="bg-white/90 backdrop-blur border-b border-orange-100 shadow-sm">
         <div className="mx-auto max-w-[360px] sm:max-w-[420px] h-14 flex items-center justify-between px-3">
-          <Link to="/" className="flex items-center gap-2 min-w-0" data-testid="usdt-pay-logo">
-            <span className="h-9 w-9 rounded-full bg-orange-500 text-white font-bold flex items-center justify-center text-base overflow-hidden">{cfg.logo?.image ? <img src={cfg.logo.image} alt="" className="h-9 w-9 object-contain bg-white" /> : "g"}</span>
-            <span className="leading-tight"><span className="block font-head text-[15px] font-extrabold text-slate-900">gogo589</span><span className="block text-[10px] text-orange-500 font-semibold">{tr("USDT 安全收款")}</span></span>
+          <Link to="/" className="flex items-center min-w-0" data-testid="usdt-pay-logo">
+            <img src="/gogo589-wordmark.png" alt="gogo589" className="h-7 w-auto object-contain" />
           </Link>
           <label className="relative text-[13px] text-slate-700 flex items-center gap-1 cursor-pointer">
             <select data-testid="usdt-pay-lang" value={LANG} onChange={(e) => setLang(e.target.value)} className="appearance-none bg-transparent pr-4 outline-none cursor-pointer">{LANGS.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select>
@@ -153,6 +153,20 @@ export default function UsdtPay() {
           </div>
         )}
       </main>
+
+      {showWin && (
+        <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/45 backdrop-blur-sm px-8 animate-in fade-in duration-200" data-testid="usdt-pay-success-modal" onClick={() => setShowWin(false)}>
+          <div className="w-full max-w-[320px] rounded-[26px] bg-white p-7 text-center shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-br from-amber-400 to-orange-500 text-white shadow-lg shadow-orange-300/50">
+              <Check className="h-10 w-10" strokeWidth={3} />
+            </div>
+            <div className="mt-5 font-head text-[22px] font-extrabold text-slate-900">{tr("充值成功到賬！")}</div>
+            <p className="mt-2 text-[13px] text-slate-500 leading-5">{tr("您的 {0} USDT 已成功到賬，錢包餘額已更新。", amt)}</p>
+            <Link to="/account/wallet" data-testid="usdt-pay-success-wallet" className="mt-6 h-12 w-full rounded-full bg-gradient-to-r from-amber-400 to-orange-500 text-white font-bold flex items-center justify-center hover:brightness-105 transition">{tr("查看我的錢包")}</Link>
+            <button type="button" data-testid="usdt-pay-success-close" onClick={() => setShowWin(false)} className="mt-3 text-[13px] text-slate-400 hover:text-slate-600">{tr("留在此頁")}</button>
+          </div>
+        </div>
+      )}
 
       <ServiceWidget />
     </div>

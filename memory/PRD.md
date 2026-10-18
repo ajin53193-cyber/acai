@@ -213,3 +213,9 @@
 - **USDT 到賬聊天提醒**：`chat_api.system_notify(user_id, text)`（找/建該用戶 chat session，插入 sender=admin 系統通知訊息，unread_user+1）；`server._usdt_settle` 到賬入帳後 create_task 推送「您的 {pay_amount} USDT 已到賬，錢包餘額已更新為 USD$ {bal}」。鏈上自動偵測(_own_wallet_check→_usdt_settle)與後台人工審核(payments_api approve→settle=_usdt_settle)皆會觸發。郵件提醒沿用既有 topup_paid（notify_user）。
 - 測試：`backend/tests/test_usdt_energy_chat.py` 直接驗證 energy_url 落庫 + 唯一小數金額 + 到賬入帳 100.0 + 聊天系統訊息插入 unread_user=1，全 PASS（Clerk 阻擋 headless，故採後端直測）。前端 webpack 編譯成功、i18n JSON 有效、無 console 錯誤。
 - patch.zip 已重新打包（backend/*.py + hub_static + frontend/src + public，~13.8MB），含本次全部改動與重生成 i18n 字典；用戶解壓後 `pm2 restart gogo589-backend` + `cd frontend && yarn build`。
+
+## 2026-10-18 更新（USDT 收銀台 UI 統一平台橙 + 收尾細節）
+- 收銀台 `UsdtPay.jsx` 全面改為平台「橙色奶油」風：Header/卡片/金額/按鈕/連結/地址框全部換成 orange-500 系（rounded-2xl 圓角卡、pill 按鈕、font-head 金額）；「已到賬」綠、「待付款」琥珀保留為狀態語義色。
+- 頂部 Logo 換成用戶提供的 gogo589 橙色手寫體字標 `public/gogo589-wordmark.png`（829×254 透明 PNG），移除原本的圓形徽章與「USDT 安全收款」副標題文字。
+- 背景由純灰 slate-50 改為暖橙漸層 `from-[#fff3e6] via-[#fff8f0] to-[#fffdfb]`（呼應首頁）；Header 改 `bg-white/90 backdrop-blur`。
+- 到賬慶祝彈窗：輪詢偵測到 status=paid（且未觸發過）時 `celebrate()` 放橙色禮花+提示音，並彈出居中白色圓角卡（橙色漸層勾選徽章 + 「充值成功到賬！」+ 金額 + 「查看我的錢包」按鈕 / 「留在此頁」關閉），取代原本只有頂部 toast。i18n 新增 4 keys。
