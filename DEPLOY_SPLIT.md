@@ -48,12 +48,26 @@
 ## 二、Nginx（宝塔「网站 → 配置文件」粘贴，SSL 用宝塔一键 Let's Encrypt）
 
 ### 商城前台（两个域名共用）
+> ★ 数据库里图片地址是相对路径 `/api/img/...`，前后端分离时必须在前端站点把 `/api/` 反代到后端域名（`^~` 优先于扩展名规则），否则全站图片 404。
 ```nginx
 server {
   listen 443 ssl http2;
   server_name print8.8bc8uyz.com print8.2bc8uyz.com;
   root /www/wwwroot/gogo589-front/frontend/build;
   index index.html;
+  location ^~ /api/ {
+    proxy_pass https://www.apy-gogo-pay-589ppyppgkn.com;
+    proxy_http_version 1.1;
+    proxy_ssl_server_name on;
+    proxy_set_header Host www.apy-gogo-pay-589ppyppgkn.com;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto https;
+    proxy_read_timeout 300s;
+    client_max_body_size 50m;
+  }
+  location = /index.html { add_header Cache-Control "no-cache, no-store"; }
+  location /gg589-k7p2x { return 404; }
   location / { try_files $uri $uri/ /index.html; }
   location /static/ { expires 30d; add_header Cache-Control "public, immutable"; }
   gzip on; gzip_comp_level 5;
@@ -66,10 +80,18 @@ server {
 server {
   listen 443 ssl http2;
   server_name print8.1bc8uyz.com;
-  root /www/wwwroot/gogo589-admin/frontend/build;
+  root /www/wwwroot/gogo589-front/frontend/build;
   index index.html;
-  location /gg589-k7p2x/ { try_files $uri $uri/ /index.html; }
-  location ~* \.(js|css|png|svg|woff2?|ico|json)$ { try_files $uri =404; }
+  location ^~ /api/ { # 同上，反代到后端
+    proxy_pass https://www.apy-gogo-pay-589ppyppgkn.com;
+    proxy_http_version 1.1; proxy_ssl_server_name on;
+    proxy_set_header Host www.apy-gogo-pay-589ppyppgkn.com;
+    proxy_set_header X-Forwarded-Proto https; client_max_body_size 50m;
+  }
+  location = /index.html { internal; add_header Cache-Control "no-cache, no-store"; }
+  location /static/ { expires 30d; add_header Cache-Control "public, immutable"; }
+  location ~* \.(png|jpg|jpeg|gif|svg|ico|webp|json|woff2?|txt|xml)$ { try_files $uri =404; }
+  location /gg589-k7p2x { try_files $uri /index.html; }
   location / { return 404; }
 }
 ```
