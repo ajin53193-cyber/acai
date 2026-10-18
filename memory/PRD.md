@@ -303,3 +303,9 @@
 - **同帳戶近期記錄**：後端新增 `GET /api/admin/members/{uid}/recent`（近 6 單 + 近 6 充值 + 累計單數/充值筆數/消費額）。新增復用組件 `AccountRecentActivity.jsx`，加入 訂單管理/充值審核/禮品卡訂單 三個詳情彈窗底部。已截圖驗證充值審核彈窗顯示近期記錄（STRIPE/USDT 列表 + 累計摘要），便於審核時識別刷單/異常。
 - **操作日誌只看補單**：後端 `/operation-logs`(+export) 增加 `method` 參數並把 detail 納入搜索；前端加「只看補單」綠色切換(method=CREDIT)，METHOD_TONE 補 CREDIT。
 - i18n 新增約 11 條手動合併簡體。源碼包已重打 `/app/export/patch.zip`。
+
+## 2026-10-18 更新（前台個人中心返回首頁 + 後台統一視覺重排 批次1）
+- 前台個人中心(AccountLayout) 側邊欄頂部新增「返回首頁」按鈕(Home 圖標 → "/")，桌面/移動端均顯示。
+- **後台統一視覺系統**：design_agent 產出 `/app/design_guidelines.json`（淺色 tactical 風格 + 橙色強調 + 深色側邊欄token/狀態色/表格/按鈕/彈窗規範）。採「升級共享 ui 基元」策略一次統一所有後台頁：重寫 `admin/ui.jsx`——Btn(inline-flex 居中對齊 + primary/secondary/ghost/danger/ok + sm/md/lg)、Card(圓角+細陰影)、Input(白底+橙 focus ring)、Pill(帶邊框狀態膠囊+可選圓點，改用靜態 pillTone 避免 JIT purge)、Table(大寫表頭+字距+hover+空狀態)、Head(頁首+底邊線)、Modal(slate-50 頭/腳+右對齊按鈕)、Field；新增 StatCard、toneText、pillTone。
+- 數據表遵循：表頭左對齊、金額右對齊 font-mono、狀態/操作居中（符合用戶「數據表整潔明了」+「按鈕統一樣式對齊，文字對齊你定」）。shell 本身由 index.css `.admin-light` 強制淺色，無需改動。
+- 已截圖驗證 充值審核、USDT通道(統計卡+地址表+最近記錄+補單按鈕) 兩個最複雜頁渲染乾淨統一；Btn kind 全覆蓋(danger/ghost/ok/primary)。前端編譯通過。為「分批」重排的批次1（基礎統一層）。源碼包已重打 `/app/export/patch.zip`。

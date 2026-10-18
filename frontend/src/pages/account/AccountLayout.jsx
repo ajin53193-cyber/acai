@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { Show, useClerk } from "@clerk/react";
-import { UserRound, ClipboardList, ShieldCheck, Ticket, CircleHelp, LogOut, Wallet, Headphones } from "lucide-react";
+import { UserRound, ClipboardList, ShieldCheck, Ticket, CircleHelp, LogOut, Wallet, Headphones, Home } from "lucide-react";
 import { useAuthModal } from "@/components/auth/AuthModal";
 import { tr } from "@/i18n";
 
@@ -54,6 +54,9 @@ export default function AccountLayout() {
           <div className="flex flex-col lg:flex-row gap-5 md:gap-6 items-start">
             <aside className={`w-full lg:w-60 shrink-0 bg-white rounded-2xl lg:rounded-3xl shadow-sm py-2 px-0 lg:py-6 lg:px-4 lg:min-h-[70vh] ${hideNav ? "max-lg:hidden" : ""}`} data-testid="account-sidebar">
               <nav className="flex lg:flex-col gap-1 max-lg:gap-0 overflow-x-auto no-scrollbar w-full">
+                <button onClick={() => navigate("/")} data-testid="account-nav-home" className="flex max-lg:flex-col max-lg:flex-none max-lg:w-1/6 items-center gap-3 max-lg:gap-1.5 px-5 max-lg:px-0.5 py-4 max-lg:py-1.5 rounded-2xl text-base max-lg:text-[10px] text-slate-600 hover:text-orange-500 whitespace-nowrap transition-colors lg:border-b lg:border-slate-100 lg:mb-1 lg:pb-3 lg:rounded-b-none">
+                  <Home className="h-5 w-5 max-lg:h-[22px] max-lg:w-[22px] max-lg:text-slate-400" fill="currentColor" fillOpacity={0.18} strokeWidth={1.9} /><span>{tr("返回首頁")}</span>
+                </button>
                 {NAV.map(([to, label, Icon]) => (
                   <NavLink key={to} to={to} end={to === "/account"} data-testid={`account-nav-${to.replace(/\//g, "-").slice(1)}`} className={({ isActive }) => `flex max-lg:flex-col max-lg:flex-none max-lg:w-1/6 items-center gap-3 max-lg:gap-1.5 px-5 max-lg:px-0.5 py-4 max-lg:py-1.5 rounded-2xl text-base max-lg:text-[10px] whitespace-nowrap transition-colors ${isActive ? "text-orange-500 font-medium" : "text-slate-600 hover:text-orange-500"}`}>
                     {({ isActive }) => (<><Icon className={`h-5 w-5 max-lg:h-[22px] max-lg:w-[22px] ${isActive ? "" : "max-lg:text-slate-400"}`} fill="currentColor" fillOpacity={isActive ? 0.25 : 0.18} strokeWidth={1.9} /><span className={isActive ? "" : "max-lg:text-slate-600"}>{label}</span></>)}

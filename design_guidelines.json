@@ -1,173 +1,165 @@
 {
-  "brand": {
-    "name": "GlobalTopUp",
-    "name_zh": "環球充值",
-    "tagline": "海外華人首選數字商品與直播幣跨境充值平台",
-    "language": "zh-TW",
-    "app_type": "e-commerce"
-  },
-  "design_archetype": "THE PERFORMANCE PRO & SWISS HIGH-CONTRAST (E-Commerce High Trust)",
-  "color_palette": {
-    "theme": "light_primary_with_dark_admin",
-    "primary": {
-      "main": "#0052FF",
-      "hover": "#0041CC",
-      "active": "#003299",
-      "light": "#EFF4FF",
-      "contrast_text": "#FFFFFF"
-    },
-    "secondary": {
-      "main": "#FF6B00",
-      "hover": "#E05E00",
-      "light": "#FFF4EC",
-      "contrast_text": "#FFFFFF"
-    },
-    "accent_gaming": {
-      "neon_purple": "#7C3AED",
-      "emerald_green": "#10B981",
-      "amber_gold": "#F59E0B"
-    },
+  "project_name": "Kavip Admin Console Unified Redesign System",
+  "archetype": "High-Density Enterprise Admin Console & Financial Operations",
+  "theme": {
+    "base": "Light Clean Tactical Minimalist with Dark Sidebar / Soft Surface contrast",
+    "primary_accent": "Orange-500 (#E8792A / #F97316)",
+    "primary_accent_hover": "#D96B1F",
+    "primary_accent_light": "rgba(232, 121, 42, 0.08)",
     "neutrals": {
-      "background": "#F8FAFC",
+      "canvas": "#F8FAFC",
       "surface": "#FFFFFF",
       "surface_subtle": "#F1F5F9",
       "border": "#E2E8F0",
       "border_dark": "#CBD5E1",
-      "text_primary": "#0F172A",
-      "text_secondary": "#475569",
-      "text_muted": "#94A3B8"
+      "text_main": "#0F172A",
+      "text_muted": "#64748B",
+      "text_light": "#94A3B8"
     },
-    "status": {
-      "pending_payment": "#F59E0B",
-      "paid": "#3B82F6",
-      "processing": "#8B5CF6",
-      "shipped": "#06B6D4",
-      "completed": "#10B981",
-      "failed_exception": "#EF4444"
+    "sidebar_theme": {
+      "bg": "#0F172A",
+      "group_header": "#475569",
+      "item_hover": "#1E293B",
+      "item_active": "#EA580C",
+      "item_active_bg": "rgba(234, 88, 12, 0.15)",
+      "text_regular": "#94A3B8",
+      "text_active": "#FFEDD5"
+    },
+    "status_colors": {
+      "success": {
+        "bg": "#F0FDF4",
+        "text": "#15803D",
+        "border": "#BBF7D0",
+        "dot": "#22C55E"
+      },
+      "pending": {
+        "bg": "#FFFBEB",
+        "text": "#B45309",
+        "border": "#FDE68A",
+        "dot": "#F59E0B"
+      },
+      "processing": {
+        "bg": "#EFF6FF",
+        "text": "#1D4ED8",
+        "border": "#BFDBFE",
+        "dot": "#3B82F6"
+      },
+      "failed": {
+        "bg": "#FEF2F2",
+        "text": "#B91C1C",
+        "border": "#FECACA",
+        "dot": "#EF4444"
+      },
+      "expired": {
+        "bg": "#F8FAFC",
+        "text": "#475569",
+        "border": "#E2E8F0",
+        "dot": "#94A3B8"
+      }
     }
   },
   "typography": {
-    "headline_font": "Outfit, 'Noto Sans TC', sans-serif",
-    "body_font": "'PingFang TC', 'Microsoft JhengHei', sans-serif",
-    "mono_font": "'JetBrains Mono', monospace",
-    "scale": {
-      "h1": "text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight",
-      "h2": "text-2xl sm:text-3xl font-bold tracking-tight",
-      "h3": "text-xl sm:text-2xl font-bold",
-      "h4": "text-lg font-semibold",
-      "body": "text-sm sm:text-base leading-relaxed",
-      "caption": "text-xs text-slate-500 font-medium"
+    "font_family_body": "Inter, system-ui, -apple-system, sans-serif",
+    "font_family_heading": "Inter, system-ui, -apple-system, sans-serif",
+    "font_family_mono": "JetBrains Mono, ui-monospace, SFMono-Regular, monospace",
+    "sizes": {
+      "h1": "text-2xl font-bold tracking-tight text-slate-900",
+      "h2": "text-xl font-semibold text-slate-900",
+      "h3": "text-lg font-semibold text-slate-800",
+      "subheading": "text-xs font-medium uppercase tracking-wider text-slate-500",
+      "body": "text-sm text-slate-700 leading-normal",
+      "small": "text-xs text-slate-500",
+      "mono_data": "font-mono text-xs text-slate-800 tracking-tight"
     }
   },
-  "layout_and_spacing": {
-    "desktop_max_width": "max-w-7xl mx-auto px-4 sm:px-6 lg:px-8",
-    "grid_system": {
-      "product_grid": "grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 sm:gap-4 md:gap-6",
-      "hero_bento": "grid grid-cols-1 lg:grid-cols-12 gap-6",
-      "spec_card_grid": "grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3",
-      "admin_grid": "grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4"
+  "spacing_and_layout": {
+    "container_padding": "p-4 sm:p-6 lg:p-8",
+    "gap_standard": "gap-4 sm:gap-6",
+    "section_margin": "space-y-6",
+    "sidebar_width": "w-64",
+    "topbar_height": "h-16"
+  },
+  "component_specs": {
+    "sidebar": {
+      "wrapper_classes": "w-64 bg-slate-900 text-slate-300 flex flex-col border-r border-slate-800 h-screen sticky top-0 z-40 select-none shrink-0",
+      "header_classes": "h-16 flex items-center justify-between px-5 border-b border-slate-800 bg-slate-950/40",
+      "group_title_classes": "px-3 pt-5 pb-2 text-[11px] font-bold uppercase tracking-widest text-slate-400",
+      "item_classes": "flex items-center gap-3 px-3 py-2 text-xs font-medium rounded-lg transition-colors cursor-pointer text-slate-300 hover:bg-slate-800 hover:text-white",
+      "item_active_classes": "bg-orange-600/15 text-orange-400 font-semibold border-l-2 border-orange-500 pl-[10px]"
     },
-    "mobile_specials": {
-      "sticky_bottom_bar": "fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md border-t border-slate-200 p-3 z-50 flex items-center gap-3 md:hidden shadow-lg",
-      "category_pills_scroll": "flex overflow-x-auto no-scrollbar gap-2 py-2 px-1"
-    }
-  },
-  "currencies": [
-    { "code": "USD", "symbol": "$", "rate_to_usd": 1.00, "flag": "🇺🇸", "name": "美元" },
-    { "code": "HKD", "symbol": "HK$", "rate_to_usd": 7.82, "flag": "🇭🇰", "name": "港幣" },
-    { "code": "TWD", "symbol": "NT$", "rate_to_usd": 32.20, "flag": "🇹🇼", "name": "新台幣" },
-    { "code": "EUR", "symbol": "€", "rate_to_usd": 0.92, "flag": "🇪🇺", "name": "歐元" },
-    { "code": "JPY", "symbol": "¥", "rate_to_usd": 155.40, "flag": "🇯🇵", "name": "日圓" },
-    { "code": "GBP", "symbol": "£", "rate_to_usd": 0.79, "flag": "🇬🇧", "name": "英鎊" }
-  ],
-  "image_urls": {
-    "hero_banners": [
-      {
-        "url": "https://images.unsplash.com/photo-1542751371-adc38448a05e?crop=entropy&cs=srgb&fm=jpg&q=85",
-        "category": "Dou+ & Live Stream Recharge Banner",
-        "description": "Professional esport gamer setup with vibrant lighting"
+    "topbar": {
+      "wrapper_classes": "h-16 bg-white/90 backdrop-blur-md border-b border-slate-200/80 px-6 flex items-center justify-between sticky top-0 z-30 shadow-2xs",
+      "breadcrumb_classes": "flex items-center gap-2 text-xs text-slate-500 font-medium",
+      "profile_badge_classes": "flex items-center gap-3 px-3 py-1.5 rounded-full border border-slate-200 bg-slate-50 text-xs text-slate-700 font-medium hover:bg-slate-100 transition-colors cursor-pointer"
+    },
+    "page_header": {
+      "wrapper_classes": "flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-slate-200/60",
+      "title_classes": "text-xl sm:text-2xl font-bold tracking-tight text-slate-900 flex items-center gap-2",
+      "subtitle_classes": "text-xs text-slate-500 mt-1",
+      "action_area_classes": "flex items-center gap-2 shrink-0"
+    },
+    "kpi_cards": {
+      "grid_classes": "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5",
+      "card_wrapper": "bg-white p-5 rounded-xl border border-slate-200 shadow-xs hover:border-slate-300 transition-all flex flex-col justify-between relative overflow-hidden",
+      "title_classes": "text-xs font-medium text-slate-500 flex items-center justify-between",
+      "value_classes": "text-2xl font-bold text-slate-900 font-mono tracking-tight mt-2",
+      "subtitle_classes": "text-[11px] text-slate-500 flex items-center gap-1.5 mt-2 font-medium"
+    },
+    "data_table": {
+      "wrapper_classes": "bg-white border border-slate-200 rounded-xl shadow-2xs overflow-hidden",
+      "header_row_classes": "bg-slate-50/80 border-b border-slate-200 text-xs font-semibold text-slate-600 uppercase tracking-wider text-left select-none",
+      "header_cell_classes": "py-3 px-4 text-xs font-semibold text-slate-600 text-left uppercase tracking-wider whitespace-nowrap",
+      "row_classes": "border-b border-slate-100 hover:bg-slate-50/70 transition-colors text-xs text-slate-700",
+      "row_zebra_classes": "even:bg-slate-50/30 hover:bg-slate-100/70",
+      "cell_left": "py-3 px-4 text-left whitespace-nowrap",
+      "cell_right_amount": "py-3 px-4 text-right font-mono font-medium text-slate-900 whitespace-nowrap",
+      "cell_center_action": "py-3 px-4 text-center whitespace-nowrap",
+      "badge_pill": "inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium border"
+    },
+    "buttons": {
+      "primary": "bg-orange-500 hover:bg-orange-600 active:bg-orange-700 text-white shadow-2xs font-medium transition-colors border border-transparent disabled:opacity-50 inline-flex items-center justify-center gap-2 cursor-pointer",
+      "secondary": "bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 hover:border-slate-300 shadow-2xs font-medium transition-colors inline-flex items-center justify-center gap-2 cursor-pointer",
+      "ghost": "hover:bg-slate-100 text-slate-600 hover:text-slate-900 font-medium transition-colors border border-transparent inline-flex items-center justify-center gap-2 cursor-pointer",
+      "danger": "bg-red-600 hover:bg-red-700 active:bg-red-800 text-white shadow-2xs font-medium transition-colors inline-flex items-center justify-center gap-2 cursor-pointer",
+      "sizes": {
+        "sm": "h-8 px-3 text-xs rounded-md",
+        "md": "h-9 px-4 text-xs rounded-md",
+        "lg": "h-10 px-5 text-sm rounded-lg"
       },
-      {
-        "url": "https://images.unsplash.com/photo-1610041321420-a596dd14ebc9?crop=entropy&cs=srgb&fm=jpg&q=85",
-        "category": "Gift Cards & Entertainment",
-        "description": "Gamer wearing headset in dark blue ambient lighting"
-      }
-    ],
-    "avatars": [
-      {
-        "url": "https://images.unsplash.com/photo-1740252117027-4275d3f84385?crop=entropy&cs=srgb&fm=jpg&q=85",
-        "category": "User Profile Avatar",
-        "description": "3D Stylized character avatar"
-      }
-    ]
-  },
-  "key_features_and_flows": {
-    "header": {
-      "components": [
-        "Top utility bar with multi-currency selector (USD/HKD/TWD/EUR/JPY/GBP) with flag icons",
-        "Language dropdown (繁體中文 primary)",
-        "Main navigation with logo (GlobalTopUp 環球充值), Search input, Category dropdown",
-        "Quick access: My Orders, Shopping Cart drawer trigger, Customer Service floating widget, User Profile / Auth Modal button"
-      ]
+      "icon_only": "p-0 aspect-square flex items-center justify-center"
     },
-    "home_page": {
-      "sections": [
-        "Top Announcement Bar ('24小時人工極速發貨 | 官方授權正品充值')",
-        "Hero Carousel + Fast Recharge Entrance Cards (抖音/DOU+，微信/全民K歌，遊戲點卡，影音VIP)",
-        "Live Recharge Ticker ('用戶 ***892 成功充值 1000 DOU+幣 | 1分鐘前')",
-        "Hot Categories Tabs with Product Grid (Cards displaying discount badges, sales count, multi-currency live converted prices)",
-        "Non-Refundable & Security Guarantee Banner ('溫馨提示：本站充值屬虛擬商品人工作業，完成後不可退款')",
-        "Customer Reviews & Ratings Carousel",
-        "Footer with Payment Method Badges (Mock Credit Card, Apple Pay, PayPal, Crypto) & Help Links"
-      ]
+    "filter_bar": {
+      "wrapper_classes": "p-4 bg-slate-50/80 border border-slate-200 rounded-xl mb-4 flex flex-wrap items-center justify-between gap-3",
+      "input_classes": "h-9 bg-white border-slate-200 text-xs rounded-md focus:border-orange-500 focus:ring-1 focus:ring-orange-500",
+      "select_classes": "h-9 bg-white border-slate-200 text-xs rounded-md"
     },
-    "product_detail_page": {
-      "components": [
-        "Product Title with Brand Badge & 24h Express Delivery tag",
-        "Specification Card Selector (e.g., 300 幣, 500 幣, 1000 幣, 3000 幣) with selected state styling",
-        "Quantity Counter (+ / - button with min/max rules)",
-        "Real-time Price Calculator automatically adjusted by selected currency rate",
-        "Recharge Account Input Form (Account ID / Phone / Server ID with input validation & hint image)",
-        "Promo Code / Coupon Toggle and Discount calculation",
-        "Non-Refundable Notice Checkbox required before checkout",
-        "Tabbed Section: Product Details, Recharge Tutorial, Customer Reviews (with star counts & screenshots)",
-        "Desktop Quick Buy sidebar & Mobile Fixed Bottom Bar ('加入購物車' + '立即購買')"
-      ]
+    "pagination": {
+      "wrapper_classes": "px-4 py-3 border-t border-slate-200 bg-slate-50/50 flex items-center justify-between text-xs text-slate-600"
     },
-    "checkout_modal_and_page": {
-      "components": [
-        "Order Summary Card with itemized break-down (Original price, FX conversion, Discount, Total)",
-        "Account Confirmation Preview to prevent wrong topup ID",
-        "Mock Payment Selector (Test Credit Card, Test Apple Pay, Test Crypto)",
-        "Instant One-Click Test Pay Button triggers simulated order flow: 待支付 -> 已支付 -> 充值中"
-      ]
+    "dialogs": {
+      "wrapper_classes": "bg-white rounded-xl shadow-xl border border-slate-200 max-w-xl overflow-hidden",
+      "header_classes": "px-6 py-4 border-b border-slate-100 bg-slate-50/50 flex items-center justify-between",
+      "body_classes": "p-6 space-y-4 text-xs text-slate-700",
+      "footer_classes": "px-6 py-3.5 bg-slate-50 border-t border-slate-100 flex items-center justify-end gap-3"
     },
-    "user_center": {
-      "auth": "Support 4 Login Methods: Google, Apple, Email OTP, Mobile SMS, Account Password",
-      "order_tracking": [
-        "Filterable order list by status: 全部, 待支付, 已支付, 充值中, 已發貨, 已完成, 異常",
-        "Order detail drawer with live timeline step indicator",
-        "Copyable Order No, Account ID, and Contact Support button with pre-filled order ID"
-      ]
-    },
-    "admin_panel": {
-      "route": "/admin",
-      "sections": [
-        "Overview Dashboard: Revenue metrics, pending manual dispatches count, active currency exchange rates",
-        "Product Management: Add/edit products, manage specs (DOU+ coins, VIP cards), update stock/base prices",
-        "Order Management: Real-time order stream, status transition buttons ('開始充值', '確認人工發貨', '標記異常'), account details copy tool",
-        "Customer Service & Tickets: Live support chat simulation & ticket resolution",
-        "Exchange Rate Manager: Live adjustment of currency FX rates and markup margins",
-        "Promotions & Promo Code Manager: Create discount codes (e.g. 'GLOBAL2026')",
-        "Review Management: Moderation for customer reviews",
-        "User Management: View user accounts, order histories"
-      ]
+    "empty_state": {
+      "wrapper_classes": "py-16 text-center flex flex-col items-center justify-center",
+      "icon_classes": "w-12 h-12 text-slate-300 mb-3",
+      "title_classes": "text-sm font-semibold text-slate-700",
+      "subtitle_classes": "text-xs text-slate-400 mt-1 max-w-sm"
     }
   },
-  "instructions_to_main_agent": {
-    "testing_requirements": "Add data-testid to every button, input, card, menu item, currency tab, and modal trigger.",
-    "state_management": "Use React context or local state to store active currency, exchange rates, cart items, user session, and order history. Mock payment must create real order records in local storage or state so the admin panel can view and dispatch them.",
-    "language_tone": "Strictly use Traditional Chinese (繁體中文) for text content (e.g., 購物車, 立即購買, 充值帳號, 訂單狀態, 人工發貨, 優惠碼).",
-    "theme_rules": "No generic centered slop. Make generous use of cards, clear grid gaps, micro-interactions with framer-motion, sonner toasts for feedback, and crisp high-contrast UI."
-  }
+  "instructions_to_main_agent": [
+    "1. Replace messy inline styles in admin components with standardized Tailwind utility classes from this blueprint.",
+    "2. Ensure all data tables keep headers and content text left-aligned, monetary values right-aligned with font-mono, and status actions/badges centered or right-aligned.",
+    "3. Keep primary brand accent orange (#E8792A / orange-500) focused on active nav items, key action buttons, focus rings, and highlighted KPI stat accents without oversaturating data tables.",
+    "4. Add data-testid attributes to all interactive elements, table rows, filter fields, and modal buttons.",
+    "5. Ensure forms, selects, modals, and toasts utilize custom styled Shadcn primitives."
+  ],
+  "UNIVERSAL GUIDELINES FOR MAIN AGENT": [
+    "All interactive elements MUST include data-testid attributes.",
+    "Never rely on pure transparent backgrounds over scrollable layers; use frosted glass backdrop-blur or solid surface colors.",
+    "Maintain uniform 8px/12px padding and strict button height ratios.",
+    "Always provide immediate tactile micro-feedback on buttons, table rows, and active menu items."
+  ]
 }
