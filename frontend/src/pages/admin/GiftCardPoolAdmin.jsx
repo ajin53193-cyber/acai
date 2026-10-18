@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { Trash2, Search, Upload } from "lucide-react";
+import { Trash2, Search, Upload, FileSearch } from "lucide-react";
 import { toast } from "sonner";
 import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
@@ -71,6 +71,7 @@ export function GiftCardOrdersAdmin({ callApi }) {
   const [q, setQ] = useState("");
   const [data, setData] = useState({ rows: [], counts: {} });
   const [sel, setSel] = useState([]);
+  const [detailId, setDetailId] = useState(null);
   const load = useCallback(() => callApi({ method: "GET", url: "/admin/giftcard/orders", params: { status, q } }).then((r) => { setData(r.data); setSel([]); }).catch(() => toast.error(tr("載入失敗"))), [callApi, status, q]);
   useEffect(() => { load(); }, [load]);
   const [ask, setAsk] = useState(null);
@@ -135,17 +136,62 @@ export function GiftCardOrdersAdmin({ callApi }) {
               <td className="px-4 py-3">{(o.gift_trade_nos || []).length === 0 ? <span className="text-xs text-slate-400">-</span> : o.gift_trade_nos.map((g, i) => <div key={i} className="font-mono text-[11px] text-violet-700" data-testid={`gco-trade-${o.id}-${i}`}>{g.trade_no}</div>)}</td>
               <td className="px-4 py-3 whitespace-nowrap"><Pill tone={tone}>{tr(lbl)}</Pill></td>
               <td className="px-4 py-3 whitespace-nowrap">
-                {["paid", "processing"].includes(o.status) && <div className="grid grid-cols-2 gap-1.5 w-[150px]">
-                  <button data-testid={`gco-complete-${o.id}`} onClick={() => act("complete", [o.id])} className="h-7 rounded-lg bg-emerald-50 text-emerald-700 text-xs font-semibold hover:bg-emerald-100">{tr("完成")}</button>
-                  <button data-testid={`gco-reject-${o.id}`} onClick={() => act("reject", [o.id])} className="h-7 rounded-lg bg-amber-50 text-amber-700 text-xs font-semibold hover:bg-amber-100">{tr("駁回")}</button>
-                  {o.gift_manual && <button data-testid={`gco-supplement-${o.id}`} onClick={() => act("supplement", [o.id])} className="h-7 rounded-lg bg-violet-50 text-violet-700 text-xs font-semibold hover:bg-violet-100">{tr("補號重審")}</button>}
-                  <button data-testid={`gco-cancel-${o.id}`} onClick={() => act("cancel", [o.id])} className="h-7 rounded-lg bg-red-50 text-red-600 text-xs font-semibold hover:bg-red-100">{tr("取消")}</button>
-                </div>}
+                <button data-testid={`gco-open-${o.id}`} onClick={() => setDetailId(o.id)} className="h-8 px-3 rounded-lg bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold flex items-center gap-1.5 transition-colors"><FileSearch className="h-3.5 w-3.5" />{tr("詳情 / 操作")}</button>
               </td>
             </tr>
           );
         }} />
       </Card>
+      <Dialog open={!!detailId} onOpenChange={(o) => !o && setDetailId(null)}>
+        <DialogContent className="max-w-lg p-0 overflow-hidden" data-testid="gco-detail-dialog">
+          {(() => {
+            const o = data.rows.find((x) => x.id === detailId);
+            if (!o) return null;
+            const [lbl, tone] = stateOf(o);
+            const close = () => setDetailId(null);
+            const Info = ({ label, children }) => (
+              <div className="flex items-start justify-between gap-3 py-2 border-b border-slate-100 last:border-0">
+                <span className="text-[13px] text-slate-500 shrink-0">{label}</span>
+                <span className="text-[13px] text-slate-800 text-right break-all">{children}</span>
+              </div>
+            );
+            return (
+              <div>
+                <div className="bg-gradient-to-br from-slate-800 to-slate-900 text-white px-5 py-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="text-[12px] text-white/70">{tr("訂單號 / 時間")}</div>
+                      <div className="font-mono text-sm font-bold truncate">{o.order_no}</div>
+                      <div className="text-[11px] text-white/60 mt-0.5">{fmt(o.created_at)}</div>
+                    </div>
+                    <Pill tone={tone}>{tr(lbl)}</Pill>
+                  </div>
+                </div>
+                <div className="px-5 py-3 max-h-[46vh] overflow-y-auto">
+                  <Info label={tr("帳戶ID")}><b>{o.account_no}</b></Info>
+                  {o.user_email && <Info label={tr("用戶")}>{o.user_email}</Info>}
+                  <Info label={tr("商品")}>{(o.items || []).map((i) => `${i.product_name} ${i.spec_label}×${i.quantity}`).join("、")}</Info>
+                  <Info label={tr("轉贈資料")}>{infoText(o)}</Info>
+                  <Info label={tr("金額")}><b className="text-orange-600">USD {(+o.total_usd || 0).toFixed(2)}</b></Info>
+                  {(o.gift_trade_nos || []).length > 0 && <Info label={tr("交易號")}><div className="space-y-0.5">{o.gift_trade_nos.map((g, i) => <div key={i} className="font-mono text-[12px] text-violet-700">{g.trade_no}</div>)}</div></Info>}
+                  {o.matchedKey && <Info label={tr("命中號碼")}><span className="text-emerald-600 font-mono">{o.matchedKey}</span></Info>}
+                  {o.gift_dispatch_at && o.status === "processing" && <Info label={tr("預計完成")}>{fmt(o.gift_dispatch_at)}</Info>}
+                  {o.info_rejected && o.info_reject_reason && <Info label={tr("駁回原因")}><span className="text-red-500">{o.info_reject_reason}</span></Info>}
+                  {o.status === "processing" && o.gift_manual && <div className="mt-2 text-[12px] text-red-600 font-semibold">{o.gift_auto_failed ? tr("用戶已重新提交帳號 · 請人工轉贈後點「完成」") : tr("待人工轉贈 · 完成後點「完成」")}</div>}
+                </div>
+                {["paid", "processing"].includes(o.status) && (
+                  <div className="px-5 py-3 border-t border-slate-100 flex flex-wrap items-center gap-2 justify-end bg-slate-50/60">
+                    <button data-testid={`gco-complete-${o.id}`} onClick={() => { close(); act("complete", [o.id]); }} className="text-xs h-8 px-3 rounded-lg bg-emerald-500 text-white font-semibold">{tr("完成")}</button>
+                    <button data-testid={`gco-reject-${o.id}`} onClick={() => { close(); act("reject", [o.id]); }} className="text-xs h-8 px-3 rounded-lg bg-amber-500 text-white">{tr("駁回")}</button>
+                    {o.gift_manual && <button data-testid={`gco-supplement-${o.id}`} onClick={() => { close(); act("supplement", [o.id]); }} className="text-xs h-8 px-3 rounded-lg bg-violet-600 text-white">{tr("補號重審")}</button>}
+                    <button data-testid={`gco-cancel-${o.id}`} onClick={() => { close(); act("cancel", [o.id]); }} className="text-xs h-8 px-3 rounded-lg border border-red-300 text-red-600 bg-white">{tr("取消")}</button>
+                  </div>
+                )}
+              </div>
+            );
+          })()}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
