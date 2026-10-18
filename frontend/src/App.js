@@ -18,6 +18,7 @@ import ProductDetail from "@/pages/ProductDetail";
 import Checkout from "@/pages/Checkout";
 import MyOrders from "@/pages/MyOrders";
 import AccountLayout from "@/pages/account/AccountLayout";
+import UsdtPay from "@/pages/UsdtPay";
 import MyAccount from "@/pages/account/MyAccount";
 import MyVerify from "@/pages/account/MyVerify";
 import MyCoupons from "@/pages/account/MyCoupons";
@@ -103,6 +104,7 @@ function App() {
                   <Route path="/sign-up/*" element={<AuthRedirect />} />
                   <Route path="*" element={<NotFound />} />
                 </Route>
+                <Route path="/pay/usdt/:tid" element={<UsdtPay />} />
                 <Route path={ADMIN_LOGIN} element={<AdminLogin />} />
                 <Route path={ADMIN_BASE} element={<Admin />} />
                 <Route path="/auth/google" element={<GoogleCallback />} />

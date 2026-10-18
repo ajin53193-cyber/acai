@@ -53,7 +53,7 @@ export default function WalletTopUp() {
   const topupUsdt = async () => {
     if (selected.own_wallet) {
       const r = await callApi({ method: "POST", url: "/me/wallet/topup/usdt", data: { amount_usd: value, method_id: selected.id } });
-      navigate(`/account/wallet/topups?topup=${r.data.id}`);
+      navigate(`/pay/usdt/${r.data.id}`);
       return;
     }
     const win = window.open("", "_blank");

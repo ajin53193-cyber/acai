@@ -1,0 +1,149 @@
+import { useCallback, useEffect, useRef, useState } from "react";
+import { Link, useParams } from "react-router-dom";
+import { QRCodeSVG } from "qrcode.react";
+import { Clock, Copy, Check, X, Loader2, ChevronDown } from "lucide-react";
+import { toast } from "sonner";
+import { useApi } from "@/lib/api";
+import { useSiteConfig } from "@/lib/siteConfig";
+import { openService } from "@/components/ServiceWidget";
+import ServiceWidget from "@/components/ServiceWidget";
+import { tr, LANG, LANGS, setLang } from "@/i18n";
+
+const COIN = "/payments/tether-coin.svg";
+const fmtAmt = (v) => String(Number(v || 0)).replace(/(\.\d*?[1-9])0+$|\.0+$/, "$1");
+const copyText = (v) => { navigator.clipboard?.writeText(String(v)); toast.success(tr("已複製")); };
+const CopyBtn = ({ v, cls = "", testId }) => <button type="button" data-testid={testId} onClick={() => copyText(v)} className={`inline-flex text-emerald-600 hover:text-emerald-700 ${cls}`}><Copy className="h-4 w-4" /></button>;
+const Addr = ({ s }) => <>{s.split(/(\d+)/).map((p, i) => (/^\d+$/.test(p) ? <b key={i} className="text-slate-900">{p}</b> : <span key={i}>{p}</span>))}</>;
+const Net = ({ n }) => <span className="inline-block rounded-sm bg-red-50 text-red-500 border border-red-200 px-1 text-[10px] font-bold italic leading-4">{n}</span>;
+
+function useCountdown(iso, active) {
+  const [left, setLeft] = useState("");
+  useEffect(() => {
+    if (!iso || !active) return;
+    const tick = () => { const ms = Math.max(0, new Date(iso) - Date.now()); const m = Math.floor(ms / 60000), s = Math.floor((ms % 60000) / 1000); setLeft(`${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`); };
+    tick(); const id = setInterval(tick, 1000); return () => clearInterval(id);
+  }, [iso, active]);
+  return left;
+}
+
+function saveQr(svgEl, name) {
+  if (!svgEl) return;
+  const xml = new XMLSerializer().serializeToString(svgEl);
+  const img = new Image();
+  img.onload = () => {
+    const c = document.createElement("canvas"); c.width = c.height = 600;
+    const ctx = c.getContext("2d"); ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, 600, 600); ctx.drawImage(img, 20, 20, 560, 560);
+    const a = document.createElement("a"); a.href = c.toDataURL("image/png"); a.download = `${name}.png`; a.click();
+  };
+  img.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(xml);
+}
+
+const NOTES = (amt, net, addr) => [
+  tr("幣種限制：以上地址只支持{0}公鏈協議的USDT幣種（泰達幣），請勿充入其他幣種，以免造成損失。", net),
+  tr("金額限制：請務必按以上金額{0}USDT進行充幣，超出或低於此金額將無法自動到賬，需自行聯繫客服進行補單。", amt),
+  tr("到賬時間：提幣到以上地址後，至少需要1個區塊鏈確認才能到賬，一般1分鐘內完成，請耐心等待區塊網絡確認。"),
+  tr("異常處理：若存在確認超時、錯誤、大額誤充等情形，請聯繫在線客服進行人工處理。"),
+  tr("使用正版：請務必使用正版瀏覽器、APP等程序，切勿使用破解版、非官方版本，以免被篡改或被盜。"),
+  tr("轉賬地址：請勿從高風險地址轉入，相關地址有高風險攔截及凍結風險，避免影響正常充幣流程。"),
+  <>{tr("區塊鏈記錄：一切交易以官方區塊鏈瀏覽器記錄為準，以上地址的區塊鏈記錄鏈接是 ")}<a href={`https://tronscan.org/#/address/${addr}`} target="_blank" rel="noreferrer" className="text-sky-600 break-all">https://tronscan.org/#/address/{addr}</a></>,
+];
+const FAQ = [tr("什麼是USDT"), tr("如何購買"), tr("充幣多久能到賬/如何查詢"), tr("充/提幣需要手續費嗎"), tr("充幣沒到賬要怎麼處理")];
+
+export default function UsdtPay() {
+  const { tid } = useParams();
+  const callApi = useApi();
+  const cfg = useSiteConfig();
+  const [t, setT] = useState(null);
+  const [err, setErr] = useState("");
+  const qrRef = useRef(null);
+  const load = useCallback(async () => {
+    try { const r = await callApi({ method: "GET", url: `/me/wallet/topup/${tid}` }); setT(r.data); return r.data; }
+    catch (e) { setErr(e.response?.data?.detail || tr("充值單不存在")); }
+  }, [callApi, tid]);
+  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    if (!t || t.status !== "pending") return;
+    const id = setInterval(async () => { const d = await load(); if (d?.status === "paid") toast.success(tr("USDT 已到賬，餘額已更新")); }, 5000);
+    return () => clearInterval(id);
+  }, [t?.status, load]); // eslint-disable-line react-hooks/exhaustive-deps
+  const left = useCountdown(t?.expires_at, t?.status === "pending");
+
+  const amt = fmtAmt(t?.pay_amount || t?.amount_usd);
+  const net = t?.network || "TRC20";
+  const paid = t?.status === "paid";
+  const dead = t && !["pending", "paid"].includes(t.status);
+
+  return (
+    <div className="min-h-screen bg-[#f5f6f8] text-slate-800 pb-10" data-testid="usdt-pay-page" style={{ fontFamily: "Inter, system-ui, -apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif" }}>
+      <header className="bg-white border-b border-slate-100">
+        <div className="mx-auto max-w-[360px] sm:max-w-[420px] h-12 flex items-center justify-between px-3">
+          <Link to="/" className="flex items-center gap-2 min-w-0" data-testid="usdt-pay-logo">
+            <span className="h-8 w-8 rounded-full bg-emerald-600 text-white font-bold flex items-center justify-center text-base overflow-hidden">{cfg.logo?.image ? <img src={cfg.logo.image} alt="" className="h-8 w-8 object-contain bg-white" /> : "g"}</span>
+            <span className="leading-tight"><span className="block text-[14px] font-bold text-slate-900">gogo589</span><span className="block text-[10px] text-slate-400">{tr("USDT 安全收款")}</span></span>
+          </Link>
+          <label className="relative text-[13px] text-slate-700 flex items-center gap-1 cursor-pointer">
+            <select data-testid="usdt-pay-lang" value={LANG} onChange={(e) => setLang(e.target.value)} className="appearance-none bg-transparent pr-4 outline-none cursor-pointer">{LANGS.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select>
+            <ChevronDown className="h-3.5 w-3.5 absolute right-0 pointer-events-none" />
+          </label>
+        </div>
+      </header>
+
+      <main className="mx-auto max-w-[360px] sm:max-w-[420px] mt-3 px-3 sm:px-0">
+        {err && <div className="rounded-xl bg-white p-8 text-center text-sm text-slate-500" data-testid="usdt-pay-error">{err}<div className="mt-4"><Link to="/account/wallet/topup" className="text-emerald-600 font-semibold">{tr("返回充值")}</Link></div></div>}
+        {t && (
+          <div className="rounded-xl bg-white shadow-sm px-4 pt-5 pb-4">
+            <div className="flex flex-col items-center">
+              <span className={`h-10 w-10 rounded-full flex items-center justify-center text-white ${paid ? "bg-emerald-500" : dead ? "bg-slate-300" : "bg-amber-400"}`}>{paid ? <Check className="h-5 w-5" strokeWidth={3} /> : dead ? <X className="h-5 w-5" strokeWidth={3} /> : <Clock className="h-5 w-5" strokeWidth={2.5} />}</span>
+              <div className={`mt-2 text-[15px] font-semibold ${paid ? "text-emerald-600" : dead ? "text-slate-500" : "text-amber-500"}`} data-testid="usdt-pay-status">{paid ? tr("已到賬") : dead ? tr("已過期") : tr("待付款")}</div>
+              <div className="mt-1 flex items-center gap-2"><img src={COIN} alt="" className="h-5 w-5" /><span className="text-[30px] font-extrabold tracking-tight text-slate-900" data-testid="usdt-pay-amount">{amt}</span><CopyBtn v={amt} testId="usdt-pay-copy-amount" /></div>
+              {!paid && !dead && <>
+                <p className="mt-1 text-center text-[12px] text-slate-600 leading-5">{tr("請確保實際到賬={0}USDT（含小數尾數），金額不符將無法自動到賬", amt)}</p>
+                <p className="mt-1.5 text-[12px] text-slate-500">{tr("請在 {0} 內完成付款", "|").split("|")[0]}<b className="text-amber-500 font-bold" data-testid="usdt-pay-countdown">{left || "--:--"}</b>{tr("請在 {0} 內完成付款", "|").split("|")[1]}</p>
+              </>}
+              {paid && <p className="mt-1 text-[12px] text-slate-500">{tr("已確認到賬，餘額已更新")}{t.tx_id && <> · <a className="text-sky-600" href={`https://tronscan.org/#/transaction/${t.tx_id}`} target="_blank" rel="noreferrer">TXID</a></>}</p>}
+              {dead && <p className="mt-1 text-center text-[12px] text-slate-500">{tr("此充值單已超時關閉；若您已完成轉賬，請聯繫在線客服補單。")}</p>}
+            </div>
+
+            {!paid && !dead && <>
+              <div className="mt-4 rounded-lg border border-slate-200 px-3 py-2.5">
+                <div className="flex items-center gap-1.5 text-[12px] text-slate-500"><Net n={net} />{tr("{0}充幣地址", net)}</div>
+                <div className="mt-1 flex items-center justify-between gap-2"><span className="font-mono text-[14px] text-slate-700 break-all leading-5" data-testid="usdt-pay-address"><Addr s={t.wallet_address} /></span><CopyBtn v={t.wallet_address} cls="shrink-0" testId="usdt-pay-copy-address" /></div>
+              </div>
+              <p className="mt-2 text-[11px] font-semibold text-red-500">{tr("請認準{0}公鏈+仔細核對，以免造成損失！", net)}</p>
+              <div className="mt-1.5 rounded-md bg-amber-50 border border-amber-200 px-3 py-1.5 text-[11px] text-slate-700">{tr("請勿關閉付款頁面，付款完成後等待1～3分鐘自動到賬。")}</div>
+              {t.wallet_note && <div className="mt-1.5 text-[11px] text-slate-500 whitespace-pre-line">{t.wallet_note}</div>}
+
+              <div className="mt-4 flex flex-col items-center">
+                <div ref={qrRef} className="rounded-md bg-white p-1" data-testid="usdt-pay-qr"><QRCodeSVG value={t.wallet_address} size={148} level="H" imageSettings={{ src: COIN, height: 30, width: 30, excavate: true }} /></div>
+                <button type="button" data-testid="usdt-pay-save-qr" onClick={() => saveQr(qrRef.current?.querySelector("svg"), `USDT-${net}-${t.wallet_address.slice(0, 6)}`)} className="mt-2 text-[12px] text-emerald-600 font-medium hover:underline">{tr("保存二維碼")}</button>
+              </div>
+            </>}
+
+            <dl className="mt-4 divide-y divide-slate-100 text-[12px]">
+              <div className="flex items-center justify-between py-2"><dt className="text-slate-500">{tr("幣種")}</dt><dd className="flex items-center gap-1 font-semibold text-slate-800"><img src={COIN} alt="" className="h-3.5 w-3.5" />USDT</dd></div>
+              <div className="flex items-center justify-between py-2"><dt className="text-slate-500">{tr("公鏈協議")}</dt><dd className="flex items-center gap-1.5 font-semibold text-slate-800"><Net n={net} />{net}</dd></div>
+              <div className="flex items-center justify-between py-2"><dt className="text-slate-500">{tr("充幣數量")}</dt><dd className="flex items-center gap-1.5 font-semibold text-slate-800">{amt} USDT<CopyBtn v={amt} /></dd></div>
+              <div className="flex items-center justify-between py-2"><dt className="text-slate-500">{tr("訂單號")}</dt><dd className="flex items-center gap-1.5 text-slate-500 font-mono text-[11px]" data-testid="usdt-pay-order-no">{t.out_trade_no}<CopyBtn v={t.out_trade_no} /></dd></div>
+            </dl>
+
+            {!paid && !dead && <div className="mt-2 flex items-center justify-center gap-1.5 text-[12px] text-slate-500" data-testid="usdt-pay-listening"><Loader2 className="h-3.5 w-3.5 animate-spin text-emerald-500" />{tr("正在監聽鏈上到賬…")}</div>}
+            {paid && <Link to="/account/wallet" data-testid="usdt-pay-back-wallet" className="mt-3 h-10 rounded-full bg-emerald-500 hover:bg-emerald-600 text-white text-sm font-semibold flex items-center justify-center">{tr("返回錢包")}</Link>}
+            {dead && <Link to="/account/wallet/topup" data-testid="usdt-pay-retry" className="mt-3 h-10 rounded-full bg-emerald-500 hover:bg-emerald-600 text-white text-sm font-semibold flex items-center justify-center">{tr("重新發起充值")}</Link>}
+            <button type="button" data-testid="usdt-pay-contact" onClick={() => openService()} className="mt-2 w-full text-center text-[12px] text-sky-600 hover:underline">{tr("轉錯金額或未自動到賬？點此聯繫在線客服")}</button>
+          </div>
+        )}
+
+        {t && (
+          <div className="mt-3 rounded-xl bg-white shadow-sm px-4 py-4 text-[12px] text-slate-600 leading-5">
+            <div className="font-semibold text-slate-800 text-[13px]">{tr("充幣說明")}</div>
+            <ol className="mt-2 space-y-1.5">{NOTES(amt, net, t.wallet_address).map((n, i) => <li key={i} className="flex gap-1.5"><span className="shrink-0 text-slate-400">{i + 1}、</span><span>{n}</span></li>)}</ol>
+            <div className="mt-4 font-semibold text-slate-800 text-[13px]">{tr("常見教程：")}</div>
+            <ul className="mt-2 space-y-1">{FAQ.map((q, i) => <li key={i}><Link to="/account/help" className="text-sky-600 hover:underline">{i + 1}、{q}</Link></li>)}</ul>
+          </div>
+        )}
+      </main>
+
+      <ServiceWidget />
+    </div>
+  );
+}

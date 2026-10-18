@@ -198,3 +198,6 @@
 - [2026-10-17] 錢包充值頁移除「USDT 充值單等待付款中」面板（用戶要求），保留每 5 秒輪詢自動入帳 toast。
 - [2026-10-18] USDT 自有地址模式：收款方式→USDT（provider crypto）config 新增 `wallet_address` / `network` / `wallet_note`；填寫地址後 `/me/wallet/topup/usdt` 不走四方網關，直接建立 own_wallet 充值單（24h 有效），用戶在充值記錄頁看到 QR + 地址 + 金額 + 網路，填 TXID 或上傳截圖 → reviewing → 後台「充值審核」審核通過（approve 用 tx_hash 作 tx_id）/ 駁回；`/payment-methods` 公開回傳 `own_wallet` 布林；後台充值列表顯示 TXID、Tronscan 連結。留空地址則維持原網關流程。
 - 伺服器事故（10-17）：server.py 依賴 hub_*.py、Admin.jsx 依賴多個 admin 頁面但伺服器缺檔 → 502/500；改為打包完整原始碼 patch（backend/*.py + hub_static + frontend/src + public，~14MB）後恢復。以後 patch 一律用完整打包指令。
+- [2026-10-18] 自有 USDT 收銀台頁 `/pay/usdt/:tid`（`pages/UsdtPay.jsx`，獨立於 StoreLayout，無站點 header）：仿四方收銀台 — 待付款圖示、金額+複製、「含小數尾數」提示、30 分鐘倒數、TRC20 地址（數字加粗）+複製、紅字警示、黃色提示框、含 Tether logo 的 QR + 保存二維碼、幣種/公鏈/數量/訂單號、「正在監聽鏈上到賬」、聯繫客服、充幣說明 7 條、常見教程 5 條、語言切換、ServiceWidget。已到賬/已過期狀態頁。
+- 後端：`_unique_usdt_amount`（同地址待付單金額加 0.01–0.99 唯一尾數）、`_tron_find_payment`（TronGrid public API 查 TRC20-USDT 轉入，金額精確匹配、tx 去重）、`_own_wallet_check`（8 秒節流，在 `/me/wallet/topup/{tid}` 輪詢時觸發；pending/24h 內 expired 皆可補到賬）。可選環境變數 `TRONGRID_API_KEY` 提高限額。
+- i18n：`scripts/i18n_keys.json` 由 src 掃描更新（1882 keys），zh-CN/en 字典已重生成。

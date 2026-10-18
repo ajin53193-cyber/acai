@@ -3,6 +3,7 @@ import re
 import uuid
 import asyncio
 import json
+import random
 import base64
 import hashlib
 import hmac
@@ -1809,6 +1810,54 @@ async def _usdt_settle(topup: dict, gw: dict) -> dict:
     return await db.topup_orders.find_one({"id": topup["id"]}, {"_id": 0})
 
 
+USDT_TRC20_CONTRACT = "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t"
+
+
+async def _unique_usdt_amount(address: str, amount: float) -> float:
+    """Add a 2-decimal tail so each pending order to the same address has a distinct on-chain amount."""
+    taken = {round(float(t["pay_amount"]), 2) async for t in db.topup_orders.find({"wallet_address": address, "status": "pending", "own_wallet": True}, {"_id": 0, "pay_amount": 1})}
+    tails = list(range(1, 100))
+    random.shuffle(tails)
+    for tail in tails:
+        cand = round(amount + tail / 100, 2)
+        if cand not in taken:
+            return cand
+    return round(amount + 1.01, 2)
+
+
+async def _tron_find_payment(address: str, amount: float, since_iso: str) -> Optional[dict]:
+    """Look up a confirmed TRC20-USDT transfer to `address` matching `amount` (TronGrid public API)."""
+    since_ms = int(datetime.fromisoformat(since_iso).timestamp() * 1000) - 10 * 60 * 1000
+    headers = {"TRON-PRO-API-KEY": os.environ["TRONGRID_API_KEY"]} if os.environ.get("TRONGRID_API_KEY") else {}
+    params = {"only_to": "true", "only_confirmed": "true", "contract_address": USDT_TRC20_CONTRACT, "limit": 50, "min_timestamp": since_ms}
+    async with httpx.AsyncClient(timeout=10) as c:
+        r = await c.get(f"https://api.trongrid.io/v1/accounts/{address}/transactions/trc20", params=params, headers=headers)
+    r.raise_for_status()
+    for tx in r.json().get("data", []):
+        if tx.get("to") != address or tx.get("type") != "Transfer":
+            continue
+        val = int(tx["value"]) / (10 ** int(tx.get("token_info", {}).get("decimals", 6)))
+        if abs(val - amount) < 1e-6 and not await db.topup_orders.find_one({"tx_id": tx["transaction_id"]}, {"_id": 1}):
+            return {"tx_id": tx["transaction_id"], "from": tx.get("from", ""), "paid_at": datetime.fromtimestamp(tx["block_timestamp"] / 1000, tz=timezone.utc).isoformat()}
+    return None
+
+
+async def _own_wallet_check(t: dict) -> dict:
+    """Throttled on-chain check for an own-wallet USDT top-up; settles when a matching transfer is found."""
+    if t.get("network", "TRC20") != "TRC20" or t.get("chain_checked_at", "") > (datetime.now(timezone.utc) - timedelta(seconds=8)).isoformat():
+        return t
+    await db.topup_orders.update_one({"id": t["id"]}, {"$set": {"chain_checked_at": now_iso()}})
+    try:
+        hit = await _tron_find_payment(t["wallet_address"], float(t["pay_amount"]), t["created_at"])
+    except Exception as e:
+        logger.info("tron check failed for %s: %s", t["id"], e)
+        return t
+    if not hit:
+        return t
+    await db.topup_orders.update_one({"id": t["id"]}, {"$set": {"status": "pending", "payer_address": hit["from"]}})
+    return await _usdt_settle({**t, "status": "pending"}, {"paid_at": hit["paid_at"], "tx_id": hit["tx_id"]})
+
+
 @api_router.post("/me/wallet/topup/usdt")
 async def wallet_topup_usdt(body: TopUpIn, request: Request, member: dict = Depends(current_member)):
     pm = await db.payment_methods.find_one({"id": body.method_id, "active": True, "provider": "crypto"}, {"_id": 0})
@@ -1822,10 +1871,12 @@ async def wallet_topup_usdt(body: TopUpIn, request: Request, member: dict = Depe
     out_trade_no = f"TU{tid[:12].upper()}"
     amount = round(float(body.amount_usd), 2)
     if (cfg.get("wallet_address") or "").strip():
+        address = cfg["wallet_address"].strip()
+        pay_amount = await _unique_usdt_amount(address, amount)
         doc = {"id": tid, "user_id": member["user_id"], "method_id": pm["id"], "method_name": pm["name"], "provider": "crypto", "own_wallet": True, "amount_usd": amount,
-               "status": "pending", "out_trade_no": out_trade_no, "order_no": "", "pay_amount": amount, "network": (cfg.get("network") or "TRC20").strip().upper(),
-               "wallet_address": cfg["wallet_address"].strip(), "wallet_note": cfg.get("wallet_note") or "", "pay_url": "",
-               "expires_at": (datetime.now(timezone.utc) + timedelta(hours=24)).isoformat(), "created_at": now_iso()}
+               "status": "pending", "out_trade_no": out_trade_no, "order_no": "", "pay_amount": pay_amount, "network": (cfg.get("network") or "TRC20").strip().upper(),
+               "wallet_address": address, "wallet_note": cfg.get("wallet_note") or "", "pay_url": f"/pay/usdt/{tid}",
+               "expires_at": (datetime.now(timezone.utc) + timedelta(minutes=30)).isoformat(), "created_at": now_iso()}
         await db.topup_orders.insert_one(doc)
         doc.pop("_id", None)
         return doc
@@ -1859,7 +1910,13 @@ async def wallet_topup_status(tid: str, request: Request, member: dict = Depends
         raise HTTPException(status_code=404, detail="充值單不存在")
     if t["status"] == "pending" and t.get("provider") and t["provider"] != "crypto":
         t = await payments_api.refresh_status(t, request)
-    elif t["status"] == "pending" and not t.get("own_wallet"):
+    elif t.get("own_wallet"):
+        if t["status"] == "pending" and t.get("expires_at", "") < now_iso():
+            await db.topup_orders.update_one({"id": tid, "status": "pending"}, {"$set": {"status": "expired"}})
+            t["status"] = "expired"
+        if t["status"] in ("pending", "expired") and t["created_at"] > (datetime.now(timezone.utc) - timedelta(hours=24)).isoformat():
+            t = await _own_wallet_check(t)
+    elif t["status"] == "pending":
         pm = await db.payment_methods.find_one({"id": t.get("method_id")}, {"_id": 0})
         try:
             key, secret, base = _usdt_creds(pm)
