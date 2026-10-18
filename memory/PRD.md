@@ -263,3 +263,9 @@
 - **每日漏單小統計**：UsdtChannelAdmin 告警橫幅下方按日期分組顯示近 5 天漏單（日期 · N筆 · 金額），數據由 `/admin/usdt/unmatched` items 前端分組。
 - **一鍵全部補單**：後端新增 `POST /api/admin/usdt/manual-match-all`（重掃未對應→逐筆 `_usdt_match_one` 入帳，返回 matched/skipped/total）；重構出 `_usdt_collect_addresses` / `_usdt_unmatched_items` / `_usdt_match_one` 共用函數。前端告警橫幅拆為「逐筆核對」+ 綠色「一鍵全部補單」兩個按鈕。已驗證端點註冊(401)與單筆補單邏輯端到端（批量為單筆循環）。
 - i18n 新增 9 條詞條手動合併簡體寫入 zh-CN.json。源碼包已重打 `/app/export/patch.zip`。
+
+## 2026-10-18 更新（訂單行內「按哈希補單」= 回調校驗補單）
+- 用戶澄清：補單應在**訂單行後面**，點擊填入鏈上哈希(TXID)做回調校驗補單（非自動匹配）。
+- 後端 `POST /api/admin/topups/{order_id}/credit-hash`：對指定訂單，用 `_tron_verify_tx(address, tx_id, since)` 到 TronGrid 校驗該哈希確為轉入本訂單收款地址、且金額與應付相符後 `_usdt_settle` 入帳；校驗不過返回明確錯誤（找不到/金額不符/未配 Key）。支持 `force=true` 跳過鏈上校驗強制補單（管理員覆蓋）。防重複：哈希已用於其他訂單則拒絕。
+- 前端：UsdtChannelAdmin「最近充值記錄」新增「操作」列，非已到賬行顯示綠色「補單」按鈕 → 彈窗輸入哈希 → 校驗失敗時二次確認可「強制補單」。TopupsAdmin（充值審核）自有錢包訂單也加「哈希補單」按鈕（與原「手動入帳」備註補單並存）。
+- 已驗證：`_tron_verify_tx` 對 bogus 哈希返回 None（→404）、對真實哈希返回正確金額/付款方；端點註冊(401)；前端編譯通過、截圖確認 8 個補單按鈕渲染正常。i18n 新增 5 條手動合併簡體。源碼包已重打 `/app/export/patch.zip`。

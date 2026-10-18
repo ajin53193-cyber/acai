@@ -54,6 +54,21 @@ export function TopupsAdmin({ callApi }) {
   const reject = (t) => { const reason = window.prompt(tr("駁回原因（將顯示給用戶）"), tr("轉帳憑證無法核對，請確認金額與轉帳碼後重新上傳")); if (reason !== null) act(t, "reject", { reason }, () => tr("已駁回")); };
   const approve = (t) => { if (window.confirm(tr("確認已收到 USD$ {0} 轉帳，立即入帳？", Number(t.amount_usd).toFixed(2)))) act(t, "approve", {}, () => tr("已審核通過並入帳")); };
   const credit = (t) => { const note = window.prompt(tr("手動補單入帳備註（例如鏈上 TX / 原因）"), ""); if (note !== null) act(t, "credit", { note }, () => tr("已手動入帳")); };
+  const creditHash = async (t) => {
+    const tx = window.prompt(tr("請輸入該筆到賬的鏈上交易哈希(TXID)，系統將回調校驗後補單入帳"), (t.tx_id || t.tx_hash || "").trim());
+    if (!tx || !tx.trim()) return;
+    const data = { tx_id: tx.trim() };
+    try {
+      const r = await callApi({ method: "POST", url: `/admin/topups/${t.id}/credit-hash`, data });
+      toast.success(tr("已補單入帳：{0}", r.data.order_no || "")); load();
+    } catch (e) {
+      const msg = e.response?.data?.detail || tr("補單失敗");
+      if ([404, 422, 502].includes(e.response?.status) && window.confirm(msg + "\n\n" + tr("是否跳過鏈上校驗、強制按此哈希補單？"))) {
+        try { const r = await callApi({ method: "POST", url: `/admin/topups/${t.id}/credit-hash`, data: { ...data, force: true } }); toast.success(tr("已強制補單入帳：{0}", r.data.order_no || "")); load(); }
+        catch (e2) { toast.error(e2.response?.data?.detail || tr("補單失敗")); }
+      } else { toast.error(msg); }
+    }
+  };
   const activePreset = PRESETS.find(([k]) => { const [a, b] = presetRange(k); return a === from && b === to; })?.[0];
   const counts = data.counts || {};
 
@@ -133,6 +148,7 @@ export function TopupsAdmin({ callApi }) {
                         <ActionBtn tone="ok" icon={CheckCircle2} data-testid={`topup-approve-${t.id}`} onClick={() => approve(t)}>{tr("審核通過")}</ActionBtn>
                         {t.status !== "rejected" && <ActionBtn tone="danger" icon={XCircle} data-testid={`topup-reject-${t.id}`} onClick={() => reject(t)}>{tr("駁回")}</ActionBtn>}
                       </>}
+                      {t.own_wallet && t.status !== "paid" && <ActionBtn tone="ok" icon={HandCoins} data-testid={`topup-credit-hash-${t.id}`} onClick={() => creditHash(t)}>{tr("哈希補單")}</ActionBtn>}
                       {!MANUAL.includes(prov) && t.status !== "paid" && <ActionBtn tone="sky" icon={HandCoins} data-testid={`topup-credit-${t.id}`} onClick={() => credit(t)}>{tr("手動入帳")}</ActionBtn>}
                     </div>
                   </td>

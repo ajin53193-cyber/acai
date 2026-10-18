@@ -65,6 +65,26 @@ function UsdtData({ callApi }) {
     } catch (e) { toast.error(e.response?.data?.detail || tr("批量補單失敗")); }
     setBatching(false);
   };
+  const creditHash = async (t) => {
+    const tx = window.prompt(tr("請輸入該筆到賬的鏈上交易哈希(TXID)，系統將回調校驗後補單入帳"), (t.tx_id || "").trim());
+    if (!tx || !tx.trim()) return;
+    const data = { tx_id: tx.trim() };
+    try {
+      const r = await callApi({ method: "POST", url: `/admin/topups/${t.id}/credit-hash`, data });
+      toast.success(tr("已補單入帳：{0}", r.data.order_no || ""));
+      load(range, from, to); loadBal(); loadUnmatched();
+    } catch (e) {
+      const msg = e.response?.data?.detail || tr("補單失敗");
+      const st = e.response?.status;
+      if ([404, 422, 502].includes(st) && window.confirm(msg + "\n\n" + tr("是否跳過鏈上校驗、強制按此哈希補單？"))) {
+        try {
+          const r = await callApi({ method: "POST", url: `/admin/topups/${t.id}/credit-hash`, data: { ...data, force: true } });
+          toast.success(tr("已強制補單入帳：{0}", r.data.order_no || ""));
+          load(range, from, to); loadBal(); loadUnmatched();
+        } catch (e2) { toast.error(e2.response?.data?.detail || tr("補單失敗")); }
+      } else { toast.error(msg); }
+    }
+  };
   const missByDay = Object.entries((unmatched?.items || []).reduce((acc, it) => {
     const day = (it.ts || "").slice(0, 10) || "—";
     acc[day] = acc[day] || { n: 0, amt: 0 };
@@ -191,6 +211,7 @@ function UsdtData({ callApi }) {
               <th className="px-5 py-2.5 font-semibold">{tr("收款地址")}</th>
               <th className="px-5 py-2.5 font-semibold text-center">{tr("狀態")}</th>
               <th className="px-5 py-2.5 font-semibold">TXID</th>
+              <th className="px-5 py-2.5 font-semibold text-center">{tr("操作")}</th>
             </tr></thead>
             <tbody className="divide-y divide-slate-100">
               {d.recent.map((t) => {
@@ -206,6 +227,7 @@ function UsdtData({ callApi }) {
                     <td className="px-5 py-3 font-mono text-[12px] text-slate-500">{t.wallet_address ? <button data-testid={`usdt-recent-chain-${t.id}`} onClick={() => setViewAddr(t.wallet_address)} className="inline-flex items-center gap-1 hover:text-orange-600 group"><span className="group-hover:underline">{short(t.wallet_address)}</span><Search className="h-3 w-3 opacity-50 group-hover:opacity-100" /></button> : <span className="text-slate-300">—</span>}</td>
                     <td className="px-5 py-3 text-center"><span className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-semibold ${cls}`}><Icon className="h-3 w-3" />{lbl}</span></td>
                     <td className="px-5 py-3 font-mono text-[12px]">{t.tx_id ? <a href={`https://tronscan.org/#/transaction/${t.tx_id}`} target="_blank" rel="noreferrer" className="text-orange-500 hover:underline">{short(t.tx_id)}</a> : <span className="text-slate-300">—</span>}</td>
+                    <td className="px-5 py-3 text-center">{t.status !== "paid" ? <button data-testid={`usdt-recent-credit-${t.id}`} onClick={() => creditHash(t)} className="inline-flex items-center gap-1 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white px-2.5 py-1 text-[11px] font-semibold transition-colors"><HandCoins className="h-3 w-3" />{tr("補單")}</button> : <span className="text-slate-300">—</span>}</td>
                   </tr>
                 );
               })}

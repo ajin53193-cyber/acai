@@ -2433,6 +2433,69 @@ async def admin_usdt_manual_match_all(hours: int = 48, admin: dict = Depends(req
     return {"ok": ok, "matched": matched, "skipped": skipped, "total": len(items)}
 
 
+async def _tron_verify_tx(address: str, tx_id: str, since_iso: str = "") -> Optional[dict]:
+    """Look up a specific TRC20-USDT transfer (by hash) that was sent TO `address`."""
+    headers = {"TRON-PRO-API-KEY": os.environ["TRONGRID_API_KEY"]} if os.environ.get("TRONGRID_API_KEY") else {}
+    params = {"only_to": "true", "only_confirmed": "true", "contract_address": USDT_TRC20_CONTRACT, "limit": 200}
+    if since_iso:
+        try:
+            params["min_timestamp"] = int(datetime.fromisoformat(since_iso).timestamp() * 1000) - 24 * 3600 * 1000
+        except Exception:
+            pass
+    async with httpx.AsyncClient(timeout=12) as c:
+        r = await c.get(f"https://api.trongrid.io/v1/accounts/{address}/transactions/trc20", params=params, headers=headers)
+    r.raise_for_status()
+    for tx in r.json().get("data", []):
+        if tx.get("transaction_id") == tx_id and tx.get("to") == address and tx.get("type") == "Transfer":
+            dec = int(tx.get("token_info", {}).get("decimals", 6))
+            return {"amount": round(int(tx["value"]) / (10 ** dec), 6), "from": tx.get("from", ""),
+                    "ts": datetime.fromtimestamp(tx["block_timestamp"] / 1000, tz=timezone.utc).isoformat() if tx.get("block_timestamp") else ""}
+    return None
+
+
+class CreditHashIn(BaseModel):
+    tx_id: str
+    force: bool = False
+
+
+@api_router.post("/admin/topups/{order_id}/credit-hash")
+async def admin_topup_credit_hash(order_id: str, body: CreditHashIn, admin: dict = Depends(require_role("admin"))):
+    """Manual credit by on-chain hash: verify the given TXID is a USDT transfer to this order's wallet
+    with the right amount, then settle. force=true skips on-chain verification (admin override)."""
+    tx = (body.tx_id or "").strip()
+    if not tx:
+        raise HTTPException(status_code=400, detail="請輸入鏈上交易哈希(TXID)")
+    t = await db.topup_orders.find_one({"id": order_id}, {"_id": 0})
+    if not t:
+        raise HTTPException(status_code=404, detail="訂單不存在")
+    if t.get("status") == "paid":
+        raise HTTPException(status_code=400, detail="該訂單已入帳，無需補單")
+    if not t.get("own_wallet") or not t.get("wallet_address"):
+        raise HTTPException(status_code=400, detail="非自有錢包 USDT 訂單，無法按哈希補單")
+    dup = await db.topup_orders.find_one({"tx_id": tx}, {"_id": 0, "id": 1})
+    if dup and dup.get("id") != order_id:
+        raise HTTPException(status_code=400, detail="該哈希已用於其他訂單入帳，不能重複使用")
+    paid_at, payer = now_iso(), ""
+    if not body.force:
+        try:
+            hit = await _tron_verify_tx(t["wallet_address"], tx, t.get("created_at", ""))
+        except Exception:
+            raise HTTPException(status_code=502, detail="鏈上查詢失敗，請確認已配置 TRONGRID_API_KEY 後重試")
+        if not hit:
+            raise HTTPException(status_code=404, detail="在本訂單收款地址上找不到該哈希的轉入記錄，請核對哈希/收款地址（或勾選強制補單）")
+        amt = round(float(t.get("pay_amount") or t.get("amount_usd") or 0), 2)
+        if abs(round(hit["amount"], 2) - amt) > 0.01:
+            raise HTTPException(status_code=422, detail=f"該哈希到賬 {hit['amount']} USDT 與應付 {amt} USDT 不符，無法補單")
+        paid_at, payer = hit.get("ts") or now_iso(), hit.get("from", "")
+    if t.get("status") != "pending":
+        await db.topup_orders.update_one({"id": t["id"]}, {"$set": {"status": "pending"}})
+        t["status"] = "pending"
+    if payer:
+        await db.topup_orders.update_one({"id": t["id"]}, {"$set": {"payer_address": payer}})
+    r = await _usdt_settle(t, {"paid_at": paid_at, "tx_id": tx})
+    return {"ok": True, "order_no": r.get("order_no") or r.get("out_trade_no"), "amount_usd": r.get("amount_usd"), "verified": not body.force}
+
+
 # ----------------------------- Geo access control -----------------------------
 def _geo_flag(name: str, default: str = "") -> str:
     return os.environ.get(name) or default
