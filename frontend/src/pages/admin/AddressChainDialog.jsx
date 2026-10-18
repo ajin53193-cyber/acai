@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { Loader2, Copy, X, Wallet, ExternalLink, CheckCircle2, AlertCircle } from "lucide-react";
+import { useEffect, useState, useCallback } from "react";
+import { Loader2, Copy, X, Wallet, ExternalLink, CheckCircle2, AlertCircle, HandCoins } from "lucide-react";
 import { toast } from "sonner";
 import { tr } from "@/i18n";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
@@ -9,14 +9,27 @@ const short = (a) => (a ? `${a.slice(0, 6)}…${a.slice(-6)}` : "-");
 const shortTx = (a) => (a ? `${a.slice(0, 10)}…${a.slice(-6)}` : "-");
 const fmt = (s) => { if (!s) return "-"; const d = new Date(s); return `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")} ${d.toTimeString().slice(0, 8)}`; };
 
-export function AddressChainDialog({ address, callApi, onClose }) {
+export function AddressChainDialog({ address, callApi, onClose, onMatched }) {
   const [d, setD] = useState(null);
   const [err, setErr] = useState("");
-  useEffect(() => {
+  const [busy, setBusy] = useState("");
+  const load = useCallback(() => {
     if (!address) return;
     setD(null); setErr("");
     callApi({ method: "GET", url: `/admin/usdt/address/${address}` }).then((r) => setD(r.data)).catch((e) => setErr(e.response?.data?.detail || tr("載入失敗")));
   }, [address, callApi]);
+  useEffect(() => { load(); }, [load]);
+  const credit = async (t) => {
+    if (!window.confirm(tr("確認將這筆 {0} USDT 鏈上到賬，補單入帳給金額相符的待付訂單？", Number(t.amount).toLocaleString()))) return;
+    setBusy(t.tx_id);
+    try {
+      const r = await callApi({ method: "POST", url: "/admin/usdt/manual-match", data: { address, tx_id: t.tx_id, amount: t.amount, payer: t.from } });
+      toast.success(tr("已補單入帳：{0}", r.data.order_no || ""));
+      load();
+      onMatched && onMatched();
+    } catch (e) { toast.error(e.response?.data?.detail || tr("補單失敗")); }
+    setBusy("");
+  };
   const txs = d?.transfers || [];
   return (
     <Dialog open={!!address} onOpenChange={(o) => !o && onClose()}>
@@ -64,7 +77,10 @@ export function AddressChainDialog({ address, callApi, onClose }) {
                       <td className="px-4 py-3 text-right whitespace-nowrap">
                         {t.matched
                           ? <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-0.5 text-[11px] font-semibold"><CheckCircle2 className="h-3 w-3" />{tr("已對應")}{t.order_no ? ` · ${t.order_no}` : ""}</span>
-                          : <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 text-amber-700 border border-amber-200 px-2 py-0.5 text-[11px] font-semibold" title={tr("此筆到帳未對應任何訂單，可能是未確認收款")}><AlertCircle className="h-3 w-3" />{tr("未對應")}</span>}
+                          : <span className="inline-flex items-center gap-1.5">
+                              <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 text-amber-700 border border-amber-200 px-2 py-0.5 text-[11px] font-semibold" title={tr("此筆到帳未對應任何訂單，可能是未確認收款")}><AlertCircle className="h-3 w-3" />{tr("未對應")}</span>
+                              <button data-testid={`addr-chain-credit-${(t.tx_id || "").slice(-6)}`} onClick={() => credit(t)} disabled={busy === t.tx_id} className="inline-flex items-center gap-1 rounded-full bg-emerald-500 hover:bg-emerald-600 text-white px-2 py-0.5 text-[11px] font-semibold transition-colors disabled:opacity-50">{busy === t.tx_id ? <Loader2 className="h-3 w-3 animate-spin" /> : <HandCoins className="h-3 w-3" />}{tr("手動入帳")}</button>
+                            </span>}
                       </td>
                     </tr>
                   ))}

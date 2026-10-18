@@ -2331,6 +2331,101 @@ async def admin_usdt_address_chain(address: str, admin: dict = Depends(require_r
     return {"address": address, "balance": balance, "transfers": transfers, "ok": ok, "has_key": bool(os.environ.get("TRONGRID_API_KEY"))}
 
 
+@api_router.get("/admin/usdt/unmatched")
+async def admin_usdt_unmatched(hours: int = 48, admin: dict = Depends(require_role("admin"))):
+    """Inbound on-chain USDT transfers (recent window) that do not match any recorded top-up — i.e. possible missed credits."""
+    methods = await db.payment_methods.find({"provider": "crypto"}, {"_id": 0}).to_list(100)
+    addrs = []
+    for m in methods:
+        for a in _wallet_pool(m.get("config") or {}):
+            if a not in addrs:
+                addrs.append(a)
+    cutoff = (datetime.now(timezone.utc) - timedelta(hours=max(1, hours))).timestamp() * 1000
+    items, ok = [], True
+    for a in addrs:
+        try:
+            raw = await _tron_usdt_transfers(a, 30)
+        except Exception as e:
+            logger.info("usdt unmatched query failed %s: %s", a, e)
+            ok = False
+            continue
+        for t in raw:
+            if t["direction"] != "in" or not t.get("tx_id"):
+                continue
+            try:
+                ts_ms = datetime.fromisoformat(t["ts"]).timestamp() * 1000 if t["ts"] else 0
+            except Exception:
+                ts_ms = 0
+            if ts_ms and ts_ms < cutoff:
+                continue
+            if await db.topup_orders.find_one({"tx_id": t["tx_id"]}, {"_id": 1}):
+                continue
+            items.append({"address": a, "amount": t["amount"], "from": t["counterparty"], "tx_id": t["tx_id"], "ts": t["ts"]})
+        await asyncio.sleep(0.2)
+    items.sort(key=lambda x: x["ts"] or "", reverse=True)
+    return {"count": len(items), "items": items, "ok": ok, "has_key": bool(os.environ.get("TRONGRID_API_KEY"))}
+
+
+class UsdtMatchIn(BaseModel):
+    address: str
+    tx_id: str
+    amount: float
+    payer: str = ""
+
+
+@api_router.post("/admin/usdt/manual-match")
+async def admin_usdt_manual_match(body: UsdtMatchIn, admin: dict = Depends(require_role("admin"))):
+    """Attach an unmatched on-chain transfer to a pending/expired order on the same address with the same amount, and credit it."""
+    if await db.topup_orders.find_one({"tx_id": body.tx_id}, {"_id": 1}):
+        raise HTTPException(status_code=400, detail="該鏈上交易已入帳，無需重複補單")
+    amt = round(float(body.amount), 2)
+    cand = await db.topup_orders.find_one(
+        {"own_wallet": True, "wallet_address": body.address, "status": {"$in": ["pending", "expired"]},
+         "pay_amount": {"$gte": amt - 0.005, "$lte": amt + 0.005}},
+        {"_id": 0}, sort=[("created_at", 1)])
+    if not cand:
+        raise HTTPException(status_code=404, detail="找不到該地址上金額相符的待付/過期訂單，無法自動補單")
+    if cand.get("status") != "pending":
+        await db.topup_orders.update_one({"id": cand["id"]}, {"$set": {"status": "pending"}})
+        cand["status"] = "pending"
+    if body.payer:
+        await db.topup_orders.update_one({"id": cand["id"]}, {"$set": {"payer_address": body.payer}})
+    r = await _usdt_settle(cand, {"paid_at": now_iso(), "tx_id": body.tx_id})
+    return {"ok": True, "order_no": r.get("order_no") or r.get("out_trade_no"),
+            "account_id": admin_api.account_no(r.get("user_id")) if r.get("user_id") else "", "amount_usd": r.get("amount_usd")}
+
+
+# ----------------------------- Geo access control -----------------------------
+def _geo_flag(name: str, default: str = "") -> str:
+    return os.environ.get(name) or default
+
+
+def _client_country(request: Request) -> str:
+    for h in ("cf-ipcountry", "x-geo-country", "x-country-code", "x-appengine-country", "fastly-geo-country"):
+        v = (request.headers.get(h) or "").strip().upper()
+        if v and v not in ("XX", "T1", "ZZ"):
+            return v
+    return ""
+
+
+def _geo_allowed(country: str, scope: str) -> bool:
+    if _geo_flag("GEO_ENFORCE", "false").lower() != "true":
+        return True
+    allow = _geo_flag("ADMIN_ALLOWED_CC", "VN") if scope == "admin" else _geo_flag("STORE_ALLOWED_CC", "CN,HK,VN")
+    allowed = {c.strip().upper() for c in allow.split(",") if c.strip()}
+    if not country:
+        return _geo_flag("GEO_UNKNOWN_ALLOW", "true").lower() == "true"
+    return country in allowed
+
+
+@api_router.get("/geo/guard")
+async def geo_guard(request: Request, scope: str = "store"):
+    scope = "admin" if scope == "admin" else "store"
+    country = _client_country(request)
+    return {"allowed": _geo_allowed(country, scope), "country": country,
+            "enforce": _geo_flag("GEO_ENFORCE", "false").lower() == "true", "scope": scope}
+
+
 class RejectInfoIn(BaseModel):
     reason: str = ""
 
@@ -3567,6 +3662,7 @@ async def seed():
 
 translator = Translator(db)
 LOCALIZE_SKIP = ("/api/auth/email", "/api/admin", "/api/img", "/api/payments", "/api/webhook", "/api/cron", "/api/me/wallet/topup", "/api/i18n")
+GEO_SKIP = ("/api/geo/guard", "/api/health", "/api/cron", "/api/webhook")
 
 
 @api_router.get("/i18n/stats")
@@ -3683,6 +3779,17 @@ async def audit_admin(request: Request, call_next):
     except Exception:
         pass
     return resp
+
+
+@app.middleware("http")
+async def geo_gate(request: Request, call_next):
+    if _geo_flag("GEO_ENFORCE", "false").lower() == "true":
+        p = request.url.path
+        if p.startswith("/api") and not p.startswith(GEO_SKIP):
+            scope = "admin" if p.startswith("/api/admin") else "store"
+            if not _geo_allowed(_client_country(request), scope):
+                return Response(content=json.dumps({"detail": "Not Found"}), status_code=404, media_type="application/json")
+    return await call_next(request)
 
 
 @app.on_event("shutdown")

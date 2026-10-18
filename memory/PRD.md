@@ -249,3 +249,11 @@
   - TopupsAdmin / UsdtChannelAdmin 先前已具備；MembersAdmin 本身即用戶列表。已截圖驗證 MemberAssets 點擊帳戶ID 彈出完整資料卡（郵箱/餘額/訂單消費/等級/實名/狀態/UserID/註冊時間）。
 - **i18n 處理注意**：新增 13 條繁中 key 以**手動合併簡體**寫入 `zh-CN.json`（不可用 `gen_i18n_dicts.py` 全量重生，tw2sp 會把「通道→信道」等既有人工修正覆蓋造成回歸）。
 - **交付**：完整源碼包已重新打包 `/app/export/patch.zip`（含上述改動，不含真實 .env）。
+
+## 2026-10-18 更新（登錄地區限制 + 未對應告警 + 一鍵補單）
+- **按國家地區限制訪問（整站 404）**：後端加 `geo_gate` 中間件 + `GET /api/geo/guard` 端點 + 前端 `GeoGate`（App.js 包住 Routes，開機調 guard，非允許地區整站渲染 NotFound/404）。識別訪客國家依賴反代頭 `CF-IPCountry`(Cloudflare 推薦) / `X-Geo-Country` / `X-Country-Code`。
+  - 全部 `.env` 開關控制，**預覽默認關閉不影響調試**：`GEO_ENFORCE=false`、`STORE_ALLOWED_CC=CN,HK,VN`（商城前台）、`ADMIN_ALLOWED_CC=VN`（後台僅越南）、`GEO_UNKNOWN_ALLOW=true`（無法識別時放行，避免 CF 未配好誤傷）。scope 按路徑判斷：`/api/admin/*` 用 admin 名單，其餘用 store 名單。
+  - 已驗證：`_geo_allowed` 單測（store 放行 CN/HK/VN、擋 US；admin 僅 VN）、直連後端頭解析正確、guard 端點返回正常、GeoGate 不影響正常加載（enforce 關→直接放行，首頁正常）。`.env.production.example` 已補中文註釋說明。
+- **未對應到賬告警**：新端點 `GET /api/admin/usdt/unmatched`（掃各地址近 48h 轉入、未命中 `topup_orders.tx_id` 的到賬=漏單）。UsdtChannelAdmin 首頁頂部紅色橫幅「有 N 筆鏈上到賬未對應訂單」，點擊直接打開該地址查鏈彈窗核對。
+- **一鍵補單**：查鏈彈窗「未對應」行加「手動入帳」綠色按鈕 → `POST /api/admin/usdt/manual-match`（找該地址上金額相符的待付/過期訂單，attach 該 tx 並 `_usdt_settle` 入帳+發通知+積分）。已用臨時待付單端到端驗證：候選匹配→結算 status=paid→錢包入帳均正常（測試副作用已清理還原 demo 數據）。
+- i18n 新增 20 條詞條（13+6+1）均手動合併簡體寫入 `zh-CN.json`（禁用全量重生避免「通道→信道」回歸）。源碼包已重打 `/app/export/patch.zip`（不含真實 .env）。

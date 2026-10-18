@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from "react";
-import { Loader2, Clock, FileSearch, CheckCircle2, XCircle, Ban, Copy, Wallet, Settings2, BarChart3, RefreshCw, Search } from "lucide-react";
+import { Loader2, Clock, FileSearch, CheckCircle2, XCircle, Ban, Copy, Wallet, Settings2, BarChart3, RefreshCw, Search, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 import { tr } from "@/i18n";
 import { Card, Head } from "./ui";
@@ -45,12 +45,14 @@ function UsdtData({ callApi }) {
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
   const [bal, setBal] = useState(null);
+  const [unmatched, setUnmatched] = useState(null);
   const load = useCallback((rng, df = "", dt = "") => {
     setD(null);
     callApi({ method: "GET", url: `/admin/usdt/overview?range=${rng}&date_from=${df}&date_to=${dt}` }).then((r) => setD(r.data)).catch(() => setD({ summary: {}, per_address: [], recent: [] }));
   }, [callApi]);
   const loadBal = useCallback(() => { setBal("loading"); callApi({ method: "GET", url: "/admin/usdt/balances" }).then((r) => setBal(r.data)).catch(() => setBal({ balances: {}, total: 0, ok: false })); }, [callApi]);
-  useEffect(() => { load("today"); loadBal(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  const loadUnmatched = useCallback(() => { callApi({ method: "GET", url: "/admin/usdt/unmatched" }).then((r) => setUnmatched(r.data)).catch(() => setUnmatched(null)); }, [callApi]);
+  useEffect(() => { load("today"); loadBal(); loadUnmatched(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const pick = (rng) => { setRange(rng); if (rng !== "custom") load(rng); };
   if (!d) return <Loader2 className="h-6 w-6 animate-spin text-orange-500" />;
   const s = d.summary || {};
@@ -80,6 +82,18 @@ function UsdtData({ callApi }) {
         <button data-testid="usdt-refresh" onClick={() => { load(range, from, to); loadBal(); }} className="ml-auto h-8 px-3 rounded-lg border border-slate-200 bg-white text-xs font-semibold text-slate-600 flex items-center gap-1.5 hover:bg-slate-50 transition-colors"><RefreshCw className="h-3.5 w-3.5" />{tr("刷新")}</button>
       </div>
       <div className="text-[12px] text-slate-400">{tr("共 {0} 個收款地址 · 掃鏈週期 {1} 秒", d.address_count || 0, d.scan_seconds || 90)}</div>
+
+      {unmatched && unmatched.count > 0 && (
+        <button data-testid="usdt-unmatched-alert" onClick={() => setViewAddr(unmatched.items[0].address)}
+          className="w-full flex items-center gap-2.5 rounded-xl bg-red-50 border border-red-200 px-4 py-3 text-left hover:bg-red-100/70 transition-colors">
+          <span className="h-8 w-8 rounded-full bg-red-500 text-white flex items-center justify-center shrink-0"><AlertTriangle className="h-4 w-4" /></span>
+          <span className="flex-1">
+            <span className="block text-sm font-bold text-red-700">{tr("有 {0} 筆鏈上到賬未對應訂單", unmatched.count)}</span>
+            <span className="block text-[12px] text-red-500/90">{tr("可能是用戶已付款但系統未確認的漏單，點擊查看並一鍵補單")}</span>
+          </span>
+          <span className="text-[12px] font-semibold text-red-600 shrink-0">{tr("立即核對")} →</span>
+        </button>
+      )}
 
       <div className="grid grid-cols-2 lg:grid-cols-2 gap-4">
         <div className="rounded-2xl bg-gradient-to-br from-emerald-500 to-emerald-600 text-white shadow-sm p-4" data-testid="usdt-success-rate">
@@ -169,7 +183,7 @@ function UsdtData({ callApi }) {
         )}
       </Card>
       <UserInfoDialog uid={viewUid} callApi={callApi} onClose={() => setViewUid("")} />
-      <AddressChainDialog address={viewAddr} callApi={callApi} onClose={() => setViewAddr("")} />
+      <AddressChainDialog address={viewAddr} callApi={callApi} onClose={() => setViewAddr("")} onMatched={() => { load(range, from, to); loadBal(); loadUnmatched(); }} />
     </div>
   );
 }

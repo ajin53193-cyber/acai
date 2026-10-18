@@ -2,7 +2,7 @@ import "@/App.css";
 import { BrowserRouter, Routes, Route, Outlet, useLocation } from "react-router-dom";
 import { scrollPageTo } from "@/lib/scroller";
 import { AuthenticateWithRedirectCallback, useUser } from "@clerk/react";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import ClerkAuthProvider from "@/components/auth/ClerkAuthProvider";
 import { AuthModalProvider, useAuthModal } from "@/components/auth/AuthModal";
@@ -31,7 +31,7 @@ import WalletTopups from "@/pages/account/WalletTopups";
 import GoogleCallback from "@/pages/GoogleCallback";
 import AdminLogin from "@/pages/AdminLogin";
 import NotFound from "@/pages/NotFound";
-import { ADMIN_BASE, ADMIN_LOGIN } from "@/lib/adminPath";
+import { ADMIN_BASE, ADMIN_LOGIN, isAdminPath } from "@/lib/adminPath";
 import Info from "@/pages/Info";
 import ArticleCenter from "@/pages/ArticleCenter";
 import ArticleDetail from "@/pages/ArticleDetail";
@@ -72,6 +72,21 @@ function AuthRedirect() {
   return null;
 }
 
+function GeoGate({ children }) {
+  const { pathname } = useLocation();
+  const [state, setState] = useState("checking");
+  useEffect(() => {
+    const scope = isAdminPath(pathname) ? "admin" : "store";
+    fetch(`${process.env.REACT_APP_BACKEND_URL}/api/geo/guard?scope=${scope}`)
+      .then((r) => r.json())
+      .then((d) => setState(!d.enforce || d.allowed ? "ok" : "blocked"))
+      .catch(() => setState("ok"));
+  }, [pathname]);
+  if (state === "checking") return null;
+  if (state === "blocked") return <NotFound />;
+  return children;
+}
+
 function App() {
   return (
     <div className="App">
@@ -79,6 +94,7 @@ function App() {
         <ClerkAuthProvider>
           <CurrencyProvider>
             <CartProvider>
+              <GeoGate>
               <Routes>
                 <Route element={<StoreLayout />}>
                   <Route path="/" element={<Home />} />
@@ -110,6 +126,7 @@ function App() {
                 <Route path="/auth/google" element={<GoogleCallback />} />
                 <Route path="/sso-callback" element={<AuthenticateWithRedirectCallback signInFallbackRedirectUrl="/" signUpFallbackRedirectUrl="/" />} />
               </Routes>
+              </GeoGate>
             </CartProvider>
           </CurrencyProvider>
         </ClerkAuthProvider>
