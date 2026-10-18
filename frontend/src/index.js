@@ -6,6 +6,8 @@ import "@/lib/iosViewportFix";
 import "@/lib/track";
 import "@/lib/vvAnchor";
 import "@/lib/vpDebug";
+import { installBJLocale } from "@/lib/bjtime";
+installBJLocale();
 import App from "@/App";
 import { Toaster } from "@/components/ui/sonner";
 import { CheckCircle2, XCircle, Info, AlertTriangle } from "lucide-react";

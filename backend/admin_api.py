@@ -1,4 +1,5 @@
 """Admin console APIs: 2FA login, USDT top-ups, members, translations, notifications, reports."""
+import bjtime as _bj
 import base64
 import csv
 import hashlib
@@ -1000,22 +1001,22 @@ async def admin_activity_records(type: str = "all", limit: int = 200, admin: dic
 
 @router.get("/activity-stats")
 async def admin_activity_stats(admin: dict = Depends(current_admin)):
-    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    today = _bj.today()
     seckill_units = seckill_rev = 0
     paid = {"$in": ["paid", "processing", "completed", "shipped"]}
-    async for o in db.orders.find({"created_at": {"$regex": f"^{today}"}, "items.flash_id": {"$ne": None}}, {"_id": 0, "items": 1}):
+    async for o in db.orders.find({"created_at": _bj.today_q(), "items.flash_id": {"$ne": None}}, {"_id": 0, "items": 1}):
         for it in o.get("items", []):
             if it.get("flash_id"):
                 q = int(it.get("quantity") or 1)
                 seckill_units += q
                 seckill_rev += float(it.get("unit_price_usd") or 0) * q
     combo_orders = combo_rev = combo_saved = 0
-    async for o in db.orders.find({"created_at": {"$regex": f"^{today}"}, "combo_discount_usd": {"$gt": 0}}, {"_id": 0, "total_usd": 1, "combo_discount_usd": 1}):
+    async for o in db.orders.find({"created_at": _bj.today_q(), "combo_discount_usd": {"$gt": 0}}, {"_id": 0, "total_usd": 1, "combo_discount_usd": 1}):
         combo_orders += 1
         combo_rev += float(o.get("total_usd") or 0)
         combo_saved += float(o.get("combo_discount_usd") or 0)
-    lottery_draws = await db.lottery_draws.count_documents({"created_at": {"$regex": f"^{today}"}})
-    lottery_real = await db.lottery_draws.count_documents({"created_at": {"$regex": f"^{today}"}, "prize_type": {"$nin": ["none"]}})
+    lottery_draws = await db.lottery_draws.count_documents({"created_at": _bj.today_q()})
+    lottery_real = await db.lottery_draws.count_documents({"created_at": _bj.today_q(), "prize_type": {"$nin": ["none"]}})
     return {
         "date": today,
         "seckill": {"units": seckill_units, "revenue_usd": round(seckill_rev, 2)},
@@ -1027,20 +1028,20 @@ async def admin_activity_stats(admin: dict = Depends(current_admin)):
 @router.get("/activity-trend")
 async def admin_activity_trend(days: int = 7, admin: dict = Depends(current_admin)):
     days = max(1, min(30, int(days)))
-    today = datetime.now(timezone.utc).date()
+    today = _bj.now().date()
     buckets = [(today - timedelta(days=i)).strftime("%Y-%m-%d") for i in range(days - 1, -1, -1)]
     idx = {d: {"date": d, "seckill": 0, "lottery": 0, "combo": 0} for d in buckets}
     start = buckets[0]
-    async for o in db.orders.find({"created_at": {"$gte": start}, "items.flash_id": {"$ne": None}}, {"_id": 0, "created_at": 1, "items": 1}):
-        d = (o.get("created_at") or "")[:10]
+    async for o in db.orders.find({"created_at": _bj.rng(start), "items.flash_id": {"$ne": None}}, {"_id": 0, "created_at": 1, "items": 1}):
+        d = _bj.day(o.get("created_at"))
         if d in idx:
             idx[d]["seckill"] += sum(int(it.get("quantity") or 1) for it in o.get("items", []) if it.get("flash_id"))
-    async for o in db.orders.find({"created_at": {"$gte": start}, "combo_discount_usd": {"$gt": 0}}, {"_id": 0, "created_at": 1}):
-        d = (o.get("created_at") or "")[:10]
+    async for o in db.orders.find({"created_at": _bj.rng(start), "combo_discount_usd": {"$gt": 0}}, {"_id": 0, "created_at": 1}):
+        d = _bj.day(o.get("created_at"))
         if d in idx:
             idx[d]["combo"] += 1
-    async for dr in db.lottery_draws.find({"created_at": {"$gte": start}}, {"_id": 0, "created_at": 1}):
-        d = (dr.get("created_at") or "")[:10]
+    async for dr in db.lottery_draws.find({"created_at": _bj.rng(start)}, {"_id": 0, "created_at": 1}):
+        d = _bj.day(dr.get("created_at"))
         if d in idx:
             idx[d]["lottery"] += 1
     return [idx[d] for d in buckets]
@@ -1235,17 +1236,17 @@ async def _test_uids() -> list:
 
 async def _period_stats(since: str, until: str) -> dict:
     nt = {"$nin": await _test_uids()}
-    o = await db.orders.aggregate([{"$match": {"created_at": {"$gte": since, "$lt": until}, "user_id": nt}}, {"$group": {"_id": None, "orders": {"$sum": 1},
+    o = await db.orders.aggregate([{"$match": {"created_at": _bj.rng(since, until), "user_id": nt}}, {"$group": {"_id": None, "orders": {"$sum": 1},
         "revenue": {"$sum": {"$cond": [{"$in": ["$status", PAID_STATUSES]}, "$total_usd", 0]}}}}]).to_list(1)
-    t = await db.topup_orders.aggregate([{"$match": {"created_at": {"$gte": since, "$lt": until}, "status": "paid", "user_id": nt}}, {"$group": {"_id": None, "n": {"$sum": 1}, "usd": {"$sum": "$amount_usd"}}}]).to_list(1)
-    users = await db.users.count_documents({"created_at": {"$gte": since, "$lt": until}, "is_test": {"$ne": True}})
+    t = await db.topup_orders.aggregate([{"$match": {"created_at": _bj.rng(since, until), "status": "paid", "user_id": nt}}, {"$group": {"_id": None, "n": {"$sum": 1}, "usd": {"$sum": "$amount_usd"}}}]).to_list(1)
+    users = await db.users.count_documents({"created_at": _bj.rng(since, until), "is_test": {"$ne": True}})
     return {"orders": (o[0]["orders"] if o else 0), "revenue_usd": round((o[0]["revenue"] if o else 0) or 0, 2), "topups": (t[0]["n"] if t else 0), "topup_usd": round((t[0]["usd"] if t else 0) or 0, 2), "new_users": users}
 
 
 @router.get("/dashboard")
 async def admin_dashboard(days: int = 30, admin: dict = Depends(current_admin)):
     days = max(7, min(days, 365))
-    now = datetime.now(timezone.utc)
+    now = _bj.now()
     since = (now - timedelta(days=days - 1)).strftime("%Y-%m-%d")
     prev_since = (now - timedelta(days=2 * days - 1)).strftime("%Y-%m-%d")
     cur, prev = await _period_stats(since, "9999"), await _period_stats(prev_since, since)
@@ -1255,8 +1256,8 @@ async def admin_dashboard(days: int = 30, admin: dict = Depends(current_admin)):
         rows[d] = {"date": d, "orders": 0, "revenue_usd": 0.0, "topup_usd": 0.0, "new_users": 0}
     product_rev: dict = {}
     nt = {"$nin": await _test_uids()}
-    async for o in db.orders.find({"created_at": {"$gte": since}, "user_id": nt}, {"_id": 0, "created_at": 1, "status": 1, "total_usd": 1, "items": 1}):
-        r = rows.get(o["created_at"][:10])
+    async for o in db.orders.find({"created_at": _bj.rng(since), "user_id": nt}, {"_id": 0, "created_at": 1, "status": 1, "total_usd": 1, "items": 1}):
+        r = rows.get(_bj.day(o["created_at"]))
         paid = o.get("status") in PAID_STATUSES
         if r:
             r["orders"] += 1
@@ -1267,18 +1268,18 @@ async def admin_dashboard(days: int = 30, admin: dict = Depends(current_admin)):
                 p = product_rev.setdefault(it.get("product_id"), {"product_id": it.get("product_id"), "name": it.get("product_name"), "image": it.get("image", ""), "qty": 0, "revenue_usd": 0.0})
                 p["qty"] += int(it.get("quantity") or 1)
                 p["revenue_usd"] += float(it.get("unit_price_usd") or it.get("price_usd") or 0) * int(it.get("quantity") or 1)
-    async for t in db.topup_orders.find({"created_at": {"$gte": since}, "status": "paid", "user_id": nt}, {"_id": 0, "created_at": 1, "amount_usd": 1}):
-        r = rows.get(t["created_at"][:10])
+    async for t in db.topup_orders.find({"created_at": _bj.rng(since), "status": "paid", "user_id": nt}, {"_id": 0, "created_at": 1, "amount_usd": 1}):
+        r = rows.get(_bj.day(t["created_at"]))
         if r:
             r["topup_usd"] += float(t.get("amount_usd") or 0)
-    async for u in db.users.find({"created_at": {"$gte": since}, "is_test": {"$ne": True}}, {"_id": 0, "created_at": 1}):
-        r = rows.get((u.get("created_at") or "")[:10])
+    async for u in db.users.find({"created_at": _bj.rng(since), "is_test": {"$ne": True}}, {"_id": 0, "created_at": 1}):
+        r = rows.get(_bj.day(u.get("created_at")))
         if r:
             r["new_users"] += 1
     by_status = {r["_id"]: r["n"] for r in await db.orders.aggregate([{"$match": {"user_id": nt}}, {"$group": {"_id": "$status", "n": {"$sum": 1}}}]).to_list(20)}
-    pay_mix = await db.topup_orders.aggregate([{"$match": {"status": "paid", "created_at": {"$gte": since}, "user_id": nt}}, {"$group": {"_id": {"$ifNull": ["$method_name", {"$ifNull": ["$provider", "USDT"]}]}, "n": {"$sum": 1}, "usd": {"$sum": "$amount_usd"}}}, {"$sort": {"usd": -1}}]).to_list(10)
+    pay_mix = await db.topup_orders.aggregate([{"$match": {"status": "paid", "created_at": _bj.rng(since), "user_id": nt}}, {"$group": {"_id": {"$ifNull": ["$method_name", {"$ifNull": ["$provider", "USDT"]}]}, "n": {"$sum": 1}, "usd": {"$sum": "$amount_usd"}}}, {"$sort": {"usd": -1}}]).to_list(10)
     wallet = await db.users.aggregate([{"$match": {"is_test": {"$ne": True}}}, {"$group": {"_id": None, "s": {"$sum": {"$ifNull": ["$wallet_balance_usd", 0]}}}}]).to_list(1)
-    cat_rev = await db.orders.aggregate([{"$match": {"created_at": {"$gte": since}, "status": {"$in": PAID_STATUSES}, "user_id": nt}}, {"$unwind": "$items"},
+    cat_rev = await db.orders.aggregate([{"$match": {"created_at": _bj.rng(since), "status": {"$in": PAID_STATUSES}, "user_id": nt}}, {"$unwind": "$items"},
         {"$lookup": {"from": "products", "localField": "items.product_id", "foreignField": "id", "as": "p"}}, {"$unwind": {"path": "$p", "preserveNullAndEmptyArrays": True}},
         {"$group": {"_id": {"$ifNull": ["$p.category", "other"]}, "usd": {"$sum": {"$multiply": [{"$ifNull": ["$items.unit_price_usd", {"$ifNull": ["$items.price_usd", 0]}]}, {"$ifNull": ["$items.quantity", 1]}]}}}}, {"$sort": {"usd": -1}}, {"$limit": 8}]).to_list(8)
     cats = {c["id"]: c["name"] for c in await db.categories.find({}, {"_id": 0, "id": 1, "name": 1}).to_list(100)}
@@ -1303,25 +1304,25 @@ async def admin_dashboard(days: int = 30, admin: dict = Depends(current_admin)):
 @router.get("/reports")
 async def admin_reports(days: int = 30, format: str = "json", admin: dict = Depends(current_admin)):
     days = max(1, min(days, 365))
-    since = (datetime.now(timezone.utc) - timedelta(days=days - 1)).strftime("%Y-%m-%d")
+    since = _bj.days_ago(days - 1)
     rows = {}
     for i in range(days):
-        d = (datetime.now(timezone.utc) - timedelta(days=days - 1 - i)).strftime("%Y-%m-%d")
+        d = _bj.days_ago(days - 1 - i)
         rows[d] = {"date": d, "orders": 0, "revenue_usd": 0.0, "paid_orders": 0, "topups": 0, "topup_usd": 0.0, "new_users": 0}
-    async for o in db.orders.find({"created_at": {"$gte": since}}, {"_id": 0, "created_at": 1, "status": 1, "total_usd": 1}):
-        r = rows.get(o["created_at"][:10])
+    async for o in db.orders.find({"created_at": _bj.rng(since)}, {"_id": 0, "created_at": 1, "status": 1, "total_usd": 1}):
+        r = rows.get(_bj.day(o["created_at"]))
         if r:
             r["orders"] += 1
             if o.get("status") not in ("pending", "cancelled", "failed"):
                 r["paid_orders"] += 1
                 r["revenue_usd"] += float(o.get("total_usd") or 0)
-    async for t in db.topup_orders.find({"created_at": {"$gte": since}, "status": "paid"}, {"_id": 0, "created_at": 1, "amount_usd": 1}):
-        r = rows.get(t["created_at"][:10])
+    async for t in db.topup_orders.find({"created_at": _bj.rng(since), "status": "paid"}, {"_id": 0, "created_at": 1, "amount_usd": 1}):
+        r = rows.get(_bj.day(t["created_at"]))
         if r:
             r["topups"] += 1
             r["topup_usd"] += float(t.get("amount_usd") or 0)
-    async for u in db.users.find({"created_at": {"$gte": since}}, {"_id": 0, "created_at": 1}):
-        r = rows.get((u.get("created_at") or "")[:10])
+    async for u in db.users.find({"created_at": _bj.rng(since)}, {"_id": 0, "created_at": 1}):
+        r = rows.get(_bj.day(u.get("created_at")))
         if r:
             r["new_users"] += 1
     data = [{**r, "revenue_usd": round(r["revenue_usd"], 2), "topup_usd": round(r["topup_usd"], 2)} for r in rows.values()]
@@ -1490,17 +1491,17 @@ async def admin_referral_poster_delete(pid: str, admin: dict = Depends(current_a
 @router.get("/referral/trend")
 async def admin_referral_trend(days: int = 14, admin: dict = Depends(current_admin)):
     days = max(1, min(int(days or 14), 60))
-    start = (datetime.now(timezone.utc) - timedelta(days=days - 1)).strftime("%Y-%m-%d")
+    start = _bj.days_ago(days - 1)
     rows = {}
     for i in range(days):
-        d = (datetime.now(timezone.utc) - timedelta(days=days - 1 - i)).strftime("%Y-%m-%d")
+        d = _bj.days_ago(days - 1 - i)
         rows[d] = {"date": d, "bound": 0, "converted": 0}
-    async for u in db.users.find({"referred_at": {"$gte": start}}, {"_id": 0, "referred_at": 1}):
-        r = rows.get((u.get("referred_at") or "")[:10])
+    async for u in db.users.find({"referred_at": _bj.rng(start)}, {"_id": 0, "referred_at": 1}):
+        r = rows.get(_bj.day(u.get("referred_at")))
         if r:
             r["bound"] += 1
-    async for u in db.users.find({"referral_rewarded_at": {"$gte": start}}, {"_id": 0, "referral_rewarded_at": 1}):
-        r = rows.get((u.get("referral_rewarded_at") or "")[:10])
+    async for u in db.users.find({"referral_rewarded_at": _bj.rng(start)}, {"_id": 0, "referral_rewarded_at": 1}):
+        r = rows.get(_bj.day(u.get("referral_rewarded_at")))
         if r:
             r["converted"] += 1
     data = list(rows.values())
@@ -1518,14 +1519,14 @@ async def admin_referral_trend(days: int = 14, admin: dict = Depends(current_adm
 @router.get("/referral/funnel")
 async def admin_referral_funnel(days: int = 14, admin: dict = Depends(current_admin)):
     days = max(1, min(int(days or 14), 60))
-    start = (datetime.now(timezone.utc) - timedelta(days=days - 1)).strftime("%Y-%m-%d")
+    start = _bj.days_ago(days - 1)
 
     def rate(a, b):
         return round((a / b * 100) if b else 0, 1)
 
-    p_visits = await db.referral_visits.count_documents({"created_at": {"$gte": start}})
-    p_regs = await db.users.count_documents({"referred_at": {"$gte": start}})
-    p_tops = await db.users.count_documents({"referral_rewarded_at": {"$gte": start}})
+    p_visits = await db.referral_visits.count_documents({"created_at": _bj.rng(start)})
+    p_regs = await db.users.count_documents({"referred_at": _bj.rng(start)})
+    p_tops = await db.users.count_documents({"referral_rewarded_at": _bj.rng(start)})
     t_visits = await db.referral_visits.count_documents({})
     t_regs = await db.users.count_documents({"referred_by": {"$nin": [None, ""]}})
     t_tops = await db.users.count_documents({"referral_rewarded": True})
@@ -1962,13 +1963,13 @@ async def record_admin_log(uid: str, email: str, method: str, path: str, status:
 # ================= 財務管理：訂單結算 / 財務對賬 =================
 def _since(days: int) -> str:
     days = max(1, min(int(days or 30), 365))
-    return (datetime.now(timezone.utc) - timedelta(days=days - 1)).strftime("%Y-%m-%d")
+    return _bj.days_ago(days - 1)
 
 
 @router.get("/finance/settlement")
 async def admin_finance_settlement(days: int = 30, settled: str = "", limit: int = 500, admin: dict = Depends(current_admin)):
     start = _since(days)
-    query = {"status": {"$in": ["paid", "processing", "shipped", "completed"]}, "created_at": {"$gte": start}}
+    query = {"status": {"$in": ["paid", "processing", "shipped", "completed"]}, "created_at": _bj.rng(start)}
     if settled == "yes":
         query["settled"] = True
     elif settled == "no":
@@ -2006,13 +2007,13 @@ async def admin_finance_settle(body: SettleIn, admin: dict = Depends(current_adm
 async def admin_finance_reconciliation(days: int = 30, admin: dict = Depends(current_admin)):
     start = _since(days)
     tp = await db.topup_orders.aggregate([
-        {"$match": {"created_at": {"$gte": start}}},
+        {"$match": {"created_at": _bj.rng(start)}},
         {"$group": {"_id": {"provider": "$provider", "status": "$status"}, "count": {"$sum": 1}, "amount": {"$sum": "$amount_usd"}}},
     ]).to_list(200)
     topups = [{"provider": r["_id"].get("provider") or "-", "status": r["_id"].get("status") or "-", "count": r["count"], "amount": round(float(r.get("amount") or 0), 2)} for r in tp]
     topups.sort(key=lambda x: (x["provider"], x["status"]))
     od = await db.orders.aggregate([
-        {"$match": {"created_at": {"$gte": start}}},
+        {"$match": {"created_at": _bj.rng(start)}},
         {"$group": {"_id": "$status", "count": {"$sum": 1}, "amount": {"$sum": "$total_usd"}}},
     ]).to_list(50)
     orders = [{"status": r["_id"] or "-", "count": r["count"], "amount": round(float(r.get("amount") or 0), 2)} for r in od]
@@ -2119,8 +2120,8 @@ async def admin_analytics_sales(date_from: str = "", date_to: str = "", tz_offse
 
 @router.get("/analytics/realtime")
 async def admin_analytics_realtime(admin: dict = Depends(current_admin)):
-    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-    tq = {"created_at": {"$regex": f"^{today}"}}
+    today = _bj.today()
+    tq = {"created_at": _bj.today_q()}
     paid = {"status": {"$in": ["paid", "processing", "shipped", "completed"]}}
     rev = await db.orders.aggregate([{"$match": {**tq, **paid}}, {"$group": {"_id": None, "a": {"$sum": "$total_usd"}}}]).to_list(1)
     tp = await db.topup_orders.aggregate([{"$match": {**tq, "status": "paid"}}, {"$group": {"_id": None, "a": {"$sum": "$amount_usd"}}}]).to_list(1)
@@ -2169,7 +2170,7 @@ async def admin_users_batch(body: UserBatchIn, admin: dict = Depends(current_adm
 async def admin_user_reports(days: int = 30, admin: dict = Depends(current_admin)):
     start = _since(days)
     total = await db.users.count_documents({})
-    new_in = await db.users.count_documents({"created_at": {"$gte": start}})
+    new_in = await db.users.count_documents({"created_at": _bj.rng(start)})
     banned = await db.users.count_documents({"banned": True})
     levels = await db.users.aggregate([{"$group": {"_id": "$level_name", "count": {"$sum": 1}}}, {"$sort": {"count": -1}}]).to_list(20)
     spenders = await db.orders.aggregate([

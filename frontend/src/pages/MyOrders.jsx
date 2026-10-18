@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback, useRef } from "react";
+import { fmtBJ, bjToday } from "@/lib/bjtime";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { Copy, Package, Check, CheckCircle2, Gift, Search, X, Star } from "lucide-react";
 import { toast } from "sonner";
@@ -283,7 +284,7 @@ function OrdersInner() {
                     <span className="flex items-center gap-2 min-w-0">{tr("訂單編號:")} <span className="text-slate-700 truncate">{o.order_no}</span><button onClick={() => copy(o.order_no)} className="text-slate-400 hover:text-orange-500 shrink-0"><Copy className="h-3.5 w-3.5" /></button></span>
                     <span className={`ml-auto shrink-0 font-medium ${o.status === "pending_payment" ? "text-slate-600" : o.status === "completed" ? "text-emerald-600" : "text-orange-500"}`} data-testid={`order-status-${o.id}`}>{orderLabel(o)}</span>
                   </div>
-                  <div className="text-[11px] md:text-xs text-slate-400 mt-0.5 md:mt-1">{o.created_at?.slice(0, 19).replace("T", " ")}</div>
+                  <div className="text-[11px] md:text-xs text-slate-400 mt-0.5 md:mt-1">{fmtBJ(o.created_at)}</div>
                 </div>
                 <div className="mt-3 md:mt-4 flex gap-3 md:gap-5">
                   <button onClick={() => setDetail(o)} className="h-16 w-16 md:h-24 md:w-24 shrink-0 rounded-xl md:rounded-2xl bg-white max-md:bg-slate-50 p-1.5 md:p-2 shadow-sm"><img src={it?.image} alt="" className="h-full w-full object-contain rounded-xl" /></button>

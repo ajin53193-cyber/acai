@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { fmtBJ, bjToday } from "@/lib/bjtime";
 import { Headphones, MessageCircle, ChevronRight } from "lucide-react";
 import { useApi } from "@/lib/api";
 import { openService } from "@/components/ServiceWidget";
@@ -6,7 +7,7 @@ import { Panel, SubTabs, OrangeBtn } from "./AccountLayout";
 import { tr } from "@/i18n";
 
 const TABS = [["all", tr("全部")], ["open", tr("進行中")], ["handled", tr("已結束")]];
-const fmtTime = (s) => (s ? s.slice(0, 16).replace("T", " ") : "-");
+const fmtTime = (s) => (s ? fmtBJ(s, "minute") : "-");
 
 export default function ChatHistory() {
   const callApi = useApi();

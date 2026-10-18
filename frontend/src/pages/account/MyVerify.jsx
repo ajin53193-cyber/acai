@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { fmtBJ, bjToday } from "@/lib/bjtime";
 import { Check, Plus, ShieldCheck, CreditCard, ChevronLeft } from "lucide-react";
 import { useOutletContext } from "react-router-dom";
 import { toast } from "sonner";
@@ -136,7 +137,7 @@ export default function MyVerify() {
               <div className="flex items-center justify-between gap-2"><span className="font-semibold text-slate-800 truncate">{v.kind === "identity" ? tr("身份認證") : tr("金融卡")} · {v.doc_type}</span>
                 <span className={`shrink-0 rounded-full px-2.5 py-0.5 text-[11px] md:text-xs ${v.status === "approved" ? "bg-emerald-50 text-emerald-600" : v.status === "rejected" ? "bg-red-50 text-red-500" : "bg-orange-50 text-orange-500"}`}>{STATUS[v.status]}</span></div>
               <div className="mt-1.5 text-[13px] md:text-sm text-slate-600">{tr("姓名：")}{v.name}</div>
-              <div className="mt-1 text-[11px] md:text-xs text-slate-400">{v.created_at?.slice(0, 16).replace("T", " ")}</div>
+              <div className="mt-1 text-[11px] md:text-xs text-slate-400">{fmtBJ(v.created_at, "minute")}</div>
               {v.admin_note && <div className="mt-2 rounded-lg bg-slate-50 md:bg-white px-2.5 py-1.5 text-[11px] md:text-xs text-slate-500">{tr("備註：")}{v.admin_note}</div>}
               </div>
             </div>

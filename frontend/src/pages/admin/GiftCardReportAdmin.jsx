@@ -34,7 +34,7 @@ export function GiftCardReportAdmin({ callApi }) {
   const load = useCallback(async (f, t) => {
     setLoading(true);
     try {
-      const r = await callApi({ method: "GET", url: "/admin/giftcard/report", params: { date_from: f, date_to: t, tz_offset: new Date().getTimezoneOffset() } });
+      const r = await callApi({ method: "GET", url: "/admin/giftcard/report", params: { date_from: f, date_to: t, tz_offset: -480 } });
       setD(r.data);
     } catch { setD(null); toast.error(tr("載入失敗")); }
     setLoading(false);
@@ -45,7 +45,7 @@ export function GiftCardReportAdmin({ callApi }) {
   const query = () => { if (!from || !to) return; setQuick(""); load(from, to); };
   const exportCsv = async () => {
     try {
-      const r = await callApi({ method: "GET", url: "/admin/giftcard/report/export", params: { date_from: from, date_to: to, tz_offset: new Date().getTimezoneOffset() }, responseType: "blob" });
+      const r = await callApi({ method: "GET", url: "/admin/giftcard/report/export", params: { date_from: from, date_to: to, tz_offset: -480 }, responseType: "blob" });
       const url = URL.createObjectURL(r.data); const a = document.createElement("a"); a.href = url; a.download = `giftcard_audit_${from}_${to}.csv`; a.click(); URL.revokeObjectURL(url);
     } catch { toast.error(tr("匯出失敗")); }
   };

@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { fmtBJ, bjToday } from "@/lib/bjtime";
 import { Link } from "react-router-dom";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Wallet, ArrowDownToLine, ShoppingBag, ChevronRight, PlusCircle, MinusCircle, Gift, RotateCcw } from "lucide-react";
@@ -74,7 +75,7 @@ function TxDetailSheet({ t, onClose }) {
     [tr("交易類型"), KIND_LABEL[t.kind] || (credit ? tr("入帳") : tr("支出"))],
     [tr("交易金額"), `${credit ? "+" : "-"}${format(Math.abs(t.amount_usd))}`],
     [tr("交易後餘額"), format(t.balance_after_usd)],
-    [tr("交易時間"), t.created_at?.slice(0, 19).replace("T", " ")],
+    [tr("交易時間"), fmtBJ(t.created_at)],
     m ? [tr("訂單編號"), m[2]] : null,
     t.note ? [tr("說明"), m ? m[1] : t.note] : null,
     [tr("交易單號"), t.id],
@@ -133,7 +134,7 @@ export function TxRow({ t }) {
             <span className="text-slate-800 font-medium truncate">{title}</span>
             <span className={`shrink-0 rounded-full px-1.5 py-px text-[10px] ${credit ? "bg-emerald-50 text-emerald-600" : "bg-orange-50 text-orange-500"}`}>{items.length ? tr("購買") : credit ? tr("入帳") : tr("支出")}</span>
           </div>
-          <div className="text-[11px] text-slate-400 truncate mt-0.5">{t.created_at?.slice(0, 16).replace("T", " ")}{ref && <span className="ml-2 font-mono">{ref}</span>}</div>
+          <div className="text-[11px] text-slate-400 truncate mt-0.5">{fmtBJ(t.created_at, "minute")}{ref && <span className="ml-2 font-mono">{ref}</span>}</div>
         </div>
         <div className="text-right shrink-0">
           <div className={`font-head font-bold text-[15px] ${credit ? "text-emerald-600" : "text-slate-900"}`}>{credit ? "+" : "-"}{format(Math.abs(t.amount_usd))}</div>

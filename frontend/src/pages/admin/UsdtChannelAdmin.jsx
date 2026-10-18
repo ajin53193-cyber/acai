@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from "react";
+import { fmtBJ, bjToday } from "@/lib/bjtime";
 import { Loader2, Clock, FileSearch, CheckCircle2, XCircle, Ban, Copy, Wallet, Settings2, BarChart3, RefreshCw, Search, AlertTriangle, HandCoins } from "lucide-react";
 import { toast } from "sonner";
 import { tr } from "@/i18n";
@@ -69,7 +70,7 @@ function UsdtData({ callApi }) {
   };
   const creditHash = (t) => setCreditOrder(t);
   const missByDay = Object.entries((unmatched?.items || []).reduce((acc, it) => {
-    const day = (it.ts || "").slice(0, 10) || "—";
+    const day = it.ts ? fmtBJ(it.ts, "date") : "—";
     acc[day] = acc[day] || { n: 0, amt: 0 };
     acc[day].n += 1; acc[day].amt += Number(it.amount) || 0;
     return acc;

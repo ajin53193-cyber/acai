@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { fmtBJ, bjToday } from "@/lib/bjtime";
 import { scrollPageTo } from "@/lib/scroller";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { Star, Minus, Plus, ShoppingCart, Sparkles, CalendarCheck, Gift, Tags, BadgePercent, ChevronLeft, ChevronRight } from "lucide-react";
@@ -312,7 +313,7 @@ export default function ProductDetail() {
                             {r.buy_count > 1 && <span className="text-[11px] rounded-full bg-orange-50 text-orange-500 px-2 py-0.5">{tr("回購")} {r.buy_count} {tr("次")}</span>}
                           </div>
                           <div className="text-xs text-slate-400 mt-1">
-                            {r.created_at?.slice(0, 10)}{r.area ? ` · ${r.area}` : ""}
+                            {fmtBJ(r.created_at, "date")}{r.area ? ` · ${r.area}` : ""}
                           </div>
                           {r.content ? (
                             <p className="text-sm text-slate-700 mt-2 leading-relaxed">{r.content}</p>

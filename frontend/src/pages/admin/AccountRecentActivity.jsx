@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
+import { fmtBJ, bjToday } from "@/lib/bjtime";
 import { Loader2, History } from "lucide-react";
 import { tr } from "@/i18n";
 import { STATUS_LABELS } from "@/lib/status";
 
-const fmt = (s) => (s ? s.slice(5, 16).replace("T", " ") : "-");
+const fmt = (s) => (s ? fmtBJ(s, "short") : "-");
 const TU_LABEL = () => ({ paid: tr("已到賬"), pending: tr("待付款"), expired: tr("已過期"), reviewing: tr("審核中"), rejected: tr("已駁回"), cancelled: tr("已取消") });
 
 export function AccountRecentActivity({ uid, callApi }) {

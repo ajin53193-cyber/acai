@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback, useRef } from "react";
+import { fmtBJ, bjToday } from "@/lib/bjtime";
 import { Link, useNavigate } from "react-router-dom";
 import { Show, useUser } from "@clerk/react";
 import { KeyRound, LayoutDashboard, Package, ShoppingBag, Star, DollarSign, Tag, Users, Plus, Pencil, Trash2, X, Loader2, ArrowLeft, TrendingUp, Clock, ShieldAlert, Settings, CreditCard, ArrowUp, ArrowDown, ImagePlus, Wallet, BadgeCheck, MessageSquare, Globe, Bell, Megaphone, LayoutGrid, Gift, ShieldCheck, ChevronDown, Construction, PanelLeftClose, PanelLeftOpen, Headphones, Volume2, VolumeX, Gauge, FileDown, Tags, Ban, ScrollText, Layers, BarChart3, FolderTree, Hash, PlusCircle, Search, Plug, FileBarChart, Home, Newspaper, Image, PanelBottom, Sparkles, Ticket, Receipt, Coins, Scale, UserCog, History, MessageSquareText, Mail, Languages, Dot } from "lucide-react";
@@ -418,7 +419,7 @@ function Currencies({ callApi }) {
               <input type="number" step="0.0001" key={c.rate_to_usd} defaultValue={c.rate_to_usd} className={inputCls + " w-32"}
                 onBlur={(e) => { const v = +e.target.value; if (v && v !== c.rate_to_usd) save(c, { rate_to_usd: v, auto_rate: false }); }} data-testid={`admin-rate-${c.code}`} />
               <span className="text-xs text-slate-400">{c.symbol}</span>
-              {c.rate_updated_at && <span className="text-[10px] text-slate-500">{tr("更新於")} {c.rate_updated_at.slice(0, 16).replace("T", " ")}</span>}
+              {c.rate_updated_at && <span className="text-[10px] text-slate-500">{tr("更新於")} {fmtBJ(c.rate_updated_at, "minute")}</span>}
             </div>
             <label className="ml-auto flex items-center gap-2 text-sm text-slate-300"><Switch checked={c.auto_rate !== false} onCheckedChange={(v) => save(c, { auto_rate: v })} data-testid={`admin-auto-rate-${c.code}`} /> {tr("自動")}</label>
             <label className="flex items-center gap-2 text-sm text-slate-300"><Switch checked={c.active} onCheckedChange={(v) => save(c, { active: v })} /> {tr("啟用")}</label>

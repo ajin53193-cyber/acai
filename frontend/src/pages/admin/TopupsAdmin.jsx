@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { fmtBJ, bjToday } from "@/lib/bjtime";
 import { toast } from "sonner";
 import { Search, RefreshCw, CheckCircle2, XCircle, HandCoins, Radar, Image as ImageIcon, Copy, CalendarDays, X, FileSearch } from "lucide-react";
 import { tr } from "@/i18n";
@@ -13,14 +14,14 @@ const TABS = ["", "pending", "reviewing", "paid", "rejected", "expired"];
 const ICON = { crypto: "/payments/usdt.svg", stripe: "/payments/visa-mastercard.svg", paypal: "/payments/paypal.svg", manual: "/payments/bank.svg" };
 const MANUAL = ["manual", "other", "alipay", "wechat"];
 const PRESETS = [["today", tr("今天")], ["7", tr("近 7 天")], ["30", tr("近 30 天")], ["month", tr("本月")]];
-const iso = (d) => d.toISOString().slice(0, 10);
+const iso = (d) => fmtBJ(d, "date");
 const presetRange = (k) => {
   const now = new Date(); const to = iso(now);
   if (k === "today") return [to, to];
   if (k === "month") return [iso(new Date(now.getFullYear(), now.getMonth(), 1)), to];
   const from = new Date(now); from.setDate(from.getDate() - (+k - 1)); return [iso(from), to];
 };
-const fmtDT = (s) => (s ? [s.slice(0, 10), s.slice(11, 19)] : ["-", ""]);
+const fmtDT = (s) => (s ? [fmtBJ(s, "date"), fmtBJ(s, "time")] : ["-", ""]);
 const copy = (v) => { navigator.clipboard?.writeText(v); toast.success(tr("已複製")); };
 const dateInp = "h-9 rounded-lg bg-white border border-slate-200 px-2.5 text-sm text-slate-700 outline-none focus:ring-2 focus:ring-orange-300";
 
@@ -169,7 +170,7 @@ export function TopupsAdmin({ callApi }) {
                   </div>
                 </div>
                 <div className="px-5 py-3 max-h-[46vh] overflow-y-auto">
-                  <Info label={tr("日期時間")}>{(detail.created_at || "").slice(0, 19).replace("T", " ")}</Info>
+                  <Info label={tr("日期時間")}>{fmtBJ(detail.created_at)}</Info>
                   <Info label={tr("付款方式")}>{prov.toUpperCase()} · {detail.channel_no}</Info>
                   <Info label={tr("付款金額")}><b>USD$ {Number(detail.amount_usd).toFixed(2)}</b>{(isCrypto || Number(detail.pay_amount) !== Number(detail.amount_usd)) && <span className="text-orange-600 ml-1">({tr("應付")} {detail.pay_amount} {isCrypto ? "USDT" : "USD"})</span>}</Info>
                   <Info label={tr("單號")}><span className="font-mono">{detail.out_trade_no}</span></Info>

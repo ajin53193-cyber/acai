@@ -1,4 +1,5 @@
 import os
+import bjtime as _bj
 import re
 import uuid
 import asyncio
@@ -538,17 +539,17 @@ async def track_event(body: TrackIn, request: Request):
 @api_router.get("/admin/a2hs/stats")
 async def admin_a2hs_stats(days: int = 30, admin: dict = Depends(require_role("admin"))):
     days = max(1, min(days, 365))
-    since = (datetime.now(timezone.utc) - timedelta(days=days - 1)).strftime("%Y-%m-%d")
-    match = {"event": {"$in": [e for e in TRACK_EVENTS if e != "vp_debug"]}, "created_at": {"$gte": since}}
+    since = _bj.days_ago(days - 1)
+    match = {"event": {"$in": [e for e in TRACK_EVENTS if e != "vp_debug"]}, "created_at": _bj.rng(since)}
     by_event = {r["_id"]: r["n"] for r in await db.events.aggregate([{"$match": match}, {"$group": {"_id": "$event", "n": {"$sum": 1}}}]).to_list(10)}
     by_platform = {r["_id"]: r["n"] for r in await db.events.aggregate([{"$match": {**match, "event": "a2hs_dialog_open"}}, {"$group": {"_id": "$platform", "n": {"$sum": 1}}}]).to_list(5)}
     by_source = {r["_id"] or "-": r["n"] for r in await db.events.aggregate([{"$match": {**match, "event": "a2hs_dialog_open"}}, {"$group": {"_id": "$source", "n": {"$sum": 1}}}]).to_list(10)}
     series = {}
     for i in range(days):
-        d = (datetime.now(timezone.utc) - timedelta(days=days - 1 - i)).strftime("%Y-%m-%d")
+        d = _bj.days_ago(days - 1 - i)
         series[d] = {"date": d, "dialog_open": 0, "pwa_launch": 0}
     async for r in db.events.aggregate([{"$match": {**match, "event": {"$in": ["a2hs_dialog_open", "pwa_launch"]}}},
-                                        {"$group": {"_id": {"d": {"$substr": ["$created_at", 0, 10]}, "e": "$event"}, "n": {"$sum": 1}}}]):
+                                        {"$group": {"_id": {"d": _bj.MONGO_DAY, "e": "$event"}, "n": {"$sum": 1}}}]):
         row = series.get(r["_id"]["d"])
         if row:
             row["dialog_open" if r["_id"]["e"] == "a2hs_dialog_open" else "pwa_launch"] = r["n"]
@@ -636,8 +637,8 @@ async def referral_public():
 
 
 async def _free_draw_used_today(uid: str) -> bool:
-    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-    return bool(await db.lottery_draws.find_one({"user_id": uid, "free_kind": "daily", "created_at": {"$regex": f"^{today}"}}, {"_id": 1}))
+    today = _bj.today()
+    return bool(await db.lottery_draws.find_one({"user_id": uid, "free_kind": "daily", "created_at": _bj.today_q()}, {"_id": 1}))
 
 
 @api_router.get("/lottery/my-status")
@@ -654,7 +655,7 @@ async def lottery_my_status(member: dict = Depends(current_member)):
 @api_router.post("/lottery/share")
 async def lottery_share(member: dict = Depends(current_member)):
     uid = member["user_id"]
-    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    today = _bj.today()
     u = await db.users.find_one({"user_id": uid}, {"_id": 0, "lottery_share_date": 1, "lottery_bonus_draws": 1}) or {}
     if u.get("lottery_share_date") == today:
         return {"granted": False, "bonus_draws": int(u.get("lottery_bonus_draws") or 0), "message": "今日分享獎勵已領取"}
@@ -2184,7 +2185,7 @@ async def _usdt_scan_loop():
 
 
 def _usdt_range_bounds(rng: str, date_from: str, date_to: str):
-    now = datetime.now(timezone.utc)
+    now = datetime.now(_bj.BJ)
     today = now.replace(hour=0, minute=0, second=0, microsecond=0)
     if rng == "today":
         return today, now
@@ -2199,8 +2200,8 @@ def _usdt_range_bounds(rng: str, date_from: str, date_to: str):
         return (first - timedelta(days=1)).replace(day=1), first
     if rng == "custom" and date_from:
         try:
-            s = datetime.fromisoformat(date_from).replace(tzinfo=timezone.utc)
-            e = (datetime.fromisoformat(date_to).replace(tzinfo=timezone.utc) + timedelta(days=1)) if date_to else now
+            s = datetime.fromisoformat(date_from).replace(tzinfo=_bj.BJ)
+            e = (datetime.fromisoformat(date_to).replace(tzinfo=_bj.BJ) + timedelta(days=1)) if date_to else now
             return s, e
         except Exception:
             pass
@@ -2230,7 +2231,7 @@ async def admin_usdt_overview(range: str = "today", date_from: str = "", date_to
             if a not in addrs:
                 addrs.append(a)
     s_dt, e_dt = _usdt_range_bounds(range, date_from, date_to)
-    dmatch = {"created_at": {"$gte": s_dt.isoformat(), "$lt": e_dt.isoformat()}} if s_dt else {}
+    dmatch = {"created_at": {"$gte": s_dt.astimezone(timezone.utc).isoformat(), "$lt": e_dt.astimezone(timezone.utc).isoformat()}} if s_dt else {}
 
     async def _agg(match):
         cur = db.topup_orders.aggregate([{"$match": match}, {"$group": {"_id": None, "n": {"$sum": 1}, "amt": {"$sum": "$amount_usd"}}}])

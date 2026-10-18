@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { fmtBJ, bjToday } from "@/lib/bjtime";
 import { Search, Download, ShieldAlert, Copy, FileSearch, X } from "lucide-react";
 import { toast } from "sonner";
 import { Card, Btn, Input, Pill, Head, Modal } from "@/pages/admin/ui";
@@ -9,9 +10,9 @@ import { AccountRecentActivity } from "@/pages/admin/AccountRecentActivity";
 
 const selBase = "h-9 rounded-lg bg-slate-100 px-3 text-sm outline-none focus:ring-2 focus:ring-orange-300";
 const ALL_STATUSES = Object.keys(STATUS_LABELS);
-const fmt = (s) => (s ? s.slice(0, 19).replace("T", " ") : "-");
+const fmt = (s) => (s ? fmtBJ(s) : "-");
 const PRESETS = [["today", tr("今天")], ["7", tr("近 7 天")], ["30", tr("近 30 天")], ["month", tr("本月")]];
-const iso = (d) => d.toISOString().slice(0, 10);
+const iso = (d) => fmtBJ(d, "date");
 const presetRange = (k) => {
   const now = new Date(); const to = iso(now);
   if (k === "today") return [to, to];

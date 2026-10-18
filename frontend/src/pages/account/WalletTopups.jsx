@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { fmtBJ, bjToday } from "@/lib/bjtime";
 import { Link, useSearchParams } from "react-router-dom";
 import { ChevronLeft, Copy, ExternalLink, RefreshCw, Upload, Landmark } from "lucide-react";
 import { toast } from "sonner";
@@ -20,7 +21,7 @@ const STATUS = {
   reviewing: [tr("審核中"), "bg-sky-100 text-sky-600"],
   rejected: [tr("已駁回"), "bg-red-100 text-red-500"],
 };
-const fmtTime = (s) => (s ? s.slice(0, 16).replace("T", " ") : "-");
+const fmtTime = (s) => (s ? fmtBJ(s, "minute") : "-");
 
 function BankPanel({ t, onProof }) {
   const [file, setFile] = useState(null);

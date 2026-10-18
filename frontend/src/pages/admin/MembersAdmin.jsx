@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from "react";
+import { fmtBJ, bjToday } from "@/lib/bjtime";
 import { toast } from "sonner";
 import { X, Search, Users, UserCheck, UserPlus, ShieldBan, Wallet, ShoppingBag, RotateCw, Tag as TagIcon } from "lucide-react";
 import { tr } from "@/i18n";
@@ -93,7 +94,7 @@ export function MemberDetail({ uid, callApi, onClose, onChanged }) {
             <InfoRow k={tr("信箱")} v={d.emails?.join(", ")} />
             <InfoRow k="Google" v={d.google ? tr("已綁定") : tr("未綁定")} />
             <InfoRow k={tr("註冊時間")} v={fmt(d.created_at)} />
-            <InfoRow k={tr("最近登入")} v={d.last_sign_in_at ? new Date(d.last_sign_in_at).toISOString().slice(0, 16).replace("T", " ") : "-"} />
+            <InfoRow k={tr("最近登入")} v={d.last_sign_in_at ? fmtBJ(d.last_sign_in_at, "minute") : "-"} />
           </Card>
 
           {/* account data */}

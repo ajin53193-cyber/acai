@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { fmtBJ, bjToday } from "@/lib/bjtime";
 import { toast } from "sonner";
 import { ImagePlus } from "lucide-react";
 import { tr } from "@/i18n";
@@ -68,7 +69,7 @@ export function Modal({ title, onClose, children, footer, testId, size = "sm", b
 }
 
 export const Field = ({ label, children }) => <label className="block"><span className="text-xs font-medium text-slate-500">{label}</span><div className="mt-1.5">{children}</div></label>;
-export const fmt = (s) => (s ? s.slice(0, 16).replace("T", " ") : "-");
+export const fmt = (s) => (s ? fmtBJ(s, "minute") : "-");
 
 export const TONES = ["slate", "sky", "emerald", "amber", "violet", "rose", "red", "orange", "teal", "indigo"];
 export const toneCls = (c) => ({ slate: "bg-slate-100 text-slate-600", sky: "bg-sky-100 text-sky-700", emerald: "bg-emerald-100 text-emerald-700", amber: "bg-amber-100 text-amber-700", violet: "bg-violet-100 text-violet-700", rose: "bg-rose-100 text-rose-700", red: "bg-red-100 text-red-600", orange: "bg-orange-100 text-orange-700", teal: "bg-teal-100 text-teal-700", indigo: "bg-indigo-100 text-indigo-700" }[c] || "bg-slate-100 text-slate-600");

@@ -38,7 +38,7 @@ export function SalesAnalysisAdmin({ callApi }) {
   const load = useCallback(async (f, t) => {
     setLoading(true);
     try {
-      const r = await callApi({ method: "GET", url: "/admin/analytics/sales", params: { date_from: f, date_to: t, tz_offset: new Date().getTimezoneOffset() } });
+      const r = await callApi({ method: "GET", url: "/admin/analytics/sales", params: { date_from: f, date_to: t, tz_offset: -480 } });
       setD(r.data);
     } catch { setD(null); }
     setLoading(false);
