@@ -2458,6 +2458,35 @@ class CreditHashIn(BaseModel):
     force: bool = False
 
 
+@api_router.post("/admin/topups/{order_id}/verify-hash")
+async def admin_topup_verify_hash(order_id: str, body: CreditHashIn, admin: dict = Depends(require_role("admin"))):
+    """Look up a TXID on-chain for this order and return the transfer info for the admin to verify — does NOT credit."""
+    tx = (body.tx_id or "").strip()
+    t = await db.topup_orders.find_one({"id": order_id}, {"_id": 0})
+    if not t:
+        raise HTTPException(status_code=404, detail="訂單不存在")
+    expected = round(float(t.get("pay_amount") or t.get("amount_usd") or 0), 2)
+    out = {"found": False, "amount": None, "from": "", "ts": "", "expected": expected,
+           "amount_match": False, "duplicate": False, "dup_order_no": "", "address": t.get("wallet_address", ""),
+           "already_paid": t.get("status") == "paid", "has_key": bool(os.environ.get("TRONGRID_API_KEY"))}
+    if not tx:
+        raise HTTPException(status_code=400, detail="請輸入鏈上交易哈希(TXID)")
+    dup = await db.topup_orders.find_one({"tx_id": tx}, {"_id": 0, "id": 1, "order_no": 1, "out_trade_no": 1})
+    if dup and dup.get("id") != order_id:
+        out["duplicate"] = True
+        out["dup_order_no"] = dup.get("order_no") or dup.get("out_trade_no") or ""
+    if not t.get("own_wallet") or not t.get("wallet_address"):
+        return out
+    try:
+        hit = await _tron_verify_tx(t["wallet_address"], tx, t.get("created_at", ""))
+    except Exception:
+        raise HTTPException(status_code=502, detail="鏈上查詢失敗，請確認已配置 TRONGRID_API_KEY 後重試")
+    if hit:
+        out.update({"found": True, "amount": hit["amount"], "from": hit.get("from", ""), "ts": hit.get("ts", ""),
+                    "amount_match": abs(round(hit["amount"], 2) - expected) <= 0.01})
+    return out
+
+
 @api_router.post("/admin/topups/{order_id}/credit-hash")
 async def admin_topup_credit_hash(order_id: str, body: CreditHashIn, admin: dict = Depends(require_role("admin"))):
     """Manual credit by on-chain hash: verify the given TXID is a USDT transfer to this order's wallet

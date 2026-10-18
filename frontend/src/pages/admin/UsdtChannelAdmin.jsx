@@ -6,6 +6,7 @@ import { Card, Head } from "./ui";
 import PaymentMethodsAdmin from "@/pages/admin/PaymentMethodsAdmin";
 import { UserInfoDialog } from "@/pages/admin/UserInfoDialog";
 import { AddressChainDialog } from "@/pages/admin/AddressChainDialog";
+import { CreditHashDialog } from "@/pages/admin/CreditHashDialog";
 
 const ST = {
   pending: [tr("待付款"), "text-amber-600 bg-amber-50 border-amber-200", Clock],
@@ -41,6 +42,7 @@ function UsdtData({ callApi }) {
   const [d, setD] = useState(null);
   const [viewUid, setViewUid] = useState("");
   const [viewAddr, setViewAddr] = useState("");
+  const [creditOrder, setCreditOrder] = useState(null);
   const [range, setRange] = useState("today");
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
@@ -65,26 +67,7 @@ function UsdtData({ callApi }) {
     } catch (e) { toast.error(e.response?.data?.detail || tr("批量補單失敗")); }
     setBatching(false);
   };
-  const creditHash = async (t) => {
-    const tx = window.prompt(tr("請輸入該筆到賬的鏈上交易哈希(TXID)，系統將回調校驗後補單入帳"), (t.tx_id || "").trim());
-    if (!tx || !tx.trim()) return;
-    const data = { tx_id: tx.trim() };
-    try {
-      const r = await callApi({ method: "POST", url: `/admin/topups/${t.id}/credit-hash`, data });
-      toast.success(tr("已補單入帳：{0}", r.data.order_no || ""));
-      load(range, from, to); loadBal(); loadUnmatched();
-    } catch (e) {
-      const msg = e.response?.data?.detail || tr("補單失敗");
-      const st = e.response?.status;
-      if ([404, 422, 502].includes(st) && window.confirm(msg + "\n\n" + tr("是否跳過鏈上校驗、強制按此哈希補單？"))) {
-        try {
-          const r = await callApi({ method: "POST", url: `/admin/topups/${t.id}/credit-hash`, data: { ...data, force: true } });
-          toast.success(tr("已強制補單入帳：{0}", r.data.order_no || ""));
-          load(range, from, to); loadBal(); loadUnmatched();
-        } catch (e2) { toast.error(e2.response?.data?.detail || tr("補單失敗")); }
-      } else { toast.error(msg); }
-    }
-  };
+  const creditHash = (t) => setCreditOrder(t);
   const missByDay = Object.entries((unmatched?.items || []).reduce((acc, it) => {
     const day = (it.ts || "").slice(0, 10) || "—";
     acc[day] = acc[day] || { n: 0, amt: 0 };
@@ -237,6 +220,7 @@ function UsdtData({ callApi }) {
       </Card>
       <UserInfoDialog uid={viewUid} callApi={callApi} onClose={() => setViewUid("")} />
       <AddressChainDialog address={viewAddr} callApi={callApi} onClose={() => setViewAddr("")} onMatched={() => { load(range, from, to); loadBal(); loadUnmatched(); }} />
+      <CreditHashDialog order={creditOrder} callApi={callApi} onClose={() => setCreditOrder(null)} onDone={() => { load(range, from, to); loadBal(); loadUnmatched(); }} />
     </div>
   );
 }

@@ -269,3 +269,9 @@
 - 後端 `POST /api/admin/topups/{order_id}/credit-hash`：對指定訂單，用 `_tron_verify_tx(address, tx_id, since)` 到 TronGrid 校驗該哈希確為轉入本訂單收款地址、且金額與應付相符後 `_usdt_settle` 入帳；校驗不過返回明確錯誤（找不到/金額不符/未配 Key）。支持 `force=true` 跳過鏈上校驗強制補單（管理員覆蓋）。防重複：哈希已用於其他訂單則拒絕。
 - 前端：UsdtChannelAdmin「最近充值記錄」新增「操作」列，非已到賬行顯示綠色「補單」按鈕 → 彈窗輸入哈希 → 校驗失敗時二次確認可「強制補單」。TopupsAdmin（充值審核）自有錢包訂單也加「哈希補單」按鈕（與原「手動入帳」備註補單並存）。
 - 已驗證：`_tron_verify_tx` 對 bogus 哈希返回 None（→404）、對真實哈希返回正確金額/付款方；端點註冊(401)；前端編譯通過、截圖確認 8 個補單按鈕渲染正常。i18n 新增 5 條手動合併簡體。源碼包已重打 `/app/export/patch.zip`。
+
+## 2026-10-18 更新（補單改為帶鏈上核對的彈窗 CreditHashDialog）
+- 用戶反饋：補單不能只是純輸入框，要能先把哈希的鏈上信息查出來核對再入帳。
+- 新增 `POST /api/admin/topups/{id}/verify-hash`（只讀）：對指定訂單查該 TXID 的鏈上轉入信息，返回 {found, amount, from, ts, expected, amount_match, duplicate, dup_order_no, already_paid, has_key}，不入帳。
+- 新增前端 `CreditHashDialog.jsx`：輸入 TXID →「鏈上核對」→ 展示鏈上到賬金額(綠/紅對比應付)/付款方/到賬時間/是否轉入本訂單地址/是否重複/是否已入帳 + TronScan 外鏈；核對通過才亮起「確認補單入帳」，不通過則提供「跳過校驗強制補單」(force)。替換了 UsdtChannelAdmin 最近充值記錄「補單」與 TopupsAdmin「哈希補單」原來的 window.prompt 流程。
+- 已登入截圖驗證：輸入假哈希核對後正確顯示紅色「找不到該哈希轉入記錄」+ 強制補單/取消按鈕；`verify-hash` 只讀不入帳（verify 端到端確認假哈希→None、真哈希→正確金額/付款方）。i18n 新增 17 條手動合併簡體。源碼包已重打 `/app/export/patch.zip`。

@@ -4,6 +4,7 @@ import { Search, RefreshCw, CheckCircle2, XCircle, HandCoins, Radar, Image as Im
 import { tr } from "@/i18n";
 import { Btn, Card, Head, Pill } from "./ui";
 import { MemberDetail } from "./MembersAdmin";
+import { CreditHashDialog } from "@/pages/admin/CreditHashDialog";
 
 const TONE = { pending: "orange", reviewing: "sky", paid: "emerald", expired: "slate", cancelled: "slate", closed: "slate", failed: "red", rejected: "red" };
 const LABEL = { pending: tr("待付款"), reviewing: tr("待審核"), paid: tr("已到帳"), rejected: tr("已駁回"), expired: tr("已過期"), cancelled: tr("已取消"), closed: tr("已關閉"), failed: tr("失敗") };
@@ -36,6 +37,7 @@ export function TopupsAdmin({ callApi }) {
   const [data, setData] = useState({ rows: [], counts: {}, total: 0 });
   const [loading, setLoading] = useState(true);
   const [member, setMember] = useState(null);
+  const [creditOrder, setCreditOrder] = useState(null);
   const [proof, setProof] = useState(null);
   const [pmImg, setPmImg] = useState({});
   useEffect(() => { callApi({ method: "GET", url: "/admin/payment-methods" }).then((r) => setPmImg(Object.fromEntries(r.data.map((m) => [m.id, m.image])))).catch(() => {}); }, [callApi]);
@@ -54,21 +56,7 @@ export function TopupsAdmin({ callApi }) {
   const reject = (t) => { const reason = window.prompt(tr("駁回原因（將顯示給用戶）"), tr("轉帳憑證無法核對，請確認金額與轉帳碼後重新上傳")); if (reason !== null) act(t, "reject", { reason }, () => tr("已駁回")); };
   const approve = (t) => { if (window.confirm(tr("確認已收到 USD$ {0} 轉帳，立即入帳？", Number(t.amount_usd).toFixed(2)))) act(t, "approve", {}, () => tr("已審核通過並入帳")); };
   const credit = (t) => { const note = window.prompt(tr("手動補單入帳備註（例如鏈上 TX / 原因）"), ""); if (note !== null) act(t, "credit", { note }, () => tr("已手動入帳")); };
-  const creditHash = async (t) => {
-    const tx = window.prompt(tr("請輸入該筆到賬的鏈上交易哈希(TXID)，系統將回調校驗後補單入帳"), (t.tx_id || t.tx_hash || "").trim());
-    if (!tx || !tx.trim()) return;
-    const data = { tx_id: tx.trim() };
-    try {
-      const r = await callApi({ method: "POST", url: `/admin/topups/${t.id}/credit-hash`, data });
-      toast.success(tr("已補單入帳：{0}", r.data.order_no || "")); load();
-    } catch (e) {
-      const msg = e.response?.data?.detail || tr("補單失敗");
-      if ([404, 422, 502].includes(e.response?.status) && window.confirm(msg + "\n\n" + tr("是否跳過鏈上校驗、強制按此哈希補單？"))) {
-        try { const r = await callApi({ method: "POST", url: `/admin/topups/${t.id}/credit-hash`, data: { ...data, force: true } }); toast.success(tr("已強制補單入帳：{0}", r.data.order_no || "")); load(); }
-        catch (e2) { toast.error(e2.response?.data?.detail || tr("補單失敗")); }
-      } else { toast.error(msg); }
-    }
-  };
+  const creditHash = (t) => setCreditOrder(t);
   const activePreset = PRESETS.find(([k]) => { const [a, b] = presetRange(k); return a === from && b === to; })?.[0];
   const counts = data.counts || {};
 
@@ -160,6 +148,7 @@ export function TopupsAdmin({ callApi }) {
       </Card>
 
       {member && <MemberDetail uid={member} callApi={callApi} onClose={() => setMember(null)} onChanged={load} />}
+      <CreditHashDialog order={creditOrder} callApi={callApi} onClose={() => setCreditOrder(null)} onDone={load} />
       {proof && (
         <div className="fixed inset-0 z-50 bg-slate-900/60 flex items-center justify-center p-4" onClick={() => setProof(null)} data-testid="topup-proof-modal">
           <div className="bg-white rounded-2xl max-w-2xl w-full overflow-hidden" onClick={(e) => e.stopPropagation()}>
