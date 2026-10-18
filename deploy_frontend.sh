@@ -29,6 +29,8 @@ ok "后端 API 地址：$BURL"
 info "安装依赖 yarn install ..."
 yarn install --frozen-lockfile 2>/dev/null || yarn install
 info "构建生产包 yarn build ...（约 1-3 分钟）"
+# 宝塔会在站点根目录(build)放入带 +i 属性的 .user.ini，导致 CRA 清空 build 失败，先清理
+if [ -e build/.user.ini ]; then chattr -i build/.user.ini 2>/dev/null || true; rm -f build/.user.ini; fi
 yarn build
 [ -d build ] || err "构建失败：未生成 build 目录"
 ok "构建完成：$FRONT/build"
