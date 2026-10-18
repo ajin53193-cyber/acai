@@ -46,7 +46,6 @@ const NOTES = (amt, net, addr) => [
   tr("異常處理：若存在確認超時、錯誤、大額誤充等情形，請聯繫在線客服進行人工處理。"),
   tr("使用正版：請務必使用正版瀏覽器、APP等程序，切勿使用破解版、非官方版本，以免被篡改或被盜。"),
   tr("轉賬地址：請勿從高風險地址轉入，相關地址有高風險攔截及凍結風險，避免影響正常充幣流程。"),
-  <>{tr("區塊鏈記錄：一切交易以官方區塊鏈瀏覽器記錄為準，以上地址的區塊鏈記錄鏈接是 ")}<a href={`https://tronscan.org/#/address/${addr}`} target="_blank" rel="noreferrer" className="text-orange-500 break-all">https://tronscan.org/#/address/{addr}</a></>,
 ];
 const FAQ = [tr("什麼是USDT"), tr("如何購買"), tr("充幣多久能到賬/如何查詢"), tr("充/提幣需要手續費嗎"), tr("充幣沒到賬要怎麼處理")];
 
