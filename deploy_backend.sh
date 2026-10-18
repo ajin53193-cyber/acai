@@ -26,7 +26,7 @@ source venv/bin/activate
 
 info "安装依赖（含 emergentintegrations 专用源）..."
 pip install --upgrade pip >/dev/null
-pip install -r requirements.txt --extra-index-url https://d33sy5i8bnduwe.cloudfront.net/simple/
+pip install -r requirements.txt --no-deps --extra-index-url https://d33sy5i8bnduwe.cloudfront.net/simple/
 ok "依赖安装完成"
 
 if [ ! -f .env ]; then
