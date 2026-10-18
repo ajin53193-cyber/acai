@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { QRCodeSVG } from "qrcode.react";
-import { Clock, Copy, Check, X, Loader2, ChevronDown } from "lucide-react";
+import { Clock, Copy, Check, X, Loader2, ChevronDown, Zap, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
 import { useApi } from "@/lib/api";
 import { useSiteConfig } from "@/lib/siteConfig";
@@ -89,6 +89,17 @@ export default function UsdtPay() {
       </header>
 
       <main className="mx-auto max-w-[360px] sm:max-w-[420px] mt-3 px-3 sm:px-0">
+        {t?.energy_url && !paid && !dead && (
+          <a href={t.energy_url} target="_blank" rel="noreferrer" data-testid="usdt-pay-energy"
+            className="mb-3 flex items-center gap-2 rounded-xl bg-gradient-to-r from-amber-400 to-orange-500 px-3.5 py-2.5 text-white shadow-sm active:scale-[.99] transition-transform">
+            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-white/25"><Zap className="h-4 w-4" fill="currentColor" /></span>
+            <span className="min-w-0 flex-1 leading-tight">
+              <span className="block text-[13px] font-bold">{tr("能量租賃")} <span className="ml-1 rounded bg-white/90 px-1.5 py-0.5 text-[11px] font-extrabold text-orange-600">{tr("省70%")}</span></span>
+              <span className="block text-[11px] text-white/90">{tr("轉賬手續費太高？租能量低至 1/3，省錢又快速")}</span>
+            </span>
+            <ChevronRight className="h-4 w-4 shrink-0 opacity-90" />
+          </a>
+        )}
         {err && <div className="rounded-xl bg-white p-8 text-center text-sm text-slate-500" data-testid="usdt-pay-error">{err}<div className="mt-4"><Link to="/account/wallet/topup" className="text-emerald-600 font-semibold">{tr("返回充值")}</Link></div></div>}
         {t && (
           <div className="rounded-xl bg-white shadow-sm px-4 pt-5 pb-4">

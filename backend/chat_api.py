@@ -21,6 +21,26 @@ def now_iso():
     return datetime.now(timezone.utc).isoformat()
 
 
+async def system_notify(user_id: str, text: str):
+    """Push a system message into the signed-in user's chat session (creates one if absent)."""
+    if not user_id or db is None:
+        return
+    now = now_iso()
+    s = await db.chat_sessions.find_one({"user_id": user_id}, {"_id": 0, "id": 1}, sort=[("last_at", -1)])
+    if s:
+        sid = s["id"]
+    else:
+        sid = uuid.uuid4().hex
+        await db.chat_sessions.insert_one({"id": sid, "guest_id": "", "user_id": user_id, "name": "", "contact": "",
+                                           "status": "open", "created_at": now, "last_at": now, "last_message": "",
+                                           "last_sender": "", "unread_admin": 0, "unread_user": 0, "closed_at": ""})
+    await db.chat_messages.insert_one({"id": uuid.uuid4().hex, "session_id": sid, "sender": "admin", "text": text,
+                                       "image": "", "auto": True, "admin_name": "系統通知", "created_at": now})
+    await db.chat_sessions.update_one({"id": sid}, {"$set": {"last_message": text, "last_at": now, "last_sender": "admin",
+                                                             "status": "open", "closed_at": ""}, "$inc": {"unread_user": 1}})
+
+
+
 def _optional_user(request: Request) -> Optional[dict]:
     try:
         return require_user(request)

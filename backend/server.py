@@ -1802,6 +1802,8 @@ async def _usdt_settle(topup: dict, gw: dict) -> dict:
         bal = await _wallet_tx(topup["user_id"], "topup", float(topup["amount_usd"]), f"錢包充值（{label}）", ref=topup.get("order_no") or topup.get("out_trade_no", ""))
         await db.users.update_one({"user_id": topup["user_id"]}, {"$set": {"last_payment_method_id": topup.get("method_id", "")}})
         asyncio.create_task(admin_api.notify_user(topup["user_id"], "topup_paid", {"amount": f"USD$ {float(topup['amount_usd']):.2f}", "balance": f"USD$ {bal:.2f}"}))
+        pay_amt = _usdt_fmt(r.get("pay_amount") or topup.get("pay_amount") or topup["amount_usd"])
+        asyncio.create_task(chat_api.system_notify(topup["user_id"], f"您的 {pay_amt} USDT 已到賬，錢包餘額已更新為 USD$ {bal:.2f}。感謝您的充值！"))
         asyncio.create_task(award_points(topup["user_id"], float(topup["amount_usd"]), "topup", topup["id"]))
         asyncio.create_task(apply_recharge_bonus(topup["user_id"], float(topup["amount_usd"]), topup["id"]))
         asyncio.create_task(apply_referral_reward(topup["user_id"], topup["id"]))
@@ -1875,7 +1877,7 @@ async def wallet_topup_usdt(body: TopUpIn, request: Request, member: dict = Depe
         pay_amount = await _unique_usdt_amount(address, amount)
         doc = {"id": tid, "user_id": member["user_id"], "method_id": pm["id"], "method_name": pm["name"], "provider": "crypto", "own_wallet": True, "amount_usd": amount,
                "status": "pending", "out_trade_no": out_trade_no, "order_no": "", "pay_amount": pay_amount, "network": (cfg.get("network") or "TRC20").strip().upper(),
-               "wallet_address": address, "wallet_note": cfg.get("wallet_note") or "", "pay_url": f"/pay/usdt/{tid}",
+               "wallet_address": address, "wallet_note": cfg.get("wallet_note") or "", "energy_url": (cfg.get("energy_url") or "").strip(), "pay_url": f"/pay/usdt/{tid}",
                "expires_at": (datetime.now(timezone.utc) + timedelta(minutes=30)).isoformat(), "created_at": now_iso()}
         await db.topup_orders.insert_one(doc)
         doc.pop("_id", None)

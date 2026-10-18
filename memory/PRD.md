@@ -201,3 +201,15 @@
 - [2026-10-18] 自有 USDT 收銀台頁 `/pay/usdt/:tid`（`pages/UsdtPay.jsx`，獨立於 StoreLayout，無站點 header）：仿四方收銀台 — 待付款圖示、金額+複製、「含小數尾數」提示、30 分鐘倒數、TRC20 地址（數字加粗）+複製、紅字警示、黃色提示框、含 Tether logo 的 QR + 保存二維碼、幣種/公鏈/數量/訂單號、「正在監聽鏈上到賬」、聯繫客服、充幣說明 7 條、常見教程 5 條、語言切換、ServiceWidget。已到賬/已過期狀態頁。
 - 後端：`_unique_usdt_amount`（同地址待付單金額加 0.01–0.99 唯一尾數）、`_tron_find_payment`（TronGrid public API 查 TRC20-USDT 轉入，金額精確匹配、tx 去重）、`_own_wallet_check`（8 秒節流，在 `/me/wallet/topup/{tid}` 輪詢時觸發；pending/24h 內 expired 皆可補到賬）。可選環境變數 `TRONGRID_API_KEY` 提高限額。
 - i18n：`scripts/i18n_keys.json` 由 src 掃描更新（1882 keys），zh-CN/en 字典已重生成。
+
+## 2026-10-18 更新（移除多平台 Hub UI + 能量租賃入口 + USDT 到賬聊天提醒）
+- **移除多平台 Hub 菜單/UI（後端檔案保留，單站純淨版）**：用戶確認只移除前台菜單/界面。
+  - `Admin.jsx`：移除 import HubPlatformsAdmin/HubMembersAdmin；用戶管理去「多平台會員」(hub-members)、系統配置去「平台接入」(hub-platforms)；移除 SECTIONS 兩項、hubPlats state + `/admin/hub/platforms/public` 拉取、extCs 外部客服菜單與 setSectionOrExt。
+  - `OrdersHubAdmin.jsx`：訂單管理去掉「多平台訂單/充值」第三頁籤（移除 HubOrdersAdmin import + Layers），僅剩 禮品卡訂單 / 全部訂單。
+  - `DashboardAdmin.jsx`：移除 HubStatsCards import 與數據概覽頂部統計卡。
+  - `RolesAdmin.jsx`：權限分組去 hub-members / hub-platforms。
+  - 後端 `hub_api.py / hub_console.py / hub_giftray.py / hub_sifang.py` 與 `/12334` 路由**保留未刪**（server.py 仍 include，避免 import 破壞）；`HubAdmin.jsx / HubPlatformsAdmin.jsx` 成為孤兒檔（無 import，保留）。日後若要真正縮小補丁再議。
+- **能量租賃 省70% 入口**：收款方式(crypto) config 新增 `energy_url` 欄位（PaymentMethodsAdmin 可填）；`wallet_topup_usdt` own_wallet 分支把 energy_url 寫入 topup doc；`UsdtPay.jsx` 收銀台頂部在 pending 狀態顯示橙色漸層「能量租賃 省70%」banner（Zap 圖示 + ChevronRight），點擊新分頁開 energy_url；未填地址則不顯示。i18n 新增 3 keys（能量租賃 / 省70% / 轉賬手續費太高…）。
+- **USDT 到賬聊天提醒**：`chat_api.system_notify(user_id, text)`（找/建該用戶 chat session，插入 sender=admin 系統通知訊息，unread_user+1）；`server._usdt_settle` 到賬入帳後 create_task 推送「您的 {pay_amount} USDT 已到賬，錢包餘額已更新為 USD$ {bal}」。鏈上自動偵測(_own_wallet_check→_usdt_settle)與後台人工審核(payments_api approve→settle=_usdt_settle)皆會觸發。郵件提醒沿用既有 topup_paid（notify_user）。
+- 測試：`backend/tests/test_usdt_energy_chat.py` 直接驗證 energy_url 落庫 + 唯一小數金額 + 到賬入帳 100.0 + 聊天系統訊息插入 unread_user=1，全 PASS（Clerk 阻擋 headless，故採後端直測）。前端 webpack 編譯成功、i18n JSON 有效、無 console 錯誤。
+- patch.zip 已重新打包（backend/*.py + hub_static + frontend/src + public，~13.8MB），含本次全部改動與重生成 i18n 字典；用戶解壓後 `pm2 restart gogo589-backend` + `cd frontend && yarn build`。
