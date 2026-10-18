@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Show, useUser } from "@clerk/react";
-import { KeyRound, LayoutDashboard, Package, ShoppingBag, Star, DollarSign, Tag, Users, Plus, Pencil, Trash2, X, Loader2, ArrowLeft, TrendingUp, Clock, ShieldAlert, Settings, CreditCard, ArrowUp, ArrowDown, ImagePlus, Wallet, BadgeCheck, MessageSquare, Globe, Bell, Megaphone, LayoutGrid, Gift, ShieldCheck, ChevronDown, Construction, PanelLeftClose, PanelLeftOpen, Headphones, Volume2, VolumeX } from "lucide-react";
+import { KeyRound, LayoutDashboard, Package, ShoppingBag, Star, DollarSign, Tag, Users, Plus, Pencil, Trash2, X, Loader2, ArrowLeft, TrendingUp, Clock, ShieldAlert, Settings, CreditCard, ArrowUp, ArrowDown, ImagePlus, Wallet, BadgeCheck, MessageSquare, Globe, Bell, Megaphone, LayoutGrid, Gift, ShieldCheck, ChevronDown, Construction, PanelLeftClose, PanelLeftOpen, Headphones, Volume2, VolumeX, Gauge, FileDown, Tags, Ban, ScrollText, Layers, BarChart3, FolderTree, Hash, PlusCircle, Search, Plug, FileBarChart, Home, Newspaper, Image, PanelBottom, Sparkles, Ticket, Receipt, Coins, Scale, UserCog, History, MessageSquareText, Mail, Languages, Dot } from "lucide-react";
 import { toast } from "sonner";
 import { useApi, publicApi } from "@/lib/api";
 import { STATUS_LABELS, STATUS_ORDER, StatusBadge } from "@/lib/status";
@@ -70,6 +70,17 @@ const selCls = "w-full h-10 rounded-lg bg-white border border-slate-200 px-3 tex
 
 const Badge = ({ n, testId }) => (n > 0 ? <span data-testid={testId} className="ml-auto shrink-0 min-w-[18px] h-[18px] px-1.5 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center leading-none">{n > 99 ? "99+" : n}</span> : null);
 
+const ITEM_ICONS = {
+  overview: Gauge, "sales-analysis": TrendingUp, "download-reports": FileDown,
+  members: Users, "user-tags": Tags, "member-assets": Wallet, blacklist: Ban, "user-logs": ScrollText, verifications: BadgeCheck, "user-batch": Layers, feedback: MessageSquare, "user-reports": BarChart3,
+  "chat-sessions": Headphones,
+  products: Package, categories: FolderTree, reviews: Star,
+  "giftcard-list": Gift, "giftcard-pool": Hash, "giftcard-orders": ShoppingBag, "giftcard-new": PlusCircle, "giftcard-trade-query": Search, "giftcard-api": Plug, "giftcard-report": FileBarChart,
+  "home-decoration": Home, activities: Newspaper, banners: Image, footer: PanelBottom, recommendations: Sparkles, promos: Ticket, notifications: Bell, announcements: Megaphone,
+  "order-settlement": Receipt, topups: Wallet, "usdt-channel": Coins, payments: CreditCard, reconciliation: Scale, currencies: DollarSign, "finance-reports": FileBarChart,
+  siteconfig: Settings, admins: UserCog, roles: ShieldCheck, "operation-logs": History, "sms-config": MessageSquareText, "email-config": Mail, "oauth-config": KeyRound, translations: Languages, paylogos: Image,
+};
+
 const NavGroup = ({ gkey, g, Icon, items, section, setSection, open, toggle, badges = {}, collapsed }) => {
   const active = items.some(([k]) => k === section);
   const groupBadge = items.reduce((s, [k]) => s + (badges[k] || 0), 0);
@@ -82,12 +93,12 @@ const NavGroup = ({ gkey, g, Icon, items, section, setSection, open, toggle, bad
       <div className="hidden group-hover:block absolute left-full top-0 pl-2 z-50">
         <div className="w-44 rounded-xl bg-white shadow-xl border border-slate-200 py-1.5 admin-flyout">
           <div className="px-3 py-1.5 text-[11px] font-bold text-slate-400 uppercase tracking-wide">{g}</div>
-          {items.map(([k, label]) => (
+          {items.map(([k, label]) => { const It = ITEM_ICONS[k] || Dot; return (
             <a key={k} href={`${ADMIN_BASE}?s=${k}`} data-testid={`admin-nav-${k}`} onClick={(e) => { if (e.metaKey || e.ctrlKey || e.shiftKey || e.button === 1) return; e.preventDefault(); setSection(k); }}
               className={`flex items-center gap-2 mx-1.5 rounded-md px-2.5 py-1.5 text-[13px] transition-colors ${section === k ? "bg-orange-500 text-white font-semibold" : "text-slate-600 hover:bg-slate-100"}`}>
-              <span className="truncate">{label}</span><Badge n={badges[k] || 0} testId={`admin-nav-badge-${k}`} />
+              <It className="h-3.5 w-3.5 shrink-0 opacity-80" /><span className="truncate flex-1">{label}</span><Badge n={badges[k] || 0} testId={`admin-nav-badge-${k}`} />
             </a>
-          ))}
+          ); })}
         </div>
       </div>
     </div>
@@ -102,13 +113,13 @@ const NavGroup = ({ gkey, g, Icon, items, section, setSection, open, toggle, bad
       </button>
       {open && (
         <div className="mt-1 mb-1.5 ml-4 pl-3 border-l border-slate-200 space-y-0.5">
-          {items.map(([k, label]) => (
+          {items.map(([k, label]) => { const It = ITEM_ICONS[k] || Dot; return (
             <a key={k} href={`${ADMIN_BASE}?s=${k}`} data-testid={`admin-nav-${k}`} onClick={(e) => { if (e.metaKey || e.ctrlKey || e.shiftKey || e.button === 1) return; e.preventDefault(); setSection(k); }}
               className={`relative w-full flex items-center gap-2 rounded-md px-3 py-1.5 text-[13px] transition-colors ${section === k ? "bg-orange-50 text-orange-600 font-semibold before:absolute before:-left-[13px] before:top-1.5 before:bottom-1.5 before:w-[2px] before:rounded-full before:bg-orange-500" : "text-slate-500 hover:bg-slate-100 hover:text-slate-800"}`}>
-              <span className="truncate">{label}</span>
+              <It className={`h-3.5 w-3.5 shrink-0 ${section === k ? "text-orange-500" : "text-slate-400"}`} /><span className="truncate flex-1">{label}</span>
               <Badge n={badges[k] || 0} testId={`admin-nav-badge-${k}`} />
             </a>
-          ))}
+          ); })}
         </div>
       )}
     </div>
