@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useState } from "react";
-import { Search, Download, ChevronDown, ChevronUp, ShieldAlert, Copy } from "lucide-react";
+import { Search, Download, ShieldAlert, Copy, FileSearch } from "lucide-react";
 import { toast } from "sonner";
 import { Card, Btn, Input, Pill, Head } from "@/pages/admin/ui";
 import { STATUS_LABELS, StatusBadge } from "@/lib/status";
 import { tr } from "@/i18n";
 import { UserInfoDialog } from "@/pages/admin/UserInfoDialog";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
 
 const selBase = "h-9 rounded-lg bg-slate-100 px-3 text-sm outline-none focus:ring-2 focus:ring-orange-300";
 const ALL_STATUSES = Object.keys(STATUS_LABELS);
@@ -26,7 +27,7 @@ export function OrdersAdmin({ callApi }) {
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
   const [page, setPage] = useState(1);
-  const [open, setOpen] = useState(null);
+  const [detailId, setDetailId] = useState(null);
   const [viewUid, setViewUid] = useState("");
   const [exporting, setExporting] = useState(false);
   const size = 30;
@@ -88,47 +89,17 @@ export function OrdersAdmin({ callApi }) {
           <thead><tr className="text-left text-xs text-slate-500 border-b border-slate-200 bg-slate-50/70">{[tr("訂單"), tr("用戶"), tr("商品"), tr("充值帳號"), tr("金額"), tr("狀態"), tr("操作")].map((c) => <th key={c} className="px-4 py-3 font-semibold whitespace-nowrap">{c}</th>)}</tr></thead>
           <tbody className="divide-y divide-slate-100">
             {data.rows.length === 0 && <tr><td colSpan={7} className="px-4 py-12 text-center text-slate-400">{tr("暫無訂單")}</td></tr>}
-            {data.rows.map((o) => {
-              const isOpen = open === o.id;
-              return [
-                <tr key={o.id} data-testid={`order-row-${o.id}`} className={`hover:bg-orange-50/40 cursor-pointer ${isOpen ? "bg-orange-50/50" : ""}`} onClick={() => setOpen(isOpen ? null : o.id)}>
-                  <td className="px-4 py-2.5 whitespace-nowrap"><div className="font-mono text-xs text-slate-800 flex items-center gap-1">{o.order_no}<button onClick={(e) => { e.stopPropagation(); navigator.clipboard?.writeText(o.order_no); toast.success(tr("已複製")); }} className="text-slate-300 hover:text-orange-500"><Copy className="h-3 w-3" /></button></div><div className="text-[11px] text-slate-400">{fmt(o.created_at)}</div></td>
-                  <td className="px-4 py-2.5 text-xs max-w-[200px]">{o.user_id ? <button data-testid={`order-user-${o.id}`} onClick={(e) => { e.stopPropagation(); setViewUid(o.user_id); }} className="text-orange-600 font-semibold hover:underline truncate block max-w-full text-left" title={tr("查看用戶信息")}>{o.user_email || o.user_id}</button> : <span className="text-slate-600 truncate block">{o.user_email || "-"}</span>}</td>
-                  <td className="px-4 py-2.5 text-xs text-slate-700 max-w-[280px]"><div className="truncate">{o.items.map((i) => `${i.product_name} ${i.spec_label}×${i.quantity}`).join("、")}</div></td>
-                  <td className="px-4 py-2.5 text-xs text-slate-700 max-w-[160px] truncate">{o.recharge_account}{o.status === "paid" && o.info_submitted === false && <Pill tone="amber">{o.info_rejected ? tr("已駁回") : tr("未填資料")}</Pill>}</td>
-                  <td className="px-4 py-2.5 text-xs text-slate-800 whitespace-nowrap font-semibold">{o.currency_symbol}{(o.total_usd * o.rate_to_usd).toFixed(2)} <span className="text-slate-400 font-normal">{o.currency}</span>{o.currency !== "USD" && <div className="text-[11px] text-slate-400 font-normal">≈ ${o.total_usd}</div>}</td>
-                  <td className="px-4 py-2.5"><StatusBadge status={o.status} /></td>
-                  <td className="px-4 py-2.5 text-slate-400">{isOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}</td>
-                </tr>,
-                isOpen && (
-                  <tr key={`${o.id}-d`} data-testid={`order-detail-${o.id}`}><td colSpan={7} className="px-4 pb-4 pt-1 bg-orange-50/30">
-                    <div className="grid md:grid-cols-2 gap-x-6 gap-y-1 text-xs text-slate-600 mb-3">
-                      <div>{tr("商品：")}<span className="text-slate-800">{o.items.map((i) => `${i.product_name} ${i.spec_label}×${i.quantity}`).join("、")}</span></div>
-                      <div>{tr("充值帳號：")}<span className="text-slate-800 font-semibold">{o.recharge_account}</span></div>
-                      {o.delivery_info && Object.values(o.delivery_info).flatMap((f) => Object.entries(f)).map(([k, v]) => <div key={k}>{k}：<span className="text-slate-800">{v}</span></div>)}
-                      {o.recharge_note && <div>{tr("備註：")}{o.recharge_note}</div>}
-                      {o.contact && <div>{tr("聯絡：")}{o.contact}</div>}
-                      {o.promo_code && <div>{tr("優惠碼：")}{o.promo_code}（-${o.discount_usd}）</div>}
-                      <div>{tr("付款時間：")}{fmt(o.paid_at)}</div>
-                      <div>{tr("完成時間：")}{fmt(o.completed_at)}{o.confirmed_by && ` · ${o.confirmed_by}`}</div>
-                      {o.admin_note && <div className="md:col-span-2 text-emerald-600">{tr("客服備註：")}{o.admin_note}</div>}
-                    </div>
-                    <div className="flex flex-wrap items-center gap-2" onClick={(e) => e.stopPropagation()}>
-                      {["paid", "processing", "shipped"].includes(o.status) && <button data-testid={`admin-order-confirm-${o.id}`} onClick={() => confirmTopup(o)} className="text-xs h-8 px-3 rounded-lg bg-emerald-500 text-white font-semibold">{tr("確認充值完成")}</button>}
-                      {["paid", "processing"].includes(o.status) && o.info_submitted !== false && <button data-testid={`admin-order-reject-info-${o.id}`} onClick={() => rejectInfo(o)} className="text-xs h-8 px-3 rounded-lg bg-amber-500 text-white">{tr("駁回充值資料")}</button>}
-                      {o.status === "paid" && <button data-testid={`admin-order-start-${o.id}`} onClick={() => changeStatus(o, "processing")} className="text-xs h-8 px-3 rounded-lg bg-violet-600 text-white">{tr("開始充值")}</button>}
-                      {o.status === "processing" && <button data-testid={`admin-order-ship-${o.id}`} onClick={() => changeStatus(o, "shipped")} className="text-xs h-8 px-3 rounded-lg bg-cyan-600 text-white">{tr("確認人工發貨")}</button>}
-                      {o.status === "shipped" && <button onClick={() => changeStatus(o, "completed")} className="text-xs h-8 px-3 rounded-lg bg-emerald-600 text-white">{tr("標記已完成")}</button>}
-                      {!["completed", "exception", "cancelled"].includes(o.status) && <button onClick={() => changeStatus(o, "exception")} className="text-xs h-8 px-3 rounded-lg bg-red-500 text-white flex items-center gap-1"><ShieldAlert className="h-3 w-3" /> {tr("標記異常")}</button>}
-                      {!["completed", "cancelled"].includes(o.status) && <button data-testid={`admin-order-cancel-${o.id}`} onClick={() => cancelOrder(o)} className="text-xs h-8 px-3 rounded-lg border border-red-300 text-red-600 bg-white">{tr("取消訂單")}</button>}
-                      {o.refunded_at && <span className="text-[11px] text-emerald-600" data-testid={`admin-order-refunded-${o.id}`}>{tr("已退回錢包 USD$ {0}", Number(o.refund_usd || 0).toFixed(2))}</span>}
-                      <select data-testid={`admin-order-status-${o.id}`} value={o.status} onChange={(e) => changeStatus(o, e.target.value)} className={selBase + " h-8 text-xs"}>{ALL_STATUSES.map((s) => <option key={s} value={s}>{STATUS_LABELS[s]}</option>)}</select>
-                      <button data-testid={`admin-order-note-${o.id}`} onClick={() => addNote(o)} className="text-xs h-8 px-3 rounded-lg border border-slate-300 text-slate-600 bg-white">{tr("備註")}</button>
-                    </div>
-                  </td></tr>
-                ),
-              ];
-            })}
+            {data.rows.map((o) => (
+              <tr key={o.id} data-testid={`order-row-${o.id}`} className="hover:bg-orange-50/40">
+                <td className="px-4 py-2.5 whitespace-nowrap"><div className="font-mono text-xs text-slate-800 flex items-center gap-1">{o.order_no}<button onClick={() => { navigator.clipboard?.writeText(o.order_no); toast.success(tr("已複製")); }} className="text-slate-300 hover:text-orange-500"><Copy className="h-3 w-3" /></button></div><div className="text-[11px] text-slate-400">{fmt(o.created_at)}</div></td>
+                <td className="px-4 py-2.5 text-xs max-w-[200px]">{o.user_id ? <button data-testid={`order-user-${o.id}`} onClick={() => setViewUid(o.user_id)} className="text-orange-600 font-semibold hover:underline truncate block max-w-full text-left" title={tr("查看用戶信息")}>{o.user_email || o.user_id}</button> : <span className="text-slate-600 truncate block">{o.user_email || "-"}</span>}</td>
+                <td className="px-4 py-2.5 text-xs text-slate-700 max-w-[280px]"><div className="truncate">{o.items.map((i) => `${i.product_name} ${i.spec_label}×${i.quantity}`).join("、")}</div></td>
+                <td className="px-4 py-2.5 text-xs text-slate-700 max-w-[160px] truncate">{o.recharge_account}{o.status === "paid" && o.info_submitted === false && <Pill tone="amber">{o.info_rejected ? tr("已駁回") : tr("未填資料")}</Pill>}</td>
+                <td className="px-4 py-2.5 text-xs text-slate-800 whitespace-nowrap font-semibold">{o.currency_symbol}{(o.total_usd * o.rate_to_usd).toFixed(2)} <span className="text-slate-400 font-normal">{o.currency}</span>{o.currency !== "USD" && <div className="text-[11px] text-slate-400 font-normal">≈ ${o.total_usd}</div>}</td>
+                <td className="px-4 py-2.5"><StatusBadge status={o.status} /></td>
+                <td className="px-4 py-2.5"><button data-testid={`order-open-${o.id}`} onClick={() => setDetailId(o.id)} className="h-8 px-3 rounded-lg bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold flex items-center gap-1.5 transition-colors"><FileSearch className="h-3.5 w-3.5" />{tr("詳情 / 操作")}</button></td>
+              </tr>
+            ))}
           </tbody>
         </table>
       </Card>
@@ -139,6 +110,59 @@ export function OrdersAdmin({ callApi }) {
           <button disabled={page >= pages} onClick={() => setPage(page + 1)} className="h-8 px-3 rounded-full text-xs bg-white border border-slate-200 disabled:opacity-40">›</button>
         </div>
       )}
+      <Dialog open={!!detailId} onOpenChange={(o) => !o && setDetailId(null)}>
+        <DialogContent className="max-w-lg p-0 overflow-hidden" data-testid="order-detail-dialog">
+          {(() => {
+            const o = data.rows.find((x) => x.id === detailId);
+            if (!o) return null;
+            const Info = ({ label, children }) => (
+              <div className="flex items-start justify-between gap-3 py-2 border-b border-slate-100 last:border-0">
+                <span className="text-[13px] text-slate-500 shrink-0">{label}</span>
+                <span className="text-[13px] text-slate-800 text-right break-all">{children}</span>
+              </div>
+            );
+            return (
+              <div>
+                <div className="bg-gradient-to-br from-slate-800 to-slate-900 text-white px-5 py-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="text-[12px] text-white/70">{tr("訂單")}</div>
+                      <div className="font-mono text-sm font-bold flex items-center gap-1.5 truncate">{o.order_no}<button onClick={() => { navigator.clipboard?.writeText(o.order_no); toast.success(tr("已複製")); }} className="text-white/60 hover:text-white shrink-0"><Copy className="h-3.5 w-3.5" /></button></div>
+                      <div className="text-[11px] text-white/60 mt-0.5">{fmt(o.created_at)}</div>
+                    </div>
+                    <StatusBadge status={o.status} />
+                  </div>
+                </div>
+                <div className="px-5 py-3 max-h-[46vh] overflow-y-auto">
+                  {o.user_id && <Info label={tr("用戶")}><button onClick={() => { setDetailId(null); setViewUid(o.user_id); }} className="text-orange-600 font-semibold hover:underline">{o.user_email || o.user_id}</button></Info>}
+                  <Info label={tr("商品")}>{o.items.map((i) => `${i.product_name} ${i.spec_label}×${i.quantity}`).join("、")}</Info>
+                  <Info label={tr("充值帳號")}><b>{o.recharge_account}</b></Info>
+                  <Info label={tr("金額")}>{o.currency_symbol}{(o.total_usd * o.rate_to_usd).toFixed(2)} {o.currency}{o.currency !== "USD" && ` ≈ $${o.total_usd}`}</Info>
+                  {o.delivery_info && Object.values(o.delivery_info).flatMap((f) => Object.entries(f)).map(([k, v]) => <Info key={k} label={k}>{v}</Info>)}
+                  {o.recharge_note && <Info label={tr("備註")}>{o.recharge_note}</Info>}
+                  {o.contact && <Info label={tr("聯絡")}>{o.contact}</Info>}
+                  {o.promo_code && <Info label={tr("優惠碼")}>{o.promo_code}（-${o.discount_usd}）</Info>}
+                  <Info label={tr("付款時間")}>{fmt(o.paid_at)}</Info>
+                  <Info label={tr("完成時間")}>{fmt(o.completed_at)}{o.confirmed_by && ` · ${o.confirmed_by}`}</Info>
+                  {o.admin_note && <Info label={tr("客服備註")}><span className="text-emerald-600">{o.admin_note}</span></Info>}
+                  {o.refunded_at && <Info label={tr("退款")}><span className="text-emerald-600">{tr("已退回錢包 USD$ {0}", Number(o.refund_usd || 0).toFixed(2))}</span></Info>}
+                </div>
+                <div className="px-5 py-3 border-t border-slate-100 flex flex-wrap items-center gap-2 justify-end bg-slate-50/60">
+                  {["paid", "processing", "shipped"].includes(o.status) && <button data-testid={`admin-order-confirm-${o.id}`} onClick={() => confirmTopup(o)} className="text-xs h-8 px-3 rounded-lg bg-emerald-500 text-white font-semibold">{tr("確認充值完成")}</button>}
+                  {["paid", "processing"].includes(o.status) && o.info_submitted !== false && <button data-testid={`admin-order-reject-info-${o.id}`} onClick={() => rejectInfo(o)} className="text-xs h-8 px-3 rounded-lg bg-amber-500 text-white">{tr("駁回充值資料")}</button>}
+                  {o.status === "paid" && <button data-testid={`admin-order-start-${o.id}`} onClick={() => changeStatus(o, "processing")} className="text-xs h-8 px-3 rounded-lg bg-violet-600 text-white">{tr("開始充值")}</button>}
+                  {o.status === "processing" && <button data-testid={`admin-order-ship-${o.id}`} onClick={() => changeStatus(o, "shipped")} className="text-xs h-8 px-3 rounded-lg bg-cyan-600 text-white">{tr("確認人工發貨")}</button>}
+                  {o.status === "shipped" && <button onClick={() => changeStatus(o, "completed")} className="text-xs h-8 px-3 rounded-lg bg-emerald-600 text-white">{tr("標記已完成")}</button>}
+                  {!["completed", "exception", "cancelled"].includes(o.status) && <button onClick={() => changeStatus(o, "exception")} className="text-xs h-8 px-3 rounded-lg bg-red-500 text-white flex items-center gap-1"><ShieldAlert className="h-3 w-3" /> {tr("標記異常")}</button>}
+                  {!["completed", "cancelled"].includes(o.status) && <button data-testid={`admin-order-cancel-${o.id}`} onClick={() => cancelOrder(o)} className="text-xs h-8 px-3 rounded-lg border border-red-300 text-red-600 bg-white">{tr("取消訂單")}</button>}
+                  <select data-testid={`admin-order-status-${o.id}`} value={o.status} onChange={(e) => changeStatus(o, e.target.value)} className={selBase + " h-8 text-xs"}>{ALL_STATUSES.map((s) => <option key={s} value={s}>{STATUS_LABELS[s]}</option>)}</select>
+                  <button data-testid={`admin-order-note-${o.id}`} onClick={() => addNote(o)} className="text-xs h-8 px-3 rounded-lg border border-slate-300 text-slate-600 bg-white">{tr("備註")}</button>
+                </div>
+              </div>
+            );
+          })()}
+        </DialogContent>
+      </Dialog>
       <UserInfoDialog uid={viewUid} callApi={callApi} onClose={() => setViewUid("")} />
     </div>
   );
