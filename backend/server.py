@@ -1877,7 +1877,7 @@ async def wallet_topup_usdt(body: TopUpIn, request: Request, member: dict = Depe
         pay_amount = await _unique_usdt_amount(address, amount)
         doc = {"id": tid, "user_id": member["user_id"], "method_id": pm["id"], "method_name": pm["name"], "provider": "crypto", "own_wallet": True, "amount_usd": amount,
                "status": "pending", "out_trade_no": out_trade_no, "order_no": "", "pay_amount": pay_amount, "network": (cfg.get("network") or "TRC20").strip().upper(),
-               "wallet_address": address, "wallet_note": cfg.get("wallet_note") or "", "energy_url": (cfg.get("energy_url") or "").strip(), "pay_url": f"/pay/usdt/{tid}",
+               "wallet_address": address, "wallet_note": cfg.get("wallet_note") or "", "energy_trx_address": (cfg.get("energy_trx_address") or "").strip(), "pay_url": f"/pay/usdt/{tid}",
                "expires_at": (datetime.now(timezone.utc) + timedelta(minutes=30)).isoformat(), "created_at": now_iso()}
         await db.topup_orders.insert_one(doc)
         doc.pop("_id", None)

@@ -219,3 +219,9 @@
 - 頂部 Logo 換成用戶提供的 gogo589 橙色手寫體字標 `public/gogo589-wordmark.png`（829×254 透明 PNG），移除原本的圓形徽章與「USDT 安全收款」副標題文字。
 - 背景由純灰 slate-50 改為暖橙漸層 `from-[#fff3e6] via-[#fff8f0] to-[#fffdfb]`（呼應首頁）；Header 改 `bg-white/90 backdrop-blur`。
 - 到賬慶祝彈窗：輪詢偵測到 status=paid（且未觸發過）時 `celebrate()` 放橙色禮花+提示音，並彈出居中白色圓角卡（橙色漸層勾選徽章 + 「充值成功到賬！」+ 金額 + 「查看我的錢包」按鈕 / 「留在此頁」關閉），取代原本只有頂部 toast。i18n 新增 4 keys。
+
+## 2026-10-18 更新（能量租賃卡 = 參考付款頁 + 收銀台品牌水印）
+- 能量租賃由「外鏈橫幅」改為 **內嵌綠色可折疊卡片**（完全比照用戶提供的參考付款頁）：`UsdtPay.jsx` 新增 `EnergyCard`（葉子圖示 + 「能量租賃，節省70%礦工費」+ 省70% 標籤 + 展開/收起 chevron，預設展開）。卡內含：租賃費用 1TRX/筆、綠底 TRX 地址框（數字加粗 + 複製）、紅字「此地址只收 TRX，請勿轉 USDT！」×3、「快捷購買金額：1 TRX」複製膠囊、以及 1~4 條租賃說明（礦工費/70%攻略/不適用場景/2小時有效期）。
+- 後台收款方式(crypto) config 欄位由 `energy_url` 改為 `energy_trx_address`（填 TRON TRX 收款地址）；`wallet_topup_usdt` own_wallet 分支改寫入 `energy_trx_address`，前台填了才顯示能量卡。i18n 新增 11 keys（含長說明，zh-CN 用參考頁簡體原文、en 另譯）。
+- 收銀台背景加品牌水印/光暈：頁面容器 `relative overflow-hidden`，底層裝飾（orange-300/25 與 amber-200/35 兩個 blur-3xl 光暈 + 右下 gogo589 字標 opacity 0.04 浮水印），header/main 加 `relative z-10` 浮於其上。
+- 驗證：`tests/test_usdt_energy_chat.py` 更新為 energy_trx_address，重跑 ALL PASS（passthrough + 到賬入帳 + 聊天通知）；前端編譯成功；截圖確認字標 Logo / 橙漸層 / 光暈 / 右下浮水印均正常渲染（能量卡因需登入 top-up 無法無頭截圖，已以後端 passthrough + 編譯 + 代碼比對確認）。

@@ -15,7 +15,7 @@ const CONFIG_FIELDS = {
   paypal: [["client_id", "Client ID"], ["api_secret", "Client Secret"], ["env", tr("環境")], ["webhook_id", tr("Webhook ID（選填，用於驗簽）")]],
   alipay: [["account_info", tr("收款帳戶資訊（顯示給用戶）")]],
   wechat: [["account_info", tr("收款帳戶資訊（顯示給用戶）")]],
-  crypto: [["wallet_address", tr("USDT 收款地址（填寫後用戶直接轉帳到此地址，人工核對入帳；留空則走網關）")], ["network", tr("網路（預設 TRC20）")], ["wallet_note", tr("轉帳說明（顯示給用戶，選填）")], ["energy_url", tr("能量租賃網址（收銀台顯示「能量租賃 省70%」入口，選填）")], ["base_url", tr("網關 API 網址（自有地址模式可留空）")], ["api_key", tr("網關 API Key（自有地址模式可留空）")], ["api_secret", tr("網關 API Secret（自有地址模式可留空）")]],
+  crypto: [["wallet_address", tr("USDT 收款地址（填寫後用戶直接轉帳到此地址，人工核對入帳；留空則走網關）")], ["network", tr("網路（預設 TRC20）")], ["wallet_note", tr("轉帳說明（顯示給用戶，選填）")], ["energy_trx_address", tr("能量租賃 TRX 收款地址（收銀台顯示能量租賃卡，填 TRON 地址；留空則不顯示）")], ["base_url", tr("網關 API 網址（自有地址模式可留空）")], ["api_key", tr("網關 API Key（自有地址模式可留空）")], ["api_secret", tr("網關 API Secret（自有地址模式可留空）")]],
   other: [["account_info", tr("收款帳戶資訊（顯示給用戶）")]],
 };
 const STRIPE_TYPES = [

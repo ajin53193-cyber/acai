@@ -2340,5 +2340,16 @@
  "充值成功到賬！": "Payment received!",
  "您的 {0} USDT 已成功到賬，錢包餘額已更新。": "Your {0} USDT has been received and your wallet balance is updated.",
  "查看我的錢包": "View My Wallet",
- "留在此頁": "Stay on this page"
+ "留在此頁": "Stay on this page",
+ "能量租賃，節省70%礦工費": "Energy Rental — Save 70% on Gas",
+ "租賃費用：": "Rental fee: ",
+ "1TRX/筆（即每65500能量只需1TRX）": "1 TRX per transfer (65,500 energy for only 1 TRX)",
+ "TRX地址": "TRX Address",
+ "(先向下方地址轉TRX購買能量，後再轉U不扣礦工費)": "(Send TRX to the address below to buy energy, then transfer USDT with no gas deducted)",
+ "此地址只收 TRX，請勿轉 USDT！請勿轉 USDT！請勿轉 USDT！": "This address only accepts TRX. DO NOT send USDT! DO NOT send USDT! DO NOT send USDT!",
+ "快捷購買金額：": "Quick buy amount: ",
+ "租賃說明：因任何一筆TRC20轉賬支出都要支付礦工費（例如：冷錢包轉賬需消耗TRX，而交易所一般收取1U手續費），但礦工費可以用能量替代（即地址有能量時優先使用能量）。": "About rentals: every TRC20 transfer costs gas (e.g. cold-wallet transfers burn TRX, while exchanges usually charge a 1 USDT fee). Gas can be paid with energy instead — the address uses its energy first if available.",
+ "約節省70%礦工費攻略（交易所的提幣除外）：所以您在充幣前可以先花2或4TRX購買6.5萬或13.1萬的能量，然後系統將自動用該筆能量來抵扣USDT轉賬的礦工費，每6.5萬能量可以抵扣1筆轉賬（即2TRX的能量可以抵扣原本6.4285TRX礦工費，約節省70%）；因TRC20特殊機制，若轉賬時的對方收幣地址的USDT餘額為0，則系統需要消耗雙倍礦工費（即13.0285TRX礦工費），則該筆轉賬也需要消耗雙倍能量為13.1萬（即4TRX的能量可以抵扣原本13.0285TRX礦工費，約節省70%），詳見詳細租賃規則。": "How to save ~70% on gas (excluding exchange withdrawals): before depositing, spend 2 or 4 TRX to buy 65,000 or 131,000 energy. The system then uses that energy to cover the USDT transfer gas — every 65,000 energy covers 1 transfer (2 TRX of energy offsets the original 6.4285 TRX gas, ~70% saved). Due to TRC20 rules, if the recipient's USDT balance is 0 the transfer costs double gas (13.0285 TRX), requiring double energy of 131,000 (4 TRX of energy offsets 13.0285 TRX gas, ~70% saved). See the detailed rental rules.",
+ "不適用場景：交易所的提幣不消耗TRX礦工費，而是直接扣除USDT手續費，所以租賃能量對交易所的提幣無效。": "When it doesn't apply: exchange withdrawals don't burn TRX gas — they deduct a USDT fee directly, so rented energy has no effect on exchange withdrawals.",
+ "能量有效期：2小時，購買後需盡快使用。": "Energy validity: 2 hours — use it promptly after purchase."
 }

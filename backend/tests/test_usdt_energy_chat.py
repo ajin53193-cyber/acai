@@ -8,7 +8,7 @@ from server import db, TopUpIn
 TEST_UID = "user_3Kc4MFu2DHwZuy8itp5vS09nzaL"  # tester member
 PM_ID = "test-crypto-energy"
 ADDR = "TTestEnergyWallet000000000000000000"
-ENERGY = "https://energy.example.com/rent"
+ENERGY = "TFxQpLU6XF7JReMXcNXJdK3spT6WKwFkxy"
 
 
 async def main():
@@ -18,15 +18,15 @@ async def main():
     await db.payment_methods.insert_one({
         "id": PM_ID, "name": "USDT 測試", "category": "usdt", "provider": "crypto", "active": True,
         "min_usd": 50, "max_usd": 10000, "sort_order": 9,
-        "config": {"wallet_address": ADDR, "network": "TRC20", "wallet_note": "測試", "energy_url": ENERGY},
+        "config": {"wallet_address": ADDR, "network": "TRC20", "wallet_note": "測試", "energy_trx_address": ENERGY},
         "created_at": server.now_iso(),
     })
 
     # 1) create own-wallet top-up via the real endpoint function
     doc = await server.wallet_topup_usdt(TopUpIn(amount_usd=100, method_id=PM_ID), None, {"user_id": TEST_UID})
     tid = doc["id"]
-    print("created topup:", tid, "pay_amount=", doc.get("pay_amount"), "energy_url=", doc.get("energy_url"))
-    assert doc.get("energy_url") == ENERGY, "energy_url not stored on topup"
+    print("created topup:", tid, "pay_amount=", doc.get("pay_amount"), "energy=", doc.get("energy_trx_address"))
+    assert doc.get("energy_trx_address") == ENERGY, "energy_trx_address not stored on topup"
     assert 100.01 <= float(doc["pay_amount"]) <= 100.99, "pay_amount should carry a decimal tail"
     assert doc.get("own_wallet") is True
     print("PASS: energy_url + unique decimal amount on topup")

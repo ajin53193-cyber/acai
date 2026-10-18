@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { QRCodeSVG } from "qrcode.react";
-import { Clock, Copy, Check, X, Loader2, ChevronDown, Zap, ChevronRight } from "lucide-react";
+import { Clock, Copy, Check, X, Loader2, ChevronDown, Leaf } from "lucide-react";
 import { toast } from "sonner";
 import { useApi } from "@/lib/api";
 import { openService } from "@/components/ServiceWidget";
@@ -49,6 +49,44 @@ const NOTES = (amt, net, addr) => [
 ];
 const FAQ = [tr("什麼是USDT"), tr("如何購買"), tr("充幣多久能到賬/如何查詢"), tr("充/提幣需要手續費嗎"), tr("充幣沒到賬要怎麼處理")];
 
+const ENERGY_NOTES = () => [
+  tr("租賃說明：因任何一筆TRC20轉賬支出都要支付礦工費（例如：冷錢包轉賬需消耗TRX，而交易所一般收取1U手續費），但礦工費可以用能量替代（即地址有能量時優先使用能量）。"),
+  tr("約節省70%礦工費攻略（交易所的提幣除外）：所以您在充幣前可以先花2或4TRX購買6.5萬或13.1萬的能量，然後系統將自動用該筆能量來抵扣USDT轉賬的礦工費，每6.5萬能量可以抵扣1筆轉賬（即2TRX的能量可以抵扣原本6.4285TRX礦工費，約節省70%）；因TRC20特殊機制，若轉賬時的對方收幣地址的USDT餘額為0，則系統需要消耗雙倍礦工費（即13.0285TRX礦工費），則該筆轉賬也需要消耗雙倍能量為13.1萬（即4TRX的能量可以抵扣原本13.0285TRX礦工費，約節省70%），詳見詳細租賃規則。"),
+  tr("不適用場景：交易所的提幣不消耗TRX礦工費，而是直接扣除USDT手續費，所以租賃能量對交易所的提幣無效。"),
+  tr("能量有效期：2小時，購買後需盡快使用。"),
+];
+
+function EnergyCard({ addr }) {
+  const [open, setOpen] = useState(true);
+  return (
+    <div className="mb-3 rounded-2xl border border-emerald-200 bg-emerald-50/80 overflow-hidden shadow-sm" data-testid="usdt-pay-energy">
+      <button type="button" data-testid="usdt-energy-toggle" onClick={() => setOpen((o) => !o)} className="w-full flex items-center gap-2 px-4 py-3 text-left">
+        <Leaf className="h-5 w-5 shrink-0 text-emerald-600" />
+        <span className="font-bold text-emerald-900 text-[15px]">{tr("能量租賃，節省70%礦工費")}</span>
+        <span className="rounded bg-emerald-200/70 text-emerald-700 text-[11px] font-bold px-1.5 py-0.5">{tr("省70%")}</span>
+        <span className="ml-auto flex h-7 w-7 items-center justify-center rounded-full border border-emerald-300 text-emerald-600"><ChevronDown className={`h-4 w-4 transition-transform ${open ? "rotate-180" : ""}`} /></span>
+      </button>
+      {open && (
+        <div className="px-4 pb-4">
+          <div className="text-[13px] text-slate-700 flex items-center gap-1.5 flex-wrap"><b className="text-slate-800">{tr("租賃費用：")}</b><span className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-white text-[8px] leading-none">▼</span>{tr("1TRX/筆（即每65500能量只需1TRX）")}</div>
+          <div className="mt-3 rounded-xl bg-white/80 border border-emerald-200 px-3 py-3">
+            <div className="text-[13px] font-bold text-emerald-900">{tr("TRX地址")} <span className="font-normal text-slate-500 text-[11px]">{tr("(先向下方地址轉TRX購買能量，後再轉U不扣礦工費)")}</span></div>
+            <div className="mt-1 flex items-center justify-between gap-2">
+              <span className="font-mono text-[14px] text-slate-800 break-all leading-5" data-testid="usdt-energy-address"><Addr s={addr} /></span>
+              <button type="button" data-testid="usdt-energy-copy" onClick={() => copyText(addr)} className="inline-flex shrink-0 text-emerald-600 hover:text-emerald-700"><Copy className="h-4 w-4" /></button>
+            </div>
+            <p className="mt-2 text-[13px] font-bold text-orange-500 leading-5">{tr("此地址只收 TRX，請勿轉 USDT！請勿轉 USDT！請勿轉 USDT！")}</p>
+            <div className="mt-2.5 flex items-center gap-2 text-[13px]"><span className="text-slate-600">{tr("快捷購買金額：")}</span>
+              <button type="button" data-testid="usdt-energy-amount" onClick={() => copyText("1")} className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500 hover:bg-emerald-600 text-white px-3.5 py-1.5 text-[13px] font-semibold transition-colors"><Copy className="h-3.5 w-3.5" />1 TRX</button>
+            </div>
+          </div>
+          <ol className="mt-3 space-y-2 text-[12px] text-slate-600 leading-5">{ENERGY_NOTES().map((n, i) => <li key={i} className="flex gap-1.5"><span className="shrink-0 font-bold text-slate-700">{i + 1}、</span><span>{n}</span></li>)}</ol>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function UsdtPay() {
   const { tid } = useParams();
   const callApi = useApi();
@@ -75,8 +113,13 @@ export default function UsdtPay() {
   const dead = t && !["pending", "paid"].includes(t.status);
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-[#fff3e6] via-[#fff8f0] to-[#fffdfb] text-slate-800 pb-10" data-testid="usdt-pay-page">
-      <header className="bg-white/90 backdrop-blur border-b border-orange-100 shadow-sm">
+    <div className="relative min-h-screen overflow-hidden bg-gradient-to-b from-[#fff3e6] via-[#fff8f0] to-[#fffdfb] text-slate-800 pb-10" data-testid="usdt-pay-page">
+      <div className="pointer-events-none absolute inset-0 overflow-hidden z-0" aria-hidden="true">
+        <div className="absolute -top-28 -left-24 h-80 w-80 rounded-full bg-orange-300/25 blur-3xl" />
+        <div className="absolute -top-12 -right-16 h-72 w-72 rounded-full bg-amber-200/35 blur-3xl" />
+        <img src="/gogo589-wordmark.png" alt="" className="absolute bottom-10 -right-10 w-72 opacity-[0.04] rotate-[-8deg]" />
+      </div>
+      <header className="relative z-10 bg-white/90 backdrop-blur border-b border-orange-100 shadow-sm">
         <div className="mx-auto max-w-[360px] sm:max-w-[420px] h-14 flex items-center justify-between px-3">
           <Link to="/" className="flex items-center min-w-0" data-testid="usdt-pay-logo">
             <img src="/gogo589-wordmark.png" alt="gogo589" className="h-7 w-auto object-contain" />
@@ -88,18 +131,8 @@ export default function UsdtPay() {
         </div>
       </header>
 
-      <main className="mx-auto max-w-[360px] sm:max-w-[420px] mt-3 px-3 sm:px-0">
-        {t?.energy_url && !paid && !dead && (
-          <a href={t.energy_url} target="_blank" rel="noreferrer" data-testid="usdt-pay-energy"
-            className="mb-3 flex items-center gap-2 rounded-xl bg-gradient-to-r from-amber-400 to-orange-500 px-3.5 py-2.5 text-white shadow-sm active:scale-[.99] transition-transform">
-            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-white/25"><Zap className="h-4 w-4" fill="currentColor" /></span>
-            <span className="min-w-0 flex-1 leading-tight">
-              <span className="block text-[13px] font-bold">{tr("能量租賃")} <span className="ml-1 rounded bg-white/90 px-1.5 py-0.5 text-[11px] font-extrabold text-orange-600">{tr("省70%")}</span></span>
-              <span className="block text-[11px] text-white/90">{tr("轉賬手續費太高？租能量低至 1/3，省錢又快速")}</span>
-            </span>
-            <ChevronRight className="h-4 w-4 shrink-0 opacity-90" />
-          </a>
-        )}
+      <main className="relative z-10 mx-auto max-w-[360px] sm:max-w-[420px] mt-3 px-3 sm:px-0">
+        {t?.energy_trx_address && !paid && !dead && <EnergyCard addr={t.energy_trx_address} />}
         {err && <div className="rounded-2xl bg-white shadow-sm p-8 text-center text-sm text-slate-500" data-testid="usdt-pay-error">{err}<div className="mt-4"><Link to="/account/wallet/topup" className="text-orange-500 font-semibold">{tr("返回充值")}</Link></div></div>}
         {t && (
           <div className="rounded-2xl bg-white shadow-sm px-4 pt-5 pb-4">
