@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import { ChevronLeft, Copy, ExternalLink, RefreshCw, Upload, Landmark } from "lucide-react";
+import { ChevronLeft, Copy, ExternalLink, RefreshCw, Upload, Landmark, Wallet } from "lucide-react";
+import { QRCodeSVG } from "qrcode.react";
 import { toast } from "sonner";
 import { useApi } from "@/lib/api";
 import { Panel, SubTabs } from "./AccountLayout";
@@ -56,10 +57,46 @@ function BankPanel({ t, onProof }) {
   );
 }
 
+function UsdtPanel({ t, onProof }) {
+  const [file, setFile] = useState(null);
+  const [tx, setTx] = useState("");
+  const [busy, setBusy] = useState(false);
+  const copy = (v) => { navigator.clipboard?.writeText(v); toast.success(tr("已複製")); };
+  const submit = async () => {
+    if (!tx.trim() && !file) return toast.error(tr("請填寫交易哈希（TXID）或上傳轉帳截圖"));
+    setBusy(true);
+    try { await onProof(t, { ...(file ? await readFile(file) : {}), tx_hash: tx.trim() }); toast.success(tr("已提交，客服核對後即入帳")); }
+    catch (e) { toast.error(e.response?.data?.detail || tr("提交失敗")); }
+    setBusy(false);
+  };
+  return (
+    <div className="mt-3 rounded-xl border border-orange-200 bg-orange-50/50 p-3 text-xs" data-testid={`usdt-panel-${t.id}`}>
+      <div className="font-semibold text-slate-700 flex items-center gap-1 mb-2"><Wallet className="h-3.5 w-3.5 text-orange-500" />{tr("請轉帳 {0} USDT（{1}）至以下地址", Number(t.pay_amount || t.amount_usd).toFixed(2), t.network || "TRC20")}</div>
+      <div className="flex flex-col sm:flex-row gap-3">
+        <div className="shrink-0 rounded-lg bg-white p-2 self-start"><QRCodeSVG value={t.wallet_address} size={112} level="M" data-testid={`usdt-qr-${t.id}`} /></div>
+        <div className="min-w-0 flex-1">
+          <div className="text-slate-400">{tr("收款地址")}</div>
+          <div className="flex items-center gap-1.5"><span className="font-mono text-[12px] text-slate-800 break-all" data-testid={`usdt-address-${t.id}`}>{t.wallet_address}</span><button onClick={() => copy(t.wallet_address)} className="shrink-0 h-7 px-2.5 rounded-full bg-orange-500 text-white font-semibold flex items-center gap-1 hover:bg-orange-600"><Copy className="h-3 w-3" />{tr("複製")}</button></div>
+          <div className="mt-1.5 text-slate-400">{tr("金額")}：<b className="text-orange-600 font-mono text-sm">{Number(t.pay_amount || t.amount_usd).toFixed(2)} USDT</b> · {tr("網路")}：<b className="text-slate-700">{t.network || "TRC20"}</b></div>
+          {t.wallet_note && <div className="mt-1.5 text-slate-500 whitespace-pre-line">{t.wallet_note}</div>}
+          <div className="mt-1.5 text-slate-400">{tr("請務必使用 {0} 網路轉帳，轉帳完成後填寫交易哈希（TXID）或上傳截圖，客服核對後入帳。", t.network || "TRC20")}</div>
+        </div>
+      </div>
+      {t.status === "rejected" && <div className="mt-2 text-red-500">{tr("駁回原因：")}{t.reject_reason || tr("憑證無法核對")}，{tr("請重新提交")}</div>}
+      <div className="mt-3 grid sm:grid-cols-3 gap-2">
+        <input data-testid={`usdt-tx-${t.id}`} value={tx} onChange={(e) => setTx(e.target.value)} placeholder={tr("交易哈希 TXID")} className="h-9 rounded-lg bg-white px-3 font-mono outline-none focus:ring-2 focus:ring-orange-300" />
+        <label className="h-9 rounded-lg bg-white px-3 flex items-center gap-2 cursor-pointer text-slate-600 truncate"><Upload className="h-3.5 w-3.5 text-orange-500 shrink-0" />{file ? file.name : tr("轉帳截圖（選填）")}<input data-testid={`usdt-file-${t.id}`} type="file" accept="image/*" className="hidden" onChange={(e) => setFile(e.target.files?.[0] || null)} /></label>
+        <button data-testid={`usdt-submit-${t.id}`} onClick={submit} disabled={busy} className="h-9 rounded-lg bg-orange-500 hover:bg-orange-600 text-white font-semibold disabled:opacity-60">{busy ? tr("提交中…") : tr("我已轉帳，提交核對")}</button>
+      </div>
+    </div>
+  );
+}
+
 function TopupRow({ t, onCheck, onProof }) {
   const [label, cls] = STATUS[t.status] || [t.status, "bg-slate-100 text-slate-500"];
   const copy = (v) => { navigator.clipboard?.writeText(v); toast.success(tr("已複製")); };
   const manual = !["stripe", "paypal", "crypto"].includes(t.provider || "crypto");
+  const own = !!t.own_wallet;
   return (
     <div className="py-4 first:pt-2" data-testid={`topup-row-${t.id}`}>
       <div className="flex items-start gap-3">
@@ -79,8 +116,9 @@ function TopupRow({ t, onCheck, onProof }) {
           </div>
           {t.tx_id && <button onClick={() => copy(t.tx_id)} className="mt-1 text-[11px] text-slate-500 font-mono truncate max-w-full flex items-center gap-1 hover:text-orange-500" data-testid={`topup-txid-${t.id}`}><Copy className="h-3 w-3 shrink-0" />TX {t.tx_id.slice(0, 10)}…{t.tx_id.slice(-8)}</button>}
           {manual && ["pending", "rejected"].includes(t.status) && <BankPanel t={t} onProof={onProof} />}
-          {manual && t.status === "reviewing" && <div className="mt-2 text-xs text-sky-600">{tr("憑證已提交，等待客服核對（約 10–30 分鐘）")}</div>}
-          {!manual && t.status === "pending" && (
+          {own && ["pending", "rejected"].includes(t.status) && <UsdtPanel t={t} onProof={onProof} />}
+          {(manual || own) && t.status === "reviewing" && <div className="mt-2 text-xs text-sky-600">{tr("憑證已提交，等待客服核對（約 10–30 分鐘）")}</div>}
+          {!manual && !own && t.status === "pending" && (
             <div className="mt-2.5 flex flex-wrap gap-2">
               <a href={t.pay_url} target="_blank" rel="noreferrer" data-testid={`topup-reopen-${t.id}`} className="h-8 px-4 rounded-full bg-orange-500 hover:bg-orange-600 text-white text-xs font-semibold flex items-center gap-1 transition-colors"><ExternalLink className="h-3.5 w-3.5" />{tr("重新開啟收銀台")}</a>
               <button onClick={() => onCheck(t)} data-testid={`topup-check-${t.id}`} className="h-8 px-4 rounded-full bg-orange-50 text-orange-500 text-xs font-semibold flex items-center gap-1 hover:bg-orange-100 transition-colors"><RefreshCw className="h-3.5 w-3.5" />{tr("查詢到帳")}</button>

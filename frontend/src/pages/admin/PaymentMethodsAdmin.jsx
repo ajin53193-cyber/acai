@@ -15,7 +15,7 @@ const CONFIG_FIELDS = {
   paypal: [["client_id", "Client ID"], ["api_secret", "Client Secret"], ["env", tr("環境")], ["webhook_id", tr("Webhook ID（選填，用於驗簽）")]],
   alipay: [["account_info", tr("收款帳戶資訊（顯示給用戶）")]],
   wechat: [["account_info", tr("收款帳戶資訊（顯示給用戶）")]],
-  crypto: [["base_url", tr("網關 API 網址（留空用系統預設）")], ["api_key", tr("網關 API Key")], ["api_secret", tr("網關 API Secret")], ["merchant_id", tr("網路（TRC20）")]],
+  crypto: [["wallet_address", tr("USDT 收款地址（填寫後用戶直接轉帳到此地址，人工核對入帳；留空則走網關）")], ["network", tr("網路（預設 TRC20）")], ["wallet_note", tr("轉帳說明（顯示給用戶，選填）")], ["base_url", tr("網關 API 網址（自有地址模式可留空）")], ["api_key", tr("網關 API Key（自有地址模式可留空）")], ["api_secret", tr("網關 API Secret（自有地址模式可留空）")]],
   other: [["account_info", tr("收款帳戶資訊（顯示給用戶）")]],
 };
 const STRIPE_TYPES = [
@@ -157,10 +157,10 @@ function MethodForm({ f, setF, onSave, onClose, onTest, onDelete }) {
             {f.id && ["paypal", "stripe"].includes(f.provider) && <button type="button" data-testid={`pm-test-${f.id}`} onClick={() => onTest(f)} className="h-9 px-3.5 rounded-lg bg-sky-500 hover:bg-sky-600 text-white text-xs font-semibold flex items-center gap-1.5 transition-colors"><Plug className="h-3.5 w-3.5" />{tr("測試連線（使用已儲存的參數）")}</button>}
             <div className="grid grid-cols-2 gap-3">
               {(CONFIG_FIELDS[f.provider] || []).map(([k, l]) => (
-                <div key={k} className={k === "account_info" ? "col-span-2" : ""}><label className="text-xs text-slate-500 font-medium">{l}</label>
+                <div key={k} className={["account_info", "wallet_address", "wallet_note"].includes(k) ? "col-span-2" : ""}><label className="text-xs text-slate-500 font-medium">{l}</label>
                   {k === "env" ? <select data-testid="pm-form-cfg-env" className={inp} value={f.config.env || "sandbox"} onChange={(e) => setCfg("env", e.target.value)}><option value="sandbox">{tr("沙盒（測試）")}</option><option value="live">{tr("正式（live）")}</option></select>
-                    : ["account_info", "bank_note"].includes(k) ? <textarea data-testid={`pm-form-cfg-${k}`} className={inp + " h-20 py-2"} value={f.config[k] || ""} onChange={(e) => setCfg(k, e.target.value)} />
-                    : <input data-testid={`pm-form-cfg-${k}`} className={inp} value={f.config[k] || ""} onChange={(e) => setCfg(k, e.target.value)} placeholder={["api_key", "api_secret", "webhook_secret"].includes(k) ? tr("儲存後將遮罩顯示") : ""} />}
+                    : ["account_info", "bank_note", "wallet_note"].includes(k) ? <textarea data-testid={`pm-form-cfg-${k}`} className={inp + " h-20 py-2"} value={f.config[k] || ""} onChange={(e) => setCfg(k, e.target.value)} />
+                    : <input data-testid={`pm-form-cfg-${k}`} className={inp + (k === "wallet_address" ? " font-mono" : "")} value={f.config[k] || ""} onChange={(e) => setCfg(k, e.target.value)} placeholder={["api_key", "api_secret", "webhook_secret"].includes(k) ? tr("儲存後將遮罩顯示") : k === "wallet_address" ? "T..." : k === "network" ? "TRC20" : ""} />}
                 </div>
               ))}
             </div>

@@ -51,6 +51,11 @@ export default function WalletTopUp() {
   const isUsdt = selected?.provider === "crypto";
 
   const topupUsdt = async () => {
+    if (selected.own_wallet) {
+      const r = await callApi({ method: "POST", url: "/me/wallet/topup/usdt", data: { amount_usd: value, method_id: selected.id } });
+      navigate(`/account/wallet/topups?topup=${r.data.id}`);
+      return;
+    }
     const win = window.open("", "_blank");
     try {
       const r = await callApi({ method: "POST", url: "/me/wallet/topup/usdt", data: { amount_usd: value, method_id: selected.id } });

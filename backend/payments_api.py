@@ -39,10 +39,11 @@ class CheckoutIn(BaseModel):
 
 
 class ProofIn(BaseModel):
-    image_b64: str
+    image_b64: str = ""
     image_name: str = "proof.jpg"
     note: str = ""
     payer_name: str = ""
+    tx_hash: str = ""
 
 
 class RejectIn(BaseModel):
@@ -202,12 +203,17 @@ async def topup_checkout(body: CheckoutIn, request: Request, member: dict = Depe
 @router.post("/me/wallet/topup/{tid}/proof")
 async def topup_proof(tid: str, body: ProofIn, member: dict = Depends(_member)):
     t = await db.topup_orders.find_one({"id": tid, "user_id": member["user_id"]}, {"_id": 0})
-    if not t or t.get("provider") not in MANUAL_PROVIDERS:
+    if not t or not (t.get("provider") in MANUAL_PROVIDERS or t.get("own_wallet")):
         raise HTTPException(status_code=404, detail="充值單不存在")
     if t["status"] not in ("pending", "reviewing", "rejected"):
         raise HTTPException(status_code=409, detail="此充值單已結束")
-    url = await upload_b64("gogo589/topup-proofs", body.image_b64, body.image_name, max_mb=5)
-    await db.topup_orders.update_one({"id": tid}, {"$set": {"status": "reviewing", "proof_image": url, "proof_note": body.note[:500], "payer_name": body.payer_name[:80], "proof_at": now_iso(), "reject_reason": ""}})
+    tx = body.tx_hash.strip()[:120]
+    if t.get("own_wallet") and not tx and not body.image_b64:
+        raise HTTPException(status_code=400, detail="請填寫交易哈希（TXID）或上傳轉帳截圖")
+    if not t.get("own_wallet") and not body.image_b64:
+        raise HTTPException(status_code=400, detail="請上傳轉帳憑證截圖")
+    url = await upload_b64("gogo589/topup-proofs", body.image_b64, body.image_name, max_mb=5) if body.image_b64 else t.get("proof_image", "")
+    await db.topup_orders.update_one({"id": tid}, {"$set": {"status": "reviewing", "proof_image": url, "proof_note": body.note[:500], "payer_name": body.payer_name[:80], "tx_hash": tx, "proof_at": now_iso(), "reject_reason": ""}})
     return await db.topup_orders.find_one({"id": tid}, {"_id": 0})
 
 
@@ -294,7 +300,7 @@ async def admin_topup_approve(tid: str, admin: dict = Depends(current_admin)):
     if t["status"] == "paid":
         raise HTTPException(status_code=409, detail="此充值單已入帳")
     await db.topup_orders.update_one({"id": tid}, {"$set": {"status": "pending"}})
-    r = await settle({**t, "status": "pending"}, {"paid_at": now_iso(), "tx_id": t.get("reference_code", "")})
+    r = await settle({**t, "status": "pending"}, {"paid_at": now_iso(), "tx_id": t.get("tx_hash") or t.get("reference_code", "")})
     await db.topup_orders.update_one({"id": tid}, {"$set": {"reviewed_by": admin.get("email") or admin["user_id"], "reviewed_at": now_iso()}})
     return r
 

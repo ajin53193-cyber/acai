@@ -96,7 +96,8 @@ export function TopupsAdmin({ callApi }) {
             {data.rows.length === 0 ? <tr><td colSpan={6} className="px-4 py-14 text-center text-slate-400">{loading ? tr("載入中…") : tr("暫無充值訂單")}</td></tr> : data.rows.map((t) => {
               const [d, tm] = fmtDT(t.created_at);
               const prov = t.provider || "crypto";
-              const isCrypto = prov === "crypto";
+              const isCrypto = prov === "crypto" && !t.own_wallet;
+              const reviewable = MANUAL.includes(prov) || !!t.own_wallet;
               return (
                 <tr key={t.id} data-testid={`topup-admin-row-${t.id}`} className="hover:bg-orange-50/30 transition-colors">
                   <td className="px-4 py-3 whitespace-nowrap"><div className="text-slate-800 font-medium">{d}</div><div className="text-[11px] text-slate-400 font-mono">{tm}</div></td>
@@ -119,14 +120,16 @@ export function TopupsAdmin({ callApi }) {
                     <button onClick={() => copy(t.out_trade_no)} className="flex items-center gap-1 hover:text-slate-800" data-testid={`topup-no-${t.id}`}>{t.out_trade_no}<Copy className="h-3 w-3 opacity-50" /></button>
                     {t.reference_code && <button onClick={() => copy(t.reference_code)} className="mt-0.5 flex items-center gap-1 text-orange-600 font-bold hover:text-orange-700" data-testid={`topup-ref-${t.id}`}>{tr("轉帳碼")} {t.reference_code}<Copy className="h-3 w-3 opacity-50" /></button>}
                     {t.tx_id && <div className="mt-0.5 truncate max-w-[200px]" title={t.tx_id}>TX {t.tx_id}</div>}
+                    {t.own_wallet && t.tx_hash && !t.tx_id && <button onClick={() => copy(t.tx_hash)} className="mt-0.5 flex items-center gap-1 text-sky-600 hover:text-sky-700 max-w-[220px]" data-testid={`topup-txhash-${t.id}`}><span className="truncate">TXID {t.tx_hash}</span><Copy className="h-3 w-3 opacity-50 shrink-0" /></button>}
+                    {t.own_wallet && <div className="mt-0.5 text-[10px] text-slate-400">{tr("自有地址")} · {t.network}</div>}
                     {t.reject_reason && <div className="mt-0.5 text-red-500 font-sans truncate max-w-[220px]" title={t.reject_reason}>{tr("駁回：")}{t.reject_reason}</div>}
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="shrink-0"><Pill tone={TONE[t.status] || "slate"}>{LABEL[t.status] || t.status}</Pill>{t.manual_credit && <span className="ml-1 text-[10px] text-slate-400">{tr("手動補單")}</span>}</span>
-                      {t.proof_image && <ActionBtn tone="slate" icon={ImageIcon} data-testid={`topup-proof-${t.id}`} onClick={() => setProof(t)}>{tr("憑證")}</ActionBtn>}
+                      {(t.proof_image || t.tx_hash) && <ActionBtn tone="slate" icon={ImageIcon} data-testid={`topup-proof-${t.id}`} onClick={() => setProof(t)}>{tr("憑證")}</ActionBtn>}
                       {isCrypto && t.status === "pending" && <ActionBtn tone="slate" icon={Radar} data-testid={`topup-requery-${t.id}`} onClick={() => act(t, "requery", {}, (r) => tr("網關狀態：{0}", r.gateway?.status || "-"))}>{tr("重查網關")}</ActionBtn>}
-                      {MANUAL.includes(prov) && ["pending", "reviewing", "rejected"].includes(t.status) && <>
+                      {reviewable && ["pending", "reviewing", "rejected"].includes(t.status) && <>
                         <ActionBtn tone="ok" icon={CheckCircle2} data-testid={`topup-approve-${t.id}`} onClick={() => approve(t)}>{tr("審核通過")}</ActionBtn>
                         {t.status !== "rejected" && <ActionBtn tone="danger" icon={XCircle} data-testid={`topup-reject-${t.id}`} onClick={() => reject(t)}>{tr("駁回")}</ActionBtn>}
                       </>}
@@ -146,13 +149,18 @@ export function TopupsAdmin({ callApi }) {
           <div className="bg-white rounded-2xl max-w-2xl w-full overflow-hidden" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between px-5 py-3 border-b border-slate-100"><div className="font-semibold text-slate-800 text-sm">{tr("轉帳憑證")} · {proof.out_trade_no}</div><button onClick={() => setProof(null)} className="h-8 w-8 rounded-full bg-slate-100 flex items-center justify-center"><X className="h-4 w-4" /></button></div>
             <div className="p-5">
-              <a href={proof.proof_image} target="_blank" rel="noreferrer"><img src={proof.proof_image} alt="" className="max-h-[60vh] w-full object-contain rounded-xl bg-slate-50" /></a>
+              {proof.proof_image && <a href={proof.proof_image} target="_blank" rel="noreferrer"><img src={proof.proof_image} alt="" className="max-h-[60vh] w-full object-contain rounded-xl bg-slate-50" /></a>}
+              {proof.own_wallet && <div className="mt-2 rounded-xl bg-slate-50 p-3 text-xs text-slate-600 space-y-1">
+                <div><span className="text-slate-400">TXID：</span><span className="font-mono break-all text-slate-800" data-testid="proof-txhash">{proof.tx_hash || "-"}</span>{proof.tx_hash && <a href={`https://tronscan.org/#/transaction/${proof.tx_hash}`} target="_blank" rel="noreferrer" className="ml-2 text-sky-600 hover:underline">{tr("在 Tronscan 查看")}</a>}</div>
+                <div><span className="text-slate-400">{tr("收款地址")}：</span><span className="font-mono break-all">{proof.wallet_address}</span></div>
+                <div><span className="text-slate-400">{tr("應付")}：</span><b className="text-orange-600">{Number(proof.pay_amount || proof.amount_usd).toFixed(2)} USDT</b> · {proof.network}</div>
+              </div>}
               <div className="mt-3 grid grid-cols-2 gap-2 text-xs text-slate-600">
                 <div><span className="text-slate-400">{tr("付款人")}：</span>{proof.payer_name || "-"}</div>
                 <div><span className="text-slate-400">{tr("轉帳碼")}：</span><b className="text-orange-600 font-mono">{proof.reference_code}</b></div>
                 <div className="col-span-2"><span className="text-slate-400">{tr("備註")}：</span>{proof.proof_note || "-"}</div>
               </div>
-              {MANUAL.includes(proof.provider) && ["pending", "reviewing", "rejected"].includes(proof.status) && <div className="mt-4 flex gap-2 justify-end">
+              {(MANUAL.includes(proof.provider) || proof.own_wallet) && ["pending", "reviewing", "rejected"].includes(proof.status) && <div className="mt-4 flex gap-2 justify-end">
                 <ActionBtn tone="ok" icon={CheckCircle2} onClick={() => { setProof(null); approve(proof); }}>{tr("審核通過")}</ActionBtn>
                 {proof.status !== "rejected" && <ActionBtn tone="danger" icon={XCircle} onClick={() => { setProof(null); reject(proof); }}>{tr("駁回")}</ActionBtn>}
               </div>}

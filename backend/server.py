@@ -1268,7 +1268,8 @@ def _channel_no(mid: str) -> str:
 
 
 def _pm_public(m: dict) -> dict:
-    return {k: v for k, v in m.items() if k != "config"}
+    cfg = m.get("config") or {}
+    return {**{k: v for k, v in m.items() if k != "config"}, "own_wallet": bool((cfg.get("wallet_address") or "").strip()) if m.get("provider") == "crypto" else False}
 
 
 def _pm_admin(m: dict) -> dict:
@@ -1816,11 +1817,20 @@ async def wallet_topup_usdt(body: TopUpIn, request: Request, member: dict = Depe
     lo, hi = float(pm.get("min_usd") or 1), float(pm.get("max_usd") or 10000)
     if body.amount_usd < lo or body.amount_usd > hi:
         raise HTTPException(status_code=400, detail=f"此支付方式單次充值金額需介於 USD${lo:g} ~ USD${hi:g}")
-    key, secret, base = _usdt_creds(pm)
-    public = (os.environ.get("APP_PUBLIC_URL") or request.headers.get("origin") or "").rstrip("/")
+    cfg = pm.get("config") or {}
     tid = new_id()
     out_trade_no = f"TU{tid[:12].upper()}"
     amount = round(float(body.amount_usd), 2)
+    if (cfg.get("wallet_address") or "").strip():
+        doc = {"id": tid, "user_id": member["user_id"], "method_id": pm["id"], "method_name": pm["name"], "provider": "crypto", "own_wallet": True, "amount_usd": amount,
+               "status": "pending", "out_trade_no": out_trade_no, "order_no": "", "pay_amount": amount, "network": (cfg.get("network") or "TRC20").strip().upper(),
+               "wallet_address": cfg["wallet_address"].strip(), "wallet_note": cfg.get("wallet_note") or "", "pay_url": "",
+               "expires_at": (datetime.now(timezone.utc) + timedelta(hours=24)).isoformat(), "created_at": now_iso()}
+        await db.topup_orders.insert_one(doc)
+        doc.pop("_id", None)
+        return doc
+    key, secret, base = _usdt_creds(pm)
+    public = (os.environ.get("APP_PUBLIC_URL") or request.headers.get("origin") or "").rstrip("/")
     gw = await _usdt_call("/api/v1/orders", {"amount_usdt": amount, "network": "TRC20", "out_trade_no": out_trade_no,
                                              "notify_url": f"{public}/api/payments/usdt/notify", "remark": f"gogo589 wallet {member['user_id'][-6:]}"}, key, secret, base)
     doc = {"id": tid, "user_id": member["user_id"], "method_id": pm["id"], "amount_usd": amount, "status": "pending", "out_trade_no": out_trade_no,
@@ -1849,7 +1859,7 @@ async def wallet_topup_status(tid: str, request: Request, member: dict = Depends
         raise HTTPException(status_code=404, detail="充值單不存在")
     if t["status"] == "pending" and t.get("provider") and t["provider"] != "crypto":
         t = await payments_api.refresh_status(t, request)
-    elif t["status"] == "pending":
+    elif t["status"] == "pending" and not t.get("own_wallet"):
         pm = await db.payment_methods.find_one({"id": t.get("method_id")}, {"_id": 0})
         try:
             key, secret, base = _usdt_creds(pm)
