@@ -2183,31 +2183,97 @@ async def _usdt_scan_loop():
         await asyncio.sleep(interval)
 
 
+def _usdt_range_bounds(rng: str, date_from: str, date_to: str):
+    now = datetime.now(timezone.utc)
+    today = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    if rng == "today":
+        return today, now
+    if rng == "yesterday":
+        return today - timedelta(days=1), today
+    if rng == "week":
+        return today - timedelta(days=today.weekday()), now
+    if rng == "month":
+        return today.replace(day=1), now
+    if rng == "lastmonth":
+        first = today.replace(day=1)
+        return (first - timedelta(days=1)).replace(day=1), first
+    if rng == "custom" and date_from:
+        try:
+            s = datetime.fromisoformat(date_from).replace(tzinfo=timezone.utc)
+            e = (datetime.fromisoformat(date_to).replace(tzinfo=timezone.utc) + timedelta(days=1)) if date_to else now
+            return s, e
+        except Exception:
+            pass
+    return None, None
+
+
+async def _tron_usdt_balance(address: str) -> Optional[float]:
+    headers = {"TRON-PRO-API-KEY": os.environ["TRONGRID_API_KEY"]} if os.environ.get("TRONGRID_API_KEY") else {}
+    async with httpx.AsyncClient(timeout=10) as c:
+        r = await c.get(f"https://api.trongrid.io/v1/accounts/{address}", params={"only_confirmed": "true"}, headers=headers)
+    r.raise_for_status()
+    data = r.json().get("data") or []
+    if not data:
+        return 0.0
+    for entry in (data[0].get("trc20") or []):
+        if USDT_TRC20_CONTRACT in entry:
+            return round(int(entry[USDT_TRC20_CONTRACT]) / 1_000_000, 2)
+    return 0.0
+
+
 @api_router.get("/admin/usdt/overview")
-async def admin_usdt_overview(admin: dict = Depends(require_role("admin"))):
+async def admin_usdt_overview(range: str = "today", date_from: str = "", date_to: str = "", admin: dict = Depends(require_role("admin"))):
     methods = await db.payment_methods.find({"provider": "crypto"}, {"_id": 0}).to_list(100)
     addrs = []
     for m in methods:
         for a in _wallet_pool(m.get("config") or {}):
             if a not in addrs:
                 addrs.append(a)
+    s_dt, e_dt = _usdt_range_bounds(range, date_from, date_to)
+    dmatch = {"created_at": {"$gte": s_dt.isoformat(), "$lt": e_dt.isoformat()}} if s_dt else {}
 
     async def _agg(match):
         cur = db.topup_orders.aggregate([{"$match": match}, {"$group": {"_id": None, "n": {"$sum": 1}, "amt": {"$sum": "$amount_usd"}}}])
         d = await cur.to_list(1)
         return {"count": (d[0]["n"] if d else 0), "amount": round(float(d[0]["amt"]), 2) if d else 0.0}
 
-    summary = {s: await _agg({"own_wallet": True, "status": s}) for s in ["pending", "reviewing", "paid", "expired", "rejected"]}
+    summary = {s: await _agg({"own_wallet": True, "status": s, **dmatch}) for s in ["pending", "reviewing", "paid", "expired", "rejected"]}
+    paid_n = summary["paid"]["count"]
+    done = paid_n + summary["expired"]["count"] + summary["rejected"]["count"]
+    success_rate = round(paid_n / done * 100, 1) if done else 0.0
     per_address = []
     for a in addrs:
-        paid = await _agg({"own_wallet": True, "status": "paid", "wallet_address": a})
+        paid = await _agg({"own_wallet": True, "status": "paid", "wallet_address": a, **dmatch})
         pending = await db.topup_orders.count_documents({"own_wallet": True, "status": "pending", "wallet_address": a})
         per_address.append({"address": a, "paid_count": paid["count"], "paid_amount": paid["amount"], "pending_count": pending})
     per_address.sort(key=lambda x: x["paid_amount"], reverse=True)
-    recent = await db.topup_orders.find({"own_wallet": True},
+    recent = await db.topup_orders.find({"own_wallet": True, **dmatch},
         {"_id": 0, "id": 1, "user_id": 1, "out_trade_no": 1, "order_no": 1, "amount_usd": 1, "pay_amount": 1, "wallet_address": 1, "network": 1, "status": 1, "tx_id": 1, "created_at": 1, "paid_at": 1, "method_name": 1}
-    ).sort("created_at", -1).limit(50).to_list(50)
-    return {"addresses": addrs, "address_count": len(addrs), "summary": summary, "per_address": per_address, "recent": recent, "scan_seconds": int(os.environ.get("USDT_SCAN_SECONDS") or 90)}
+    ).sort("created_at", -1).limit(80).to_list(80)
+    return {"addresses": addrs, "address_count": len(addrs), "range": range, "summary": summary, "success_rate": success_rate,
+            "per_address": per_address, "recent": recent, "scan_seconds": int(os.environ.get("USDT_SCAN_SECONDS") or 90)}
+
+
+@api_router.get("/admin/usdt/balances")
+async def admin_usdt_balances(admin: dict = Depends(require_role("admin"))):
+    methods = await db.payment_methods.find({"provider": "crypto"}, {"_id": 0}).to_list(100)
+    addrs = []
+    for m in methods:
+        for a in _wallet_pool(m.get("config") or {}):
+            if a not in addrs:
+                addrs.append(a)
+    balances, total, ok = {}, 0.0, True
+    for a in addrs:
+        try:
+            b = await _tron_usdt_balance(a)
+            balances[a] = b
+            total += b
+        except Exception as e:
+            logger.info("usdt balance query failed %s: %s", a, e)
+            balances[a] = None
+            ok = False
+        await asyncio.sleep(0.25)
+    return {"balances": balances, "total": round(total, 2), "ok": ok, "has_key": bool(os.environ.get("TRONGRID_API_KEY"))}
 
 
 class RejectInfoIn(BaseModel):
