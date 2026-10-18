@@ -1,10 +1,9 @@
 import { useCallback, useEffect, useState } from "react";
-import { Trash2, Search, Upload, FileSearch } from "lucide-react";
+import { Trash2, Search, Upload, FileSearch, X } from "lucide-react";
 import { toast } from "sonner";
 import { Switch } from "@/components/ui/switch";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { tr } from "@/i18n";
-import { Head, Card, Btn, Input, Field, Table, Pill, fmt } from "./ui";
+import { Head, Card, Btn, Input, Field, Table, Pill, fmt, Modal } from "./ui";
 import { AccountRecentActivity } from "@/pages/admin/AccountRecentActivity";
 
 export function GiftCardPoolAdmin({ callApi }) {
@@ -94,22 +93,17 @@ export function GiftCardOrdersAdmin({ callApi }) {
   return (
     <div data-testid="giftcard-orders-admin">
       {ask && (() => { const u = ACT_UI[ask.kind]; return (
-        <Dialog open onOpenChange={() => setAsk(null)}>
-          <DialogContent className="max-w-md bg-white rounded-3xl" data-testid="gco-act-dialog">
-            <DialogHeader><DialogTitle className="font-head text-lg">{u.title}</DialogTitle><DialogDescription className="text-slate-500">{u.desc.replace("{0}", ask.ids.length)}</DialogDescription></DialogHeader>
-            {u.label && (
-              <div className="space-y-2">
-                <div className="text-xs font-semibold text-slate-600">{u.label}</div>
-                <div className="flex flex-wrap gap-1.5">{u.presets.map((t) => <button key={t} data-testid="gco-act-preset" onClick={() => setAsk({ ...ask, reason: t })} className={`rounded-full px-3 py-1 text-xs ${ask.reason === t ? "bg-orange-500 text-white" : "bg-orange-50 text-orange-700 hover:bg-orange-100"}`}>{t}</button>)}</div>
-                <textarea data-testid="gco-act-reason" value={ask.reason} onChange={(e) => setAsk({ ...ask, reason: e.target.value })} rows={3} className="w-full rounded-xl bg-slate-100 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-orange-300" placeholder={tr("輸入原因…")} />
-              </div>
-            )}
-            <DialogFooter className="gap-2">
-              <Btn kind="ghost" onClick={() => setAsk(null)}>{tr("返回")}</Btn>
-              <Btn data-testid="gco-act-confirm" kind={u.danger ? "danger" : undefined} onClick={() => { if (u.label && !ask.reason.trim()) return toast.error(tr("請填寫原因")); run(ask.kind, ask.ids, ask.reason.trim()); }}>{u.confirm}</Btn>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+        <Modal testId="gco-act-dialog" size="sm" title={u.title} onClose={() => setAsk(null)}
+          footer={<><Btn kind="ghost" onClick={() => setAsk(null)}>{tr("返回")}</Btn><Btn data-testid="gco-act-confirm" kind={u.danger ? "danger" : undefined} onClick={() => { if (u.label && !ask.reason.trim()) return toast.error(tr("請填寫原因")); run(ask.kind, ask.ids, ask.reason.trim()); }}>{u.confirm}</Btn></>}>
+          <div className="text-sm text-slate-500">{u.desc.replace("{0}", ask.ids.length)}</div>
+          {u.label && (
+            <div className="space-y-2">
+              <div className="text-xs font-semibold text-slate-600">{u.label}</div>
+              <div className="flex flex-wrap gap-1.5">{u.presets.map((t) => <button key={t} data-testid="gco-act-preset" onClick={() => setAsk({ ...ask, reason: t })} className={`rounded-full px-3 py-1 text-xs ${ask.reason === t ? "bg-orange-500 text-white" : "bg-orange-50 text-orange-700 hover:bg-orange-100"}`}>{t}</button>)}</div>
+              <textarea data-testid="gco-act-reason" value={ask.reason} onChange={(e) => setAsk({ ...ask, reason: e.target.value })} rows={3} className="w-full rounded-xl bg-slate-100 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-orange-300" placeholder={tr("輸入原因…")} />
+            </div>
+          )}
+        </Modal>
       ); })()}
       <Head title={tr("禮品卡訂單管理")} sub={tr("未命中號碼庫的訂單需人工完成（自動生成交易號）/ 駁回（用戶重填，不退款）/ 取消（退款並恢復庫存）。支持多選批量操作。")} />
       <Card className="p-3 mb-3 flex flex-wrap items-center gap-2">
@@ -143,8 +137,9 @@ export function GiftCardOrdersAdmin({ callApi }) {
           );
         }} />
       </Card>
-      <Dialog open={!!detailId} onOpenChange={(o) => !o && setDetailId(null)}>
-        <DialogContent className="max-w-lg p-0 overflow-hidden" data-testid="gco-detail-dialog">
+      {detailId && (
+        <Modal bare size="md" testId="gco-detail-dialog" onClose={() => setDetailId(null)}>
+          <button onClick={() => setDetailId(null)} className="absolute top-3 right-3 z-10 text-white/80 hover:text-white"><X className="h-5 w-5" /></button>
           {(() => {
             const o = data.rows.find((x) => x.id === detailId);
             if (!o) return null;
@@ -192,8 +187,8 @@ export function GiftCardOrdersAdmin({ callApi }) {
               </div>
             );
           })()}
-        </DialogContent>
-      </Dialog>
+        </Modal>
+      )}
     </div>
   );
 }

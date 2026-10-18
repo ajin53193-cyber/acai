@@ -2,11 +2,10 @@ import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Search, RefreshCw, CheckCircle2, XCircle, HandCoins, Radar, Image as ImageIcon, Copy, CalendarDays, X, FileSearch } from "lucide-react";
 import { tr } from "@/i18n";
-import { Btn, Card, Head, Pill } from "./ui";
+import { Btn, Card, Head, Pill, Modal } from "./ui";
 import { MemberDetail } from "./MembersAdmin";
 import { CreditHashDialog } from "@/pages/admin/CreditHashDialog";
 import { AccountRecentActivity } from "@/pages/admin/AccountRecentActivity";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
 
 const TONE = { pending: "orange", reviewing: "sky", paid: "emerald", expired: "slate", cancelled: "slate", closed: "slate", failed: "red", rejected: "red" };
 const LABEL = { pending: tr("待付款"), reviewing: tr("待審核"), paid: tr("已到帳"), rejected: tr("已駁回"), expired: tr("已過期"), cancelled: tr("已取消"), closed: tr("已關閉"), failed: tr("失敗") };
@@ -144,9 +143,10 @@ export function TopupsAdmin({ callApi }) {
 
       {member && <MemberDetail uid={member} callApi={callApi} onClose={() => setMember(null)} onChanged={load} />}
       <CreditHashDialog order={creditOrder} callApi={callApi} onClose={() => setCreditOrder(null)} onDone={load} />
-      <Dialog open={!!detail} onOpenChange={(o) => !o && setDetail(null)}>
-        <DialogContent className="max-w-lg p-0 overflow-hidden" data-testid="topup-detail-dialog">
-          {detail && (() => {
+      {detail && (
+        <Modal bare size="md" testId="topup-detail-dialog" onClose={() => setDetail(null)}>
+          <button onClick={() => setDetail(null)} className="absolute top-3 right-3 z-10 text-white/80 hover:text-white"><X className="h-5 w-5" /></button>
+          {(() => {
             const prov = detail.provider || "crypto";
             const isCrypto = prov === "crypto" && !detail.own_wallet;
             const reviewable = MANUAL.includes(prov) || !!detail.own_wallet;
@@ -190,12 +190,10 @@ export function TopupsAdmin({ callApi }) {
               </div>
             );
           })()}
-        </DialogContent>
-      </Dialog>
+        </Modal>
+      )}
       {proof && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 flex items-center justify-center p-4" onClick={() => setProof(null)} data-testid="topup-proof-modal">
-          <div className="bg-white rounded-2xl max-w-2xl w-full overflow-hidden" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between px-5 py-3 border-b border-slate-100"><div className="font-semibold text-slate-800 text-sm">{tr("轉帳憑證")} · {proof.out_trade_no}</div><button onClick={() => setProof(null)} className="h-8 w-8 rounded-full bg-slate-100 flex items-center justify-center"><X className="h-4 w-4" /></button></div>
+        <Modal testId="topup-proof-modal" size="xl" title={`${tr("轉帳憑證")} · ${proof.out_trade_no}`} onClose={() => setProof(null)}>
             <div className="p-5">
               {proof.proof_image && <a href={proof.proof_image} target="_blank" rel="noreferrer"><img src={proof.proof_image} alt="" className="max-h-[60vh] w-full object-contain rounded-xl bg-slate-50" /></a>}
               {proof.own_wallet && <div className="mt-2 rounded-xl bg-slate-50 p-3 text-xs text-slate-600 space-y-1">
@@ -213,8 +211,7 @@ export function TopupsAdmin({ callApi }) {
                 {proof.status !== "rejected" && <ActionBtn tone="danger" icon={XCircle} onClick={() => { setProof(null); reject(proof); }}>{tr("駁回")}</ActionBtn>}
               </div>}
             </div>
-          </div>
-        </div>
+        </Modal>
       )}
     </div>
   );

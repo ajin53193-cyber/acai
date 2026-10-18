@@ -1,10 +1,9 @@
 import { useCallback, useEffect, useState } from "react";
 import { Plus, Pencil, Trash2, ImagePlus, Search } from "lucide-react";
 import { toast } from "sonner";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Switch } from "@/components/ui/switch";
 import { RichEditor } from "@/components/admin/RichEditor";
-import { Card, Btn, Input, Pill, Table, Head } from "@/pages/admin/ui";
+import { Card, Btn, Input, Pill, Table, Head, Modal } from "@/pages/admin/ui";
 import { tr } from "@/i18n";
 
 const TYPES = { promo: tr("促銷活動"), tutorial: tr("充值教學"), news: tr("新聞公告") };
@@ -100,9 +99,8 @@ function ActivityForm({ item, callApi, onClose, onSaved }) {
     setBusy(false);
   };
   return (
-    <Dialog open onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl max-h-[92vh] overflow-y-auto bg-white" data-testid="activity-form">
-        <DialogHeader><DialogTitle>{f.id ? tr("編輯文章") : tr("新增文章")}</DialogTitle></DialogHeader>
+    <Modal testId="activity-form" size="3xl" title={f.id ? tr("編輯文章") : tr("新增文章")} onClose={onClose}
+      footer={<><Btn kind="ghost" onClick={onClose}>{tr("取消")}</Btn><Btn data-testid="activity-save" onClick={save} disabled={busy}>{busy ? tr("儲存中…") : tr("儲存")}</Btn></>}>
         <div className="grid md:grid-cols-3 gap-4">
           <div className="md:col-span-2 space-y-3">
             <div><label className={lbl}>{tr("標題")} *</label><Input data-testid="activity-title" className="w-full" value={f.title} onChange={(e) => set("title", e.target.value)} /></div>
@@ -130,11 +128,6 @@ function ActivityForm({ item, callApi, onClose, onSaved }) {
             <label className="flex items-center gap-2 text-sm text-slate-700 pt-1"><Switch data-testid="activity-active" checked={!!f.active} onCheckedChange={(v) => set("active", v)} /> {tr("上架顯示")}</label>
           </div>
         </div>
-        <DialogFooter>
-          <Btn kind="ghost" onClick={onClose}>{tr("取消")}</Btn>
-          <Btn data-testid="activity-save" onClick={save} disabled={busy}>{busy ? tr("儲存中…") : tr("儲存")}</Btn>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+    </Modal>
   );
 }

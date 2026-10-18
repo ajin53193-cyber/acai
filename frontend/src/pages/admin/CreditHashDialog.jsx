@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Loader2, X, Search, CheckCircle2, AlertCircle, HandCoins, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
 import { tr } from "@/i18n";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Modal } from "@/pages/admin/ui";
 
 const short = (a) => (a ? `${a.slice(0, 8)}…${a.slice(-8)}` : "-");
 const fmt = (s) => { if (!s) return "-"; const d = new Date(s); return d.toLocaleString(); };
@@ -49,9 +49,9 @@ export function CreditHashDialog({ order, callApi, onClose, onDone }) {
     </div>
   );
 
+  if (!order) return null;
   return (
-    <Dialog open={open} onOpenChange={(o) => !o && close()}>
-      <DialogContent className="max-w-md p-0 overflow-hidden" data-testid="credit-hash-dialog">
+    <Modal bare size="sm" testId="credit-hash-dialog" onClose={close}>
         <div className="bg-gradient-to-br from-emerald-500 to-emerald-600 text-white px-5 py-4">
           <div className="flex items-center gap-2 text-[15px] font-bold"><HandCoins className="h-4 w-4" />{tr("按鏈上哈希補單")}</div>
           <div className="mt-1 text-[12px] text-white/85">{tr("訂單號")} {ono} · {tr("應付")} <b>{Number(expected).toLocaleString()} USDT</b></div>
@@ -95,7 +95,6 @@ export function CreditHashDialog({ order, callApi, onClose, onDone }) {
           </div>
         </div>
         <button onClick={close} className="absolute top-3 right-3 text-white/80 hover:text-white" data-testid="credit-hash-close"><X className="h-5 w-5" /></button>
-      </DialogContent>
-    </Dialog>
+    </Modal>
   );
 }

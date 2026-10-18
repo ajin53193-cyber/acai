@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback } from "react";
 import { Loader2, Copy, X, Wallet, ExternalLink, CheckCircle2, AlertCircle, HandCoins } from "lucide-react";
 import { toast } from "sonner";
 import { tr } from "@/i18n";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Modal } from "@/pages/admin/ui";
 
 const copy = (v) => { if (v) { navigator.clipboard?.writeText(String(v)); toast.success(tr("已複製")); } };
 const short = (a) => (a ? `${a.slice(0, 6)}…${a.slice(-6)}` : "-");
@@ -34,9 +34,9 @@ export function AddressChainDialog({ address, callApi, onClose, onMatched }) {
   const txs = d?.transfers || [];
   const nUn = txs.filter((t) => !t.matched).length;
   const shown = onlyUnmatched ? txs.filter((t) => !t.matched) : txs;
+  if (!address) return null;
   return (
-    <Dialog open={!!address} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-w-3xl p-0 overflow-hidden" data-testid="addr-chain-dialog">
+    <Modal bare size="2xl" testId="addr-chain-dialog" onClose={onClose}>
         <div className="bg-gradient-to-br from-slate-800 to-slate-900 text-white px-5 py-4">
           <div className="flex items-center gap-2 text-[15px] font-bold"><Wallet className="h-4 w-4 text-orange-400" />{tr("收款地址鏈上到帳記錄")}</div>
           <div className="mt-1 flex items-center gap-2">
@@ -99,7 +99,6 @@ export function AddressChainDialog({ address, callApi, onClose, onMatched }) {
             )}
         </div>
         <button onClick={onClose} className="absolute top-3 right-3 text-white/80 hover:text-white" data-testid="addr-chain-close"><X className="h-5 w-5" /></button>
-      </DialogContent>
-    </Dialog>
+    </Modal>
   );
 }

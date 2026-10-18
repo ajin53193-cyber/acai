@@ -6,6 +6,11 @@
 
 ## 已实现（截至 2026-06）
 - 前端：首页、分类、商品详情、购物车、结账、用户账户、多货币。
+- [2026-06-18] 后台弹窗全量统一到 ui.jsx `Modal`（零差异收尾，纯样式，逻辑/接口不变）：
+  - `Modal` 增强：新增 `size`（sm/md/lg/xl/2xl/3xl/full）与 `bare` 模式（bare 用于保留品牌化渐变头的弹窗，仅统一外壳：遮罩+毛玻璃+圆角+点击外部关闭）。
+  - 已转换的弹窗：Promos、PaymentMethods(MethodForm)、Categories、Activities(ActivityForm)、Footer(PageEditor)、Reviews(编辑/回覆/模板 3 个)、Products(ProductForm full)、ChangePasswordDialog（标准 Modal）；UserInfoDialog、AddressChainDialog、CreditHashDialog、Orders 详情、Topups 详情+憑證、GiftCardOrders 操作+详情（bare 保留橙/翠/深色渐变头，右上角补 × 关闭）。
+  - 全后台已无任何 `@/components/ui/dialog` 引用；截图实测 Product/Review/Topup 弹窗均正常。
+
 - [2026-06-18] 后台 UI 三项精修（纯样式，不动功能/接口）：
   1. 侧边栏打磨（`Admin.jsx` NavGroup）：子菜单激活态由实心橙块改为「浅橙底 + 文字橙 + 左侧 2px 橙色竖条」更精致；分组标题激活态加浅橙底；安全配置等 LEAVES 展开态同步浅橙；缩进/间距微调（ml-4 pl-3）。注：`.admin-light` CSS 将整个后台（含 `bg-slate-900` 侧栏）强制渲染为浅色，侧栏实为白底。
   2. `ui.jsx` Modal 新增 `size` 属性（sm/md/lg/xl）。

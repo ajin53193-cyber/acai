@@ -5,7 +5,6 @@ import { KeyRound, LayoutDashboard, Package, ShoppingBag, Star, DollarSign, Tag,
 import { toast } from "sonner";
 import { useApi, publicApi } from "@/lib/api";
 import { STATUS_LABELS, STATUS_ORDER, StatusBadge } from "@/lib/status";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Switch } from "@/components/ui/switch";
 import { VerificationsAdmin, FeedbackAdmin } from "@/pages/admin/SupportAdmin";
 import PaymentMethodsAdmin from "@/pages/admin/PaymentMethodsAdmin";

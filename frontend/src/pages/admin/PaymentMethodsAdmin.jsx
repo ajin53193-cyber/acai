@@ -1,7 +1,6 @@
 import { useEffect, useState, useCallback } from "react";
 import { Plus, Pencil, Trash2, ArrowUp, ArrowDown, ImagePlus, Loader2, Plug, Power, PowerOff } from "lucide-react";
 import { toast } from "sonner";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Switch } from "@/components/ui/switch";
 import { tr } from "@/i18n";
 import { Btn, Card, Head, Modal } from "./ui";

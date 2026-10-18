@@ -1,9 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Plus, Pencil, Trash2, MessageSquareReply, Star, Eye, EyeOff, Search, AlertTriangle, CheckCircle2, Settings2, X } from "lucide-react";
 import { toast } from "sonner";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Switch } from "@/components/ui/switch";
-import { Btn, Input, Card, Head, Field, fmt } from "@/pages/admin/ui";
+import { Btn, Input, Card, Head, Field, fmt, Modal } from "@/pages/admin/ui";
 import { publicApi } from "@/lib/api";
 import { tr } from "@/i18n";
 import { ReviewAutoPanel } from "@/pages/admin/ReviewAutoPanel";
@@ -152,65 +151,45 @@ export function ReviewsAdmin({ callApi }) {
       </Card>
 
       {editing && (
-        <Dialog open onOpenChange={() => setEditing(null)}>
-          <DialogContent className="max-w-lg bg-white" data-testid="review-form">
-            <DialogHeader><DialogTitle>{editing.id ? tr("編輯評價") : tr("新增評價")}</DialogTitle></DialogHeader>
-            <div className="space-y-3">
-              <Field label={tr("商品")}><select data-testid="review-form-product" className={`${sel} w-full`} value={editing.product_id} onChange={(e) => setEditing({ ...editing, product_id: e.target.value })}>{products.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select></Field>
-              <div className="grid grid-cols-2 gap-3">
-                <Field label={tr("作者")}><Input data-testid="review-form-author" className="w-full" value={editing.author} onChange={(e) => setEditing({ ...editing, author: e.target.value })} /></Field>
-                <Field label={tr("評分 1-5")}><Input data-testid="review-form-rating" type="number" min="1" max="5" className="w-full" value={editing.rating} onChange={(e) => setEditing({ ...editing, rating: e.target.value })} /></Field>
-                <Field label={tr("地區（選填）")}><Input data-testid="review-form-area" className="w-full" value={editing.area || ""} onChange={(e) => setEditing({ ...editing, area: e.target.value })} placeholder={tr("例：中國台灣")} /></Field>
-                <div className="flex items-end pb-1"><label className="flex items-center gap-2 text-sm text-slate-700"><Switch data-testid="review-form-visible" checked={editing.visible !== false} onCheckedChange={(v) => setEditing({ ...editing, visible: v })} /> {tr("前台顯示")}</label></div>
-              </div>
-              <Field label={tr("內容")}><textarea data-testid="review-form-content" className="w-full min-h-[90px] rounded-lg bg-slate-100 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-orange-300" value={editing.content} onChange={(e) => setEditing({ ...editing, content: e.target.value })} /></Field>
-              <Field label={tr("客服回覆（選填）")}><textarea data-testid="review-form-reply" className="w-full min-h-[60px] rounded-lg bg-slate-100 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-orange-300" value={editing.reply || ""} onChange={(e) => setEditing({ ...editing, reply: e.target.value })} /></Field>
-            </div>
-            <DialogFooter>
-              <Btn kind="ghost" onClick={() => setEditing(null)}>{tr("取消")}</Btn>
-              <Btn data-testid="review-form-save" onClick={save} disabled={busy}>{tr("儲存")}</Btn>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+        <Modal testId="review-form" size="md" title={editing.id ? tr("編輯評價") : tr("新增評價")} onClose={() => setEditing(null)}
+          footer={<><Btn kind="ghost" onClick={() => setEditing(null)}>{tr("取消")}</Btn><Btn data-testid="review-form-save" onClick={save} disabled={busy}>{tr("儲存")}</Btn></>}>
+          <Field label={tr("商品")}><select data-testid="review-form-product" className={`${sel} w-full`} value={editing.product_id} onChange={(e) => setEditing({ ...editing, product_id: e.target.value })}>{products.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select></Field>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label={tr("作者")}><Input data-testid="review-form-author" className="w-full" value={editing.author} onChange={(e) => setEditing({ ...editing, author: e.target.value })} /></Field>
+            <Field label={tr("評分 1-5")}><Input data-testid="review-form-rating" type="number" min="1" max="5" className="w-full" value={editing.rating} onChange={(e) => setEditing({ ...editing, rating: e.target.value })} /></Field>
+            <Field label={tr("地區（選填）")}><Input data-testid="review-form-area" className="w-full" value={editing.area || ""} onChange={(e) => setEditing({ ...editing, area: e.target.value })} placeholder={tr("例：中國台灣")} /></Field>
+            <div className="flex items-end pb-1"><label className="flex items-center gap-2 text-sm text-slate-700"><Switch data-testid="review-form-visible" checked={editing.visible !== false} onCheckedChange={(v) => setEditing({ ...editing, visible: v })} /> {tr("前台顯示")}</label></div>
+          </div>
+          <Field label={tr("內容")}><textarea data-testid="review-form-content" className="w-full min-h-[90px] rounded-lg bg-slate-100 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-orange-300" value={editing.content} onChange={(e) => setEditing({ ...editing, content: e.target.value })} /></Field>
+          <Field label={tr("客服回覆（選填）")}><textarea data-testid="review-form-reply" className="w-full min-h-[60px] rounded-lg bg-slate-100 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-orange-300" value={editing.reply || ""} onChange={(e) => setEditing({ ...editing, reply: e.target.value })} /></Field>
+        </Modal>
       )}
 
       {replying && (
-        <Dialog open onOpenChange={() => setReplying(null)}>
-          <DialogContent className="max-w-md bg-white" data-testid="review-reply-form">
-            <DialogHeader><DialogTitle>{tr("回覆評價")}</DialogTitle></DialogHeader>
-            <div className="rounded-xl bg-slate-50 px-3 py-2 text-sm"><div className="font-semibold text-slate-800">{replying.author}</div><p className="text-slate-600 mt-0.5">{replying.content || <span className="italic text-slate-400">{tr("未填寫評價內容")}</span>}</p></div>
-            <div className="flex items-center justify-between"><span className="text-xs font-semibold text-slate-500">{tr("快捷話術（點擊填入）")}</span><button data-testid="review-tpl-manage" onClick={() => setTplEdit([...templates])} className="text-xs text-orange-600 inline-flex items-center gap-1"><Settings2 className="h-3.5 w-3.5" />{tr("管理模板")}</button></div>
-            <div className="flex flex-wrap gap-1.5" data-testid="review-tpl-list">
-              {templates.length === 0 && <span className="text-xs text-slate-400">{tr("尚無模板，點「管理模板」新增")}</span>}
-              {templates.map((t, i) => <button key={i} data-testid={`review-tpl-${i}`} title={t} onClick={() => setReplying({ ...replying, reply: t })} className="max-w-full truncate rounded-full bg-orange-50 hover:bg-orange-100 text-orange-700 px-3 py-1 text-xs text-left">{t}</button>)}
-            </div>
-            <textarea data-testid="review-reply-input" autoFocus className="w-full min-h-[100px] rounded-lg bg-slate-100 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-orange-300" placeholder={tr("輸入客服回覆，顧客會在商品頁看到")} value={replying.reply} onChange={(e) => setReplying({ ...replying, reply: e.target.value })} />
-            <DialogFooter>
-              <Btn kind="ghost" onClick={() => setReplying(null)}>{tr("取消")}</Btn>
-              <Btn data-testid="review-reply-save" onClick={sendReply} disabled={busy}>{tr("送出回覆")}</Btn>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+        <Modal testId="review-reply-form" size="sm" title={tr("回覆評價")} onClose={() => setReplying(null)}
+          footer={<><Btn kind="ghost" onClick={() => setReplying(null)}>{tr("取消")}</Btn><Btn data-testid="review-reply-save" onClick={sendReply} disabled={busy}>{tr("送出回覆")}</Btn></>}>
+          <div className="rounded-xl bg-slate-50 px-3 py-2 text-sm"><div className="font-semibold text-slate-800">{replying.author}</div><p className="text-slate-600 mt-0.5">{replying.content || <span className="italic text-slate-400">{tr("未填寫評價內容")}</span>}</p></div>
+          <div className="flex items-center justify-between"><span className="text-xs font-semibold text-slate-500">{tr("快捷話術（點擊填入）")}</span><button data-testid="review-tpl-manage" onClick={() => setTplEdit([...templates])} className="text-xs text-orange-600 inline-flex items-center gap-1"><Settings2 className="h-3.5 w-3.5" />{tr("管理模板")}</button></div>
+          <div className="flex flex-wrap gap-1.5" data-testid="review-tpl-list">
+            {templates.length === 0 && <span className="text-xs text-slate-400">{tr("尚無模板，點「管理模板」新增")}</span>}
+            {templates.map((t, i) => <button key={i} data-testid={`review-tpl-${i}`} title={t} onClick={() => setReplying({ ...replying, reply: t })} className="max-w-full truncate rounded-full bg-orange-50 hover:bg-orange-100 text-orange-700 px-3 py-1 text-xs text-left">{t}</button>)}
+          </div>
+          <textarea data-testid="review-reply-input" autoFocus className="w-full min-h-[100px] rounded-lg bg-slate-100 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-orange-300" placeholder={tr("輸入客服回覆，顧客會在商品頁看到")} value={replying.reply} onChange={(e) => setReplying({ ...replying, reply: e.target.value })} />
+        </Modal>
       )}
       {tplEdit && (
-        <Dialog open onOpenChange={() => setTplEdit(null)}>
-          <DialogContent className="max-w-lg bg-white" data-testid="review-tpl-form">
-            <DialogHeader><DialogTitle>{tr("快捷話術模板")}</DialogTitle></DialogHeader>
-            <div className="space-y-2 max-h-[55vh] overflow-y-auto pr-1">
-              {tplEdit.map((t, i) => (
-                <div key={i} className="flex items-start gap-2">
-                  <textarea data-testid={`review-tpl-edit-${i}`} value={t} onChange={(e) => setTplEdit(tplEdit.map((x, j) => (j === i ? e.target.value : x)))} rows={2} className="flex-1 rounded-lg bg-slate-100 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-orange-300" />
-                  <button data-testid={`review-tpl-remove-${i}`} onClick={() => setTplEdit(tplEdit.filter((_, j) => j !== i))} className="mt-2 text-slate-400 hover:text-red-500"><X className="h-4 w-4" /></button>
-                </div>
-              ))}
-              <Btn kind="ghost" data-testid="review-tpl-add" onClick={() => setTplEdit([...tplEdit, ""])}><Plus className="h-3.5 w-3.5 inline -mt-0.5 mr-1" />{tr("新增一條")}</Btn>
-            </div>
-            <DialogFooter>
-              <Btn kind="ghost" onClick={() => setTplEdit(null)}>{tr("取消")}</Btn>
-              <Btn data-testid="review-tpl-save" onClick={saveTemplates}>{tr("儲存模板")}</Btn>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+        <Modal testId="review-tpl-form" size="md" title={tr("快捷話術模板")} onClose={() => setTplEdit(null)}
+          footer={<><Btn kind="ghost" onClick={() => setTplEdit(null)}>{tr("取消")}</Btn><Btn data-testid="review-tpl-save" onClick={saveTemplates}>{tr("儲存模板")}</Btn></>}>
+          <div className="space-y-2 max-h-[55vh] overflow-y-auto pr-1">
+            {tplEdit.map((t, i) => (
+              <div key={i} className="flex items-start gap-2">
+                <textarea data-testid={`review-tpl-edit-${i}`} value={t} onChange={(e) => setTplEdit(tplEdit.map((x, j) => (j === i ? e.target.value : x)))} rows={2} className="flex-1 rounded-lg bg-slate-100 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-orange-300" />
+                <button data-testid={`review-tpl-remove-${i}`} onClick={() => setTplEdit(tplEdit.filter((_, j) => j !== i))} className="mt-2 text-slate-400 hover:text-red-500"><X className="h-4 w-4" /></button>
+              </div>
+            ))}
+            <Btn kind="ghost" data-testid="review-tpl-add" onClick={() => setTplEdit([...tplEdit, ""])}><Plus className="h-3.5 w-3.5 inline -mt-0.5 mr-1" />{tr("新增一條")}</Btn>
+          </div>
+        </Modal>
       )}
     </div>
   );

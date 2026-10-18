@@ -1,12 +1,11 @@
 import { useCallback, useEffect, useState } from "react";
-import { Search, Download, ShieldAlert, Copy, FileSearch } from "lucide-react";
+import { Search, Download, ShieldAlert, Copy, FileSearch, X } from "lucide-react";
 import { toast } from "sonner";
-import { Card, Btn, Input, Pill, Head } from "@/pages/admin/ui";
+import { Card, Btn, Input, Pill, Head, Modal } from "@/pages/admin/ui";
 import { STATUS_LABELS, StatusBadge } from "@/lib/status";
 import { tr } from "@/i18n";
 import { UserInfoDialog } from "@/pages/admin/UserInfoDialog";
 import { AccountRecentActivity } from "@/pages/admin/AccountRecentActivity";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
 
 const selBase = "h-9 rounded-lg bg-slate-100 px-3 text-sm outline-none focus:ring-2 focus:ring-orange-300";
 const ALL_STATUSES = Object.keys(STATUS_LABELS);
@@ -111,8 +110,9 @@ export function OrdersAdmin({ callApi }) {
           <button disabled={page >= pages} onClick={() => setPage(page + 1)} className="h-8 px-3 rounded-full text-xs bg-white border border-slate-200 disabled:opacity-40">›</button>
         </div>
       )}
-      <Dialog open={!!detailId} onOpenChange={(o) => !o && setDetailId(null)}>
-        <DialogContent className="max-w-lg p-0 overflow-hidden" data-testid="order-detail-dialog">
+      {detailId && (
+        <Modal bare size="md" testId="order-detail-dialog" onClose={() => setDetailId(null)}>
+          <button onClick={() => setDetailId(null)} className="absolute top-3 right-3 z-10 text-white/80 hover:text-white"><X className="h-5 w-5" /></button>
           {(() => {
             const o = data.rows.find((x) => x.id === detailId);
             if (!o) return null;
@@ -163,8 +163,8 @@ export function OrdersAdmin({ callApi }) {
               </div>
             );
           })()}
-        </DialogContent>
-      </Dialog>
+        </Modal>
+      )}
       <UserInfoDialog uid={viewUid} callApi={callApi} onClose={() => setViewUid("")} />
     </div>
   );

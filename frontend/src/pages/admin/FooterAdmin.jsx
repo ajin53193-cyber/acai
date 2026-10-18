@@ -2,9 +2,8 @@ import { useCallback, useEffect, useState } from "react";
 import { Plus, Trash2, ArrowUp, ArrowDown, Pencil, RotateCcw, Save, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
 import { Switch } from "@/components/ui/switch";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { RichEditor } from "@/components/admin/RichEditor";
-import { Card, Btn, Input, Head, Field, fmt } from "@/pages/admin/ui";
+import { Card, Btn, Input, Head, Field, fmt, Modal } from "@/pages/admin/ui";
 import { tr } from "@/i18n";
 
 const move = (arr, i, d) => { const j = i + d; if (j < 0 || j >= arr.length) return arr; const a = [...arr]; [a[i], a[j]] = [a[j], a[i]]; return a; };
@@ -61,20 +60,15 @@ function PageEditor({ callApi, page, onClose, onSaved }) {
     setBusy(false);
   };
   return (
-    <Dialog open onOpenChange={(v) => !v && onClose()}>
-      <DialogContent className="max-w-3xl bg-white rounded-3xl max-h-[92vh] overflow-y-auto" data-testid="footer-page-editor">
-        <DialogHeader><DialogTitle className="font-head">{page ? tr("編輯頁面") : tr("新增頁面")}</DialogTitle></DialogHeader>
-        <div className="space-y-3">
-          <div className="grid md:grid-cols-[1fr_200px_auto] gap-3 items-end">
-            <Field label={tr("頁面標題")}><Input data-testid="footer-page-title" className="w-full" value={f.title} onChange={(e) => setF({ ...f, title: e.target.value })} /></Field>
-            <Field label={tr("網址代號（/article/…）")}><Input data-testid="footer-page-slug" className="w-full font-mono" value={f.id} disabled={!!page} onChange={(e) => setF({ ...f, id: e.target.value })} placeholder="about-us" /></Field>
-            <label className="flex items-center gap-2 text-sm text-slate-700 h-9"><Switch data-testid="footer-page-active" checked={f.active} onCheckedChange={(v) => setF({ ...f, active: v })} />{tr("前台顯示")}</label>
-          </div>
-          {loading ? <div className="text-sm text-slate-400 py-10 text-center">{tr("載入中…")}</div> : <RichEditor testId="footer-page-content" value={f.content_html} onChange={(v) => setF({ ...f, content_html: v })} onUpload={upload} placeholder={tr("輸入頁面內容，可插入圖片…")} />}
+    <Modal testId="footer-page-editor" size="2xl" title={page ? tr("編輯頁面") : tr("新增頁面")} onClose={onClose}
+      footer={<><Btn kind="ghost" onClick={onClose}>{tr("取消")}</Btn><Btn data-testid="footer-page-save" onClick={save} disabled={busy || loading}>{busy ? tr("儲存中…") : tr("儲存")}</Btn></>}>
+        <div className="grid md:grid-cols-[1fr_200px_auto] gap-3 items-end">
+          <Field label={tr("頁面標題")}><Input data-testid="footer-page-title" className="w-full" value={f.title} onChange={(e) => setF({ ...f, title: e.target.value })} /></Field>
+          <Field label={tr("網址代號（/article/…）")}><Input data-testid="footer-page-slug" className="w-full font-mono" value={f.id} disabled={!!page} onChange={(e) => setF({ ...f, id: e.target.value })} placeholder="about-us" /></Field>
+          <label className="flex items-center gap-2 text-sm text-slate-700 h-9"><Switch data-testid="footer-page-active" checked={f.active} onCheckedChange={(v) => setF({ ...f, active: v })} />{tr("前台顯示")}</label>
         </div>
-        <DialogFooter className="gap-2"><Btn kind="ghost" onClick={onClose}>{tr("取消")}</Btn><Btn data-testid="footer-page-save" onClick={save} disabled={busy || loading}>{busy ? tr("儲存中…") : tr("儲存")}</Btn></DialogFooter>
-      </DialogContent>
-    </Dialog>
+        {loading ? <div className="text-sm text-slate-400 py-10 text-center">{tr("載入中…")}</div> : <RichEditor testId="footer-page-content" value={f.content_html} onChange={(v) => setF({ ...f, content_html: v })} onUpload={upload} placeholder={tr("輸入頁面內容，可插入圖片…")} />}
+    </Modal>
   );
 }
 

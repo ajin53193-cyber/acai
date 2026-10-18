@@ -1,9 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { Plus, Pencil, Trash2 } from "lucide-react";
 import { toast } from "sonner";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Switch } from "@/components/ui/switch";
-import { Btn, Input, Table, Head, ImgField } from "@/pages/admin/ui";
+import { Btn, Input, Table, Head, ImgField, Modal } from "@/pages/admin/ui";
 import { tr } from "@/i18n";
 
 const lbl = "block text-xs font-semibold text-slate-500 mb-1";
@@ -54,24 +53,16 @@ export function CategoriesAdmin({ callApi }) {
         </tr>
       )} />
       {editing && (
-        <Dialog open onOpenChange={() => setEditing(null)}>
-          <DialogContent className="max-w-lg bg-white" data-testid="category-form">
-            <DialogHeader><DialogTitle>{editing._new ? tr("新增分類") : tr("編輯分類")}</DialogTitle></DialogHeader>
-            <div className="space-y-3">
-              <div className="grid grid-cols-2 gap-3">
-                <div><label className={lbl}>{tr("分類名稱")} *</label><Input data-testid="category-name" className="w-full" value={editing.name} onChange={(e) => setEditing({ ...editing, name: e.target.value })} /></div>
-                <div><label className={lbl}>{tr("ID（英文小寫，網址使用）")}</label><Input data-testid="category-id" className="w-full" value={editing.id} disabled={!editing._new} onChange={(e) => setEditing({ ...editing, id: e.target.value })} placeholder={tr("留空自動產生")} /></div>
-                <div><label className={lbl}>{tr("排序（小在前）")}</label><Input type="number" className="w-full" value={editing.sort_order} onChange={(e) => setEditing({ ...editing, sort_order: e.target.value })} /></div>
-                <div className="flex items-end pb-1"><label className="flex items-center gap-2 text-sm text-slate-700"><Switch checked={editing.active !== false} onCheckedChange={(v) => setEditing({ ...editing, active: v })} /> {tr("前台顯示")}</label></div>
-              </div>
-              <div><label className={lbl}>{tr("分類圖示（方形 PNG，≤2M）")}</label><div className="max-w-[200px]"><ImgField value={editing.image} onChange={(v) => setEditing({ ...editing, image: v })} testId="category-image" ratio="aspect-square" /></div></div>
-            </div>
-            <DialogFooter>
-              <Btn kind="ghost" onClick={() => setEditing(null)}>{tr("取消")}</Btn>
-              <Btn data-testid="category-save" onClick={save} disabled={busy}>{tr("儲存")}</Btn>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+        <Modal testId="category-form" size="md" title={editing._new ? tr("新增分類") : tr("編輯分類")} onClose={() => setEditing(null)}
+          footer={<><Btn kind="ghost" onClick={() => setEditing(null)}>{tr("取消")}</Btn><Btn data-testid="category-save" onClick={save} disabled={busy}>{tr("儲存")}</Btn></>}>
+          <div className="grid grid-cols-2 gap-3">
+            <div><label className={lbl}>{tr("分類名稱")} *</label><Input data-testid="category-name" className="w-full" value={editing.name} onChange={(e) => setEditing({ ...editing, name: e.target.value })} /></div>
+            <div><label className={lbl}>{tr("ID（英文小寫，網址使用）")}</label><Input data-testid="category-id" className="w-full" value={editing.id} disabled={!editing._new} onChange={(e) => setEditing({ ...editing, id: e.target.value })} placeholder={tr("留空自動產生")} /></div>
+            <div><label className={lbl}>{tr("排序（小在前）")}</label><Input type="number" className="w-full" value={editing.sort_order} onChange={(e) => setEditing({ ...editing, sort_order: e.target.value })} /></div>
+            <div className="flex items-end pb-1"><label className="flex items-center gap-2 text-sm text-slate-700"><Switch checked={editing.active !== false} onCheckedChange={(v) => setEditing({ ...editing, active: v })} /> {tr("前台顯示")}</label></div>
+          </div>
+          <div><label className={lbl}>{tr("分類圖示（方形 PNG，≤2M）")}</label><div className="max-w-[200px]"><ImgField value={editing.image} onChange={(v) => setEditing({ ...editing, image: v })} testId="category-image" ratio="aspect-square" /></div></div>
+        </Modal>
       )}
     </div>
   );

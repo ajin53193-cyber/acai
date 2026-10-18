@@ -1,10 +1,9 @@
 import { useCallback, useEffect, useState } from "react";
 import { Plus, Pencil, Trash2, Search, X, ArrowUp, ArrowDown } from "lucide-react";
 import { toast } from "sonner";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Switch } from "@/components/ui/switch";
 import { RichEditor } from "@/components/admin/RichEditor";
-import { Card, Btn, Input, Pill, Table, Head, ImgField } from "@/pages/admin/ui";
+import { Card, Btn, Input, Pill, Table, Head, ImgField, Modal } from "@/pages/admin/ui";
 import { tr } from "@/i18n";
 import { publicApi } from "@/lib/api";
 
@@ -216,12 +215,9 @@ export function ProductForm({ item, cats, callApi, onClose, onSaved, inline, tit
   );
   if (inline) return <div className="rounded-2xl bg-white border border-slate-200 shadow-sm p-5 space-y-4" data-testid="product-form">{body}</div>;
   return (
-    <Dialog open onOpenChange={onClose}>
-      <DialogContent className="max-w-[1400px] w-[96vw] max-h-[94vh] overflow-y-auto bg-white" data-testid="product-form">
-        <DialogHeader><DialogTitle>{heading}{f.id && <span className="ml-2 text-xs font-normal text-slate-400">ID {f.id}</span>}</DialogTitle></DialogHeader>
-        {body}
-      </DialogContent>
-    </Dialog>
+    <Modal testId="product-form" size="full" onClose={onClose} title={<>{heading}{f.id && <span className="ml-2 text-xs font-normal text-slate-400">ID {f.id}</span>}</>}>
+      {body}
+    </Modal>
   );
 }
 

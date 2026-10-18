@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Loader2, Copy, X, BadgeCheck, Ban, Mail, Phone, Wallet, ShoppingBag, Crown } from "lucide-react";
 import { toast } from "sonner";
 import { tr } from "@/i18n";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Modal } from "@/pages/admin/ui";
 
 const copy = (v) => { if (v) { navigator.clipboard?.writeText(String(v)); toast.success(tr("已複製")); } };
 const fmt = (s) => s ? new Date(s).toLocaleString() : "-";
@@ -23,9 +23,9 @@ export function UserInfoDialog({ uid, callApi, onClose }) {
       {copyable && value ? <button onClick={() => copy(value)} className="text-slate-400 hover:text-orange-600"><Copy className="h-3.5 w-3.5" /></button> : null}
     </div>
   );
+  if (!uid) return null;
   return (
-    <Dialog open={!!uid} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-w-md p-0 overflow-hidden" data-testid="user-info-dialog">
+    <Modal bare size="sm" testId="user-info-dialog" onClose={onClose}>
         <div className="bg-gradient-to-br from-orange-500 to-amber-500 text-white px-5 py-4">
           <div className="text-[12px] text-white/80 font-semibold">{tr("帳戶ID")}</div>
           <div className="flex items-center gap-2 mt-0.5">
@@ -34,7 +34,7 @@ export function UserInfoDialog({ uid, callApi, onClose }) {
           </div>
           {d?.nickname ? <div className="text-[13px] text-white/90 mt-0.5">{d.nickname}</div> : null}
         </div>
-        <div className="p-5">
+        <div className="p-5 max-h-[70vh] overflow-y-auto">
           {err ? <div className="py-8 text-center text-sm text-red-500">{err}</div>
             : !d ? <div className="py-10 flex justify-center"><Loader2 className="h-6 w-6 animate-spin text-orange-500" /></div>
             : (
@@ -52,7 +52,6 @@ export function UserInfoDialog({ uid, callApi, onClose }) {
             )}
         </div>
         <button onClick={onClose} className="absolute top-3 right-3 text-white/80 hover:text-white" data-testid="user-info-close"><X className="h-5 w-5" /></button>
-      </DialogContent>
-    </Dialog>
+    </Modal>
   );
 }
