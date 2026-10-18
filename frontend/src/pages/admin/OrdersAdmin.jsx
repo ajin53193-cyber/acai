@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import { Card, Btn, Input, Pill, Head } from "@/pages/admin/ui";
 import { STATUS_LABELS, StatusBadge } from "@/lib/status";
 import { tr } from "@/i18n";
+import { UserInfoDialog } from "@/pages/admin/UserInfoDialog";
 
 const selBase = "h-9 rounded-lg bg-slate-100 px-3 text-sm outline-none focus:ring-2 focus:ring-orange-300";
 const ALL_STATUSES = Object.keys(STATUS_LABELS);
@@ -26,6 +27,7 @@ export function OrdersAdmin({ callApi }) {
   const [to, setTo] = useState("");
   const [page, setPage] = useState(1);
   const [open, setOpen] = useState(null);
+  const [viewUid, setViewUid] = useState("");
   const [exporting, setExporting] = useState(false);
   const size = 30;
 
@@ -91,7 +93,7 @@ export function OrdersAdmin({ callApi }) {
               return [
                 <tr key={o.id} data-testid={`order-row-${o.id}`} className={`hover:bg-orange-50/40 cursor-pointer ${isOpen ? "bg-orange-50/50" : ""}`} onClick={() => setOpen(isOpen ? null : o.id)}>
                   <td className="px-4 py-2.5 whitespace-nowrap"><div className="font-mono text-xs text-slate-800 flex items-center gap-1">{o.order_no}<button onClick={(e) => { e.stopPropagation(); navigator.clipboard?.writeText(o.order_no); toast.success(tr("已複製")); }} className="text-slate-300 hover:text-orange-500"><Copy className="h-3 w-3" /></button></div><div className="text-[11px] text-slate-400">{fmt(o.created_at)}</div></td>
-                  <td className="px-4 py-2.5 text-xs text-slate-600 max-w-[200px] truncate">{o.user_email || o.user_id}</td>
+                  <td className="px-4 py-2.5 text-xs max-w-[200px]">{o.user_id ? <button data-testid={`order-user-${o.id}`} onClick={(e) => { e.stopPropagation(); setViewUid(o.user_id); }} className="text-orange-600 font-semibold hover:underline truncate block max-w-full text-left" title={tr("查看用戶信息")}>{o.user_email || o.user_id}</button> : <span className="text-slate-600 truncate block">{o.user_email || "-"}</span>}</td>
                   <td className="px-4 py-2.5 text-xs text-slate-700 max-w-[280px]"><div className="truncate">{o.items.map((i) => `${i.product_name} ${i.spec_label}×${i.quantity}`).join("、")}</div></td>
                   <td className="px-4 py-2.5 text-xs text-slate-700 max-w-[160px] truncate">{o.recharge_account}{o.status === "paid" && o.info_submitted === false && <Pill tone="amber">{o.info_rejected ? tr("已駁回") : tr("未填資料")}</Pill>}</td>
                   <td className="px-4 py-2.5 text-xs text-slate-800 whitespace-nowrap font-semibold">{o.currency_symbol}{(o.total_usd * o.rate_to_usd).toFixed(2)} <span className="text-slate-400 font-normal">{o.currency}</span>{o.currency !== "USD" && <div className="text-[11px] text-slate-400 font-normal">≈ ${o.total_usd}</div>}</td>
@@ -137,6 +139,7 @@ export function OrdersAdmin({ callApi }) {
           <button disabled={page >= pages} onClick={() => setPage(page + 1)} className="h-8 px-3 rounded-full text-xs bg-white border border-slate-200 disabled:opacity-40">›</button>
         </div>
       )}
+      <UserInfoDialog uid={viewUid} callApi={callApi} onClose={() => setViewUid("")} />
     </div>
   );
 }

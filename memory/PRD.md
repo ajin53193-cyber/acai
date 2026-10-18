@@ -239,3 +239,13 @@
   - 原「支付渠道配置」頁改 `scope="other"`，不再顯示 crypto（USDT 統一在新頁管理）。
   - 後端新增 `GET /api/admin/usdt/overview`（require_role admin）：彙總各狀態筆數/金額、各地址收款統計、最近記錄。已後端直測通過（A1 2筆/300、A2 1筆/300 等統計準確）。
   - i18n 新增約 20 keys；RolesAdmin 加 `usdt-channel` 權限。
+
+## 2026-10-18 更新（收款地址鏈上對帳彈窗 + 用戶信息彈窗全後台覆蓋）
+- **收款地址「查鏈」對帳彈窗 `AddressChainDialog.jsx`**（USDT 通道）：後端新增 `GET /api/admin/usdt/address/{address}`（require_role admin）→ 查該地址 TronGrid 鏈上實時 USDT 餘額 + 近 30 筆轉入 TRC20 記錄，逐筆比對 `topup_orders.tx_id` 標記 **已對應 / 未對應**（未對應 = 到帳但系統未確認，底色標黃便於排查漏單）。彈窗仿用戶參考圖：深色頭 + 地址複製、「在 TronScan 查看」外鏈、表格欄位 金額(USDT)[綠/黃點] / 付款方 / 時間 / 哈希(連 Tronscan) / 對帳狀態。
+  - 入口：USDT 通道「地址收款統計」每行地址旁「查鏈」膠囊按鈕；「最近充值記錄」收款地址列可點擊開彈窗。已登入後台截圖驗證彈窗正常渲染（預覽地址 TFVG7t… 無鏈上活動顯示「近期無轉入記錄」+ 餘額 0 U）。
+- **用戶信息彈窗 `UserInfoDialog` 推廣到後台各數據表**（用戶要求「後台所有數據點用戶ID都能看用戶信息」）：
+  - OrdersAdmin（訂單管理）用戶列、MemberAssetsAdmin（會員資產）帳戶ID、OrderSettlementAdmin（訂單結算）帳號列 均改為可點擊 → 開 UserInfoDialog。
+  - 後端 `finance/settlement` rows 補 `user_id` 以支持結算頁點擊。
+  - TopupsAdmin / UsdtChannelAdmin 先前已具備；MembersAdmin 本身即用戶列表。已截圖驗證 MemberAssets 點擊帳戶ID 彈出完整資料卡（郵箱/餘額/訂單消費/等級/實名/狀態/UserID/註冊時間）。
+- **i18n 處理注意**：新增 13 條繁中 key 以**手動合併簡體**寫入 `zh-CN.json`（不可用 `gen_i18n_dicts.py` 全量重生，tw2sp 會把「通道→信道」等既有人工修正覆蓋造成回歸）。
+- **交付**：完整源碼包已重新打包 `/app/export/patch.zip`（含上述改動，不含真實 .env）。

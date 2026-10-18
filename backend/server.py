@@ -2278,6 +2278,59 @@ async def admin_usdt_balances(admin: dict = Depends(require_role("admin"))):
     return {"balances": balances, "total": round(total, 2), "ok": ok, "has_key": bool(os.environ.get("TRONGRID_API_KEY"))}
 
 
+async def _tron_usdt_transfers(address: str, limit: int = 20) -> list:
+    """Recent TRC20-USDT transfers (both directions) for an address via TronGrid."""
+    headers = {"TRON-PRO-API-KEY": os.environ["TRONGRID_API_KEY"]} if os.environ.get("TRONGRID_API_KEY") else {}
+    params = {"only_confirmed": "true", "contract_address": USDT_TRC20_CONTRACT, "limit": min(limit, 50)}
+    async with httpx.AsyncClient(timeout=10) as c:
+        r = await c.get(f"https://api.trongrid.io/v1/accounts/{address}/transactions/trc20", params=params, headers=headers)
+    r.raise_for_status()
+    out = []
+    for tx in r.json().get("data", []):
+        if tx.get("type") != "Transfer":
+            continue
+        dec = int(tx.get("token_info", {}).get("decimals", 6))
+        out.append({
+            "tx_id": tx.get("transaction_id"),
+            "direction": "in" if tx.get("to") == address else "out",
+            "counterparty": tx.get("from") if tx.get("to") == address else tx.get("to"),
+            "amount": round(int(tx.get("value", 0)) / (10 ** dec), 6),
+            "ts": datetime.fromtimestamp(tx.get("block_timestamp", 0) / 1000, tz=timezone.utc).isoformat() if tx.get("block_timestamp") else "",
+        })
+    return out
+
+
+@api_router.get("/admin/usdt/address/{address}")
+async def admin_usdt_address_chain(address: str, admin: dict = Depends(require_role("admin"))):
+    """On-chain reconciliation for a receiving address: live balance + recent inbound USDT transfers,
+    each annotated whether it matches a recorded top-up order (已對應 / 未對應)."""
+    balance, transfers, ok = None, [], True
+    try:
+        balance = await _tron_usdt_balance(address)
+    except Exception as e:
+        logger.info("usdt addr balance failed %s: %s", address, e)
+        ok = False
+    try:
+        raw = await _tron_usdt_transfers(address, 30)
+    except Exception as e:
+        logger.info("usdt addr transfers failed %s: %s", address, e)
+        ok = False
+        raw = []
+    for t in raw:
+        if t["direction"] != "in":
+            continue
+        order = await db.topup_orders.find_one(
+            {"tx_id": t["tx_id"]}, {"_id": 0, "id": 1, "order_no": 1, "out_trade_no": 1, "user_id": 1, "status": 1}
+        ) if t.get("tx_id") else None
+        transfers.append({
+            "tx_id": t["tx_id"], "from": t["counterparty"], "amount": t["amount"], "ts": t["ts"],
+            "matched": bool(order),
+            "order_no": (order.get("order_no") or order.get("out_trade_no")) if order else "",
+            "account_id": admin_api.account_no(order["user_id"]) if order and order.get("user_id") else "",
+        })
+    return {"address": address, "balance": balance, "transfers": transfers, "ok": ok, "has_key": bool(os.environ.get("TRONGRID_API_KEY"))}
+
+
 class RejectInfoIn(BaseModel):
     reason: str = ""
 

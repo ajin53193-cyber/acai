@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Search, Wallet, Ticket } from "lucide-react";
 import { tr } from "@/i18n";
 import { Head, Card, Btn, Table, useLoad } from "./ui";
+import { UserInfoDialog } from "@/pages/admin/UserInfoDialog";
 
 function Stat({ icon: Icon, label, value, tone }) {
   return (
@@ -15,6 +16,7 @@ function Stat({ icon: Icon, label, value, tone }) {
 export function MemberAssetsAdmin({ callApi }) {
   const [q, setQ] = useState("");
   const [qq, setQq] = useState("");
+  const [viewUid, setViewUid] = useState("");
   const [data, load] = useLoad(callApi, `/admin/member-assets?q=${encodeURIComponent(qq)}`); // eslint-disable-line
   const d = data || { rows: [], summary: {} };
 
@@ -31,12 +33,13 @@ export function MemberAssetsAdmin({ callApi }) {
       </Card>
       <Table testId="assets-table" cols={[tr("帳戶ID"), tr("會員"), tr("餘額"), tr("優惠券")]} empty={data === null ? tr("載入中…") : tr("暫無資料")} rows={d.rows} render={(r) => (
         <tr key={r.user_id} data-testid={`asset-row-${r.user_id}`} className="hover:bg-orange-50/30">
-          <td className="px-4 py-3 font-head font-bold text-slate-900">{r.account_no}</td>
+          <td className="px-4 py-3"><button data-testid={`asset-user-${r.user_id}`} onClick={() => setViewUid(r.user_id)} className="font-head font-bold text-orange-600 hover:underline" title={tr("查看用戶信息")}>{r.account_no}</button></td>
           <td className="px-4 py-3 text-slate-700 truncate max-w-[200px]">{r.email || r.phone || r.name || "-"}</td>
           <td className="px-4 py-3 font-head font-bold text-orange-600">${r.balance_usd.toFixed(2)}</td>
           <td className="px-4 py-3 text-slate-600">{r.coupons}</td>
         </tr>
       )} />
+      <UserInfoDialog uid={viewUid} callApi={callApi} onClose={() => setViewUid("")} />
     </div>
   );
 }

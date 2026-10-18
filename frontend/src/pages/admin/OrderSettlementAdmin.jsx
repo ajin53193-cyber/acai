@@ -3,6 +3,7 @@ import { toast } from "sonner";
 import { tr } from "@/i18n";
 import { Head, Btn, Table, Pill, Card, fmt } from "./ui";
 import { StatusBadge } from "@/lib/status";
+import { UserInfoDialog } from "@/pages/admin/UserInfoDialog";
 
 function Stat({ label, value, tone = "slate" }) {
   return <Card className="p-4"><div className="text-xs text-slate-500">{label}</div><div className={`font-head text-2xl font-extrabold text-${tone}-600 mt-1`}>{value}</div></Card>;
@@ -13,6 +14,7 @@ export function OrderSettlementAdmin({ callApi }) {
   const [filter, setFilter] = useState("no");
   const [data, setData] = useState(null);
   const [sel, setSel] = useState([]);
+  const [viewUid, setViewUid] = useState("");
   const load = useCallback(() => callApi({ method: "GET", url: `/admin/finance/settlement?days=${days}&settled=${filter}` }).then((r) => { setData(r.data); setSel([]); }).catch((e) => toast.error(e.response?.data?.detail || tr("載入失敗"))), [callApi, days, filter]);
   useEffect(() => { load(); }, [load]);
   const rows = data?.rows || [];
@@ -46,13 +48,14 @@ export function OrderSettlementAdmin({ callApi }) {
           <tr key={r.id} data-testid={`settle-row-${i}`} className="hover:bg-orange-50/30">
             <td className="px-4 py-2.5"><input type="checkbox" data-testid={`settle-check-${i}`} checked={sel.includes(r.id)} onChange={() => toggle(r.id)} className="h-4 w-4 accent-orange-500" /></td>
             <td className="px-4 py-2.5 font-mono text-[12px] text-slate-600">{r.id.slice(-10)}</td>
-            <td className="px-4 py-2.5 text-slate-500">#{r.account}</td>
+            <td className="px-4 py-2.5">{r.user_id ? <button data-testid={`settle-user-${i}`} onClick={() => setViewUid(r.user_id)} className="text-orange-600 font-semibold hover:underline" title={tr("查看用戶信息")}>#{r.account}</button> : <span className="text-slate-500">#{r.account}</span>}</td>
             <td className="px-4 py-2.5 font-semibold text-slate-800">${r.total_usd}</td>
             <td className="px-4 py-2.5"><StatusBadge status={r.status} /></td>
             <td className="px-4 py-2.5">{r.settled ? <Pill tone="emerald">{tr("已結算")}</Pill> : <Pill tone="amber">{tr("待結算")}</Pill>}</td>
             <td className="px-4 py-2.5 text-slate-400 text-xs">{fmt(r.created_at)}</td>
           </tr>
         )} />
+      <UserInfoDialog uid={viewUid} callApi={callApi} onClose={() => setViewUid("")} />
     </div>
   );
 }

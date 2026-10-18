@@ -1960,7 +1960,7 @@ async def admin_finance_settlement(days: int = 30, settled: str = "", limit: int
     rows = await db.orders.find(query, {"_id": 0, "id": 1, "user_id": 1, "total_usd": 1, "status": 1, "settled": 1, "settled_at": 1, "created_at": 1}).sort("created_at", -1).to_list(limit)
     out = []
     for r in rows:
-        out.append({"id": r["id"], "account": account_no(r.get("user_id", "")), "total_usd": round(float(r.get("total_usd") or 0), 2),
+        out.append({"id": r["id"], "user_id": r.get("user_id", ""), "account": account_no(r.get("user_id", "")), "total_usd": round(float(r.get("total_usd") or 0), 2),
                     "status": r.get("status"), "settled": bool(r.get("settled")), "settled_at": r.get("settled_at", ""), "created_at": r.get("created_at", "")})
     total_amt = round(sum(r["total_usd"] for r in out), 2)
     settled_amt = round(sum(r["total_usd"] for r in out if r["settled"]), 2)

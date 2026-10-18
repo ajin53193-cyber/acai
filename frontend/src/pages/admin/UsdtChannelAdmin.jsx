@@ -1,10 +1,11 @@
 import { useEffect, useState, useCallback } from "react";
-import { Loader2, Clock, FileSearch, CheckCircle2, XCircle, Ban, Copy, Wallet, Settings2, BarChart3, RefreshCw } from "lucide-react";
+import { Loader2, Clock, FileSearch, CheckCircle2, XCircle, Ban, Copy, Wallet, Settings2, BarChart3, RefreshCw, Search } from "lucide-react";
 import { toast } from "sonner";
 import { tr } from "@/i18n";
 import { Card, Head } from "./ui";
 import PaymentMethodsAdmin from "@/pages/admin/PaymentMethodsAdmin";
 import { UserInfoDialog } from "@/pages/admin/UserInfoDialog";
+import { AddressChainDialog } from "@/pages/admin/AddressChainDialog";
 
 const ST = {
   pending: [tr("待付款"), "text-amber-600 bg-amber-50 border-amber-200", Clock],
@@ -39,6 +40,7 @@ export function UsdtChannelAdmin({ callApi }) {
 function UsdtData({ callApi }) {
   const [d, setD] = useState(null);
   const [viewUid, setViewUid] = useState("");
+  const [viewAddr, setViewAddr] = useState("");
   const [range, setRange] = useState("today");
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
@@ -118,7 +120,7 @@ function UsdtData({ callApi }) {
                 const b = bal && bal !== "loading" ? bal.balances?.[p.address] : undefined;
                 return (
                 <tr key={p.address} data-testid={`usdt-addr-${p.address.slice(-6)}`} className="hover:bg-orange-50/30">
-                  <td className="px-5 py-3 font-mono text-[13px] text-slate-700"><button onClick={() => copy(p.address)} className="inline-flex items-center gap-1.5 hover:text-orange-600">{short(p.address)}<Copy className="h-3.5 w-3.5 opacity-60" /></button></td>
+                  <td className="px-5 py-3 font-mono text-[13px] text-slate-700"><div className="flex items-center gap-2"><button onClick={() => copy(p.address)} className="inline-flex items-center gap-1.5 hover:text-orange-600">{short(p.address)}<Copy className="h-3.5 w-3.5 opacity-60" /></button><button data-testid={`usdt-addr-chain-${p.address.slice(-6)}`} onClick={() => setViewAddr(p.address)} className="inline-flex items-center gap-1 rounded-full bg-slate-100 hover:bg-orange-100 text-slate-600 hover:text-orange-700 px-2 py-0.5 text-[11px] font-semibold transition-colors"><Search className="h-3 w-3" />{tr("查鏈")}</button></div></td>
                   <td className="px-5 py-3 text-right font-mono text-[13px] text-slate-700">{bal === "loading" || bal === null ? "…" : b == null ? <span className="text-slate-300">—</span> : `${b.toLocaleString()} U`}</td>
                   <td className="px-5 py-3 text-center"><span className="inline-flex rounded-full bg-amber-50 text-amber-700 text-xs font-semibold px-2 py-0.5">{p.pending_count}</span></td>
                   <td className="px-5 py-3 text-center font-semibold text-slate-700">{p.paid_count}</td>
@@ -156,7 +158,7 @@ function UsdtData({ callApi }) {
                     <td className="px-5 py-3 font-mono text-[13px] text-slate-700 whitespace-nowrap"><button onClick={() => setViewUid(t.user_id)} data-testid={`usdt-user-${t.account_id}`} className="inline-flex items-center gap-1 font-bold text-orange-600 hover:underline" title={tr("查看用戶信息")}>{t.account_id || short(t.user_id)}</button></td>
                     <td className="px-5 py-3 text-right font-semibold text-slate-700">${t.amount_usd}</td>
                     <td className="px-5 py-3 text-right font-mono text-[13px] text-slate-600">{t.pay_amount} U</td>
-                    <td className="px-5 py-3 font-mono text-[12px] text-slate-500">{short(t.wallet_address)}</td>
+                    <td className="px-5 py-3 font-mono text-[12px] text-slate-500">{t.wallet_address ? <button data-testid={`usdt-recent-chain-${t.id}`} onClick={() => setViewAddr(t.wallet_address)} className="inline-flex items-center gap-1 hover:text-orange-600 group"><span className="group-hover:underline">{short(t.wallet_address)}</span><Search className="h-3 w-3 opacity-50 group-hover:opacity-100" /></button> : <span className="text-slate-300">—</span>}</td>
                     <td className="px-5 py-3 text-center"><span className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-semibold ${cls}`}><Icon className="h-3 w-3" />{lbl}</span></td>
                     <td className="px-5 py-3 font-mono text-[12px]">{t.tx_id ? <a href={`https://tronscan.org/#/transaction/${t.tx_id}`} target="_blank" rel="noreferrer" className="text-orange-500 hover:underline">{short(t.tx_id)}</a> : <span className="text-slate-300">—</span>}</td>
                   </tr>
@@ -167,6 +169,7 @@ function UsdtData({ callApi }) {
         )}
       </Card>
       <UserInfoDialog uid={viewUid} callApi={callApi} onClose={() => setViewUid("")} />
+      <AddressChainDialog address={viewAddr} callApi={callApi} onClose={() => setViewAddr("")} />
     </div>
   );
 }
