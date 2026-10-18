@@ -125,15 +125,49 @@ class AdminTotpIn(BaseModel):
     code: str
 
 
+# 後台登入暴力破解防護：帳號 / IP / TOTP 階段各自 15 分鐘內錯 5 次即鎖定
+_auth_fails: dict = {}
+_FAIL_MAX, _FAIL_WINDOW = 5, 900
+
+
+def _fail_guard(*keys: str):
+    now = time.time()
+    for k in keys:
+        recent = [t for t in _auth_fails.get(k, []) if t > now - _FAIL_WINDOW]
+        _auth_fails[k] = recent
+        if len(recent) >= _FAIL_MAX:
+            raise HTTPException(status_code=429, detail="嘗試次數過多，請 15 分鐘後再試")
+
+
+def _fail_mark(*keys: str):
+    for k in keys:
+        _auth_fails.setdefault(k, []).append(time.time())
+
+
+def _fail_clear(*keys: str):
+    for k in keys:
+        _auth_fails.pop(k, None)
+
+
+def _req_ip(request: Request) -> str:
+    fwd = request.headers.get("x-forwarded-for", "")
+    return fwd.split(",")[0].strip() if fwd else (request.client.host if request.client else "")
+
+
 @router.post("/auth/login")
-async def admin_login(body: AdminLoginIn):
+async def admin_login(body: AdminLoginIn, request: Request):
     ident = body.identifier.strip().lower()
+    ip = _req_ip(request)
+    _fail_guard(f"login:{ident}", f"ip:{ip}")
     user = await email_auth._phone_user(ident) if ident.startswith("+") else await email_auth._find_user(ident)
     if not user:
+        _fail_mark(f"login:{ident}", f"ip:{ip}")
         raise HTTPException(status_code=401, detail="帳號或密碼錯誤")
     r = await email_auth._clerk("POST", f"/users/{user['id']}/verify_password", json={"password": body.password})
     if r.status_code != 200 or not r.json().get("verified"):
+        _fail_mark(f"login:{ident}", f"ip:{ip}")
         raise HTTPException(status_code=401, detail="帳號或密碼錯誤")
+    _fail_clear(f"login:{ident}")
     m = await db.users.find_one({"user_id": user["id"]}, {"_id": 0})
     if not m or m.get("role") != "admin":
         raise HTTPException(status_code=403, detail="此帳號沒有後台權限")
@@ -147,13 +181,17 @@ async def admin_login(body: AdminLoginIn):
 
 
 @router.post("/auth/totp")
-async def admin_totp(body: AdminTotpIn):
+async def admin_totp(body: AdminTotpIn, request: Request):
     data = _verify(body.pre_token)
     if not data or data.get("stage") != "totp":
         raise HTTPException(status_code=401, detail="登入已逾時，請重新登入")
+    ip = _req_ip(request)
+    _fail_guard(f"totp:{data['uid']}", f"ip:{ip}")
     rec = await db.admin_2fa.find_one({"user_id": data["uid"]}, {"_id": 0})
     if not rec or not pyotp.TOTP(rec["secret"]).verify(body.code.strip(), valid_window=1):
+        _fail_mark(f"totp:{data['uid']}", f"ip:{ip}")
         raise HTTPException(status_code=400, detail="驗證碼錯誤")
+    _fail_clear(f"totp:{data['uid']}", f"ip:{ip}")
     await db.admin_2fa.update_one({"user_id": data["uid"]}, {"$set": {"enabled": True, "verified_at": datetime.now(timezone.utc).isoformat()}})
     return {"ticket": await email_auth._ticket(data["uid"]), "admin_token": _sign({"uid": data["uid"]}, ADMIN_TOKEN_TTL), "expires_in": ADMIN_TOKEN_TTL}
 
