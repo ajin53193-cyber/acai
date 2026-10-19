@@ -2009,7 +2009,7 @@ async def stats_visits(date: str, _: str = Depends(require_admin)):
 
 # ======================= 推广图文页（白底，后台生成分享链接 /p/{slug}） =======================
 class PromoBlock(BaseModel):
-    type: str = Field(pattern=r"^(heading|text|image|button)$")
+    type: str = Field(pattern=r"^(heading|text|image|button|calculator)$")
     text: str = Field(default="", max_length=3000)   # heading/text 内容；button 为按钮文字；image 为图片说明
     image: str = Field(default="", max_length=500)   # image 图片地址
     link: str = Field(default="", max_length=500)    # button 跳转地址（站内 /tutorials/xxx 或外链）

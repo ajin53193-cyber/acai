@@ -1,10 +1,79 @@
+import { useState } from "react";
 import { Link } from "react-router-dom";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, Calculator } from "lucide-react";
 import { toFullUrl } from "@/components/ImageUpload";
 
 export const isExternal = (link) => /^https?:\/\//i.test(link || "");
 
+// 85折后每 1 HKD 面值的买入 USDT 成本（gogo589）；9折×实时汇率后每 1 HKD 的核销人民币（闲礼会馆）
+const BUY_USDT_PER_HKD = 0.1087;   // 1000 HKD → $108.70
+const SELL_RMB_PER_HKD = 0.76509;  // 1000 HKD → ¥765.09（1 HKD≈¥0.8501 × 9折）
+const PRESETS = [200, 500, 1000, 5000, 8000];
+
+export const GiftCardCalculator = () => {
+  const [face, setFace] = useState(1000);
+  const val = Number(face) || 0;
+  const buy = (val * BUY_USDT_PER_HKD).toFixed(2);
+  const sell = (val * SELL_RMB_PER_HKD).toFixed(2);
+
+  return (
+    <section className="mt-8 rounded-2xl border-2 border-[#D4AF37]/60 bg-gradient-to-b from-[#FFFBEF] to-white p-5 shadow-[0_6px_24px_rgba(212,175,55,0.18)]" data-testid="giftcard-calculator">
+      <div className="flex items-center gap-2 text-base font-bold text-slate-900">
+        <Calculator size={18} className="text-[#C8961E]" /> 收益计算器
+      </div>
+      <p className="mt-1 text-xs text-slate-400">输入礼品卡面值（港币 HKD），自动估算买入成本与核销实得</p>
+
+      <div className="mt-4 flex flex-wrap gap-2">
+        {PRESETS.map((p) => (
+          <button
+            key={p}
+            type="button"
+            onClick={() => setFace(p)}
+            data-testid={`calc-preset-${p}`}
+            className={`rounded-full px-3.5 py-1.5 text-xs font-semibold transition-colors ${
+              Number(face) === p ? "bg-[#D4AF37] text-[#1B1403]" : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+            }`}
+          >
+            HK${p}
+          </button>
+        ))}
+      </div>
+
+      <label className="mt-4 block text-xs font-medium text-slate-500">礼品卡面值（HKD）</label>
+      <input
+        type="number"
+        min="0"
+        inputMode="numeric"
+        value={face}
+        onChange={(e) => setFace(e.target.value)}
+        data-testid="calc-face-input"
+        className="mt-1.5 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-lg font-bold text-slate-900 outline-none focus:border-[#D4AF37]"
+        placeholder="如 1000"
+      />
+
+      <div className="mt-4 grid grid-cols-2 gap-3">
+        <div className="rounded-xl bg-slate-50 p-3.5" data-testid="calc-buy-cost">
+          <div className="text-xs text-slate-400">买入成本（gogo589 · 85折）</div>
+          <div className="mt-1 text-xl font-black text-slate-900">${buy} <span className="text-xs font-semibold text-slate-400">USDT</span></div>
+        </div>
+        <div className="rounded-xl bg-[#FFF6D8] p-3.5" data-testid="calc-sell-get">
+          <div className="text-xs text-[#8A6A12]">核销实得（闲礼会馆 · 9折）</div>
+          <div className="mt-1 text-xl font-black text-[#B8860B]">¥{sell}</div>
+        </div>
+      </div>
+
+      <p className="mt-3 text-center text-xs font-semibold text-[#C8961E]">约 5% 价差 · 最快 3 分钟到账</p>
+      <p className="mt-1 text-center text-[11px] leading-relaxed text-slate-400">
+        汇率与折扣为参考值（1 HKD≈¥0.8501×9折），实际买入价与核销实得以平台操作当时的实时价格为准。
+      </p>
+    </section>
+  );
+};
+
 export const Block = ({ block, index }) => {
+  if (block.type === "calculator") {
+    return <GiftCardCalculator key={index} />;
+  }
   if (block.type === "heading") {
     return (
       <h2 className="mt-8 border-l-4 border-[#D4AF37] pl-3 text-lg font-bold text-slate-900 md:text-xl" data-testid={`promo-block-${index}`}>
