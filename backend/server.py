@@ -1697,6 +1697,48 @@ async def track_visit(data: TrackInput, request: Request):
     return {"ok": True}
 
 
+PROVINCES = [
+    "北京", "天津", "河北", "山西", "内蒙古", "辽宁", "吉林", "黑龙江", "上海", "江苏", "浙江", "安徽", "福建", "江西",
+    "山东", "河南", "湖北", "湖南", "广东", "广西", "海南", "重庆", "四川", "贵州", "云南", "西藏", "陕西", "甘肃",
+    "青海", "宁夏", "新疆", "台湾", "香港", "澳门",
+]
+
+
+def province_of(region: str) -> Optional[str]:
+    """从「国家 省 市」地区文本中解析出省级短名（与前端 china.json 省名前缀一致）。"""
+    parts = (region or "").split()
+    if not parts:
+        return None
+    candidates = parts[1:2] if parts[0] in ("中国", "中华人民共和国") else parts[:1]
+    for token in candidates:
+        for p in PROVINCES:
+            if token.startswith(p):
+                return p
+    return None
+
+
+@api_router.get("/admin/stats/provinces")
+async def stats_provinces(days: int = 30, _: str = Depends(require_admin)):
+    """近 N 天各省访客分布（按独立 IP 去重），供后台中国地图热力图使用。"""
+    days = max(1, min(days, 365))
+    start = (datetime.now(CN_TZ) - timedelta(days=days - 1)).strftime("%Y-%m-%d")
+    rows = await db.visits.aggregate([
+        {"$match": {"date": {"$gte": start}}},
+        {"$group": {"_id": {"region": "$region", "ip": "$ip"}}},
+        {"$group": {"_id": "$_id.region", "n": {"$sum": 1}}},
+    ]).to_list(5000)
+    counts: dict = {}
+    unknown = 0
+    for r in rows:
+        p = province_of(r["_id"])
+        if p:
+            counts[p] = counts.get(p, 0) + r["n"]
+        else:
+            unknown += r["n"]
+    provinces = sorted(({"name": k, "count": v} for k, v in counts.items()), key=lambda x: x["count"], reverse=True)
+    return {"days": days, "provinces": provinces, "total": sum(counts.values()), "unknown": unknown}
+
+
 @api_router.get("/admin/stats/overview")
 async def stats_overview(date: str, _: str = Depends(require_admin)):
     query = {"date": date}
@@ -1963,6 +2005,167 @@ async def stats_channel_funnel(days: int = 30, _: str = Depends(require_admin)):
 async def stats_visits(date: str, _: str = Depends(require_admin)):
     visits = await db.visits.find({"date": date}, {"_id": 0, "ua": 0}).sort("created_at", -1).to_list(300)
     return {"visits": visits}
+
+
+# ======================= 推广图文页（白底，后台生成分享链接 /p/{slug}） =======================
+class PromoBlock(BaseModel):
+    type: str = Field(pattern=r"^(heading|text|image|button)$")
+    text: str = Field(default="", max_length=3000)   # heading/text 内容；button 为按钮文字；image 为图片说明
+    image: str = Field(default="", max_length=500)   # image 图片地址
+    link: str = Field(default="", max_length=500)    # button 跳转地址（站内 /tutorials/xxx 或外链）
+
+
+class PromoInput(BaseModel):
+    title: str = Field(min_length=1, max_length=120)
+    subtitle: str = Field(default="", max_length=300)
+    cover: str = Field(default="", max_length=500)
+    blocks: List[PromoBlock] = Field(default_factory=list)
+    published: bool = True
+
+
+class PromoPublish(BaseModel):
+    published: bool
+
+
+def _promo_slug() -> str:
+    return uuid.uuid4().hex[:8]
+
+
+@api_router.get("/promos/{slug}")
+async def get_promo(slug: str):
+    doc = await db.promos.find_one({"slug": slug, "published": {"$ne": False}}, {"_id": 0})
+    if not doc:
+        raise HTTPException(status_code=404, detail="页面不存在或已下线")
+    return doc
+
+
+@api_router.post("/promos/{slug}/view", status_code=201)
+async def promo_view(slug: str):
+    await db.promos.update_one({"slug": slug}, {"$inc": {"views": 1}})
+    return {"ok": True}
+
+
+@api_router.get("/admin/promos")
+async def admin_list_promos(_: str = Depends(require_admin)):
+    promos = await db.promos.find({}, {"_id": 0}).sort("created_at", -1).to_list(300)
+    return {"promos": promos}
+
+
+@api_router.post("/admin/promos", status_code=201)
+async def admin_create_promo(data: PromoInput, _: str = Depends(require_admin)):
+    now = datetime.now(timezone.utc).isoformat()
+    doc = {"id": str(uuid.uuid4()), "slug": _promo_slug(), **data.model_dump(), "views": 0, "created_at": now, "updated_at": now}
+    await db.promos.insert_one(doc)
+    doc.pop("_id", None)
+    return doc
+
+
+@api_router.put("/admin/promos/{promo_id}")
+async def admin_update_promo(promo_id: str, data: PromoInput, _: str = Depends(require_admin)):
+    result = await db.promos.update_one(
+        {"id": promo_id}, {"$set": {**data.model_dump(), "updated_at": datetime.now(timezone.utc).isoformat()}}
+    )
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="页面不存在")
+    return await db.promos.find_one({"id": promo_id}, {"_id": 0})
+
+
+@api_router.patch("/admin/promos/{promo_id}/publish")
+async def admin_publish_promo(promo_id: str, data: PromoPublish, _: str = Depends(require_admin)):
+    result = await db.promos.update_one({"id": promo_id}, {"$set": {"published": data.published}})
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="页面不存在")
+    return {"message": "已上线" if data.published else "已下线"}
+
+
+@api_router.delete("/admin/promos/{promo_id}")
+async def admin_delete_promo(promo_id: str, _: str = Depends(require_admin)):
+    result = await db.promos.delete_one({"id": promo_id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="页面不存在")
+    return {"message": "已删除"}
+
+
+
+# ======================= 热门工具（白底分享页 /tools 列表 + /tools/{slug} 教程页） =======================
+class ToolInput(BaseModel):
+    name: str = Field(min_length=1, max_length=60)
+    icon: str = Field(default="", max_length=500)          # App 图标
+    tagline: str = Field(default="", max_length=200)       # 一句话简介
+    download_link: str = Field(default="", max_length=500) # 下载地址
+    download_text: str = Field(default="立即下载", max_length=20)
+    blocks: List[PromoBlock] = Field(default_factory=list) # 图文教学
+    published: bool = True
+    sort: int = 0                                          # 越小越靠前
+
+
+class ToolEventInput(BaseModel):
+    type: str = Field(pattern=r"^(view|download)$")
+
+
+@api_router.get("/tools")
+async def list_tools():
+    tools = await db.tools.find(
+        {"published": {"$ne": False}},
+        {"_id": 0, "slug": 1, "name": 1, "icon": 1, "tagline": 1, "sort": 1, "views": 1},
+    ).sort([("sort", 1), ("created_at", -1)]).to_list(200)
+    return {"tools": tools}
+
+
+@api_router.get("/tools/{slug}")
+async def get_tool(slug: str):
+    doc = await db.tools.find_one({"slug": slug, "published": {"$ne": False}}, {"_id": 0})
+    if not doc:
+        raise HTTPException(status_code=404, detail="工具不存在或已下线")
+    return doc
+
+
+@api_router.post("/tools/{slug}/events", status_code=201)
+async def tool_event(slug: str, data: ToolEventInput):
+    field = "views" if data.type == "view" else "downloads"
+    await db.tools.update_one({"slug": slug}, {"$inc": {field: 1}})
+    return {"ok": True}
+
+
+@api_router.get("/admin/tools")
+async def admin_list_tools(_: str = Depends(require_admin)):
+    tools = await db.tools.find({}, {"_id": 0}).sort([("sort", 1), ("created_at", -1)]).to_list(300)
+    return {"tools": tools}
+
+
+@api_router.post("/admin/tools", status_code=201)
+async def admin_create_tool(data: ToolInput, _: str = Depends(require_admin)):
+    now = datetime.now(timezone.utc).isoformat()
+    doc = {"id": str(uuid.uuid4()), "slug": _promo_slug(), **data.model_dump(), "views": 0, "downloads": 0, "created_at": now, "updated_at": now}
+    await db.tools.insert_one(doc)
+    doc.pop("_id", None)
+    return doc
+
+
+@api_router.put("/admin/tools/{tool_id}")
+async def admin_update_tool(tool_id: str, data: ToolInput, _: str = Depends(require_admin)):
+    result = await db.tools.update_one(
+        {"id": tool_id}, {"$set": {**data.model_dump(), "updated_at": datetime.now(timezone.utc).isoformat()}}
+    )
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="工具不存在")
+    return await db.tools.find_one({"id": tool_id}, {"_id": 0})
+
+
+@api_router.patch("/admin/tools/{tool_id}/publish")
+async def admin_publish_tool(tool_id: str, data: PromoPublish, _: str = Depends(require_admin)):
+    result = await db.tools.update_one({"id": tool_id}, {"$set": {"published": data.published}})
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="工具不存在")
+    return {"message": "已上线" if data.published else "已下线"}
+
+
+@api_router.delete("/admin/tools/{tool_id}")
+async def admin_delete_tool(tool_id: str, _: str = Depends(require_admin)):
+    result = await db.tools.delete_one({"id": tool_id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="工具不存在")
+    return {"message": "已删除"}
 
 
 app.include_router(api_router)

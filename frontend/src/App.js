@@ -16,6 +16,8 @@ import Cooperation from "@/pages/Cooperation";
 import About from "@/pages/About";
 import Contact from "@/pages/Contact";
 import Tutorial from "@/pages/Tutorial";
+import PromoPage from "@/pages/PromoPage";
+import ToolDetail, { ToolsList } from "@/pages/Tools";
 import Admin from "@/pages/Admin";
 import { ChatWidget } from "@/components/ChatWidget";
 
@@ -34,6 +36,8 @@ const ROUTE_TITLES = {
 const Layout = () => {
   const { pathname } = useLocation();
   const isAdmin = pathname.startsWith("/admin");
+  const isPromo = pathname.startsWith("/p/") || pathname.startsWith("/tools");
+  const bare = isAdmin || isPromo; // 后台与白底推广页/工具页不显示站点页头/页脚/客服
 
   useEffect(() => {
     captureSource();
@@ -50,7 +54,7 @@ const Layout = () => {
 
   return (
     <>
-      {!isAdmin && <Header />}
+      {!bare && <Header />}
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/projects" element={<Projects />} />
@@ -60,11 +64,14 @@ const Layout = () => {
         <Route path="/about" element={<About />} />
         <Route path="/contact" element={<Contact />} />
         <Route path="/tutorials/:slug" element={<Tutorial />} />
+        <Route path="/p/:slug" element={<PromoPage />} />
+        <Route path="/tools" element={<ToolsList />} />
+        <Route path="/tools/:slug" element={<ToolDetail />} />
         <Route path="/admin" element={<Admin />} />
       </Routes>
-      {!isAdmin && <Footer />}
-      {!isAdmin && <MobileTabBar />}
-      {!isAdmin && <ChatWidget />}
+      {!bare && <Footer />}
+      {!bare && <MobileTabBar />}
+      {!bare && <ChatWidget />}
     </>
   );
 };

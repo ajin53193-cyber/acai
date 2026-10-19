@@ -3,6 +3,7 @@ import axios from "axios";
 import { toast } from "sonner";
 import { BarChart3, Eye, Users, Globe, Search } from "lucide-react";
 import { API } from "@/lib/api";
+import { ChinaMap } from "@/components/ChinaMap";
 import { sourceLabel } from "@/lib/source";
 
 const todayStr = () => {
@@ -48,6 +49,7 @@ export default function StatsAdmin({ token, onUnauthorized }) {
   const [welcomeActions, setWelcomeActions] = useState(null);
   const [tutorialStats, setTutorialStats] = useState(null);
   const [projectStats, setProjectStats] = useState(null);
+  const [provinceStats, setProvinceStats] = useState(null);
   const [loading, setLoading] = useState(false);
 
   const headers = { Authorization: `Bearer ${token}` };
@@ -55,7 +57,7 @@ export default function StatsAdmin({ token, onUnauthorized }) {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [o, d, v, f, cf, wa, ts, ps] = await Promise.all([
+      const [o, d, v, f, cf, wa, ts, ps, pv] = await Promise.all([
         axios.get(`${API}/admin/stats/overview`, { headers, params: { date } }),
         axios.get(`${API}/admin/stats/daily`, { headers, params: { days: 14 } }),
         axios.get(`${API}/admin/stats/visits`, { headers, params: { date } }),
@@ -64,8 +66,10 @@ export default function StatsAdmin({ token, onUnauthorized }) {
         axios.get(`${API}/admin/stats/welcome-actions`, { headers, params: { days: 14 } }),
         axios.get(`${API}/admin/stats/tutorials`, { headers, params: { days: 14 } }),
         axios.get(`${API}/admin/stats/projects`, { headers, params: { days: 14 } }),
+        axios.get(`${API}/admin/stats/provinces`, { headers, params: { days: 30 } }),
       ]);
       setProjectStats(ps.data);
+      setProvinceStats(pv.data);
       setWelcomeActions(wa.data);
       setTutorialStats(ts.data);
       setOverview(o.data);
@@ -294,6 +298,44 @@ export default function StatsAdmin({ token, onUnauthorized }) {
                 ))}
               </tbody>
             </table>
+          </div>
+        </div>
+      )}
+
+      {provinceStats && (
+        <div className="glass-card rounded-2xl p-6" data-testid="stats-provinces-card">
+          <div className="flex flex-wrap items-end justify-between gap-3">
+            <div>
+              <h3 className="font-display text-base font-bold text-gold-gradient">省份访客分布（近 30 天）</h3>
+              <p className="mt-1 text-xs text-slate-500">按独立 IP 去重，颜色越亮访客越多；鼠标悬停查看省份数据</p>
+            </div>
+            <div className="text-xs text-slate-400">
+              共 <span className="font-bold text-[#E5C158]" data-testid="stats-provinces-total">{provinceStats.total}</span> 位中国访客
+              {provinceStats.unknown > 0 && <span className="ml-2 text-slate-600">（{provinceStats.unknown} 位未识别省份）</span>}
+            </div>
+          </div>
+          <div className="mt-4 grid gap-6 lg:grid-cols-[1fr_220px]">
+            <ChinaMap provinces={provinceStats.provinces} />
+            <div>
+              <div className="mb-2 text-xs tracking-widest text-slate-500">省份排行 TOP 10</div>
+              {provinceStats.provinces.length === 0 ? (
+                <div className="text-xs text-slate-600">暂无省份数据</div>
+              ) : (
+                <ul className="space-y-2" data-testid="stats-provinces-rank">
+                  {provinceStats.provinces.slice(0, 10).map((p, i) => (
+                    <li key={p.name} className="text-xs" data-testid={`stats-province-row-${i}`}>
+                      <div className="flex items-center justify-between">
+                        <span className="text-slate-200"><span className="mr-2 inline-block w-4 text-right text-slate-500">{i + 1}</span>{p.name}</span>
+                        <span className="font-bold text-[#E5C158]">{p.count}</span>
+                      </div>
+                      <div className="mt-1 h-1 overflow-hidden rounded-full bg-slate-700/40">
+                        <div className="h-full rounded-full bg-gold-gradient" style={{ width: `${Math.max(4, (p.count / provinceStats.provinces[0].count) * 100)}%` }} />
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
           </div>
         </div>
       )}
