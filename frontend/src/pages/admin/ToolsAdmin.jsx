@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import axios from "axios";
 import { toast } from "sonner";
 import { Plus, Pencil, Trash2, Eye, EyeOff, Link2, ExternalLink, Download } from "lucide-react";
-import { API, formatDetail } from "@/lib/api";
+import { API, formatDetail, buildShareText } from "@/lib/api";
 import { ImageUpload, toFullUrl } from "@/components/ImageUpload";
 import { SharePoster } from "@/components/SharePoster";
 import { inputCls, FieldLabel } from "./copyFields";
@@ -219,10 +219,10 @@ export default function ToolsAdmin({ token, onUnauthorized }) {
                 <div className="mt-1 truncate font-mono text-xs text-slate-500" data-testid={`tool-link-${i}`}>{toolUrl(t.slug)}</div>
               </div>
               <div className="flex flex-wrap items-center gap-2">
-                <button type="button" onClick={async () => { await copyText(toolUrl(t.slug)); toast.success("工具链接已复制"); }} className="flex items-center gap-1.5 rounded-full bg-gold-gradient px-4 py-2 text-xs font-bold text-[#060B18]" data-testid={`tool-copy-${i}`}>
-                  <Link2 size={13} /> 复制链接
+                <button type="button" onClick={async () => { await copyText(buildShareText({ title: t.name, desc: t.tagline, url: toolUrl(t.slug) })); toast.success("转发文案已复制，可直接粘贴发群"); }} className="flex items-center gap-1.5 rounded-full bg-gold-gradient px-4 py-2 text-xs font-bold text-[#060B18]" data-testid={`tool-copy-${i}`}>
+                  <Link2 size={13} /> 复制文案
                 </button>
-                <SharePoster url={toolUrl(t.slug)} title={t.name} subtitle={t.tagline} badge="工具教程" className="flex items-center gap-1.5 rounded-full border border-amber-500/30 px-4 py-2 text-xs text-[#E5C158] hover:bg-amber-500/10" label="海报" />
+                <SharePoster url={toolUrl(t.slug)} title={t.name} subtitle={t.tagline} badge="工具教程" shareText={buildShareText({ title: t.name, desc: t.tagline, url: toolUrl(t.slug) })} className="flex items-center gap-1.5 rounded-full border border-amber-500/30 px-4 py-2 text-xs text-[#E5C158] hover:bg-amber-500/10" label="海报" />
                 <button type="button" onClick={() => togglePublish(t)} className="flex items-center gap-1.5 rounded-full border border-amber-500/30 px-4 py-2 text-xs text-[#E5C158] hover:bg-amber-500/10" data-testid={`tool-toggle-${i}`}>
                   {live ? <><EyeOff size={13} /> 下线</> : <><Eye size={13} /> 上线</>}
                 </button>

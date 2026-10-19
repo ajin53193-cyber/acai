@@ -154,10 +154,12 @@
   - 推广页底部热门工具位（2026-07）：components/ToolsStrip.jsx 拉取 GET /api/tools，在每个 /p/{slug} 推广图文正文下方、页脚上方展示「热门工具」卡片列表（App 图标+名称+简介），点击任一工具跳转 /tools/{slug} 使用下载教程页。无工具时不渲染。
   - 工具数据排行（2026-07）：ToolsAdmin「热门工具」Tab 顶部新增 tools-ranking 看板卡（总查看/总下载、查看次数 TOP10、下载次数 TOP10），数据取自 GET /admin/tools 的 views/downloads 字段。
   - 推广页配工具（2026-07）：PromoInput 新增 tool_slugs: List[str]（空=展示全部已上线工具，否则只展示勾选工具并按勾选顺序）；PromosAdmin 编辑器新增 promo-tools-picker 多选（勾选框 + 图标 + 名称）；PromoPage 把 promo.tool_slugs 传给 ToolsStrip 过滤。
-  - 一键分享海报（2026-07）：components/SharePoster.jsx 用 qrcode 库在 canvas 绘制深蓝/金色品牌海报（品牌名 + 徽章 + 标题 + 副标题 + 二维码白卡 + 「长按识别二维码」+ 合规页脚），生成 PNG dataURL，弹窗预览 + 「保存海报」下载。已接入：公开 /tools/{slug} 教程页、/p/{slug} 推广页，以及后台 ToolsAdmin / PromosAdmin 每行「海报」按钮。无后端依赖、无跨域污染。
+  - 一键分享海报 + 一键转发文案（2026-07）：components/SharePoster.jsx 用 qrcode 库在 canvas 绘制深蓝/金色品牌海报（品牌名 + 徽章 + 标题 + 副标题 + 二维码白卡 + 「长按识别二维码」+ 合规页脚）→ PNG dataURL 弹窗预览 + 保存。打开弹窗时自动把「转发文案」（lib/api.js buildShareText：【合赢项目社】标题 + 简介 + 链接 + 引导语）复制到剪贴板并 toast；弹窗内含文案只读框 + 复制推荐话术按钮。接入：公开 /tools/{slug}，后台 ToolsAdmin / PromosAdmin 每行「海报」按钮；两处后台「复制文案」按钮直接复制 buildShareText 话术。无后端依赖、无跨域污染。
+  - 工具/推广页 LOGO（2026-07）：/tools 列表页、/tools/{slug} 教程页、/p/{slug} 推广页顶部改用新版 HY 蓝橙 LOGO（public/images/logo-hy.png，已裁白边），替换原深蓝 LogoFull；首页页头金色「合」保持不变。
+  - 推广页热门工具位样式（2026-07）：ToolsStrip 改为「仅 App 图标」网格，一行 5 个（grid-cols-5），图标下带小字名称；超过 5 个自动换行；推广页底部不再显示「生成分享海报」按钮（转发从后台操作）。
 
 ## 待处理（等用户确认）
-- 工具页/推广页顶部 LOGO 替换：用户要求把 /tools 与 /p/{slug} 顶部的深蓝 LogoFull 换成新版 HY 蓝橙 LOGO，但该图片文件未能从上传资源中取到，已 ask_human 请用户重新上传/给直链；首页页头金色「合」LOGO 保持不变。
+- （暂无）
 
 ## 待办优先级
 - P0：用户按 deploy/windows/README_WINDOWS.md 在宝塔 Windows 搭建，等待终端截图反馈

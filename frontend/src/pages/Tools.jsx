@@ -4,7 +4,6 @@ import axios from "axios";
 import { ChevronRight, Download, ArrowLeft, Eye } from "lucide-react";
 import { API } from "@/lib/api";
 import { toFullUrl } from "@/components/ImageUpload";
-import { LogoFull } from "@/components/Logo";
 import { Block } from "@/components/PromoBlocks";
 import { SharePoster } from "@/components/SharePoster";
 
@@ -12,7 +11,7 @@ const Shell = ({ children, back }) => (
   <main className="min-h-screen bg-white text-slate-900" data-testid="tools-page">
     <div className="mx-auto max-w-2xl px-5 pb-16 pt-6">
       <header className="flex items-center justify-between border-b border-slate-100 pb-4">
-        <Link to="/" className="rounded-xl bg-[#060B18] px-3 py-2" data-testid="tools-logo-link"><LogoFull /></Link>
+        <Link to="/" data-testid="tools-logo-link"><img src="/images/logo-hy.png" alt="合赢项目社" className="h-12 w-auto" /></Link>
         {back && (
           <Link to="/tools" className="flex items-center gap-1 text-xs text-slate-500 hover:text-slate-900" data-testid="tools-back-link">
             <ArrowLeft size={14} /> 全部工具
@@ -116,6 +115,7 @@ export default function ToolDetail() {
               title={tool.name}
               subtitle={tool.tagline}
               badge="工具教程"
+              shareText={`【合赢项目社】${tool.name}${tool.tagline ? "\n" + tool.tagline : ""}\n👉 ${window.location.href}\n—— 长按识别海报二维码，或点击链接查看`}
               className="flex w-full items-center justify-center gap-2 rounded-full border-2 border-[#D4AF37] py-3 text-sm font-bold text-[#B8860B] transition-transform active:scale-[0.98]"
               label="生成分享海报"
             />

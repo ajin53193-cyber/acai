@@ -1,7 +1,8 @@
 import { useState } from "react";
 import QRCode from "qrcode";
 import { toast } from "sonner";
-import { Share2, Download, X } from "lucide-react";
+import { Share2, Download, X, Copy } from "lucide-react";
+import { copyText } from "@/lib/api";
 
 const wrapText = (ctx, text, maxWidth) => {
   const lines = [];
@@ -121,7 +122,7 @@ const buildPoster = async ({ url, title, subtitle, badge }) => {
   return canvas.toDataURL("image/png");
 };
 
-export const SharePoster = ({ url, title, subtitle = "", badge = "", className = "", label = "生成分享海报" }) => {
+export const SharePoster = ({ url, title, subtitle = "", badge = "", shareText = "", className = "", label = "生成分享海报" }) => {
   const [open, setOpen] = useState(false);
   const [img, setImg] = useState("");
   const [loading, setLoading] = useState(false);
@@ -132,6 +133,10 @@ export const SharePoster = ({ url, title, subtitle = "", badge = "", className =
       const data = await buildPoster({ url, title, subtitle, badge });
       setImg(data);
       setOpen(true);
+      if (shareText) {
+        await copyText(shareText);
+        toast.success("推荐话术已复制，粘贴到群/朋友圈即可，再保存海报二维码");
+      }
     } catch (e) {
       toast.error("海报生成失败，请重试");
     } finally {
@@ -168,15 +173,34 @@ export const SharePoster = ({ url, title, subtitle = "", badge = "", className =
         >
           <div className="flex max-h-[92vh] w-full max-w-sm flex-col items-center overflow-y-auto rounded-2xl bg-white p-4" onClick={(e) => e.stopPropagation()}>
             <div className="mb-3 flex w-full items-center justify-between">
-              <span className="text-sm font-bold text-slate-900">分享海报</span>
+              <span className="text-sm font-bold text-slate-900">一键转发</span>
               <button type="button" onClick={() => setOpen(false)} className="text-slate-400 hover:text-slate-900" data-testid="share-poster-close"><X size={18} /></button>
             </div>
             {img && <img src={img} alt="分享海报" className="w-full rounded-xl border border-slate-200" data-testid="share-poster-image" />}
+            {shareText && (
+              <div className="mt-3 w-full">
+                <textarea
+                  readOnly
+                  value={shareText}
+                  rows={4}
+                  className="w-full resize-none rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs leading-relaxed text-slate-600"
+                  data-testid="share-poster-text"
+                />
+                <button
+                  type="button"
+                  onClick={async () => { await copyText(shareText); toast.success("推荐话术已复制"); }}
+                  className="mt-2 flex w-full items-center justify-center gap-2 rounded-full border border-[#D4AF37] py-2.5 text-sm font-bold text-[#B8860B]"
+                  data-testid="share-poster-copy-text"
+                >
+                  <Copy size={15} /> 复制推荐话术
+                </button>
+              </div>
+            )}
             <p className="mt-3 text-center text-xs text-slate-500">手机端可长按图片保存，发到群或朋友圈</p>
             <button
               type="button"
               onClick={download}
-              className="mt-3 flex w-full items-center justify-center gap-2 rounded-full bg-gradient-to-r from-[#D4AF37] via-[#FFE896] to-[#D4AF37] py-3 text-sm font-bold text-[#1B1403]"
+              className="mt-2 flex w-full items-center justify-center gap-2 rounded-full bg-gradient-to-r from-[#D4AF37] via-[#FFE896] to-[#D4AF37] py-3 text-sm font-bold text-[#1B1403]"
               data-testid="share-poster-download"
             >
               <Download size={16} /> 保存海报

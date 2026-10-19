@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import axios from "axios";
 import { toast } from "sonner";
 import { Plus, Pencil, Trash2, Eye, EyeOff, Link2, ExternalLink } from "lucide-react";
-import { API, formatDetail } from "@/lib/api";
+import { API, formatDetail, buildShareText } from "@/lib/api";
 import { ImageUpload, toFullUrl } from "@/components/ImageUpload";
 import { SharePoster } from "@/components/SharePoster";
 import { inputCls, FieldLabel } from "./copyFields";
@@ -193,13 +193,13 @@ export default function PromosAdmin({ token, onUnauthorized }) {
                 <div className="mt-1 truncate font-mono text-xs text-slate-500" data-testid={`promo-link-${i}`}>{shareUrl(p.slug)}</div>
               </div>
               <div className="flex flex-wrap items-center gap-2">
-                <button type="button" onClick={async () => { await copyText(shareUrl(p.slug)); toast.success("分享链接已复制"); }} className="flex items-center gap-1.5 rounded-full bg-gold-gradient px-4 py-2 text-xs font-bold text-[#060B18]" data-testid={`promo-copy-${i}`}>
-                  <Link2 size={13} /> 复制链接
+                <button type="button" onClick={async () => { await copyText(buildShareText({ title: p.title, desc: p.subtitle, url: shareUrl(p.slug) })); toast.success("转发文案已复制，可直接粘贴发群"); }} className="flex items-center gap-1.5 rounded-full bg-gold-gradient px-4 py-2 text-xs font-bold text-[#060B18]" data-testid={`promo-copy-${i}`}>
+                  <Link2 size={13} /> 复制文案
                 </button>
                 <a href={shareUrl(p.slug)} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 rounded-full border border-amber-500/30 px-4 py-2 text-xs text-[#E5C158] hover:bg-amber-500/10" data-testid={`promo-preview-${i}`}>
                   <ExternalLink size={13} /> 预览
                 </a>
-                <SharePoster url={shareUrl(p.slug)} title={p.title} subtitle={p.subtitle} badge="推广图文" className="flex items-center gap-1.5 rounded-full border border-amber-500/30 px-4 py-2 text-xs text-[#E5C158] hover:bg-amber-500/10" label="海报" />
+                <SharePoster url={shareUrl(p.slug)} title={p.title} subtitle={p.subtitle} badge="推广图文" shareText={buildShareText({ title: p.title, desc: p.subtitle, url: shareUrl(p.slug) })} className="flex items-center gap-1.5 rounded-full border border-amber-500/30 px-4 py-2 text-xs text-[#E5C158] hover:bg-amber-500/10" label="海报" />
                 <button type="button" onClick={() => togglePublish(p)} className="flex items-center gap-1.5 rounded-full border border-amber-500/30 px-4 py-2 text-xs text-[#E5C158] hover:bg-amber-500/10" data-testid={`promo-toggle-${i}`}>
                   {live ? <><EyeOff size={13} /> 下线</> : <><Eye size={13} /> 上线</>}
                 </button>

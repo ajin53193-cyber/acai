@@ -96,3 +96,25 @@ export const formatDetail = (detail) => {
   if (Array.isArray(detail)) return detail.map((e) => e?.msg || "").filter(Boolean).join("；");
   return String(detail);
 };
+
+export const copyText = async (text) => {
+  try {
+    await navigator.clipboard.writeText(text);
+  } catch {
+    const ta = document.createElement("textarea");
+    ta.value = text;
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand("copy");
+    ta.remove();
+  }
+};
+
+// Builds a ready-to-paste forwarding blurb with a title, optional description and the link.
+export const buildShareText = ({ title, desc = "", url }) => {
+  const parts = [`【合赢项目社】${title || ""}`.trim()];
+  if (desc && desc.trim()) parts.push(desc.trim());
+  parts.push(`👉 ${url}`);
+  parts.push("—— 长按识别海报二维码，或点击链接查看");
+  return parts.join("\n");
+};
