@@ -161,6 +161,11 @@
 ## 待处理（等用户确认）
 - （暂无）
 
+## 热门工具内容采集脚本（2026-07）
+- `deploy/baota/seed_okx_tool.py`：欧易 OKX 新手总攻略（slug=okx-guide，63 区块）。
+- `deploy/baota/seed_tools.py`：统一脚本，一次性 upsert 全部 4 个工具（okx-guide / kuaifan / binance / htx），幂等可重复跑，保留浏览/下载计数。图片直接引用各官网 CDN；币安已去除原作者返佣邀请码，注册按钮指向官方注册页。
+- 正式站同步：Save to GitHub → 服务器 `cd /www/wwwroot/heying && git pull && backend/.venv/bin/python deploy/baota/seed_tools.py`。
+
 ## 宝塔/Ubuntu 一键部署（2026-07）
 - 新增 `deploy/baota/setup.sh`：首次引导脚本，自动 git clone（失败回落 zip）到 /www/wwwroot/heying 后调用 deploy.sh。
 - 一句命令（宝塔终端）：`bash <(curl -fsSL https://raw.githubusercontent.com/ajin53193-cyber/acai/main/deploy/baota/setup.sh)`
