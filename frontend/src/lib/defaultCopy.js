@@ -79,6 +79,14 @@ export const DEFAULT_COPY = {
     milestones_title: "平台发展历程",
     milestones_subtitle: "一步一个脚印，与合作伙伴共同成长",
   },
+  projects: {
+    title: "项目中心",
+    subtitle: "汇聚优质资源 · 精准对接合作",
+    gate_title: "项目详情已在官方交流群内分享",
+    gate_desc: "完整项目资料、合作细则与最新进展均在官方交流群内同步发布，加入群聊即可查看并与客服一对一沟通。",
+    gate_btn: "加入官方交流群",
+    gate_secondary_btn: "咨询客服",
+  },
   contact: {
     title: "联系我们",
     subtitle: "客服团队为您提供项目合作咨询",

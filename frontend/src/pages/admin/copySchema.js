@@ -113,6 +113,19 @@ export const COPY_SECTIONS = [
     ],
   },
   {
+    key: "projects",
+    title: "项目中心页",
+    desc: "页面标题与点击项目卡片后的「进群查看」提示弹窗（进群按钮跳转地址在「站点设置 → 客服」里的进群链接）",
+    fields: [
+      { key: "title", label: "页面标题" },
+      { key: "subtitle", label: "页面副标题" },
+      { key: "gate_title", label: "弹窗标题" },
+      { key: "gate_desc", label: "弹窗说明", type: "textarea" },
+      { key: "gate_btn", label: "进群按钮文字" },
+      { key: "gate_secondary_btn", label: "次按钮文字（打开客服）" },
+    ],
+  },
+  {
     key: "contact",
     title: "联系我们页",
     desc: "联系方式本身（电话/邮箱/二维码）在「站点设置」里改，这里只改文案",

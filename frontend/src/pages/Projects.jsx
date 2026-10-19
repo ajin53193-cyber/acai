@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import axios from "axios";
-import { Search, X, MapPin, BadgeCheck, ArrowRight, Crown } from "lucide-react";
+import { Search, X, MapPin, ArrowRight, Crown, Users, Headset, Lock } from "lucide-react";
 import { Reveal, SectionHeading } from "@/components/Reveal";
 import { API } from "@/lib/api";
 import { useSettings } from "@/lib/useSettings";
@@ -10,7 +10,9 @@ import { useSettings } from "@/lib/useSettings";
 const ALL_TAB = "全部";
 
 export default function Projects() {
-  const { categories } = useSettings();
+  const { categories, chat, copy } = useSettings();
+  const pc = copy.projects;
+  const groupLink = chat.welcome_group_link || "/tutorials/join-group";
   const tabs = [ALL_TAB, ...categories];
   const [projects, setProjects] = useState([]);
   const [category, setCategory] = useState(ALL_TAB);
@@ -42,9 +44,9 @@ export default function Projects() {
         <div className="pointer-events-none absolute left-1/2 top-0 h-72 w-[640px] -translate-x-1/2 rounded-full bg-[#1E3A8A]/25 blur-[120px]" />
         <Reveal>
           <h1 className="font-display text-3xl font-black tracking-tight text-gold-gradient sm:text-4xl lg:text-5xl">
-            项目中心
+            {pc.title}
           </h1>
-          <p className="mt-4 text-base text-slate-400 sm:text-lg">汇聚优质资源 · 精准对接合作</p>
+          <p className="mt-4 text-base text-slate-400 sm:text-lg">{pc.subtitle}</p>
         </Reveal>
 
         <Reveal delay={0.15} className="mx-auto mt-10 max-w-4xl px-4">
@@ -140,7 +142,7 @@ export default function Projects() {
       <AnimatePresence>
         {active && (
           <motion.div
-            data-testid="project-detail-modal"
+            data-testid="project-gate-modal"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -152,12 +154,12 @@ export default function Projects() {
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 40, scale: 0.96 }}
               transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
-              className="glass-card max-h-[86vh] w-full max-w-2xl overflow-y-auto rounded-3xl"
+              className="glass-card w-full max-w-md overflow-hidden rounded-3xl"
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="relative h-60">
+              <div className="relative h-44">
                 <img src={active.image} alt={active.title} decoding="async" className="h-full w-full object-cover" />
-                <div className="absolute inset-0 bg-gradient-to-t from-[#0D1730] via-[#0A1228]/30 to-transparent" />
+                <div className="absolute inset-0 bg-gradient-to-t from-[#0D1730] via-[#0A1228]/40 to-transparent" />
                 <button
                   data-testid="project-modal-close-btn"
                   onClick={() => setActive(null)}
@@ -166,39 +168,41 @@ export default function Projects() {
                 >
                   <X size={18} />
                 </button>
-                <div className="absolute bottom-5 left-6 right-6">
-                  <div className="flex items-center gap-2">
+                <div className="absolute bottom-4 left-6 right-6">
+                  <div className="flex items-center gap-2 text-xs">
                     {active.featured && (
-                      <span className="flex items-center gap-1 rounded-full bg-gradient-to-r from-[#FFE896] to-[#D4AF37] px-3 py-1 text-xs font-black text-[#060B18]">
+                      <span className="flex items-center gap-1 rounded-full bg-gradient-to-r from-[#FFE896] to-[#D4AF37] px-3 py-1 font-black text-[#060B18]">
                         <Crown size={11} /> 主打
                       </span>
                     )}
-                    <span className="rounded-full border border-amber-500/40 bg-[#060B18]/75 px-3 py-1 text-xs text-[#E5C158] backdrop-blur-sm">{active.status}</span>
+                    <span className="rounded-full border border-amber-500/40 bg-[#060B18]/75 px-3 py-1 text-[#E5C158] backdrop-blur-sm">{active.category}</span>
+                    <span className="flex items-center gap-1 text-slate-300"><MapPin size={12} className="text-[#D4AF37]" />{active.region}</span>
                   </div>
-                  <h3 className="mt-3 font-display text-2xl font-black text-slate-50">{active.title}</h3>
+                  <h3 className="mt-2 font-display text-xl font-black text-slate-50">{active.title}</h3>
                 </div>
               </div>
-              <div className="p-6 sm:p-8">
-                <div className="flex flex-wrap gap-x-8 gap-y-2 text-sm text-slate-300">
-                  <span className="flex items-center gap-1.5"><MapPin size={14} className="text-[#D4AF37]" />{active.region}</span>
-                  <span>项目类别：<span className="text-[#E5C158]">{active.category}</span></span>
+              <div className="p-6 text-center sm:p-8">
+                <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full border border-amber-500/30 bg-amber-500/10 text-[#E5C158]">
+                  <Lock size={22} />
                 </div>
-                <p className="mt-5 text-sm leading-relaxed text-slate-300">{active.description}</p>
-                <div className="mt-6 grid grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-3">
-                  {active.highlights.map((h) => (
-                    <div key={h} className="flex items-center gap-2 rounded-xl border border-amber-500/15 bg-[#060B18]/60 px-3.5 py-3 text-xs text-slate-300">
-                      <BadgeCheck size={15} className="shrink-0 text-[#D4AF37]" /> {h}
-                    </div>
-                  ))}
-                </div>
-                <div className="mt-8 grid gap-3">
+                <h4 className="mt-4 font-display text-lg font-bold text-gold-gradient" data-testid="project-gate-title">{pc.gate_title}</h4>
+                <p className="mt-3 text-sm leading-relaxed text-slate-300" data-testid="project-gate-desc">{pc.gate_desc}</p>
+                <div className="mt-7 grid gap-3">
                   <Link
-                    to="/contact"
-                    data-testid="project-modal-apply-btn"
+                    to={groupLink}
+                    data-testid="project-gate-group-btn"
                     className="flex items-center justify-center gap-2 rounded-full bg-gold-gradient py-3.5 text-sm font-bold text-[#060B18] shadow-[0_0_24px_rgba(212,175,55,0.4)] transition-all duration-300 hover:shadow-[0_0_36px_rgba(255,232,150,0.6)]"
                   >
-                    申请合作 <ArrowRight size={16} />
+                    <Users size={16} /> {pc.gate_btn} <ArrowRight size={16} />
                   </Link>
+                  <button
+                    type="button"
+                    data-testid="project-gate-chat-btn"
+                    onClick={() => { setActive(null); window.dispatchEvent(new CustomEvent("hy:open-chat")); }}
+                    className="flex items-center justify-center gap-2 rounded-full border border-amber-500/40 py-3 text-sm font-medium text-[#E5C158] transition-colors hover:bg-[#D4AF37]/10"
+                  >
+                    <Headset size={15} /> {pc.gate_secondary_btn}
+                  </button>
                 </div>
               </div>
             </motion.div>

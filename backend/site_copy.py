@@ -113,6 +113,15 @@ class AboutCopy(BaseModel):
     milestones_subtitle: str = Field(default="一步一个脚印，与合作伙伴共同成长", max_length=80)
 
 
+class ProjectsCopy(BaseModel):
+    title: str = Field(default="项目中心", max_length=30)
+    subtitle: str = Field(default="汇聚优质资源 · 精准对接合作", max_length=120)
+    gate_title: str = Field(default="项目详情已在官方交流群内分享", max_length=60)
+    gate_desc: str = Field(default="完整项目资料、合作细则与最新进展均在官方交流群内同步发布，加入群聊即可查看并与客服一对一沟通。", max_length=300)
+    gate_btn: str = Field(default="加入官方交流群", max_length=20)
+    gate_secondary_btn: str = Field(default="咨询客服", max_length=20)
+
+
 class ContactCopy(BaseModel):
     title: str = Field(default="联系我们", max_length=30)
     subtitle: str = Field(default="客服团队为您提供项目合作咨询", max_length=120)
@@ -137,5 +146,6 @@ class SiteCopy(BaseModel):
     home: HomeCopy = HomeCopy()
     cooperation: CooperationCopy = CooperationCopy()
     about: AboutCopy = AboutCopy()
+    projects: ProjectsCopy = ProjectsCopy()
     contact: ContactCopy = ContactCopy()
     footer: FooterCopy = FooterCopy()
