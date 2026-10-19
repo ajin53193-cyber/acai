@@ -1,0 +1,24 @@
+{
+  "summary": "Tested 3 new features end-to-end. Backend (6/6 pytest pass): POST /api/admin/login(admin/Heying@2026) returns token; GET /api/admin/stats/provinces?days=30 returns {days:30, provinces:[{name,count}], total, unknown}; POST /api/track with X-Forwarded-For 8.8.8.8 → {ok:true,skipped:'overseas'}, with 114.114.114.114 → {ok:true} (no skipped), test data cleaned via mongo delete; promos CRUD full lifecycle (create 201 with slug/id, public GET, view +1, PUT title update, PATCH publish:false → public GET 404, DELETE 200, invalid block.type 'video' → 422); tools CRUD full lifecycle (create 201, public list limited to {slug,name,icon,tagline,sort,views}, detail GET, events type=view/download increment views/downloads via admin GET, unpublish removes from public list, delete 200). Frontend (all pass): admin login → admin-tab-stats shows stats-provinces-card with china-map containing exactly 34 svg paths and stats-provinces-total rendered (=0 in preview env since no CN traffic). Promos: new → fill title='前端测试图文' → add heading/text/button → promo-block-text-0/1/2 filled, promo-block-link-2 pre-filled with '/tutorials/join-group' default → save → promo-item-0 appears, promo-link-0 shows https://.../p/<slug>, promo-copy-0 click OK. Visited the /p/{slug} URL: promo-page visible, promo-title correct, promo-block-0/1/2 all rendered, no site-footer on page (white-bg standalone layout confirmed). Promo button block navigates to /tutorials/join-group (tutorial-page visible). Deleted via promo-delete-0 (confirm accepted). Tools: tools-copy-list-btn toast; new → tool-name/tagline/download-link filled, tool-add-heading → promo-block-text-0='第一步 下载安装', tool-add-image → promo-block-image-url-1 filled → save → tool-item-0 with tool-link-0 showing /tools/<slug>. /tools shows tools-page with tool-card-0 ='前端测试工具'; detail: tool-name correct, tool-download-btn href=https://example.com/app.apk, promo-block-0 and promo-block-1 (image) rendered, tools-back-link returns to list. Deleted via tool-delete-0. Regression: Home hero-compliance-badges + footer-compliance-badge visible; /projects first project-card click opens project-gate-modal.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_new_features.py",
+    "/app/test_reports/pytest/new_features.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "server.py is now 2185 lines — still well over the 700-line guideline. Split into routers/ (promos.py, tools.py, stats.py, track.py) and models/ modules; several past iterations have flagged this. Priority: medium (maintainability).",
+    "GET /api/tools exposes only selected fields in projection but admin list GET /api/admin/tools returns full docs including blocks — fine, but consider also projecting published/downloads consistently to avoid future field leaks.",
+    "POST /api/promos/{slug}/view and POST /api/tools/{slug}/events accept any slug without checking existence (update_one with no match returns silently). Low-impact spam vector; consider rate-limiting or verifying slug exists before $inc.",
+    "track_visit uses only x-forwarded-for first hop; behind multiple proxies that could be spoofable. Already gated by is_china_region, acceptable for stats; just note it's not auth-grade.",
+    "PromoBlock.type regex-validated but FastAPI 422 message exposes raw pattern — fine; invalid value 'video' correctly rejected (verified)."
+  ],
+  "updated_files": ["/app/backend/tests/test_new_features.py"],
+  "success_rate": {"backend": "100% (6/6)", "frontend": "100%"},
+  "test_credentials": "admin / Heying@2026 via POST /api/admin/login (returns {token}).",
+  "seed_data_creation": "All test data cleaned: visits ip=114.114.114.114 removed via mongo (confirmed count=0); all TEST_/前端测试 promos and tools deleted via DELETE API (confirmed count=0 in mongo).",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "New feature endpoints: GET /api/admin/stats/provinces (admin, {days,provinces,total,unknown}), POST /api/track (CN-only, overseas → skipped:'overseas', same-day same-IP → deduped:true), promos: public GET /api/promos/{slug}, POST /api/promos/{slug}/view, admin /api/admin/promos (list/post/put/patch publish/delete), tools: public GET /api/tools (list projection: slug/name/icon/tagline/sort/views), GET /api/tools/{slug}, POST /api/tools/{slug}/events {type:view|download}, admin equivalents. Frontend routes /p/:slug and /tools, /tools/:slug render WITHOUT site Header/Footer/ChatWidget (confirmed site-footer absent on /p/{slug}). Promo button-block default link = /tutorials/join-group. Project cards use data-testid=`project-card-${p.id}` (NOT index) — brief's 'project-card-0' selector won't match; use '[data-testid^=project-card-]' .first instead."
+}

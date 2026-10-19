@@ -147,6 +147,10 @@
 - 2026-10-19 热门项目角标：GET /api/projects 每个项目新增 hot 字段（hot_project_ids：近 7 天 project_events type=group 聚合，前 3 名且 ≥1 次点击）；首页精选卡片右上、项目中心卡片图片右下显示红橙渐变「热门」角标（Flame 图标 + .hot-badge 呼吸动画）。预览验证通过
 - 2026-10-19 热门标签后台控制：项目新增 hot_mode（auto 默认 / on 常驻 / off 关闭），PATCH /api/admin/projects/{id}/hot；GET /admin/projects 附带 hot/hot_auto/group_clicks_7d；项目管理列表显示「热门」标签（常驻注明）、近 7 天进群点击次数，新增循环切换按钮「热门：自动→常驻→关闭」。预览验证通过
 - 2026-10-19 访问统计只记录中国 IP：track_visit 用 ip-api 地区判断，非中国（含港澳台）直接跳过不入库（本地访问 / 查询失败的「未知地区」保留）；启动迁移 visits_china_only_v1 一次性删除历史海外访问记录（预览删了 154 条）。curl 验证 8.8.8.8 → skipped，114.114.114.114 → 记录
+- 2026-10-19 省份地图 + 推广图文 + 热门工具（iteration_5.json 全部通过）：
+  - 省份访客热力图：GET /api/admin/stats/provinces?days=（按独立 IP、province_of 解析省名）；frontend/public/geo/china.json（DataV 省界，坐标 2 位小数、已按 d3-geo 顺时针外环重绕）；components/ChinaMap.jsx（d3-geo mercator 固定 center/scale，悬停提示，金色热度）；StatsAdmin 新增 stats-provinces-card + TOP10 排行
+  - 推广图文：db.promos {id, slug(8hex), title, subtitle, cover, blocks[{type: heading|text|image|button, text, image, link}], published, views}；公开 GET /api/promos/{slug}、POST /view；后台 /admin/promos CRUD + publish。前台 /p/{slug} 白底页（PromoPage.jsx，Block 渲染在 components/PromoBlocks.jsx），不显示站点页头/页脚/客服。后台 Tab「推广图文」PromosAdmin.jsx（区块编辑器 blockEditor.jsx 共用，创建后自动复制分享链接、列表复制/预览/上下线/编辑/删除、浏览数）
+  - 热门工具：db.tools {id, slug, name, icon, tagline, download_link, download_text, blocks, published, sort, views, downloads}；公开 GET /api/tools 列表、GET /api/tools/{slug}、POST /events {view|download}；后台 /admin/tools CRUD。前台 /tools 白底列表（图标+名称+简介）→ /tools/{slug} 教程页（图标、名称、下载按钮、图文教学）。后台 Tab「热门工具」ToolsAdmin.jsx（复制列表链接 / 单个工具链接）
 
 ## 待办优先级
 - P0：用户按 deploy/windows/README_WINDOWS.md 在宝塔 Windows 搭建，等待终端截图反馈
