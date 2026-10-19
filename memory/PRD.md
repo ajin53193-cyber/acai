@@ -190,4 +190,5 @@
 - SEO 元信息与分享卡片优化
 
 ## 更新记录
+- 2026-07-19：新增推广图文《新地礼品卡搬砖项目｜零风险稳定赚差价》，分享链接 /p/giftcard-project。幂等种子脚本 deploy/baota/seed_promo_giftcard.py（固定 slug=giftcard-project）。逻辑：gogo589(www.gogo589.com) 85折买新地礼品卡 → 闲礼会馆(lzmur.com) 9折核销，净赚5%；8000港币卡示例≈净赚51 USDT(汇率7.8)；二级代理佣金 一级0.7%/二级0.3%；闲礼会馆注册含专属邀请码链接 https://lzmur.com/?ref=LD4QSU 。底部挂 okx-guide+binance，内链 /p/usdt-recharge。生产上线：Save to GitHub → 服务器 git pull → `backend/.venv/bin/python deploy/baota/seed_promo_giftcard.py`。预览已验证。
 - 2026-07-19：新增推广图文《USDT 充值教程》（TRC20 通用版），分享链接 /p/usdt-recharge。幂等种子脚本 deploy/baota/seed_promo_recharge.py（固定 slug=usdt-recharge），底部挂 okx-guide + binance 工具。生产上线需 Save to GitHub → 服务器 git pull → `cd /www/wwwroot/heying && backend/.venv/bin/python deploy/baota/seed_promo_recharge.py`。预览已验证渲染正常。
