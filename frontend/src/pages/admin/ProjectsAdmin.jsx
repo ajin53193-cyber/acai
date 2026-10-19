@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import axios from "axios";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
-import { Plus, Pencil, Trash2, X, Eye, EyeOff, Crown, PlayCircle } from "lucide-react";
+import { Plus, Pencil, Trash2, X, Eye, EyeOff, Crown, PlayCircle, Flame } from "lucide-react";
 import { API, formatDetail } from "@/lib/api";
 import { ImageUpload, toFullUrl } from "@/components/ImageUpload";
 import { useSettings } from "@/lib/useSettings";
@@ -136,6 +136,20 @@ export default function ProjectsAdmin({ token, onUnauthorized }) {
     }
   };
 
+  const HOT_NEXT = { auto: "on", on: "off", off: "auto" };
+  const HOT_LABEL = { auto: "热门：自动", on: "热门：常驻", off: "热门：关闭" };
+  const cycleHot = async (p) => {
+    const next = HOT_NEXT[p.hot_mode || "auto"];
+    try {
+      const res = await axios.patch(`${API}/admin/projects/${p.id}/hot`, { hot_mode: next }, { headers });
+      setProjects((prev) => prev.map((x) => (x.id === p.id ? { ...x, hot_mode: next, hot: next === "on" || (next === "auto" && x.hot_auto) } : x)));
+      toast.success(res.data.message);
+    } catch (err) {
+      if (err.response?.status === 401) onUnauthorized();
+      else toast.error("操作失败");
+    }
+  };
+
   const toggleFeatured = async (p) => {
     const next = !p.featured;
     try {
@@ -195,6 +209,11 @@ export default function ProjectsAdmin({ token, onUnauthorized }) {
                         <Crown size={10} /> 主打
                       </span>
                     )}
+                    {p.hot && (
+                      <span className="flex items-center gap-1 rounded-full bg-gradient-to-r from-[#FF6B3D] to-[#FF3D5A] px-2.5 py-0.5 text-xs font-bold text-white" data-testid={`admin-project-hot-tag-${i}`}>
+                        <Flame size={10} /> 热门{p.hot_mode === "on" ? "（常驻）" : ""}
+                      </span>
+                    )}
                     {p.tutorial_link && (
                       <span className="flex items-center gap-1 rounded-full border border-sky-500/30 px-2.5 py-0.5 text-xs text-sky-300" data-testid={`admin-project-tutorial-tag-${i}`}>
                         <PlayCircle size={10} /> 已配教程
@@ -204,9 +223,21 @@ export default function ProjectsAdmin({ token, onUnauthorized }) {
                       {live ? "上架中" : "已下架"}
                     </span>
                   </div>
-                  <div className="mt-1 truncate text-xs text-slate-500">{p.region} · {p.investment} · {p.status}</div>
+                  <div className="mt-1 truncate text-xs text-slate-500">
+                    {p.region} · {p.status} · 近 7 天进群点击 <span className="text-[#E5C158]" data-testid={`admin-project-clicks-${i}`}>{p.group_clicks_7d ?? 0}</span> 次
+                  </div>
                 </div>
                 <div className="flex items-center gap-2">
+                  <button
+                    data-testid={`admin-project-hot-${i}`}
+                    onClick={() => cycleHot(p)}
+                    title="点击切换：自动（按近 7 天进群点击前 3 名）→ 常驻热门 → 关闭热门"
+                    className={`flex items-center gap-1.5 rounded-full border px-4 py-2 text-xs transition-colors ${
+                      p.hot_mode === "on" ? "border-[#FF6B3D]/70 bg-[#FF6B3D]/15 text-[#FF9A7A]" : p.hot_mode === "off" ? "border-slate-500/40 text-slate-400 hover:bg-slate-500/10" : "border-amber-500/30 text-[#E5C158] hover:bg-amber-500/10"
+                    }`}
+                  >
+                    <Flame size={13} /> {HOT_LABEL[p.hot_mode || "auto"]}
+                  </button>
                   <button
                     data-testid={`admin-project-featured-${i}`}
                     onClick={() => toggleFeatured(p)}

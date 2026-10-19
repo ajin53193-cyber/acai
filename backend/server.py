@@ -636,22 +636,28 @@ async def list_projects(category: Optional[str] = None):
     if category and category != "全部":
         query["category"] = category
     projects = await db.projects.find(query, {"_id": 0}).sort([("featured", -1), ("created_at", 1)]).to_list(100)
-    hot_ids = await hot_project_ids()
+    hot_ids, _ = await hot_project_ids()
     for p in projects:
-        p["hot"] = p["id"] in hot_ids
+        p["hot"] = is_hot(p, hot_ids)
     return {"projects": projects}
 
 
-async def hot_project_ids(days: int = 7, top_n: int = 3) -> set:
-    """近 N 天「加入官方交流群」点击最多的前 top_n 个项目（至少 1 次点击）→ 前台自动标「热门」。"""
+def is_hot(p: dict, auto_hot_ids: set) -> bool:
+    """hot_mode: auto（默认，按近 7 天进群点击自动）/ on（常驻热门）/ off（不显示）。"""
+    mode = p.get("hot_mode") or "auto"
+    return mode == "on" or (mode == "auto" and p["id"] in auto_hot_ids)
+
+
+async def hot_project_ids(days: int = 7, top_n: int = 3):
+    """近 N 天「加入官方交流群」点击最多的前 top_n 个项目（至少 1 次点击）→ 前台自动标「热门」。返回 (热门 id 集合, {id: 点击数})。"""
     since = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
     rows = await db.project_events.aggregate([
         {"$match": {"type": "group", "created_at": {"$gte": since}}},
         {"$group": {"_id": "$project_id", "n": {"$sum": 1}}},
         {"$sort": {"n": -1}},
-        {"$limit": top_n},
-    ]).to_list(top_n)
-    return {r["_id"] for r in rows}
+    ]).to_list(1000)
+    counts = {r["_id"]: r["n"] for r in rows}
+    return {r["_id"] for r in rows[:top_n]}, counts
 
 
 def migrate_qr_codes(cfg: dict) -> dict:
@@ -1255,7 +1261,25 @@ async def update_inquiry(inquiry_id: str, data: StatusUpdate, _: str = Depends(r
 @api_router.get("/admin/projects")
 async def admin_list_projects(_: str = Depends(require_admin)):
     projects = await db.projects.find({}, {"_id": 0}).sort("created_at", -1).to_list(200)
+    hot_ids, counts = await hot_project_ids()
+    for p in projects:
+        p["hot_mode"] = p.get("hot_mode") or "auto"
+        p["hot"] = is_hot(p, hot_ids)
+        p["hot_auto"] = p["id"] in hot_ids
+        p["group_clicks_7d"] = counts.get(p["id"], 0)
     return {"projects": projects}
+
+
+class HotModeUpdate(BaseModel):
+    hot_mode: str = Field(pattern=r"^(auto|on|off)$")
+
+
+@api_router.patch("/admin/projects/{project_id}/hot")
+async def set_project_hot_mode(project_id: str, data: HotModeUpdate, _: str = Depends(require_admin)):
+    result = await db.projects.update_one({"id": project_id}, {"$set": {"hot_mode": data.hot_mode}})
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="项目不存在")
+    return {"message": {"auto": "已切换为自动热门", "on": "已设为常驻热门", "off": "已关闭热门标签"}[data.hot_mode]}
 
 
 @api_router.post("/admin/projects", status_code=201)
