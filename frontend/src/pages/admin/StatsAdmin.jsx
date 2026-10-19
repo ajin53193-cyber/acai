@@ -47,6 +47,7 @@ export default function StatsAdmin({ token, onUnauthorized }) {
   const [channelFunnel, setChannelFunnel] = useState(null);
   const [welcomeActions, setWelcomeActions] = useState(null);
   const [tutorialStats, setTutorialStats] = useState(null);
+  const [projectStats, setProjectStats] = useState(null);
   const [loading, setLoading] = useState(false);
 
   const headers = { Authorization: `Bearer ${token}` };
@@ -54,7 +55,7 @@ export default function StatsAdmin({ token, onUnauthorized }) {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [o, d, v, f, cf, wa, ts] = await Promise.all([
+      const [o, d, v, f, cf, wa, ts, ps] = await Promise.all([
         axios.get(`${API}/admin/stats/overview`, { headers, params: { date } }),
         axios.get(`${API}/admin/stats/daily`, { headers, params: { days: 14 } }),
         axios.get(`${API}/admin/stats/visits`, { headers, params: { date } }),
@@ -62,7 +63,9 @@ export default function StatsAdmin({ token, onUnauthorized }) {
         axios.get(`${API}/admin/stats/channel-funnel`, { headers, params: { days: 30 } }),
         axios.get(`${API}/admin/stats/welcome-actions`, { headers, params: { days: 14 } }),
         axios.get(`${API}/admin/stats/tutorials`, { headers, params: { days: 14 } }),
+        axios.get(`${API}/admin/stats/projects`, { headers, params: { days: 14 } }),
       ]);
+      setProjectStats(ps.data);
       setWelcomeActions(wa.data);
       setTutorialStats(ts.data);
       setOverview(o.data);
@@ -287,6 +290,41 @@ export default function StatsAdmin({ token, onUnauthorized }) {
                         )}
                       </td>
                     ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {projectStats && projectStats.projects.length > 0 && (
+        <div className="glass-card rounded-2xl p-6" data-testid="stats-projects-card">
+          <h3 className="font-display text-base font-bold text-gold-gradient">项目进群点击统计（近 14 天）</h3>
+          <p className="mt-1 text-xs text-slate-500">访客点开每个项目卡片的次数 / 人数，以及在弹窗里点击「加入官方交流群」的次数、人数与转化率，按点击量排序</p>
+          <div className="mt-4 overflow-x-auto">
+            <table className="w-full text-xs" data-testid="stats-projects-table">
+              <thead>
+                <tr className="text-left text-slate-500">
+                  <th className="pb-2 pr-3 font-normal">项目</th>
+                  <th className="pb-2 pr-3 font-normal">打开次数</th>
+                  <th className="pb-2 pr-3 font-normal">打开人数</th>
+                  <th className="pb-2 pr-3 font-normal">进群点击</th>
+                  <th className="pb-2 pr-3 font-normal">点击人数</th>
+                  <th className="pb-2 font-normal">转化率</th>
+                </tr>
+              </thead>
+              <tbody>
+                {projectStats.projects.map((p, i) => (
+                  <tr key={p.id} className="border-t border-amber-500/10 text-slate-300" data-testid={`stats-project-row-${i}`}>
+                    <td className="py-2.5 pr-3 font-medium text-slate-100">{p.title}</td>
+                    <td className="py-2.5 pr-3 text-[#E5C158]">{p.opens}</td>
+                    <td className="py-2.5 pr-3">{p.open_visitors}</td>
+                    <td className="py-2.5 pr-3 text-[#E5C158]">{p.group_clicks}</td>
+                    <td className="py-2.5 pr-3">{p.group_visitors}</td>
+                    <td className="py-2.5">
+                      <span className={`rounded-full px-2 py-0.5 ${p.group_rate > 0 ? "bg-emerald-500/10 text-emerald-300" : "bg-slate-500/15 text-slate-500"}`}>{p.group_rate}%</span>
+                    </td>
                   </tr>
                 ))}
               </tbody>

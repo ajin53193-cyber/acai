@@ -9,6 +9,7 @@ import { HeroVisual } from "@/components/HeroVisual";
 import { CountUp } from "@/components/CountUp";
 import { toFullUrl } from "@/components/ImageUpload";
 import { useSettings } from "@/lib/useSettings";
+import { ProjectGateModal } from "@/components/ProjectGateModal";
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
@@ -24,6 +25,7 @@ const lineReveal = {
 
 export default function Home() {
   const [projects, setProjects] = useState([]);
+  const [activeProject, setActiveProject] = useState(null);
   const { stats, edges, copy } = useSettings();
   const home = copy.home;
 
@@ -203,7 +205,7 @@ export default function Home() {
           <div className="grid grid-cols-2 gap-3 sm:gap-5 md:gap-7 lg:grid-cols-3">
             {projects.map((p, i) => (
               <Reveal key={p.id} delay={i * 0.08}>
-                <Link to="/projects" data-testid={`featured-project-card-${i}`} className="glass-card group block overflow-hidden rounded-2xl transition-transform duration-200 active:scale-[0.98]">
+                <div role="button" tabIndex={0} onClick={() => setActiveProject(p)} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setActiveProject(p); } }} data-testid={`featured-project-card-${i}`} className="glass-card group block cursor-pointer overflow-hidden rounded-2xl transition-transform duration-200 active:scale-[0.98]">
                   <div className="relative h-28 overflow-hidden sm:h-36 md:h-44">
                     <img
                       src={p.image}
@@ -227,7 +229,7 @@ export default function Home() {
                       <ArrowRight size={16} className="text-[#D4AF37] transition-transform duration-300 group-hover:translate-x-1.5" />
                     </div>
                   </div>
-                </Link>
+                </div>
               </Reveal>
             ))}
           </div>
@@ -298,6 +300,7 @@ export default function Home() {
           </Reveal>
         </div>
       </section>
+      <ProjectGateModal project={activeProject} onClose={() => setActiveProject(null)} />
     </main>
   );
 }

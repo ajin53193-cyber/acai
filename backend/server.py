@@ -757,6 +757,24 @@ class TutorialEventInput(BaseModel):
     visitor_id: str = Field(min_length=4, max_length=64)
 
 
+class ProjectEventInput(BaseModel):
+    type: str = Field(pattern=r"^(open|group)$")
+    visitor_id: str = Field(min_length=4, max_length=64)
+
+
+@api_router.post("/projects/{project_id}/events", status_code=201)
+async def project_event(project_id: str, data: ProjectEventInput):
+    """项目卡片弹窗埋点：open = 打开弹窗，group = 点击「加入官方交流群」。"""
+    await db.project_events.insert_one({
+        "id": str(uuid.uuid4()),
+        "project_id": project_id,
+        "type": data.type,
+        "visitor_id": data.visitor_id,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    })
+    return {"ok": True}
+
+
 @api_router.post("/tutorials/{slug}/events", status_code=201)
 async def tutorial_event(slug: str, data: TutorialEventInput):
     """教程页浏览 / 跳转按钮点击埋点。同一访客 30 秒内重复浏览同一教程只记一次（防刷新/重复触发）。"""
@@ -1749,6 +1767,41 @@ async def stats_tutorials(days: int = 14, _: str = Depends(require_admin)):
         })
     rows.sort(key=lambda r: r["views"], reverse=True)
     return {"days": days, "tutorials": rows}
+
+
+@api_router.get("/admin/stats/projects")
+async def stats_projects(days: int = 14, _: str = Depends(require_admin)):
+    """每个项目：弹窗打开次数 / 人数、「加入官方交流群」点击次数 / 人数、转化率（近 N 天）。"""
+    days = max(1, min(days, 90))
+    today = datetime.now(CN_TZ)
+    start_utc = (today - timedelta(days=days - 1)).replace(hour=0, minute=0, second=0, microsecond=0).astimezone(timezone.utc).isoformat()
+    projects = await db.projects.find({}, {"_id": 0, "id": 1, "title": 1}).to_list(500)
+    events = await db.project_events.find({"created_at": {"$gte": start_utc}}, {"_id": 0, "project_id": 1, "type": 1, "visitor_id": 1}).to_list(100000)
+    agg = {}
+    for e in events:
+        a = agg.setdefault(e["project_id"], {"opens": 0, "open_visitors": set(), "group": 0, "group_visitors": set()})
+        if e["type"] == "open":
+            a["opens"] += 1
+            a["open_visitors"].add(e["visitor_id"])
+        else:
+            a["group"] += 1
+            a["group_visitors"].add(e["visitor_id"])
+    titles = {p["id"]: p["title"] for p in projects}
+    rows = []
+    for pid in list(titles) + [k for k in agg if k not in titles]:
+        a = agg.get(pid, {"opens": 0, "open_visitors": set(), "group": 0, "group_visitors": set()})
+        ov, gv = len(a["open_visitors"]), len(a["group_visitors"])
+        rows.append({
+            "id": pid,
+            "title": titles.get(pid, "（已删除项目）"),
+            "opens": a["opens"],
+            "open_visitors": ov,
+            "group_clicks": a["group"],
+            "group_visitors": gv,
+            "group_rate": round(gv / ov * 100, 1) if ov else 0,
+        })
+    rows.sort(key=lambda r: (r["group_clicks"], r["opens"]), reverse=True)
+    return {"days": days, "projects": rows}
 
 
 @api_router.get("/admin/stats/funnel")
