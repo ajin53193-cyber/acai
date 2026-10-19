@@ -144,6 +144,7 @@
 - 2026-10-19 项目卡片改「进群查看」弹窗：按用户要求，项目中心点击卡片不再展示详情，而是弹窗提示「项目详情已在官方交流群内分享」+「加入官方交流群」按钮（跳转 settings.chat.welcome_group_link，默认 /tutorials/join-group）+「咨询客服」按钮（触发 hy:open-chat）。文案在后台「页面文案 → 项目中心页」可改（SiteCopy 新增 projects 分区）。Playwright 验证弹窗与跳转教程页正常。待 Save to GitHub + 一键更新命令发布
 - 2026-10-19 首页卡片直达 + 进群点击统计：抽出共用组件 components/ProjectGateModal.jsx（首页精选卡片与项目中心卡片点击均弹出；进群按钮去掉箭头图标）。埋点 POST /api/projects/{id}/events {type: open|group, visitor_id} → db.project_events；后台 GET /api/admin/stats/projects?days= 按项目聚合打开次数/人数、进群点击次数/人数、转化率，StatsAdmin 新增「项目进群点击统计」表（stats-projects-card）。Playwright 验证首页弹窗、跳转教程、统计表显示正常
 - 2026-10-19 进群教程多二维码小卡片：QrCodeItem 新增 group_id（站点设置 → 群二维码每行新增「群 ID」输入框）；GET /tutorials/join-group 把所有启用的群码以 qr_codes[{image,label,group_id}] 注入第三步（不再注入单张大图，若步骤 image 与群码相同则清空避免重复）；Tutorial.jsx 新增 QrCard（150px 卡片：118px 二维码 + 群名 + 可复制群 ID），有群 ID 时隐藏步骤级 copy_text；普通步骤图片改为 max-h-360 自适应不再铺满。预览验证通过
+- 2026-10-19 热门项目角标：GET /api/projects 每个项目新增 hot 字段（hot_project_ids：近 7 天 project_events type=group 聚合，前 3 名且 ≥1 次点击）；首页精选卡片右上、项目中心卡片图片右下显示红橙渐变「热门」角标（Flame 图标 + .hot-badge 呼吸动画）。预览验证通过
 
 ## 待办优先级
 - P0：用户按 deploy/windows/README_WINDOWS.md 在宝塔 Windows 搭建，等待终端截图反馈

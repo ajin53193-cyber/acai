@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import axios from "axios";
-import { Search, MapPin, Crown } from "lucide-react";
+import { Search, MapPin, Crown, Flame } from "lucide-react";
 import { Reveal, SectionHeading } from "@/components/Reveal";
 import { API } from "@/lib/api";
 import { useSettings } from "@/lib/useSettings";
@@ -117,6 +117,11 @@ export default function Projects() {
                       <span className="absolute right-2 top-2 hidden rounded-full border border-amber-500/30 bg-[#060B18]/70 px-2 py-0.5 text-[10px] text-[#E5C158] backdrop-blur-sm sm:block md:right-4 md:top-4 md:px-3 md:py-1 md:text-xs">
                         {p.category}
                       </span>
+                      {p.hot && (
+                        <span data-testid={`project-hot-badge-${i}`} className="hot-badge absolute bottom-2 right-2 flex items-center gap-1 rounded-full bg-gradient-to-r from-[#FF6B3D] to-[#FF3D5A] px-2 py-0.5 text-[10px] font-black text-white shadow-[0_0_14px_rgba(255,90,70,0.55)] md:bottom-3 md:right-4 md:px-3 md:py-1 md:text-xs">
+                          <Flame size={11} /> 热门
+                        </span>
+                      )}
                     </div>
                     <div className="p-3 md:p-6">
                       <h3 className="font-display text-sm font-bold leading-snug text-slate-50 transition-colors group-hover:text-[#FFE896] md:text-lg">

@@ -199,3 +199,10 @@
     stroke-dasharray: 8 12;
     animation: dashFlow 6s linear infinite;
 }
+
+/* 热门项目角标：轻微呼吸发光 */
+@keyframes hotPulse {
+  0%, 100% { transform: scale(1); box-shadow: 0 0 10px rgba(255, 90, 70, 0.45); }
+  50% { transform: scale(1.06); box-shadow: 0 0 18px rgba(255, 110, 70, 0.8); }
+}
+.hot-badge { animation: hotPulse 1.8s ease-in-out infinite; }

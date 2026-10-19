@@ -636,7 +636,22 @@ async def list_projects(category: Optional[str] = None):
     if category and category != "全部":
         query["category"] = category
     projects = await db.projects.find(query, {"_id": 0}).sort([("featured", -1), ("created_at", 1)]).to_list(100)
+    hot_ids = await hot_project_ids()
+    for p in projects:
+        p["hot"] = p["id"] in hot_ids
     return {"projects": projects}
+
+
+async def hot_project_ids(days: int = 7, top_n: int = 3) -> set:
+    """近 N 天「加入官方交流群」点击最多的前 top_n 个项目（至少 1 次点击）→ 前台自动标「热门」。"""
+    since = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
+    rows = await db.project_events.aggregate([
+        {"$match": {"type": "group", "created_at": {"$gte": since}}},
+        {"$group": {"_id": "$project_id", "n": {"$sum": 1}}},
+        {"$sort": {"n": -1}},
+        {"$limit": top_n},
+    ]).to_list(top_n)
+    return {r["_id"] for r in rows}
 
 
 def migrate_qr_codes(cfg: dict) -> dict:

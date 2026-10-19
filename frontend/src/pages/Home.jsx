@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import axios from "axios";
-import { FilePlus2, Link2, Users, Handshake, ChevronRight, ArrowRight, ShieldCheck } from "lucide-react";
+import { FilePlus2, Link2, Users, Handshake, ChevronRight, ArrowRight, ShieldCheck, Flame } from "lucide-react";
 import { Reveal, SectionHeading } from "@/components/Reveal";
 import { Marquee } from "@/components/Marquee";
 import { HeroVisual } from "@/components/HeroVisual";
@@ -217,6 +217,11 @@ export default function Home() {
                     <span className="absolute left-2 top-2 rounded-full bg-gold-gradient px-2 py-0.5 text-[10px] font-bold text-[#060B18] md:left-4 md:top-4 md:px-3 md:py-1 md:text-xs">
                       {p.status}
                     </span>
+                    {p.hot && (
+                      <span data-testid={`featured-hot-badge-${i}`} className="hot-badge absolute right-2 top-2 flex items-center gap-1 rounded-full bg-gradient-to-r from-[#FF6B3D] to-[#FF3D5A] px-2 py-0.5 text-[10px] font-black text-white shadow-[0_0_14px_rgba(255,90,70,0.55)] md:right-4 md:top-4 md:px-3 md:py-1 md:text-xs">
+                        <Flame size={11} /> 热门
+                      </span>
+                    )}
                   </div>
                   <div className="p-3 md:p-6">
                     <div className="text-[10px] tracking-[0.15em] text-[#D4AF37] md:text-xs md:tracking-[0.2em]">{p.category} · {p.region}</div>
