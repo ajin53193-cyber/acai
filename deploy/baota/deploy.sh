@@ -73,6 +73,9 @@ const fs=require("fs");const p=JSON.parse(fs.readFileSync("package.json","utf8")
 for (const k of Object.keys(p.devDependencies||{})) if (k.startsWith("@emergentbase/")) delete p.devDependencies[k];
 fs.writeFileSync("package.json", JSON.stringify(p,null,2));'
 yarn install --registry "$NPM_REGISTRY" --network-timeout 600000 --ignore-engines
+# 宝塔会在站点根目录(build)放置带 immutable 锁的 .user.ini，导致重新构建删不掉报 ENOTDIR —— 先解锁并清空旧 build
+[ -e "$FRONTEND_DIR/build/.user.ini" ] && chattr -i "$FRONTEND_DIR/build/.user.ini" 2>/dev/null || true
+rm -rf "$FRONTEND_DIR/build"
 REACT_APP_BACKEND_URL="" DISABLE_EMERGENT_OVERLAY=true NODE_OPTIONS="--max-old-space-size=2048" GENERATE_SOURCEMAP=false yarn build
 # 恢复被改动的 package.json / yarn.lock，避免影响下次 git pull
 git -C "$APP_DIR" checkout -- frontend/package.json 2>/dev/null || true
