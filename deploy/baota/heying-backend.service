@@ -7,6 +7,7 @@ Type=simple
 User=root
 WorkingDirectory=/www/wwwroot/heying/backend
 ExecStart=/www/wwwroot/heying/backend/.venv/bin/uvicorn server:app --host 127.0.0.1 --port 8001 --proxy-headers --forwarded-allow-ips=127.0.0.1
+# 端口 8001 可被 deploy.sh 的 BACKEND_PORT 覆盖（同服务器多站点时避免冲突）
 Restart=always
 RestartSec=3
 

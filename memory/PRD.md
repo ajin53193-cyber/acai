@@ -161,6 +161,12 @@
 ## 待处理（等用户确认）
 - （暂无）
 
+## 宝塔/Ubuntu 一键部署（2026-07）
+- 新增 `deploy/baota/setup.sh`：首次引导脚本，自动 git clone（失败回落 zip）到 /www/wwwroot/heying 后调用 deploy.sh。
+- 一句命令（宝塔终端）：`bash <(curl -fsSL https://raw.githubusercontent.com/ajin53193-cyber/acai/main/deploy/baota/setup.sh)`
+- 前提：先装 Nginx / MongoDB / Node20 / Python3.11，并 Save to GitHub；首次会生成 backend/.env 停下改密钥，再跑一次；之后更新同命令或 deploy.sh。
+- requirements-selfhost.txt 已覆盖全部后端依赖（近期 tool_slugs / 分享海报均无新增后端依赖）。
+
 ## 待办优先级
 - P0：用户按 deploy/windows/README_WINDOWS.md 在宝塔 Windows 搭建，等待终端截图反馈
 - P0：用户按 deploy/baota/README_BAOTA.md 在宝塔搭建；Save to GitHub → 服务器 clone → deploy.sh → Nginx 配置 → import_from_live.py → 切 DNS

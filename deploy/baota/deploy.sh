@@ -8,6 +8,7 @@ APP_DIR="$(cd "$(dirname "$0")/../.." && pwd)"
 BACKEND_DIR="$APP_DIR/backend"
 FRONTEND_DIR="$APP_DIR/frontend"
 SERVICE_NAME="heying-backend"
+BACKEND_PORT="${BACKEND_PORT:-8001}"
 PIP_INDEX="${PIP_INDEX:-https://mirrors.aliyun.com/pypi/simple/}"
 NPM_REGISTRY="${NPM_REGISTRY:-https://registry.npmmirror.com}"
 
@@ -82,24 +83,24 @@ green "前端构建完成：$FRONTEND_DIR/build"
 step "注册并重启后端服务 $SERVICE_NAME"
 mkdir -p "$APP_DIR/uploads"
 if command -v systemctl >/dev/null 2>&1; then
-  sed "s|/www/wwwroot/heying|$APP_DIR|g" "$APP_DIR/deploy/baota/heying-backend.service" > "/etc/systemd/system/$SERVICE_NAME.service"
+  sed -e "s|/www/wwwroot/heying|$APP_DIR|g" -e "s|--port 8001|--port $BACKEND_PORT|g" "$APP_DIR/deploy/baota/heying-backend.service" > "/etc/systemd/system/$SERVICE_NAME.service"
   systemctl daemon-reload
   systemctl enable "$SERVICE_NAME" >/dev/null 2>&1 || true
   systemctl restart "$SERVICE_NAME"
   sleep 3
   systemctl is-active --quiet "$SERVICE_NAME" || { red "后端启动失败，日志："; journalctl -u "$SERVICE_NAME" -n 40 --no-pager; exit 1; }
 else
-  red "系统无 systemd，请用宝塔「Python项目管理器」手动启动：$BACKEND_DIR/.venv/bin/uvicorn server:app --host 127.0.0.1 --port 8001"
+  red "系统无 systemd，请用宝塔「Python项目管理器」手动启动：$BACKEND_DIR/.venv/bin/uvicorn server:app --host 127.0.0.1 --port $BACKEND_PORT"
 fi
 
 # ---------- 5. 健康检查 ----------
 step "健康检查"
-if curl -sf http://127.0.0.1:8001/api/settings >/dev/null; then
-  green "后端 OK：http://127.0.0.1:8001/api/settings"
+if curl -sf "http://127.0.0.1:$BACKEND_PORT/api/settings" >/dev/null; then
+  green "后端 OK：http://127.0.0.1:$BACKEND_PORT/api/settings"
 else
   red "后端接口无响应，请查看：journalctl -u $SERVICE_NAME -n 50"
   exit 1
 fi
 
-green "\n部署完成！请确认宝塔站点根目录指向：$FRONTEND_DIR/build，并已按 deploy/baota/nginx-site.conf 配置 /api/ 反向代理。"
+green "\n部署完成！请确认宝塔站点根目录指向：$FRONTEND_DIR/build，并已按 deploy/baota/nginx-site.conf 配置 /api/ 反向代理（proxy_pass 端口需与后端端口 $BACKEND_PORT 一致）。"
 echo "首次迁移线上数据请执行：$BACKEND_DIR/.venv/bin/python deploy/baota/import_from_live.py"

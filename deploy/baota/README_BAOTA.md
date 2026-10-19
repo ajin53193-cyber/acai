@@ -11,6 +11,26 @@
 
 ---
 
+## ⚡ 快速开始（一键）
+> 前提：已装好下面「一、」的四个软件（Nginx / MongoDB / Node 20 / Python 3.11），并已在 Emergent 聊天框点过 **Save to GitHub**。
+
+在宝塔「终端」粘贴这一行（把 `你的账号/仓库名` 换成你的 GitHub 仓库；默认是 `ajin53193-cyber/acai`）：
+```bash
+REPO=你的账号/仓库名 bash <(curl -fsSL https://raw.githubusercontent.com/你的账号/仓库名/main/deploy/baota/setup.sh)
+```
+脚本会自动：下载代码到 `/www/wwwroot/heying` → 安装依赖 → 构建前端 → 启动后端 → 健康检查。
+- **第一次**会先生成 `backend/.env` 并停下，提示你去改管理员密码 / AI 密钥，改完**再粘贴执行一次**同样的命令即可。
+- 之后每次更新代码：同一行命令再跑一遍（或 `cd /www/wwwroot/heying && bash deploy/baota/deploy.sh`）。
+
+完成后仍需做一次：**四、**配置 Nginx 站点 + SSL，**五、**迁移线上数据，**六、**切 DNS。下面是详细步骤。
+
+> 🖥️ **一台服务器跑多个网站**：本站用独立目录 `/www/wwwroot/heying`、独立 systemd 服务 `heying-backend`、独立数据库 `DB_NAME=heying`、独立宝塔站点（各自域名），与你已有网站互不影响。唯一要注意的是**后端端口**：本站默认用 `127.0.0.1:8001`，如果你另一个网站（尤其也是本类 FastAPI 应用）已占用 8001，请在部署命令前加 `BACKEND_PORT=8002`，并把 Nginx 配置里 `proxy_pass` 的端口也改成 8002。例如：
+> ```bash
+> BACKEND_PORT=8002 bash <(curl -fsSL https://raw.githubusercontent.com/ajin53193-cyber/acai/main/deploy/baota/setup.sh)
+> ```
+
+---
+
 ## 一、宝塔面板里先装好软件（软件商店）
 1. **Nginx**（任意 1.2x 版本）
 2. **MongoDB**（4.x / 6.x 均可，装完默认只监听本机，无需改）
