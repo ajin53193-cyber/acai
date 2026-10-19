@@ -70,9 +70,89 @@ export const GiftCardCalculator = () => {
   );
 };
 
+// 代理分佣：一级 0.7% / 二级 0.3%
+const L1_RATE = 0.007;
+const L2_RATE = 0.003;
+const L1_PRESETS = [10000, 50000, 100000, 500000];
+
+export const AgentCommissionCalculator = () => {
+  const [l1, setL1] = useState(100000); // 一级（直接邀请）月核销额
+  const [l2, setL2] = useState(0);      // 二级（团队再邀请）月核销额
+  const v1 = Number(l1) || 0;
+  const v2 = Number(l2) || 0;
+  const c1 = (v1 * L1_RATE).toFixed(2);
+  const c2 = (v2 * L2_RATE).toFixed(2);
+  const total = (v1 * L1_RATE + v2 * L2_RATE).toFixed(2);
+  const fmt = (n) => Number(n).toLocaleString("zh-CN", { maximumFractionDigits: 2 });
+
+  return (
+    <section className="mt-8 rounded-2xl border-2 border-[#D4AF37]/60 bg-gradient-to-b from-[#FFFBEF] to-white p-5 shadow-[0_6px_24px_rgba(212,175,55,0.18)]" data-testid="agent-calculator">
+      <div className="flex items-center gap-2 text-base font-bold text-slate-900">
+        <Calculator size={18} className="text-[#C8961E]" /> 代理收益计算器
+      </div>
+      <p className="mt-1 text-xs text-slate-400">输入团队每月核销金额，估算你的两级佣金（一级 0.7% / 二级 0.3%）</p>
+
+      <div className="mt-4 flex flex-wrap gap-2">
+        {L1_PRESETS.map((p) => (
+          <button
+            key={p}
+            type="button"
+            onClick={() => setL1(p)}
+            data-testid={`agent-preset-${p}`}
+            className={`rounded-full px-3.5 py-1.5 text-xs font-semibold transition-colors ${
+              Number(l1) === p ? "bg-[#D4AF37] text-[#1B1403]" : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+            }`}
+          >
+            {fmt(p)}
+          </button>
+        ))}
+      </div>
+
+      <label className="mt-4 block text-xs font-medium text-slate-500">一级好友（直接邀请）月核销额</label>
+      <input
+        type="number" min="0" inputMode="numeric" value={l1}
+        onChange={(e) => setL1(e.target.value)} data-testid="agent-l1-input"
+        className="mt-1.5 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-lg font-bold text-slate-900 outline-none focus:border-[#D4AF37]"
+        placeholder="如 100000"
+      />
+
+      <label className="mt-3 block text-xs font-medium text-slate-500">二级团队（好友再邀请）月核销额</label>
+      <input
+        type="number" min="0" inputMode="numeric" value={l2}
+        onChange={(e) => setL2(e.target.value)} data-testid="agent-l2-input"
+        className="mt-1.5 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-lg font-bold text-slate-900 outline-none focus:border-[#D4AF37]"
+        placeholder="如 300000"
+      />
+
+      <div className="mt-4 grid grid-cols-2 gap-3">
+        <div className="rounded-xl bg-slate-50 p-3.5" data-testid="agent-c1">
+          <div className="text-xs text-slate-400">一级佣金（0.7%）</div>
+          <div className="mt-1 text-lg font-black text-slate-900">{fmt(c1)}</div>
+        </div>
+        <div className="rounded-xl bg-slate-50 p-3.5" data-testid="agent-c2">
+          <div className="text-xs text-slate-400">二级佣金（0.3%）</div>
+          <div className="mt-1 text-lg font-black text-slate-900">{fmt(c2)}</div>
+        </div>
+      </div>
+
+      <div className="mt-3 rounded-xl bg-[#FFF6D8] p-3.5 text-center" data-testid="agent-total">
+        <div className="text-xs text-[#8A6A12]">预计月佣金合计</div>
+        <div className="mt-1 text-2xl font-black text-[#B8860B]">{fmt(total)}</div>
+      </div>
+
+      <p className="mt-3 text-center text-[11px] leading-relaxed text-slate-400">
+        金额按平台核销结算口径计算，佣金比例与结算规则以平台实时政策为准。
+      </p>
+    </section>
+  );
+};
+
+
 export const Block = ({ block, index }) => {
   if (block.type === "calculator") {
-    return <GiftCardCalculator key={index} />;
+    return block.text === "agent"
+      ? <AgentCommissionCalculator key={index} />
+      : <GiftCardCalculator key={index} />;
   }
   if (block.type === "heading") {
     return (
