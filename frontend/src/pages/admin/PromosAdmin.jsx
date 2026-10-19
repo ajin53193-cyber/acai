@@ -4,14 +4,16 @@ import { toast } from "sonner";
 import { Plus, Pencil, Trash2, Eye, EyeOff, Link2, ExternalLink } from "lucide-react";
 import { API, formatDetail } from "@/lib/api";
 import { ImageUpload, toFullUrl } from "@/components/ImageUpload";
+import { SharePoster } from "@/components/SharePoster";
 import { inputCls, FieldLabel } from "./copyFields";
 import { BLOCK_TYPES, BlockEditor, copyText } from "./blockEditor";
 
-const EMPTY = { title: "", subtitle: "", cover: "", blocks: [], published: true };
+const EMPTY = { title: "", subtitle: "", cover: "", blocks: [], tool_slugs: [], published: true };
 const shareUrl = (slug) => `${window.location.origin}/p/${slug}`;
 
 export default function PromosAdmin({ token, onUnauthorized }) {
   const [promos, setPromos] = useState([]);
+  const [allTools, setAllTools] = useState([]);
   const [editing, setEditing] = useState(null);
   const [saving, setSaving] = useState(false);
   const headers = { Authorization: `Bearer ${token}` };
@@ -24,13 +26,16 @@ export default function PromosAdmin({ token, onUnauthorized }) {
       if (err.response?.status === 401) onUnauthorized();
     }
   };
-  useEffect(() => { load(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    load();
+    axios.get(`${API}/admin/tools`, { headers }).then((r) => setAllTools(r.data.tools || [])).catch(() => {});
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const save = async () => {
     if (!editing.title.trim()) return toast.error("请填写标题");
     setSaving(true);
     try {
-      const body = { title: editing.title, subtitle: editing.subtitle, cover: editing.cover, blocks: editing.blocks, published: editing.published !== false };
+      const body = { title: editing.title, subtitle: editing.subtitle, cover: editing.cover, blocks: editing.blocks, tool_slugs: editing.tool_slugs || [], published: editing.published !== false };
       if (editing.id) await axios.put(`${API}/admin/promos/${editing.id}`, body, { headers });
       else {
         const res = await axios.post(`${API}/admin/promos`, body, { headers });
@@ -60,14 +65,18 @@ export default function PromosAdmin({ token, onUnauthorized }) {
     setPromos((prev) => prev.filter((x) => x.id !== p.id));
   };
 
-  const addBlock = (type) => setEditing((e) => ({ ...e, blocks: [...e.blocks, { type, text: "", image: "", link: type === "button" ? "/tutorials/join-group" : "" }] }));
-  const updateBlock = (i, b) => setEditing((e) => ({ ...e, blocks: e.blocks.map((x, idx) => (idx === i ? b : x)) }));
+  const addBlock = (type) => setEditing((e) => ({ ...e, blocks: [...e.blocks, { type, text: "", image: "", link: type === "button" ? "/tutorials/join-group" : "" }] }));  const updateBlock = (i, b) => setEditing((e) => ({ ...e, blocks: e.blocks.map((x, idx) => (idx === i ? b : x)) }));
   const removeBlock = (i) => setEditing((e) => ({ ...e, blocks: e.blocks.filter((_, idx) => idx !== i) }));
   const moveBlock = (i, dir) => setEditing((e) => {
     const arr = [...e.blocks];
     const j = i + dir;
     [arr[i], arr[j]] = [arr[j], arr[i]];
     return { ...e, blocks: arr };
+  });
+
+  const toggleTool = (slug) => setEditing((e) => {
+    const cur = e.tool_slugs || [];
+    return { ...e, tool_slugs: cur.includes(slug) ? cur.filter((s) => s !== slug) : [...cur, slug] };
   });
 
   if (editing) {
@@ -123,6 +132,33 @@ export default function PromosAdmin({ token, onUnauthorized }) {
             </div>
           )}
         </div>
+
+        <div className="glass-card rounded-3xl p-7" data-testid="promo-tools-picker">
+          <h4 className="font-display text-base font-bold text-slate-100">底部展示的热门工具</h4>
+          <p className="mt-1 text-xs text-slate-500">勾选要在本篇推广页底部展示的工具；不勾选则展示全部已上线工具</p>
+          {allTools.length === 0 ? (
+            <div className="mt-4 rounded-2xl border border-dashed border-amber-500/20 py-8 text-center text-xs text-slate-500">还没有工具，请先在「热门工具」Tab 添加</div>
+          ) : (
+            <div className="mt-4 grid gap-2 sm:grid-cols-2">
+              {allTools.map((t) => {
+                const checked = (editing.tool_slugs || []).includes(t.slug);
+                return (
+                  <button
+                    key={t.slug}
+                    type="button"
+                    onClick={() => toggleTool(t.slug)}
+                    className={`flex items-center gap-3 rounded-2xl border p-3 text-left transition-colors ${checked ? "border-[#D4AF37] bg-[#D4AF37]/10" : "border-amber-500/15 hover:bg-amber-500/5"}`}
+                    data-testid={`promo-tool-pick-${t.slug}`}
+                  >
+                    <span className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md border ${checked ? "border-[#D4AF37] bg-gold-gradient text-[#060B18]" : "border-slate-500"}`}>{checked ? "✓" : ""}</span>
+                    {t.icon ? <img src={toFullUrl(t.icon)} alt="" className="h-8 w-8 rounded-lg object-cover" /> : <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-gold-gradient text-xs font-black text-[#060B18]">{t.name.slice(0, 1)}</span>}
+                    <span className="min-w-0 flex-1 truncate text-sm text-slate-200">{t.name}</span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
       </div>
     );
   }
@@ -163,6 +199,7 @@ export default function PromosAdmin({ token, onUnauthorized }) {
                 <a href={shareUrl(p.slug)} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 rounded-full border border-amber-500/30 px-4 py-2 text-xs text-[#E5C158] hover:bg-amber-500/10" data-testid={`promo-preview-${i}`}>
                   <ExternalLink size={13} /> 预览
                 </a>
+                <SharePoster url={shareUrl(p.slug)} title={p.title} subtitle={p.subtitle} badge="推广图文" className="flex items-center gap-1.5 rounded-full border border-amber-500/30 px-4 py-2 text-xs text-[#E5C158] hover:bg-amber-500/10" label="海报" />
                 <button type="button" onClick={() => togglePublish(p)} className="flex items-center gap-1.5 rounded-full border border-amber-500/30 px-4 py-2 text-xs text-[#E5C158] hover:bg-amber-500/10" data-testid={`promo-toggle-${i}`}>
                   {live ? <><EyeOff size={13} /> 下线</> : <><Eye size={13} /> 上线</>}
                 </button>

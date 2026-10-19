@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import { Plus, Pencil, Trash2, Eye, EyeOff, Link2, ExternalLink, Download } from "lucide-react";
 import { API, formatDetail } from "@/lib/api";
 import { ImageUpload, toFullUrl } from "@/components/ImageUpload";
+import { SharePoster } from "@/components/SharePoster";
 import { inputCls, FieldLabel } from "./copyFields";
 import { BLOCK_TYPES, BlockEditor, copyText } from "./blockEditor";
 
@@ -162,6 +163,42 @@ export default function ToolsAdmin({ token, onUnauthorized }) {
 
       {tools.length === 0 && <div className="glass-card rounded-3xl py-16 text-center text-sm text-slate-500">还没有工具，点击「新建工具」添加</div>}
 
+      {tools.length > 0 && (() => {
+        const totalViews = tools.reduce((s, t) => s + (t.views || 0), 0);
+        const totalDownloads = tools.reduce((s, t) => s + (t.downloads || 0), 0);
+        const byViews = [...tools].sort((a, b) => (b.views || 0) - (a.views || 0)).slice(0, 10);
+        const byDownloads = [...tools].sort((a, b) => (b.downloads || 0) - (a.downloads || 0)).slice(0, 10);
+        const Rank = ({ title, items, field, icon: Ic }) => (
+          <div>
+            <div className="mb-3 flex items-center gap-2 text-sm font-bold text-slate-200"><Ic size={15} className="text-[#E5C158]" /> {title}</div>
+            <div className="space-y-2">
+              {items.map((t, i) => (
+                <div key={t.id} className="flex items-center gap-3 rounded-xl bg-white/5 px-3 py-2" data-testid={`tool-rank-${field}-${i}`}>
+                  <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-black ${i < 3 ? "bg-gold-gradient text-[#060B18]" : "bg-white/10 text-slate-400"}`}>{i + 1}</span>
+                  <span className="min-w-0 flex-1 truncate text-sm text-slate-200">{t.name}</span>
+                  <span className="shrink-0 font-mono text-sm font-bold text-[#E5C158]">{t[field] || 0}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+        return (
+          <div className="glass-card rounded-3xl p-7" data-testid="tools-ranking">
+            <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+              <h3 className="font-display text-lg font-bold text-gold-gradient">工具数据排行</h3>
+              <div className="flex gap-5 text-sm text-slate-400">
+                <span className="flex items-center gap-1.5"><Eye size={14} className="text-[#E5C158]" /> 总查看 <b className="text-slate-100">{totalViews}</b></span>
+                <span className="flex items-center gap-1.5"><Download size={14} className="text-[#E5C158]" /> 总下载 <b className="text-slate-100">{totalDownloads}</b></span>
+              </div>
+            </div>
+            <div className="grid gap-8 md:grid-cols-2">
+              <Rank title="查看次数 TOP10" items={byViews} field="views" icon={Eye} />
+              <Rank title="下载次数 TOP10" items={byDownloads} field="downloads" icon={Download} />
+            </div>
+          </div>
+        );
+      })()}
+
       <div className="space-y-3">
         {tools.map((t, i) => {
           const live = t.published !== false;
@@ -185,6 +222,7 @@ export default function ToolsAdmin({ token, onUnauthorized }) {
                 <button type="button" onClick={async () => { await copyText(toolUrl(t.slug)); toast.success("工具链接已复制"); }} className="flex items-center gap-1.5 rounded-full bg-gold-gradient px-4 py-2 text-xs font-bold text-[#060B18]" data-testid={`tool-copy-${i}`}>
                   <Link2 size={13} /> 复制链接
                 </button>
+                <SharePoster url={toolUrl(t.slug)} title={t.name} subtitle={t.tagline} badge="工具教程" className="flex items-center gap-1.5 rounded-full border border-amber-500/30 px-4 py-2 text-xs text-[#E5C158] hover:bg-amber-500/10" label="海报" />
                 <button type="button" onClick={() => togglePublish(t)} className="flex items-center gap-1.5 rounded-full border border-amber-500/30 px-4 py-2 text-xs text-[#E5C158] hover:bg-amber-500/10" data-testid={`tool-toggle-${i}`}>
                   {live ? <><EyeOff size={13} /> 下线</> : <><Eye size={13} /> 上线</>}
                 </button>

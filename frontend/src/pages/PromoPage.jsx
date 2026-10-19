@@ -7,6 +7,7 @@ import { toFullUrl } from "@/components/ImageUpload";
 import { LogoFull } from "@/components/Logo";
 import { Block } from "@/components/PromoBlocks";
 import { ToolsStrip } from "@/components/ToolsStrip";
+import { SharePoster } from "@/components/SharePoster";
 
 export default function PromoPage() {
   const { slug } = useParams();
@@ -44,7 +45,18 @@ export default function PromoPage() {
             )}
             {(promo.blocks || []).map((b, i) => <Block key={i} block={b} index={i} />)}
 
-            <ToolsStrip />
+            <ToolsStrip slugs={promo.tool_slugs} />
+
+            <div className="mt-10">
+              <SharePoster
+                url={window.location.href}
+                title={promo.title}
+                subtitle={promo.subtitle}
+                badge="推广图文"
+                className="flex w-full items-center justify-center gap-2 rounded-full bg-gradient-to-r from-[#D4AF37] via-[#FFE896] to-[#D4AF37] py-3.5 text-sm font-bold text-[#1B1403] shadow-[0_6px_20px_rgba(212,175,55,0.35)] transition-transform active:scale-[0.98]"
+                label="生成分享海报"
+              />
+            </div>
 
             <footer className="mt-12 border-t border-slate-100 pt-6 text-center text-xs text-slate-400">
               合赢项目社 HEYING PROJECT CLUB · 平台不收取任何费用 · 不承诺收益

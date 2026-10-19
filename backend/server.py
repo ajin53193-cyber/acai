@@ -2020,6 +2020,7 @@ class PromoInput(BaseModel):
     subtitle: str = Field(default="", max_length=300)
     cover: str = Field(default="", max_length=500)
     blocks: List[PromoBlock] = Field(default_factory=list)
+    tool_slugs: List[str] = Field(default_factory=list)  # 本篇推广页底部展示的热门工具（空=展示全部）
     published: bool = True
 
 

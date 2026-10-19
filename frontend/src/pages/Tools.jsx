@@ -6,6 +6,7 @@ import { API } from "@/lib/api";
 import { toFullUrl } from "@/components/ImageUpload";
 import { LogoFull } from "@/components/Logo";
 import { Block } from "@/components/PromoBlocks";
+import { SharePoster } from "@/components/SharePoster";
 
 const Shell = ({ children, back }) => (
   <main className="min-h-screen bg-white text-slate-900" data-testid="tools-page">
@@ -109,6 +110,16 @@ export default function ToolDetail() {
               {tool.blocks.map((b, i) => <Block key={i} block={b} index={i} />)}
             </>
           )}
+          <div className="mt-10">
+            <SharePoster
+              url={window.location.href}
+              title={tool.name}
+              subtitle={tool.tagline}
+              badge="工具教程"
+              className="flex w-full items-center justify-center gap-2 rounded-full border-2 border-[#D4AF37] py-3 text-sm font-bold text-[#B8860B] transition-transform active:scale-[0.98]"
+              label="生成分享海报"
+            />
+          </div>
         </article>
       )}
     </Shell>

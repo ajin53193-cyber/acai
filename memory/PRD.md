@@ -152,6 +152,9 @@
   - 推广图文：db.promos {id, slug(8hex), title, subtitle, cover, blocks[{type: heading|text|image|button, text, image, link}], published, views}；公开 GET /api/promos/{slug}、POST /view；后台 /admin/promos CRUD + publish。前台 /p/{slug} 白底页（PromoPage.jsx，Block 渲染在 components/PromoBlocks.jsx），不显示站点页头/页脚/客服。后台 Tab「推广图文」PromosAdmin.jsx（区块编辑器 blockEditor.jsx 共用，创建后自动复制分享链接、列表复制/预览/上下线/编辑/删除、浏览数）
   - 热门工具：db.tools {id, slug, name, icon, tagline, download_link, download_text, blocks, published, sort, views, downloads}；公开 GET /api/tools 列表、GET /api/tools/{slug}、POST /events {view|download}；后台 /admin/tools CRUD。前台 /tools 白底列表（图标+名称+简介）→ /tools/{slug} 教程页（图标、名称、下载按钮、图文教学）。后台 Tab「热门工具」ToolsAdmin.jsx（复制列表链接 / 单个工具链接）
   - 推广页底部热门工具位（2026-07）：components/ToolsStrip.jsx 拉取 GET /api/tools，在每个 /p/{slug} 推广图文正文下方、页脚上方展示「热门工具」卡片列表（App 图标+名称+简介），点击任一工具跳转 /tools/{slug} 使用下载教程页。无工具时不渲染。
+  - 工具数据排行（2026-07）：ToolsAdmin「热门工具」Tab 顶部新增 tools-ranking 看板卡（总查看/总下载、查看次数 TOP10、下载次数 TOP10），数据取自 GET /admin/tools 的 views/downloads 字段。
+  - 推广页配工具（2026-07）：PromoInput 新增 tool_slugs: List[str]（空=展示全部已上线工具，否则只展示勾选工具并按勾选顺序）；PromosAdmin 编辑器新增 promo-tools-picker 多选（勾选框 + 图标 + 名称）；PromoPage 把 promo.tool_slugs 传给 ToolsStrip 过滤。
+  - 一键分享海报（2026-07）：components/SharePoster.jsx 用 qrcode 库在 canvas 绘制深蓝/金色品牌海报（品牌名 + 徽章 + 标题 + 副标题 + 二维码白卡 + 「长按识别二维码」+ 合规页脚），生成 PNG dataURL，弹窗预览 + 「保存海报」下载。已接入：公开 /tools/{slug} 教程页、/p/{slug} 推广页，以及后台 ToolsAdmin / PromosAdmin 每行「海报」按钮。无后端依赖、无跨域污染。
 
 ## 待处理（等用户确认）
 - 工具页/推广页顶部 LOGO 替换：用户要求把 /tools 与 /p/{slug} 顶部的深蓝 LogoFull 换成新版 HY 蓝橙 LOGO，但该图片文件未能从上传资源中取到，已 ask_human 请用户重新上传/给直链；首页页头金色「合」LOGO 保持不变。

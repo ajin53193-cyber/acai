@@ -19,21 +19,27 @@ const ToolIcon = ({ tool }) =>
     </div>
   );
 
-export const ToolsStrip = () => {
+export const ToolsStrip = ({ slugs }) => {
   const [tools, setTools] = useState([]);
 
   useEffect(() => {
     axios.get(`${API}/tools`).then((res) => setTools(res.data.tools || [])).catch(() => setTools([]));
   }, []);
 
-  if (tools.length === 0) return null;
+  // When a promo specifies slugs, show only those tools in the given order; otherwise show all.
+  const visible =
+    slugs && slugs.length > 0
+      ? slugs.map((s) => tools.find((t) => t.slug === s)).filter(Boolean)
+      : tools;
+
+  if (visible.length === 0) return null;
 
   return (
     <section className="mt-12 border-t border-slate-100 pt-8" data-testid="promo-tools-strip">
       <h2 className="text-lg font-black text-slate-900 md:text-xl">热门工具</h2>
       <p className="mt-1 text-sm text-slate-500">点击 App 图标查看使用与下载教程</p>
       <div className="mt-5 space-y-3">
-        {tools.map((t, i) => (
+        {visible.map((t, i) => (
           <Link
             key={t.slug}
             to={`/tools/${t.slug}`}
