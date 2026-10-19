@@ -323,7 +323,7 @@ export default function SettingsAdmin({ token, onUnauthorized }) {
           </div>
           <div className="rounded-2xl border border-amber-500/10 bg-[#060B18]/50 p-4">
             <div className="text-sm font-medium text-slate-200">海鸥官方群二维码（活码管理）</div>
-            <div className="mb-3 mt-0.5 text-xs text-slate-500">可上传多个群二维码，访客询问怎么合作/怎么加入/联系方式/人工客服时，自动发送当前启用的群二维码引导进群，同时显示在联系我们页；群快满 200 人或码快过期时会标红提醒换群</div>
+            <div className="mb-3 mt-0.5 text-xs text-slate-500">可上传多个群二维码，访客询问怎么合作/怎么加入/联系方式/人工客服时，自动发送当前启用的群二维码引导进群，同时显示在联系我们页；群快满 200 人或码快过期时会标红提醒换群。所有启用的群二维码（含群 ID）会以小卡片形式一起显示在「加入官方群教程」第三步</div>
             <div className="space-y-3">
               {(chatCfg.qr_codes || []).map((q, i) => (
                 <div key={i} className="rounded-xl border border-amber-500/10 bg-[#060B18]/40 p-3" data-testid={`qr-code-row-${i}`}>
@@ -341,6 +341,13 @@ export default function SettingsAdmin({ token, onUnauthorized }) {
                         placeholder="群序号，如：3群"
                         className={inputCls}
                         data-testid={`qr-code-label-${i}`}
+                      />
+                      <input
+                        value={q.group_id || ""}
+                        onChange={(e) => setChatCfg({ ...chatCfg, qr_codes: chatCfg.qr_codes.map((x, idx) => (idx === i ? { ...x, group_id: e.target.value } : x)) })}
+                        placeholder="群 ID（可选，访客可复制后在海鸥 App 搜索加群）"
+                        className={inputCls}
+                        data-testid={`qr-code-group-id-${i}`}
                       />
                       <label className="flex items-center gap-2 text-xs text-slate-400">
                         <input
@@ -369,7 +376,7 @@ export default function SettingsAdmin({ token, onUnauthorized }) {
             </div>
             <button
               type="button"
-              onClick={() => setChatCfg({ ...chatCfg, qr_codes: [...(chatCfg.qr_codes || []), { image: "", label: `${(chatCfg.qr_codes || []).length + 1}群`, uploaded_at: "", active: true }] })}
+              onClick={() => setChatCfg({ ...chatCfg, qr_codes: [...(chatCfg.qr_codes || []), { image: "", label: `${(chatCfg.qr_codes || []).length + 1}群`, group_id: "", uploaded_at: "", active: true }] })}
               data-testid="qr-code-add-btn"
               className="mt-3 flex items-center gap-1.5 rounded-full border border-amber-500/30 px-4 py-2 text-xs text-[#E5C158] transition-colors hover:bg-amber-500/10"
             >

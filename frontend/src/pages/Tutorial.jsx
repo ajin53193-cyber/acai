@@ -44,6 +44,44 @@ const CopyField = ({ label, text, testid }) => {
   );
 };
 
+/** 群二维码小卡片：小尺寸二维码 + 群名 + 可复制群 ID */
+const QrCard = ({ qr, testid }) => {
+  const [copied, setCopied] = useState(false);
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(qr.group_id);
+    } catch {
+      const ta = document.createElement("textarea");
+      ta.value = qr.group_id;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand("copy");
+      ta.remove();
+    }
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1800);
+  };
+  return (
+    <div className="flex w-[150px] flex-col items-center rounded-2xl border border-amber-500/20 bg-[#060B18]/60 p-3 text-center" data-testid={testid}>
+      <img src={toFullUrl(qr.image)} alt={qr.label || "群二维码"} loading="lazy" decoding="async" className="h-[118px] w-[118px] rounded-lg bg-white object-contain p-1" />
+      {qr.label && <div className="mt-2 text-xs font-bold text-slate-100">{qr.label}</div>}
+      {qr.group_id && (
+        <>
+          <div className="mt-1 w-full truncate font-mono text-[11px] text-[#E5C158]" title={qr.group_id}>ID: {qr.group_id}</div>
+          <button
+            type="button"
+            onClick={copy}
+            data-testid={`${testid}-copy-btn`}
+            className="mt-2 flex items-center gap-1 rounded-full border border-amber-500/40 bg-amber-500/10 px-3 py-1 text-[11px] text-[#E5C158] transition-colors hover:bg-amber-500/20 active:scale-95"
+          >
+            {copied ? <><Check size={11} /> 已复制</> : <><Copy size={11} /> 复制群 ID</>}
+          </button>
+        </>
+      )}
+    </div>
+  );
+};
+
 const isDirectVideo = (url) => /\.(mp4|webm|mov|m4v)(\?.*)?$/i.test(url) || url.startsWith("/api/") || url.includes("/api/files/");
 
 export const TutorialVideo = ({ url, title }) => {
@@ -161,13 +199,18 @@ export default function Tutorial() {
                   <div className="min-w-0 flex-1">
                     {step.title && <h2 className="font-display text-base font-bold text-slate-50 md:text-lg">{step.title}</h2>}
                     {step.text && <p className="mt-2 whitespace-pre-line text-sm leading-loose text-slate-300">{step.text}</p>}
+                    {step.qr_codes?.length > 0 && (
+                      <div className="mt-4 flex flex-wrap gap-3" data-testid={`tutorial-step-qrs-${i}`}>
+                        {step.qr_codes.map((qr, qi) => <QrCard key={qi} qr={qr} testid={`tutorial-step-qr-${i}-${qi}`} />)}
+                      </div>
+                    )}
                     {step.image && (
-                      <img src={toFullUrl(step.image)} alt={step.title || `步骤 ${i + 1}`} loading="lazy" decoding="async" className="mt-4 w-full rounded-xl border border-amber-500/15 object-cover" />
+                      <img src={toFullUrl(step.image)} alt={step.title || `步骤 ${i + 1}`} loading="lazy" decoding="async" className="mt-4 max-h-[360px] w-auto max-w-full rounded-xl border border-amber-500/15 object-contain" />
                     )}
                     {step.video_url && (
                       <div className="mt-4" data-testid={`tutorial-step-video-${i}`}><TutorialVideo url={step.video_url} title={step.title || `步骤 ${i + 1}`} /></div>
                     )}
-                    {step.copy_text && (
+                    {step.copy_text && !step.qr_codes?.some((q) => q.group_id) && (
                       <CopyField label={step.copy_label} text={step.copy_text} testid={`tutorial-step-copy-${i}`} />
                     )}
                     {(step.buttons?.length > 0 || step.button_link) && (

@@ -143,6 +143,7 @@
 - 2026-10-17 一键更新部署：deploy.bat 新增第 6 步调用 deploy/windows/patch-nginx.ps1（自动在宝塔 vhost 中把 /sitemap.xml 改为代理后端并 nginx -t/-s reload，失败自动还原 .bak）；setup.bat Python 候选路径加入 C:\Python311；README 第七节改为一行 PowerShell 命令（多镜像下载最新 setup.bat → 拉 zip → 构建 → 重启 → nginx 补丁 → 健康检查）。服务器目录不是 git 仓库，更新靠 setup.bat 下载 GitHub zip 覆盖，故每次更新前必须先 Save to GitHub
 - 2026-10-19 项目卡片改「进群查看」弹窗：按用户要求，项目中心点击卡片不再展示详情，而是弹窗提示「项目详情已在官方交流群内分享」+「加入官方交流群」按钮（跳转 settings.chat.welcome_group_link，默认 /tutorials/join-group）+「咨询客服」按钮（触发 hy:open-chat）。文案在后台「页面文案 → 项目中心页」可改（SiteCopy 新增 projects 分区）。Playwright 验证弹窗与跳转教程页正常。待 Save to GitHub + 一键更新命令发布
 - 2026-10-19 首页卡片直达 + 进群点击统计：抽出共用组件 components/ProjectGateModal.jsx（首页精选卡片与项目中心卡片点击均弹出；进群按钮去掉箭头图标）。埋点 POST /api/projects/{id}/events {type: open|group, visitor_id} → db.project_events；后台 GET /api/admin/stats/projects?days= 按项目聚合打开次数/人数、进群点击次数/人数、转化率，StatsAdmin 新增「项目进群点击统计」表（stats-projects-card）。Playwright 验证首页弹窗、跳转教程、统计表显示正常
+- 2026-10-19 进群教程多二维码小卡片：QrCodeItem 新增 group_id（站点设置 → 群二维码每行新增「群 ID」输入框）；GET /tutorials/join-group 把所有启用的群码以 qr_codes[{image,label,group_id}] 注入第三步（不再注入单张大图，若步骤 image 与群码相同则清空避免重复）；Tutorial.jsx 新增 QrCard（150px 卡片：118px 二维码 + 群名 + 可复制群 ID），有群 ID 时隐藏步骤级 copy_text；普通步骤图片改为 max-h-360 自适应不再铺满。预览验证通过
 
 ## 待办优先级
 - P0：用户按 deploy/windows/README_WINDOWS.md 在宝塔 Windows 搭建，等待终端截图反馈

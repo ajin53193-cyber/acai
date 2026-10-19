@@ -261,6 +261,7 @@ class TutorialInput(BaseModel):
 class QrCodeItem(BaseModel):
     image: str = ""
     label: str = ""
+    group_id: str = Field(default="", max_length=60)  # 海鸥群 ID，供搜索加群
     uploaded_at: str = ""
     active: bool = True
 
@@ -804,8 +805,11 @@ async def get_tutorial(slug: str):
     if slug == "join-group":
         settings = await db.settings.find_one({"key": "site"}, {"_id": 0, "chat": 1})
         chat_cfg = sync_active_qr(migrate_qr_codes(dict((settings or {}).get("chat") or {})))
-        qr_image = chat_cfg.get("qr_image", "")
-        if qr_image:
+        active_codes = [
+            {"image": q.get("image", ""), "label": q.get("label", ""), "group_id": q.get("group_id", "")}
+            for q in (chat_cfg.get("qr_codes") or []) if q.get("active") and q.get("image")
+        ]
+        if active_codes:
             steps = doc.get("steps") or []
             # 二维码只注入到真正讲二维码/群 ID 的那一步；若未找到则不注入（绝不回退到第一步，避免误把二维码塞进下载/注册步骤）
             target = next(
@@ -813,8 +817,11 @@ async def get_tutorial(slug: str):
                  and ("二维码" in (s.get("text") or "") or "群 ID" in (s.get("copy_label") or "") or "群ID" in (s.get("copy_label") or ""))),
                 None,
             )
-            if target is not None and not target.get("image"):
-                target["image"] = qr_image
+            if target is not None:
+                target["qr_codes"] = active_codes
+                # 多码卡片已包含二维码与群 ID，避免再把同一张码当作步骤大图重复展示
+                if target.get("image") in {q["image"] for q in active_codes}:
+                    target["image"] = ""
     return doc
 
 
