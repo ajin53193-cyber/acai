@@ -210,7 +210,7 @@ export const Block = ({ block, index }) => {
     return (
       <figure className="mt-5" data-testid={`promo-block-${index}`}>
         <img src={toFullUrl(block.image)} alt={block.text || `图 ${index + 1}`} loading="lazy" decoding="async" className="w-full rounded-xl border border-slate-200 shadow-sm" />
-        {block.text && <figcaption className="mt-2 text-center text-xs text-slate-500">{block.text}</figcaption>}
+        {block.text && <figcaption className="mt-3 text-center text-base font-semibold text-slate-700 md:text-lg">{block.text}</figcaption>}
       </figure>
     );
   }
