@@ -316,9 +316,13 @@ QR_KEYWORDS = ("怎么合作", "如何合作", "合作方式", "怎么加入", "
 
 CN_TZ = ZoneInfo("Asia/Shanghai")
 _geo_cache = {}
+# 访问统计只记录中国 IP（含港澳台）；本地 / 查询失败的记录保留，避免 ip-api 不可用时丢数据
+CHINA_COUNTRIES = {"中国", "香港", "澳门", "台湾", "中华人民共和国"}
+REGION_KEEP_PREFIXES = tuple(CHINA_COUNTRIES) + ("本地访问", "未知地区")
 
 
 def lookup_region(ip: str) -> str:
+    """返回地区文本（国家 省 市）。本地 IP → 本地访问；查询失败 → 未知地区。"""
     if ip in _geo_cache:
         return _geo_cache[ip]
     if ip.startswith(("10.", "192.168.", "127.", "172.")) or ip in ("::1", "localhost", "unknown"):
@@ -338,6 +342,10 @@ def lookup_region(ip: str) -> str:
         region = "未知地区"
     _geo_cache[ip] = region
     return region
+
+
+def is_china_region(region: str) -> bool:
+    return region.startswith(REGION_KEEP_PREFIXES)
 
 
 class TrackInput(BaseModel):
@@ -619,6 +627,16 @@ async def startup():
             await db.migrations.insert_one({"key": "income_compliance_v1", "at": datetime.now(timezone.utc).isoformat()})
     except Exception as e:
         print(f"[migration] income_compliance_v1 failed (skipped): {e}")
+
+    # 一次性清理：访问统计只保留中国 IP（含港澳台）、本地访问与未知地区，删除历史海外访问记录
+    try:
+        if not await db.migrations.find_one({"key": "visits_china_only_v1"}):
+            keep = "|".join(REGION_KEEP_PREFIXES)
+            res = await db.visits.delete_many({"region": {"$not": {"$regex": f"^({keep})"}}})
+            print(f"[migration] visits_china_only_v1: removed {res.deleted_count} overseas visits")
+            await db.migrations.insert_one({"key": "visits_china_only_v1", "at": datetime.now(timezone.utc).isoformat()})
+    except Exception as e:
+        print(f"[migration] visits_china_only_v1 failed (skipped): {e}")
 
     # 一次性清理：去掉早期写死的占位电话/微信号（现改为后台填写，留空则前台不显示）
     await db.settings.update_one({"key": "site", "contact.hotline": "400-888-6888"}, {"$set": {"contact.hotline": ""}})
@@ -1660,6 +1678,8 @@ async def track_visit(data: TrackInput, request: Request):
     if recent:
         return {"ok": True, "deduped": True}
     region = await asyncio.to_thread(lookup_region, ip)
+    if not is_china_region(region):
+        return {"ok": True, "skipped": "overseas"}
     ua = request.headers.get("user-agent", "")[:200]
     device, browser = parse_ua(ua)
     await db.visits.insert_one({

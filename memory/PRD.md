@@ -146,6 +146,7 @@
 - 2026-10-19 进群教程多二维码小卡片：QrCodeItem 新增 group_id（站点设置 → 群二维码每行新增「群 ID」输入框）；GET /tutorials/join-group 把所有启用的群码以 qr_codes[{image,label,group_id}] 注入第三步（不再注入单张大图，若步骤 image 与群码相同则清空避免重复）；Tutorial.jsx 新增 QrCard（150px 卡片：118px 二维码 + 群名 + 可复制群 ID），有群 ID 时隐藏步骤级 copy_text；普通步骤图片改为 max-h-360 自适应不再铺满。预览验证通过
 - 2026-10-19 热门项目角标：GET /api/projects 每个项目新增 hot 字段（hot_project_ids：近 7 天 project_events type=group 聚合，前 3 名且 ≥1 次点击）；首页精选卡片右上、项目中心卡片图片右下显示红橙渐变「热门」角标（Flame 图标 + .hot-badge 呼吸动画）。预览验证通过
 - 2026-10-19 热门标签后台控制：项目新增 hot_mode（auto 默认 / on 常驻 / off 关闭），PATCH /api/admin/projects/{id}/hot；GET /admin/projects 附带 hot/hot_auto/group_clicks_7d；项目管理列表显示「热门」标签（常驻注明）、近 7 天进群点击次数，新增循环切换按钮「热门：自动→常驻→关闭」。预览验证通过
+- 2026-10-19 访问统计只记录中国 IP：track_visit 用 ip-api 地区判断，非中国（含港澳台）直接跳过不入库（本地访问 / 查询失败的「未知地区」保留）；启动迁移 visits_china_only_v1 一次性删除历史海外访问记录（预览删了 154 条）。curl 验证 8.8.8.8 → skipped，114.114.114.114 → 记录
 
 ## 待办优先级
 - P0：用户按 deploy/windows/README_WINDOWS.md 在宝塔 Windows 搭建，等待终端截图反馈
