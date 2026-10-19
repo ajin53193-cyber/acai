@@ -124,15 +124,14 @@ export default function Projects() {
                       )}
                     </div>
                     <div className="p-3 md:p-6">
-                      <h3 className="font-display text-sm font-bold leading-snug text-slate-50 transition-colors group-hover:text-[#FFE896] md:text-lg">
+                      <h3 className="line-clamp-2 min-h-[2.5rem] font-display text-sm font-bold leading-snug text-slate-50 transition-colors group-hover:text-[#FFE896] md:min-h-[3.25rem] md:text-lg">
                         {p.title}
                       </h3>
-                      <p className="mt-1.5 line-clamp-2 text-xs text-slate-400 md:mt-2 md:text-sm">{p.description}</p>
-                      <div className="mt-2.5 flex items-center justify-between gap-1 border-t border-amber-500/10 pt-2.5 text-[10px] md:mt-4 md:pt-4 md:text-sm">
+                      <p className="mt-1.5 line-clamp-2 min-h-[2rem] text-xs text-slate-400 md:mt-2 md:min-h-[2.5rem] md:text-sm">{p.description}</p>
+                      <div className="mt-2.5 flex items-center gap-1 border-t border-amber-500/10 pt-2.5 text-[10px] md:mt-4 md:pt-4 md:text-sm">
                         <span className="flex items-center gap-1 text-slate-400">
                           <MapPin size={12} className="text-[#D4AF37]" /> {p.region}
                         </span>
-                        <span className="text-slate-300">{p.status}</span>
                       </div>
                     </div>
                   </div>
