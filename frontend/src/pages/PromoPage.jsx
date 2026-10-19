@@ -6,6 +6,7 @@ import { API } from "@/lib/api";
 import { toFullUrl } from "@/components/ImageUpload";
 import { LogoFull } from "@/components/Logo";
 import { Block } from "@/components/PromoBlocks";
+import { ToolsStrip } from "@/components/ToolsStrip";
 
 export default function PromoPage() {
   const { slug } = useParams();
@@ -42,6 +43,8 @@ export default function PromoPage() {
               <img src={toFullUrl(promo.cover)} alt={promo.title} decoding="async" className="mt-6 w-full rounded-2xl border border-slate-200 shadow-md" data-testid="promo-cover" />
             )}
             {(promo.blocks || []).map((b, i) => <Block key={i} block={b} index={i} />)}
+
+            <ToolsStrip />
 
             <footer className="mt-12 border-t border-slate-100 pt-6 text-center text-xs text-slate-400">
               合赢项目社 HEYING PROJECT CLUB · 平台不收取任何费用 · 不承诺收益

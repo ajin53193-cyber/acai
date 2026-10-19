@@ -151,6 +151,10 @@
   - 省份访客热力图：GET /api/admin/stats/provinces?days=（按独立 IP、province_of 解析省名）；frontend/public/geo/china.json（DataV 省界，坐标 2 位小数、已按 d3-geo 顺时针外环重绕）；components/ChinaMap.jsx（d3-geo mercator 固定 center/scale，悬停提示，金色热度）；StatsAdmin 新增 stats-provinces-card + TOP10 排行
   - 推广图文：db.promos {id, slug(8hex), title, subtitle, cover, blocks[{type: heading|text|image|button, text, image, link}], published, views}；公开 GET /api/promos/{slug}、POST /view；后台 /admin/promos CRUD + publish。前台 /p/{slug} 白底页（PromoPage.jsx，Block 渲染在 components/PromoBlocks.jsx），不显示站点页头/页脚/客服。后台 Tab「推广图文」PromosAdmin.jsx（区块编辑器 blockEditor.jsx 共用，创建后自动复制分享链接、列表复制/预览/上下线/编辑/删除、浏览数）
   - 热门工具：db.tools {id, slug, name, icon, tagline, download_link, download_text, blocks, published, sort, views, downloads}；公开 GET /api/tools 列表、GET /api/tools/{slug}、POST /events {view|download}；后台 /admin/tools CRUD。前台 /tools 白底列表（图标+名称+简介）→ /tools/{slug} 教程页（图标、名称、下载按钮、图文教学）。后台 Tab「热门工具」ToolsAdmin.jsx（复制列表链接 / 单个工具链接）
+  - 推广页底部热门工具位（2026-07）：components/ToolsStrip.jsx 拉取 GET /api/tools，在每个 /p/{slug} 推广图文正文下方、页脚上方展示「热门工具」卡片列表（App 图标+名称+简介），点击任一工具跳转 /tools/{slug} 使用下载教程页。无工具时不渲染。
+
+## 待处理（等用户确认）
+- 工具页/推广页顶部 LOGO 替换：用户要求把 /tools 与 /p/{slug} 顶部的深蓝 LogoFull 换成新版 HY 蓝橙 LOGO，但该图片文件未能从上传资源中取到，已 ask_human 请用户重新上传/给直链；首页页头金色「合」LOGO 保持不变。
 
 ## 待办优先级
 - P0：用户按 deploy/windows/README_WINDOWS.md 在宝塔 Windows 搭建，等待终端截图反馈
