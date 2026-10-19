@@ -8,20 +8,28 @@ export const isExternal = (link) => /^https?:\/\//i.test(link || "");
 // 85折后每 1 HKD 面值的买入 USDT 成本（gogo589）；9折×实时汇率后每 1 HKD 的核销人民币（闲礼会馆）
 const BUY_USDT_PER_HKD = 0.1087;   // 1000 HKD → $108.70
 const SELL_RMB_PER_HKD = 0.76509;  // 1000 HKD → ¥765.09（1 HKD≈¥0.8501 × 9折）
+const DEFAULT_USDT_CNY = 6.65;     // USDT→人民币参考汇率（可在计算器内调整）
 const PRESETS = [200, 500, 1000, 5000, 8000];
 
 export const GiftCardCalculator = () => {
   const [face, setFace] = useState(1000);
+  const [rate, setRate] = useState(DEFAULT_USDT_CNY);
   const val = Number(face) || 0;
-  const buy = (val * BUY_USDT_PER_HKD).toFixed(2);
-  const sell = (val * SELL_RMB_PER_HKD).toFixed(2);
+  const r = Number(rate) || 0;
+  const buyUsdt = val * BUY_USDT_PER_HKD;
+  const buyRmb = buyUsdt * r;
+  const sellRmb = val * SELL_RMB_PER_HKD;
+  const netRmb = sellRmb - buyRmb;
+  const roi = buyRmb > 0 ? (netRmb / buyRmb) * 100 : 0;
+  const fmt = (n) => Number(n).toLocaleString("zh-CN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const profit = netRmb >= 0;
 
   return (
     <section className="mt-8 rounded-2xl border-2 border-[#D4AF37]/60 bg-gradient-to-b from-[#FFFBEF] to-white p-5 shadow-[0_6px_24px_rgba(212,175,55,0.18)]" data-testid="giftcard-calculator">
       <div className="flex items-center gap-2 text-base font-bold text-slate-900">
         <Calculator size={18} className="text-[#C8961E]" /> 收益计算器
       </div>
-      <p className="mt-1 text-xs text-slate-400">输入礼品卡面值（港币 HKD），自动估算买入成本与核销实得</p>
+      <p className="mt-1 text-xs text-slate-400">输入礼品卡面值与 USDT 汇率，自动算出净赚多少人民币</p>
 
       <div className="mt-4 flex flex-wrap gap-2">
         {PRESETS.map((p) => (
@@ -39,32 +47,51 @@ export const GiftCardCalculator = () => {
         ))}
       </div>
 
-      <label className="mt-4 block text-xs font-medium text-slate-500">礼品卡面值（HKD）</label>
-      <input
-        type="number"
-        min="0"
-        inputMode="numeric"
-        value={face}
-        onChange={(e) => setFace(e.target.value)}
-        data-testid="calc-face-input"
-        className="mt-1.5 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-lg font-bold text-slate-900 outline-none focus:border-[#D4AF37]"
-        placeholder="如 1000"
-      />
+      <div className="mt-4 grid grid-cols-2 gap-3">
+        <div>
+          <label className="block text-xs font-medium text-slate-500">礼品卡面值（HKD）</label>
+          <input
+            type="number" min="0" inputMode="numeric" value={face}
+            onChange={(e) => setFace(e.target.value)} data-testid="calc-face-input"
+            className="mt-1.5 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-lg font-bold text-slate-900 outline-none focus:border-[#D4AF37]"
+            placeholder="如 1000"
+          />
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-slate-500">USDT 汇率（1 USDT = ? ¥）</label>
+          <input
+            type="number" min="0" step="0.01" inputMode="decimal" value={rate}
+            onChange={(e) => setRate(e.target.value)} data-testid="calc-rate-input"
+            className="mt-1.5 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-lg font-bold text-slate-900 outline-none focus:border-[#D4AF37]"
+            placeholder="如 6.65"
+          />
+        </div>
+      </div>
 
       <div className="mt-4 grid grid-cols-2 gap-3">
         <div className="rounded-xl bg-slate-50 p-3.5" data-testid="calc-buy-cost">
           <div className="text-xs text-slate-400">买入成本（gogo589 · 85折）</div>
-          <div className="mt-1 text-xl font-black text-slate-900">${buy} <span className="text-xs font-semibold text-slate-400">USDT</span></div>
+          <div className="mt-1 text-lg font-black text-slate-900">${fmt(buyUsdt)} <span className="text-xs font-semibold text-slate-400">USDT</span></div>
+          <div className="mt-0.5 text-xs text-slate-400">≈ ¥{fmt(buyRmb)}</div>
         </div>
         <div className="rounded-xl bg-[#FFF6D8] p-3.5" data-testid="calc-sell-get">
           <div className="text-xs text-[#8A6A12]">核销实得（闲礼会馆 · 9折）</div>
-          <div className="mt-1 text-xl font-black text-[#B8860B]">¥{sell}</div>
+          <div className="mt-1 text-lg font-black text-[#B8860B]">¥{fmt(sellRmb)}</div>
         </div>
       </div>
 
-      <p className="mt-3 text-center text-xs font-semibold text-[#C8961E]">约 5% 价差 · 最快 3 分钟到账</p>
-      <p className="mt-1 text-center text-[11px] leading-relaxed text-slate-400">
-        汇率与折扣为参考值（1 HKD≈¥0.8501×9折），实际买入价与核销实得以平台操作当时的实时价格为准。
+      <div className={`mt-3 rounded-xl p-4 text-center ${profit ? "bg-[#E9F9EE]" : "bg-[#FDECEC]"}`} data-testid="calc-net-profit">
+        <div className={`text-xs ${profit ? "text-[#1E7A3D]" : "text-[#C0392B]"}`}>预计净赚人民币（核销实得 − 买入成本折¥）</div>
+        <div className={`mt-1 text-3xl font-black ${profit ? "text-[#1E7A3D]" : "text-[#C0392B]"}`} data-testid="calc-net-value">
+          {profit ? "+" : ""}¥{fmt(netRmb)}
+        </div>
+        <div className={`mt-0.5 text-xs font-semibold ${profit ? "text-[#1E7A3D]" : "text-[#C0392B]"}`}>
+          收益率约 {roi >= 0 ? "+" : ""}{roi.toFixed(1)}%
+        </div>
+      </div>
+
+      <p className="mt-3 text-center text-[11px] leading-relaxed text-slate-400">
+        核销实得为人民币（1 HKD≈¥0.8501×9折）；买入用 USDT 付款，按你填的 USDT 汇率折算成本。折扣与汇率随市场浮动，实际收益以平台操作当时的实时价格为准。
       </p>
     </section>
   );

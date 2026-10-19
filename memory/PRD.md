@@ -190,6 +190,7 @@
 - SEO 元信息与分享卡片优化
 
 ## 更新记录
+- 2026-07-19：搬砖页计算器升级为「净赚人民币」口径：新增可调 USDT 汇率输入(默认6.65，来自实时查询USDT/CNY≈6.64-6.68)，显示 买入成本$USDT(≈¥) / 核销实得¥ / 净赚人民币¥(=核销¥−买入折¥) / 收益率%(正绿负红)。1000卡@6.65≈+¥42.24(+5.8%)，8000卡≈+¥337.88。证实约5%价差成立(此前误用7.2汇率致判断偏差)。纯前端改动，生产需 build。
 - 2026-07-19：代理页 /p/agent-recruit 新增「代理收益计算器」（PromoBlocks 复用 calculator 区块，text="agent" → AgentCommissionCalculator；text="" → GiftCardCalculator）。输入一级/二级月核销额，算 一级0.7%+二级0.3% 佣金与合计。搬砖页计算器按用户决定保持核销实得只显示人民币¥(不加USDT换算,因折算后约5%价差被汇率抵消)。seed_promo_agent.py=19区块。生产需重新 build 前端(deploy.sh)+重跑 seed_promo_agent.py。
 - 2026-07-19：《搬砖项目》新增「收益计算器」互动组件（前端 PromoBlocks.jsx 新增 calculator 区块类型 + GiftCardCalculator 组件；后端 PromoBlock pattern 增加 calculator）。输入面值实时算 买入USDT(面值×0.1087) 与 核销实得¥(面值×0.76509)，预设 200/500/1000/5000/8000。并在文章加注转赠账户 65159201 仅为示例、以实际页面为准。生产需重新 build 前端(deploy.sh) + 重跑 seed_promo_giftcard.py。
 - 2026-07-19：《搬砖项目》重大更新为真实统一流程 + 12 张实拍截图（gogo589 买卡 3 图 + 闲礼会馆/订单 9 图）。关键：两平台通过「AlipayHK 转赠账户(卖卡平台提供,示例65159201)+28-36位交易号」打通，用户无需自有 AlipayHK；核销实得为人民币(HK$1000→¥765.06, HK$8000→¥6120.47)，买入用USDT($108.70/$869.60)，约5%价差、3分钟到账(如实列出,保留"约5%"说法)。脚本 deploy/baota/seed_promo_giftcard.py(37区块)。
