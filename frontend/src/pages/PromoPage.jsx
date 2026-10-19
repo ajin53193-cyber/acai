@@ -46,7 +46,7 @@ export default function PromoPage() {
             <ToolsStrip slugs={promo.tool_slugs} />
 
             <footer className="mt-12 border-t border-slate-100 pt-6 text-center text-xs text-slate-400">
-              合赢项目社 HEYING PROJECT CLUB · 平台不收取任何费用 · 不承诺收益
+              合赢项目社 · 平台不收取任何费用 · 稳定项目供给 专业护航
             </footer>
           </article>
         )}

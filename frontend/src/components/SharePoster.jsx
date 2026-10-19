@@ -117,7 +117,7 @@ const buildPoster = async ({ url, title, subtitle, badge }) => {
   // footer compliance
   ctx.fillStyle = "#6B7488";
   ctx.font = "400 22px sans-serif";
-  ctx.fillText("平台不收取任何费用 · 不承诺收益", W / 2, H - 48);
+  ctx.fillText("平台不收取任何费用 · 稳定项目供给 专业护航", W / 2, H - 48);
 
   return canvas.toDataURL("image/png");
 };
