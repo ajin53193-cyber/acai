@@ -188,3 +188,6 @@
 - 项目管理后台 CRUD
 - 留言实时通知
 - SEO 元信息与分享卡片优化
+
+## 更新记录
+- 2026-07-19：新增推广图文《USDT 充值教程》（TRC20 通用版），分享链接 /p/usdt-recharge。幂等种子脚本 deploy/baota/seed_promo_recharge.py（固定 slug=usdt-recharge），底部挂 okx-guide + binance 工具。生产上线需 Save to GitHub → 服务器 git pull → `cd /www/wwwroot/heying && backend/.venv/bin/python deploy/baota/seed_promo_recharge.py`。预览已验证渲染正常。
