@@ -190,5 +190,7 @@
 - SEO 元信息与分享卡片优化
 
 ## 更新记录
-- 2026-07-19：新增推广图文《新地礼品卡搬砖项目｜零风险稳定赚差价》，分享链接 /p/giftcard-project。幂等种子脚本 deploy/baota/seed_promo_giftcard.py（固定 slug=giftcard-project）。逻辑：gogo589(www.gogo589.com) 85折买新地礼品卡 → 闲礼会馆(lzmur.com) 9折核销，净赚5%；8000港币卡示例≈净赚51 USDT(汇率7.8)；二级代理佣金 一级0.7%/二级0.3%；闲礼会馆注册含专属邀请码链接 https://lzmur.com/?ref=LD4QSU 。底部挂 okx-guide+binance，内链 /p/usdt-recharge。生产上线：Save to GitHub → 服务器 git pull → `backend/.venv/bin/python deploy/baota/seed_promo_giftcard.py`。预览已验证。
+- 2026-07-19：《搬砖项目》重大更新为真实统一流程 + 12 张实拍截图（gogo589 买卡 3 图 + 闲礼会馆/订单 9 图）。关键：两平台通过「AlipayHK 转赠账户(卖卡平台提供,示例65159201)+28-36位交易号」打通，用户无需自有 AlipayHK；核销实得为人民币(HK$1000→¥765.06, HK$8000→¥6120.47)，买入用USDT($108.70/$869.60)，约5%价差、3分钟到账(如实列出,保留"约5%"说法)。脚本 deploy/baota/seed_promo_giftcard.py(37区块)。
+- 2026-07-19：新增《成为代理·躺赚两级佣金》招募图文 /p/agent-recruit，主打一级0.7%/二级0.3%分佣+裂变。脚本 deploy/baota/seed_promo_agent.py(18区块)。生产上线需运行该脚本。
+- 2026-07-19：新增推广图文《新地礼品卡搬砖项目》，分享链接 /p/giftcard-project。邀请链接含邀请码 https://lzmur.com/?ref=LD4QSU 。生产上线：Save to GitHub → 服务器 git pull → 运行 seed_promo_giftcard.py 与 seed_promo_agent.py。
 - 2026-07-19：新增推广图文《USDT 充值教程》（TRC20 通用版），分享链接 /p/usdt-recharge。幂等种子脚本 deploy/baota/seed_promo_recharge.py（固定 slug=usdt-recharge），底部挂 okx-guide + binance 工具。生产上线需 Save to GitHub → 服务器 git pull → `cd /www/wwwroot/heying && backend/.venv/bin/python deploy/baota/seed_promo_recharge.py`。预览已验证渲染正常。
