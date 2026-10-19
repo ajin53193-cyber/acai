@@ -2169,6 +2169,61 @@ async def admin_delete_tool(tool_id: str, _: str = Depends(require_admin)):
     return {"message": "已删除"}
 
 
+# ---------------- USDT / 人民币 实时汇率（每日自动刷新 · 带缓存） ----------------
+_usdt_cny_cache = {"rate": None, "updated_at": None, "source": None}
+_USDT_CNY_FALLBACK = 6.65
+_USDT_CNY_TTL = 12 * 3600  # 秒；超过则重新拉取（约每日自动更新）
+
+
+async def _fetch_usdt_cny() -> float:
+    def _get():
+        # 多源回退：优先 currency-api(含 USDT→CNY，最接近实价)，再退 USD→CNY 代理，再退 CoinGecko
+        sources = [
+            ("https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/usdt.json",
+             lambda j: j["usdt"]["cny"]),
+            ("https://latest.currency-api.pages.dev/v1/currencies/usdt.json",
+             lambda j: j["usdt"]["cny"]),
+            ("https://open.er-api.com/v6/latest/USD",
+             lambda j: j["rates"]["CNY"]),
+            ("https://api.coingecko.com/api/v3/simple/price?ids=tether&vs_currencies=cny",
+             lambda j: j["tether"]["cny"]),
+        ]
+        last_err = None
+        for url, pick in sources:
+            try:
+                resp = requests.get(url, timeout=10)
+                resp.raise_for_status()
+                val = float(pick(resp.json()))
+                if val > 0:
+                    return val
+            except Exception as e:  # noqa: BLE001
+                last_err = e
+                continue
+        raise RuntimeError(f"all rate sources failed: {last_err}")
+    return await asyncio.to_thread(_get)
+
+
+@api_router.get("/rates/usdt-cny")
+async def usdt_cny_rate():
+    now = datetime.now(timezone.utc)
+    cached_at = _usdt_cny_cache["updated_at"]
+    fresh = cached_at is not None and (now - cached_at).total_seconds() < _USDT_CNY_TTL
+    if not fresh:
+        try:
+            rate = await _fetch_usdt_cny()
+            _usdt_cny_cache.update({"rate": round(rate, 4), "updated_at": now, "source": "live"})
+        except Exception as e:
+            logging.getLogger(__name__).warning("usdt-cny fetch failed: %s", e)
+            if _usdt_cny_cache["rate"] is None:
+                _usdt_cny_cache.update({"rate": _USDT_CNY_FALLBACK, "updated_at": now, "source": "fallback"})
+    return {
+        "rate": _usdt_cny_cache["rate"],
+        "updated_at": _usdt_cny_cache["updated_at"].isoformat() if _usdt_cny_cache["updated_at"] else None,
+        "source": _usdt_cny_cache["source"],
+    }
+
+
+
 app.include_router(api_router)
 
 app.add_middleware(

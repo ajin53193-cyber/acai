@@ -1,6 +1,8 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
+import axios from "axios";
 import { ArrowRight, Calculator } from "lucide-react";
+import { API } from "@/lib/api";
 import { toFullUrl } from "@/components/ImageUpload";
 
 export const isExternal = (link) => /^https?:\/\//i.test(link || "");
@@ -14,6 +16,19 @@ const PRESETS = [200, 500, 1000, 5000, 8000];
 export const GiftCardCalculator = () => {
   const [face, setFace] = useState(1000);
   const [rate, setRate] = useState(DEFAULT_USDT_CNY);
+  const [liveRate, setLiveRate] = useState(false);
+
+  useEffect(() => {
+    axios.get(`${API}/rates/usdt-cny`)
+      .then((res) => {
+        if (res.data?.rate) {
+          setRate(res.data.rate);
+          setLiveRate(res.data.source !== "fallback");
+        }
+      })
+      .catch(() => {});
+  }, []);
+
   const val = Number(face) || 0;
   const r = Number(rate) || 0;
   const buyUsdt = val * BUY_USDT_PER_HKD;
@@ -58,7 +73,10 @@ export const GiftCardCalculator = () => {
           />
         </div>
         <div>
-          <label className="block text-xs font-medium text-slate-500">USDT 汇率（1 USDT = ? ¥）</label>
+          <label className="flex items-center gap-1.5 text-xs font-medium text-slate-500">
+            USDT 汇率（1 USDT = ? ¥）
+            {liveRate && <span className="rounded-full bg-[#E9F9EE] px-1.5 py-0.5 text-[10px] font-semibold text-[#1E7A3D]" data-testid="calc-rate-live">实时</span>}
+          </label>
           <input
             type="number" min="0" step="0.01" inputMode="decimal" value={rate}
             onChange={(e) => setRate(e.target.value)} data-testid="calc-rate-input"
@@ -91,7 +109,7 @@ export const GiftCardCalculator = () => {
       </div>
 
       <p className="mt-3 text-center text-[11px] leading-relaxed text-slate-400">
-        核销实得为人民币（1 HKD≈¥0.8501×9折）；买入用 USDT 付款，按你填的 USDT 汇率折算成本。折扣与汇率随市场浮动，实际收益以平台操作当时的实时价格为准。
+        核销实得为人民币（1 HKD≈¥0.8501×9折）；买入用 USDT 付款，USDT 汇率每日自动更新（也可手动调整）。折扣与汇率随市场浮动，实际收益以平台操作当时的实时价格为准。
       </p>
     </section>
   );
