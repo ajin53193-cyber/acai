@@ -271,8 +271,14 @@ class ResetPwIn(BaseModel):
 @router.get("/members")
 async def admin_members(q: str = "", limit: int = 200, admin: dict = Depends(current_admin)):
     query = {}
+    q = (q or "").strip()
     if q:
         query["$or"] = [{"email": {"$regex": q, "$options": "i"}}, {"phone": {"$regex": q, "$options": "i"}}, {"name": {"$regex": q, "$options": "i"}}, {"user_id": {"$regex": q, "$options": "i"}}, {"profile.name": {"$regex": q, "$options": "i"}}]
+        if q.isdigit() and len(q) >= 6:
+            # 會員 ID（account_no）是由 user_id 推導的數字，無法直接查庫，掃描比對後併入結果
+            ids = [u["user_id"] async for u in db.users.find({}, {"_id": 0, "user_id": 1}) if account_no(u["user_id"]).startswith(q)]
+            if ids:
+                query["$or"].append({"user_id": {"$in": ids}})
     users = await db.users.find(query, {"_id": 0}).sort("created_at", -1).to_list(limit)
     uids = [u["user_id"] for u in users]
     orders = {o["_id"]: o async for o in db.orders.aggregate([{"$match": {"user_id": {"$in": uids}}}, {"$group": {"_id": "$user_id", "count": {"$sum": 1}, "spent": {"$sum": "$total_usd"}}}])}
