@@ -326,7 +326,7 @@ async def phone_register(body: PhoneRegisterIn):
         raise HTTPException(status_code=400, detail="註冊失敗，請稍後再試")
     uid = r.json()["id"]
     await db.phone_accounts.insert_one({"phone": phone, "user_id": uid, "created_at": _now().isoformat()})
-    await db.users.update_one({"user_id": uid}, {"$set": {"phone": phone}}, upsert=True)
+    await db.users.update_one({"user_id": uid}, {"$set": {"phone": phone}, "$setOnInsert": {"created_at": _now().isoformat()}}, upsert=True)
     return {"ticket": await _ticket(uid)}
 
 
@@ -446,7 +446,7 @@ async def bind_identifier(body: BindIn, user: dict = Depends(require_user)):
             raise HTTPException(status_code=409, detail="此手機號已綁定其他帳號")
         await db.phone_accounts.delete_many({"user_id": uid})
         await db.phone_accounts.insert_one({"phone": ident, "user_id": uid, "created_at": _now().isoformat()})
-        await db.users.update_one({"user_id": uid}, {"$set": {"phone": ident}}, upsert=True)
+        await db.users.update_one({"user_id": uid}, {"$set": {"phone": ident}, "$setOnInsert": {"created_at": _now().isoformat()}}, upsert=True)
         r = await _clerk("GET", f"/users/{uid}")
         meta = {**((r.json().get("public_metadata") or {}) if r.status_code == 200 else {}), "phone": ident}
         await _clerk("PATCH", f"/users/{uid}", json={"public_metadata": meta})

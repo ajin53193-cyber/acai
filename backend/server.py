@@ -103,6 +103,7 @@ async def current_member(user: dict = Depends(require_user)) -> dict:
             {"user_id": uid, "role": {"$in": [None, ""]}},
             {"$set": {"role": role, "email": info["email"], "name": info["name"]}},
         )
+        await db.users.update_one({"user_id": uid, "created_at": {"$exists": False}}, {"$set": {"created_at": datetime.now(timezone.utc).isoformat()}})
         member = await db.users.find_one_and_update(
             {"user_id": uid},
             {"$setOnInsert": {"user_id": uid, "role": role, "email": info["email"], "name": info["name"],
