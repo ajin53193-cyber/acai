@@ -2201,20 +2201,26 @@ async def promo_analytics(slug: str, days: int = 30, date: str = "", _: str = De
         })
 
     # 来源渠道（A 链接 ?from= 标记）与 来源网站（referrer 域名）
-    async def breakdown(field):
-        rows = await db.promo_hits.aggregate([
-            {"$match": {**base, "type": "view"}},
-            {"$group": {"_id": f"${field}", "visits": {"$sum": 1}, "ips": {"$addToSet": "$ip"}}},
+    # source 按「第一个 / 之前的基础标记」归并，例如 微信服务号/contact、微信服务号/projects 统一计入「微信服务号」
+    async def breakdown(field, normalize=False):
+        pipeline = [{"$match": {**base, "type": "view"}}]
+        group_key = f"${field}"
+        if normalize:
+            pipeline.append({"$addFields": {"_base": {"$arrayElemAt": [{"$split": [{"$ifNull": [f"${field}", ""]}, "/"]}, 0]}}})
+            group_key = "$_base"
+        pipeline += [
+            {"$group": {"_id": group_key, "visits": {"$sum": 1}, "ips": {"$addToSet": "$ip"}}},
             {"$sort": {"visits": -1}},
             {"$limit": 50},
-        ]).to_list(50)
+        ]
+        rows = await db.promo_hits.aggregate(pipeline).to_list(50)
         out = []
         for r in rows:
             name = r["_id"] or ""
             out.append({"name": name or ("直接访问" if field == "source" else "直接进入/无来源"), "visits": r["visits"], "uv": len(r["ips"])})
         return out
 
-    sources = await breakdown("source")
+    sources = await breakdown("source", normalize=True)
     referrers = await breakdown("referrer")
 
     # 省份分布（按独立 IP 去重）
@@ -2247,7 +2253,7 @@ async def promo_analytics(slug: str, days: int = 30, date: str = "", _: str = De
     ip_map: dict = {}
     for h in hits:
         row = ip_map.setdefault(h["ip"], {
-            "ip": h["ip"], "region": h.get("region", ""), "source": h.get("source", ""),
+            "ip": h["ip"], "region": h.get("region", ""), "source": (h.get("source", "") or "").split("/")[0],
             "referrer": h.get("referrer", ""), "device": h.get("device", ""), "browser": h.get("browser", ""),
             "views": 0, "clicks": 0, "first_seen": h.get("created_at", ""),
         })
