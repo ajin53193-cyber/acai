@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import axios from "axios";
-import { Send, X } from "lucide-react";
+import { Send, X, ImagePlus } from "lucide-react";
 import { API } from "@/lib/api";
 import { toFullUrl } from "@/components/ImageUpload";
 import { getSource, getVisitorId } from "@/lib/source";
@@ -22,6 +22,7 @@ export const CSWidget = () => {
   const lastTs = useRef("");
   const pollRef = useRef(null);
   const bottomRef = useRef(null);
+  const fileRef = useRef(null);
 
   useEffect(() => {
     axios.get(`${API}/cs/config`).then((r) => setCSEnabled(r.data.enabled)).catch(() => {});
@@ -87,6 +88,20 @@ export const CSWidget = () => {
     } catch { /* ignore */ } finally { setSending(false); }
   };
 
+  const sendImage = async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    setSending(true);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      const up = await axios.post(`${API}/cs/${sid.current}/upload`, fd);
+      await axios.post(`${API}/cs/${sid.current}/message`, { text: "", image: up.data.url });
+      await poll();
+    } catch { /* ignore */ } finally { setSending(false); }
+  };
+
   if (!open) return null;
 
   return (
@@ -112,8 +127,8 @@ export const CSWidget = () => {
       <div className="flex-1 space-y-3 overflow-y-auto bg-slate-50 px-3 py-4" data-testid="cs-widget-messages">
         {messages.map((m) => (
           <div key={m.id} className={`flex ${m.sender === "visitor" ? "justify-end" : "justify-start"}`}>
-            <div className={`max-w-[78%] whitespace-pre-wrap break-words rounded-2xl px-3.5 py-2 text-sm leading-relaxed ${m.sender === "visitor" ? "rounded-br-sm bg-[#D4AF37] text-[#1B1403]" : "rounded-bl-sm border border-slate-200 bg-white text-slate-700"}`}>
-              {m.text}
+            <div className={`max-w-[78%] overflow-hidden whitespace-pre-wrap break-words rounded-2xl text-sm leading-relaxed ${m.image ? "p-1" : "px-3.5 py-2"} ${m.sender === "visitor" ? "rounded-br-sm bg-[#D4AF37] text-[#1B1403]" : "rounded-bl-sm border border-slate-200 bg-white text-slate-700"}`}>
+              {m.image ? <a href={toFullUrl(m.image)} target="_blank" rel="noreferrer"><img src={toFullUrl(m.image)} alt="图片" className="max-h-56 rounded-xl" /></a> : m.text}
             </div>
           </div>
         ))}
@@ -121,6 +136,10 @@ export const CSWidget = () => {
       </div>
 
       <div className="flex items-center gap-2 border-t border-slate-100 bg-white p-2.5">
+        <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={sendImage} data-testid="cs-widget-file" />
+        <button onClick={() => fileRef.current?.click()} disabled={sending} aria-label="发送图片" data-testid="cs-widget-image-btn" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-slate-400 transition-colors hover:bg-slate-100 hover:text-[#D4AF37] disabled:opacity-50">
+          <ImagePlus size={19} />
+        </button>
         <input
           data-testid="cs-widget-input"
           value={input}

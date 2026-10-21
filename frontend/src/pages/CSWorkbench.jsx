@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import axios from "axios";
 import { toast } from "sonner";
-import { Send, LogOut, Plus, Trash2, Headphones, MessageSquare } from "lucide-react";
+import { Send, LogOut, Plus, Trash2, Headphones, MessageSquare, ImagePlus } from "lucide-react";
 import { API, formatDetail } from "@/lib/api";
 import { toFullUrl } from "@/components/ImageUpload";
 
@@ -72,6 +72,7 @@ function Workbench({ token, onLogout }) {
   const [input, setInput] = useState("");
   const lastTs = useRef("");
   const bottomRef = useRef(null);
+  const fileRef = useRef(null);
   const headers = { Authorization: `Bearer ${token}` };
 
   useEffect(() => { axios.get(`${API}/cs/agent/me`, { headers }).then((r) => setMe(r.data)).catch(() => onLogout()); /* eslint-disable-next-line */ }, []);
@@ -123,6 +124,19 @@ function Workbench({ token, onLogout }) {
     catch { toast.error("发送失败"); }
   };
 
+  const sendImage = async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file || !active) return;
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      const up = await axios.post(`${API}/cs/agent/upload`, fd, { headers });
+      await axios.post(`${API}/cs/agent/sessions/${active}/reply`, { text: "", image: up.data.url }, { headers });
+      await pollMessages(active); loadSessions();
+    } catch { toast.error("图片发送失败"); }
+  };
+
   return (
     <div className="flex h-screen bg-slate-900 text-slate-200" data-testid="cs-workbench">
       {/* 会话列表 */}
@@ -164,12 +178,14 @@ function Workbench({ token, onLogout }) {
             <div className="flex-1 space-y-3 overflow-y-auto bg-slate-900 px-5 py-4" data-testid="cs-wb-messages">
               {messages.map((m) => (
                 <div key={m.id} className={`flex ${m.sender === "agent" ? "justify-end" : "justify-start"}`}>
-                  <div className={`max-w-[70%] whitespace-pre-wrap break-words rounded-2xl px-3.5 py-2 text-sm leading-relaxed ${m.sender === "agent" ? "rounded-br-sm bg-[#D4AF37] text-[#1B1403]" : "rounded-bl-sm bg-slate-800 text-slate-200"}`}>{m.text}</div>
+                  <div className={`max-w-[70%] overflow-hidden whitespace-pre-wrap break-words rounded-2xl text-sm leading-relaxed ${m.image ? "p-1" : "px-3.5 py-2"} ${m.sender === "agent" ? "rounded-br-sm bg-[#D4AF37] text-[#1B1403]" : "rounded-bl-sm bg-slate-800 text-slate-200"}`}>{m.image ? <a href={toFullUrl(m.image)} target="_blank" rel="noreferrer"><img src={toFullUrl(m.image)} alt="图片" className="max-h-60 rounded-xl" /></a> : m.text}</div>
                 </div>
               ))}
               <div ref={bottomRef} />
             </div>
             <div className="flex items-center gap-2 border-t border-slate-800 p-3">
+              <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={sendImage} data-testid="cs-wb-file" />
+              <button onClick={() => fileRef.current?.click()} aria-label="发送图片" data-testid="cs-wb-image-btn" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-slate-400 transition-colors hover:bg-slate-800 hover:text-[#E5C158]"><ImagePlus size={19} /></button>
               <input data-testid="cs-wb-input" value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") send(); }} placeholder="输入回复…" className="flex-1 rounded-full border border-slate-700 bg-slate-800 px-4 py-2.5 text-sm text-slate-200 outline-none focus:border-[#D4AF37]" />
               <button onClick={() => send()} data-testid="cs-wb-send" className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-[#D4AF37] to-[#B8860B] text-white active:scale-90"><Send size={17} /></button>
             </div>

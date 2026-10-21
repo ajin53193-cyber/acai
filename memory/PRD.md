@@ -232,3 +232,9 @@
 - 前端：lib/csWidget.js(共享开窗+启用标志+会话ID)；components/CSWidget.jsx(访客聊天窗,乐观消息去重)；PromoCustomerService.openCs 启用则开站内窗否则回退外链；pages/CSWorkbench.jsx(路由/cs，坐席登录+会话列表+聊天+右侧快捷回复)；pages/admin/CSAdmin.jsx(后台「在线客服」标签：系统开关+欢迎语+坐席CRUD+接待统计)。App.js 加 /cs 路由(bare)。
 - 坐席工作台：你的域名/cs。演示坐席 agent01/Pass@123。
 - 生产上线：Save to GitHub → git pull → 重新 build 前端+重启后端(deploy.sh)。无需新密钥。
+
+## 2026-07-21 客服补充：图片发送 + 3天自动清除（已自测）
+- 图片发送：访客端 CSWidget 与坐席工作台均加图片按钮。上传端点：访客 POST /cs/{sid}/upload、坐席 POST /cs/agent/upload（复用 save_image_upload 助手，转 webp、5MB 限制）。消息模型 CSMessageInput 加 image 字段，text/image 至少一个（否则 400）。消息气泡渲染图片（点击新标签查看大图）。
+- 3天自动清除：cs_messages 存 created_at_dt(Date)、cs_sessions 存 last_activity_dt(Date)，建 MongoDB TTL 索引 expireAfterSeconds=259200。消息按创建时间、会话按最后活动时间自动清除。标准 MongoDB 特性，宝塔也生效，无需 cron。
+- 预览环境已临时设 LOCAL_STORAGE=1 + UPLOAD_DIR=/app/uploads 以便测试图片上传（生产宝塔本就 LOCAL_STORAGE=1）。
+- 注：图片上传依赖 LOCAL_STORAGE=1（自托管写本地磁盘）；生产需确保 backend/.env 有此项。

@@ -586,6 +586,9 @@ async def startup():
     await db.cs_agents.create_index("username", unique=True)
     await db.cs_sessions.create_index([("agent_id", 1), ("last_message_at", -1)], unique=False)
     await db.cs_messages.create_index([("session_id", 1), ("created_at", 1)], unique=False)
+    # 客服聊天数据 3 天后自动清除（MongoDB TTL，按最后活动时间）
+    await db.cs_messages.create_index("created_at_dt", expireAfterSeconds=259200)
+    await db.cs_sessions.create_index("last_activity_dt", expireAfterSeconds=259200)
     username = os.environ.get("ADMIN_USERNAME", "admin")
     password = os.environ.get("ADMIN_PASSWORD", "admin123")
     existing = await db.users.find_one({"username": username})
@@ -1460,8 +1463,8 @@ def to_webp(data: bytes) -> bytes:
     return buf.getvalue()
 
 
-@api_router.post("/admin/upload", status_code=201)
-async def admin_upload(file: UploadFile = File(...), _: str = Depends(require_admin)):
+async def save_image_upload(file: UploadFile) -> dict:
+    """校验+转 webp+存储+登记，返回 {url, path}。供后台与客服图片上传复用。"""
     if file.content_type not in ALLOWED_IMAGE_TYPES:
         raise HTTPException(status_code=400, detail="仅支持 JPG / PNG / WEBP / GIF 图片")
     data = await file.read()
@@ -1487,6 +1490,11 @@ async def admin_upload(file: UploadFile = File(...), _: str = Depends(require_ad
         "created_at": datetime.now(timezone.utc).isoformat(),
     })
     return {"url": f"/api/files/{result['path']}", "path": result["path"]}
+
+
+@api_router.post("/admin/upload", status_code=201)
+async def admin_upload(file: UploadFile = File(...), _: str = Depends(require_admin)):
+    return await save_image_upload(file)
 
 
 @api_router.get("/files/{path:path}")
@@ -2502,7 +2510,8 @@ class CSStart(BaseModel):
 
 
 class CSMessageInput(BaseModel):
-    text: str = Field(min_length=1, max_length=2000)
+    text: str = Field(default="", max_length=2000)
+    image: str = Field(default="", max_length=500)
 
 
 class QuickRepliesInput(BaseModel):
@@ -2599,6 +2608,7 @@ async def cs_start(data: CSStart, request: Request):
         "region": geo["region"],
         "created_at": now_iso,
         "last_message_at": now_iso,
+        "last_activity_dt": now,
         "last_message": cfg["welcome"][:50],
         "unread_agent": 0,
         "unread_visitor": 1,
@@ -2609,24 +2619,34 @@ async def cs_start(data: CSStart, request: Request):
         "sender": "agent",
         "agent_id": agent["id"],
         "text": cfg["welcome"],
+        "image": "",
         "created_at": now_iso,
+        "created_at_dt": now,
     })
     return {"enabled": True, "session_id": data.session_id, "agent": agent_public(agent), "welcome": cfg["welcome"]}
 
 
+def cs_preview(text: str, image: str) -> str:
+    return (text[:50] if text else ("[图片]" if image else ""))
+
+
 @api_router.post("/cs/{session_id}/message", status_code=201)
 async def cs_visitor_message(session_id: str, data: CSMessageInput):
+    if not data.text.strip() and not data.image.strip():
+        raise HTTPException(status_code=400, detail="消息不能为空")
     sess = await db.cs_sessions.find_one({"id": session_id})
     if not sess:
         raise HTTPException(status_code=404, detail="会话不存在")
-    now_iso = datetime.now(timezone.utc).isoformat()
+    now = datetime.now(timezone.utc)
+    now_iso = now.isoformat()
     await db.cs_messages.insert_one({
         "id": str(uuid.uuid4()), "session_id": session_id, "sender": "visitor",
-        "agent_id": sess.get("agent_id", ""), "text": data.text, "created_at": now_iso,
+        "agent_id": sess.get("agent_id", ""), "text": data.text, "image": data.image,
+        "created_at": now_iso, "created_at_dt": now,
     })
     await db.cs_sessions.update_one(
         {"id": session_id},
-        {"$set": {"last_message_at": now_iso, "last_message": data.text[:50]}, "$inc": {"unread_agent": 1}},
+        {"$set": {"last_message_at": now_iso, "last_activity_dt": now, "last_message": cs_preview(data.text, data.image)}, "$inc": {"unread_agent": 1}},
     )
     return {"ok": True}
 
@@ -2697,19 +2717,35 @@ async def cs_agent_read(session_id: str, agent: dict = Depends(require_agent)):
 
 @api_router.post("/cs/agent/sessions/{session_id}/reply", status_code=201)
 async def cs_agent_reply(session_id: str, data: CSMessageInput, agent: dict = Depends(require_agent)):
+    if not data.text.strip() and not data.image.strip():
+        raise HTTPException(status_code=400, detail="消息不能为空")
     sess = await db.cs_sessions.find_one({"id": session_id, "agent_id": agent["id"]})
     if not sess:
         raise HTTPException(status_code=404, detail="会话不存在")
-    now_iso = datetime.now(timezone.utc).isoformat()
+    now = datetime.now(timezone.utc)
+    now_iso = now.isoformat()
     await db.cs_messages.insert_one({
         "id": str(uuid.uuid4()), "session_id": session_id, "sender": "agent",
-        "agent_id": agent["id"], "text": data.text, "created_at": now_iso,
+        "agent_id": agent["id"], "text": data.text, "image": data.image,
+        "created_at": now_iso, "created_at_dt": now,
     })
     await db.cs_sessions.update_one(
         {"id": session_id},
-        {"$set": {"last_message_at": now_iso, "last_message": data.text[:50], "unread_agent": 0}, "$inc": {"unread_visitor": 1}},
+        {"$set": {"last_message_at": now_iso, "last_activity_dt": now, "last_message": cs_preview(data.text, data.image), "unread_agent": 0}, "$inc": {"unread_visitor": 1}},
     )
     return {"ok": True}
+
+
+@api_router.post("/cs/agent/upload", status_code=201)
+async def cs_agent_upload(file: UploadFile = File(...), agent: dict = Depends(require_agent)):
+    return await save_image_upload(file)
+
+
+@api_router.post("/cs/{session_id}/upload", status_code=201)
+async def cs_visitor_upload(session_id: str, file: UploadFile = File(...)):
+    if not await db.cs_sessions.find_one({"id": session_id}, {"_id": 1}):
+        raise HTTPException(status_code=404, detail="会话不存在")
+    return await save_image_upload(file)
 
 
 # ---------- 后台管理（超级管理员） ----------
