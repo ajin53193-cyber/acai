@@ -190,6 +190,7 @@
 - SEO 元信息与分享卡片优化
 
 ## 更新记录
+- 2026-07-21：纠正图片位置——中部动态横幅改回「立即加入」图(d144b05e)；/p/about「招募团队长」板块图改为「团队长招募」横幅(e2456e9f)。seed_promo_about.py 已更新重跑。
 - 2026-07-21：中部横幅换用「团队长招募」新图(e2456e9f..._image.webp)。「立即加入」按钮位置叠 join-cta-glow 柔和脉冲光晕(模糊box-shadow非硬边框,避免错位,right5.5%/bottom2%/w19.5%/h16%)，整张保留 join-breath+join-shine。纯前端。
 - 2026-07-21：「立即加入」横幅换用用户上传的新图(d144b05e..._image.webp)，并做成动态：整张横幅 join-breath 呼吸脉冲(scale+glow) + join-shine 流光扫过(keyframes 加在 index.css)。移除此前错位的「马上加入」按钮脉冲框(烤进图片的按钮无法精准叠框)。点击仍跳 cs_url。纯前端，生产需 deploy.sh。
 - 2026-07-21：推广文章中部自动插入「立即加入」横幅图（JoinBanner 组件，图片为生成的金色"立即加入·抢占名额·专业对接"横幅），点击跳转 cs_url 第三方客服链接（留空提示待配置）。PromoPage.jsx 在 blocks 中点(Math.floor((len-1)/2))后用 Fragment 注入，所有推广页生效。纯前端，生产需 deploy.sh。

@@ -29,7 +29,7 @@ def B(t, u): return {"type": "button", "text": t, "image": "", "link": u}
 S = "https://static.prod-images.emergentagent.com/jobs/dd977e8b-1776-4e0e-b7ca-f75b73af51cb/images"
 COVER = f"{S}/1c34e2083c19d104c46c883d38581d772b51abce0e03f2577e76ac08103b0b04.jpeg"   # 品牌横幅A
 IMG_SECTORS = f"{S}/367d19930c81986ed0cceaa08c4a470cac2ef4c3ce280e9e99a04784ecb8340d.jpeg"  # 多元赛道
-IMG_RECRUIT = f"{S}/27a0df0de281d0832ac477f6517a95b4c1da757c42ce78c6b28fccc9c1eaa206.jpeg"  # 招募团队长海报
+IMG_RECRUIT = f"https://customer-assets-v7afamib.emergentagent.net/job_corporate-web-95/artifacts/e2456e9f0e29c401_image.webp"  # 团队长招募横幅（用户最新上传）
 
 PROMO = {
     "slug": "about",

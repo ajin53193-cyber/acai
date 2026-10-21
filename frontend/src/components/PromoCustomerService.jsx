@@ -2,7 +2,7 @@ import { Headphones } from "lucide-react";
 import { toast } from "sonner";
 import { useSettings } from "@/lib/useSettings";
 
-const JOIN_BANNER_IMG = "https://customer-assets-v7afamib.emergentagent.net/job_corporate-web-95/artifacts/e2456e9f0e29c401_image.webp";
+const JOIN_BANNER_IMG = "https://customer-assets-v7afamib.emergentagent.net/job_corporate-web-95/artifacts/d144b05e42c9942b_image.webp";
 
 const openCs = (url) => {
   if (!url) {
