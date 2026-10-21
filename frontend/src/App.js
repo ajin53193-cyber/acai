@@ -71,7 +71,7 @@ const Layout = () => {
       </Routes>
       {!bare && <Footer />}
       {!bare && <MobileTabBar />}
-      {!bare && <ChatWidget />}
+      {!isAdmin && <ChatWidget />}
     </>
   );
 };
