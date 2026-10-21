@@ -7,9 +7,9 @@ const JOIN_BANNER_IMG = "https://customer-assets-v7afamib.emergentagent.net/job_
 // 三张含金色按钮的横幅图：图保持静态，按钮做成动态可点，叠在图里原按钮位置上。
 // key 为图片 URL 中的唯一片段；pos 为按钮在图中的占比位置（覆盖图里画的金色按钮）。
 const BANNER_CTAS = {
-  "d144b05e": { text: "立即加入", font: "3cqw", pos: { left: "71.5%", top: "79.5%", width: "25.5%", height: "16%" } },
-  "e2456e9f": { text: "立即加入", font: "3cqw", pos: { left: "74%", top: "81.5%", width: "20.5%", height: "12.5%" } },
-  "856cc85c": { text: "了解项目详情", font: "2.4cqw", pos: { left: "78%", top: "49.5%", width: "19.5%", height: "13.5%" } },
+  "d144b05e": { text: "立即加入", pos: { left: "72.5%", top: "76%", width: "19%", height: "21%" } },
+  "e2456e9f": { text: "立即加入", pos: { left: "72%", top: "77%", width: "20%", height: "20%" } },
+  "856cc85c": { text: "了解项目详情", pos: { left: "76.5%", top: "43%", width: "18%", height: "19%" } },
 };
 
 export const bannerCtaForImage = (url = "") => {
@@ -36,20 +36,23 @@ export const PromoActionBanner = ({ img, alt, cta, caption, className = "mt-5" }
         style={{ containerType: "inline-size" }}
       >
         <img src={img} alt={alt || cta.text} loading="lazy" decoding="async" className="block w-full" />
+        <span
+          aria-hidden="true"
+          className="promo-cta-animate pointer-events-none absolute rounded-full"
+          style={{
+            ...cta.pos,
+            background: "radial-gradient(ellipse at center, rgba(255,221,130,.6) 0%, rgba(255,214,110,.28) 45%, rgba(255,214,110,0) 72%)",
+            mixBlendMode: "screen",
+          }}
+        />
         <button
           type="button"
           onClick={() => openCs(url)}
+          aria-label={cta.text}
           data-testid="promo-action-cta"
-          className="promo-cta-animate absolute flex items-center justify-center whitespace-nowrap rounded-full font-extrabold leading-none text-[#3B2A06] transition-transform active:scale-95"
-          style={{
-            ...cta.pos,
-            fontSize: `clamp(8px, ${cta.font}, 16px)`,
-            background: "linear-gradient(180deg,#FBE38C 0%,#E9C45A 42%,#CB9A2C 100%)",
-            border: "1.5px solid #F6DF93",
-          }}
-        >
-          {cta.text}
-        </button>
+          className="absolute bg-transparent"
+          style={cta.pos}
+        />
       </div>
       {caption && (
         <figcaption className="mt-3 text-center text-base font-semibold text-slate-700 md:text-lg">{caption}</figcaption>

@@ -207,15 +207,9 @@
 }
 .hot-badge { animation: hotPulse 1.8s ease-in-out infinite; }
 
-/* 横幅图里的「立即加入 / 了解项目详情」按钮：图静态、按钮动态脉冲 */
+/* 横幅里的按钮：图静态，按钮位置做柔和发光呼吸（无硬边，位置误差不敏感）+ 可点击 */
 @keyframes promoCtaBtn {
-  0%, 100% {
-    transform: scale(1);
-    box-shadow: inset 0 1px 2px rgba(255,255,255,.55), inset 0 -2px 4px rgba(120,80,10,.4), 0 2px 10px rgba(203,154,44,.5);
-  }
-  50% {
-    transform: scale(1.05);
-    box-shadow: inset 0 1px 2px rgba(255,255,255,.55), inset 0 -2px 4px rgba(120,80,10,.4), 0 5px 22px rgba(246,223,147,.95);
-  }
+  0%, 100% { opacity: .35; transform: scale(.96); }
+  50%      { opacity: 1;   transform: scale(1.06); }
 }
-.promo-cta-animate { animation: promoCtaBtn 1.5s ease-in-out infinite; transform-origin: center; }
+.promo-cta-animate { animation: promoCtaBtn 1.6s ease-in-out infinite; transform-origin: center; }
