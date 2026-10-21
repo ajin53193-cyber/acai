@@ -205,3 +205,4 @@
 - 2026-07-19：新增《成为代理·躺赚两级佣金》招募图文 /p/agent-recruit，主打一级0.7%/二级0.3%分佣+裂变。脚本 deploy/baota/seed_promo_agent.py(18区块)。生产上线需运行该脚本。
 - 2026-07-19：新增推广图文《新地礼品卡搬砖项目》，分享链接 /p/giftcard-project。邀请链接含邀请码 https://lzmur.com/?ref=LD4QSU 。生产上线：Save to GitHub → 服务器 git pull → 运行 seed_promo_giftcard.py 与 seed_promo_agent.py。
 - 2026-07-19：新增推广图文《USDT 充值教程》（TRC20 通用版），分享链接 /p/usdt-recharge。幂等种子脚本 deploy/baota/seed_promo_recharge.py（固定 slug=usdt-recharge），底部挂 okx-guide + binance 工具。生产上线需 Save to GitHub → 服务器 git pull → `cd /www/wwwroot/heying && backend/.venv/bin/python deploy/baota/seed_promo_recharge.py`。预览已验证渲染正常。
+- 2026-07-21：更换《平台介绍》推文 /p/about 两张配图：封面 Hero 换为「合赢项目社·稳定项目供给·专业护航」金色新图（297b3d32d5a32475_image.png），「多元赛道」配图换为「多元赛道·优质项目」四卡横幅图（e85d468cedea4fa0_image.webp）。改动在 deploy/baota/seed_promo_about.py（COVER、IMG_SECTORS），预览库已重跑 seed 并验证。生产上线：Save to GitHub → 服务器 git pull → 重跑 seed_promo_about.py。
