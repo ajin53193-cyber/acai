@@ -8,7 +8,7 @@ const JOIN_BANNER_IMG = "https://customer-assets-v7afamib.emergentagent.net/job_
 // key 为图片 URL 中的唯一片段；pos 为按钮在图中的占比位置（覆盖图里画的金色按钮）。
 const BANNER_CTAS = {
   "d144b05e": { text: "立即加入", font: "3cqw", pos: { left: "71.5%", top: "79.5%", width: "25.5%", height: "16%" } },
-  "e2456e9f": { text: "立即加入", font: "3cqw", pos: { left: "72%", top: "80%", width: "21%", height: "15.5%" } },
+  "e2456e9f": { text: "立即加入", font: "3cqw", pos: { left: "74%", top: "81.5%", width: "20.5%", height: "12.5%" } },
   "856cc85c": { text: "了解项目详情", font: "2.4cqw", pos: { left: "78%", top: "49.5%", width: "19.5%", height: "13.5%" } },
 };
 
