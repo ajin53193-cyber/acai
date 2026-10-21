@@ -2,7 +2,7 @@ import { Headphones } from "lucide-react";
 import { toast } from "sonner";
 import { useSettings } from "@/lib/useSettings";
 
-const JOIN_BANNER_IMG = "https://customer-assets-v7afamib.emergentagent.net/job_corporate-web-95/artifacts/d144b05e42c9942b_image.webp";
+const JOIN_BANNER_IMG = "https://customer-assets-v7afamib.emergentagent.net/job_corporate-web-95/artifacts/e2456e9f0e29c401_image.webp";
 
 const openCs = (url) => {
   if (!url) {
@@ -28,6 +28,11 @@ export const JoinBanner = () => {
       <span className="pointer-events-none absolute inset-0 overflow-hidden rounded-2xl">
         <span className="join-shine absolute top-0 h-full w-1/3 bg-gradient-to-r from-transparent via-white/35 to-transparent" />
       </span>
+      {/* 「立即加入」按钮柔和脉冲光晕 */}
+      <span
+        className="join-cta-glow pointer-events-none absolute rounded-full"
+        style={{ right: "5.5%", bottom: "2%", width: "19.5%", height: "16%" }}
+      />
     </button>
   );
 };

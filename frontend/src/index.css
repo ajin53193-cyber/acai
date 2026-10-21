@@ -225,3 +225,8 @@
   50% { transform: scale(1.1); opacity: .9; }
 }
 .join-cta-pulse { animation: joinCtaPulse 1.4s ease-in-out infinite; }
+@keyframes joinCtaGlow {
+  0%, 100% { box-shadow: 0 0 10px 3px rgba(255,214,92,.35); opacity: .6; }
+  50% { box-shadow: 0 0 26px 10px rgba(255,214,92,.85); opacity: 1; }
+}
+.join-cta-glow { animation: joinCtaGlow 1.3s ease-in-out infinite; }
