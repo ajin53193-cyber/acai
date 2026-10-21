@@ -1,0 +1,31 @@
+{
+  "summary": "Tested new per-promo IP analytics feature end-to-end. Backend: 12/12 pytest cases passed covering POST /api/promos/{slug}/hit (view/click, bot UA detection, same-IP PV>=2 but UV=1, invalid type rejected) and GET /api/admin/promos/{slug}/analytics (auth required, summary/daily/sources/referrers/provinces/targets/ip_detail structure, bots excluded, referrer host-only, ip_detail dedup). Frontend: /p/about promo page — logo is a plain <img> inside <header> (no link), clicking logo stays on /p/about; view hit auto-fires on load with correct source=A1 from ?from=A1; floating CS (cs_float), center CS (cs), and banner CTA (learn) all POST click hits with correct target before showing the 'client link not configured' toast. Admin UI /admin → 推文数据 tab: all 15 expected data-testid elements render (slug select, 3 range buttons, date input, 4 metric cards, daily chart, sources, referrers, targets, provinces, ip-detail). Switching 近7天 and changing the date each triggers one correct GET /api/admin/promos/about/analytics?days=&date= call. No page errors.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "/admin → 推文数据 slug <select>", "issues": ["React hydration warning: '<span> cannot be a child of <option>'. The custom slug option labels wrap text in a <span> inside a native <option>; HTML forbids this. Replace the inner <span> with plain text (option elements can only contain text)."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_promo_analytics.py",
+    "/app/test_reports/pytest/promo_analytics.xml"
+  ],
+  "action_items": [
+    "(Optional/minor) In PromoAnalytics.jsx slug <Select>/<option>, remove the inner <span> wrapper around the option label text to clear the React hydration warning."
+  ],
+  "critical_code_review_comments": [
+    "server.py promo_hit: ip-api.com is free tier 45 req/min — _geo_full_cache helps, but at scale consider a bulk/paid lookup or offline MaxMind DB.",
+    "is_bot_ua treats empty UA as bot — correct for abuse protection; make sure legitimate SSR/preview tools are not expected to generate traffic.",
+    "promo_analytics ip_detail builds first_seen by string comparison of ISO timestamps — works because of ISO ordering, but add a comment to make the intent explicit.",
+    "No TTL/cleanup on db.promo_hits — long-term collection may grow unbounded; consider a scheduled purge or TTL index for retention policy."
+  ],
+  "updated_files": ["/app/backend/tests/test_promo_analytics.py"],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "test_credentials": "admin / Heying@2026 (from /app/memory/test_credentials.md)",
+  "seed_data_creation": "Inserted a handful of promo_hits docs under slug='test-promo-abc' (view+click hits from 223.104.3.100 plus one Googlebot hit from 171.8.120.50). Safe to leave; isolated slug.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Backend test file is /app/backend/tests/test_promo_analytics.py; MUST run with xdist disabled (pytest -o addopts= ... or -p no:xdist) because the analytics assertions depend on hits being persisted first. The actual production promo slug the frontend uses on /p/about is 'about' (hits POST to /api/promos/about/hit), not 'corporate-web-95' — that string in the review refs was just the preview env name. Admin page defaults the slug selector to the /about promo and sends days=30 initially."
+}

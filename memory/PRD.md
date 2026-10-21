@@ -213,3 +213,14 @@
 - 2026-07-21：横幅按钮改为「发光呼吸 + 可点击」方案（用户确认）。放弃用金色按钮盖住原按钮（像素对齐太脆弱、易错位）。现在图片完全静态，在按钮位置叠一个透明可点区域 + promoCtaBtn 呼吸发光描边（gold ring + glow，1.5s 循环），点击跳第三方客服。涉及 3 张图：d144b05e(马上加入)/e2456e9f(立即加入)/856cc85c(了解项目详情)。改动 index.css（promoCtaBtn 关键帧改为描边发光）与 PromoCustomerService.jsx（按钮改透明无填充无文字、aria-label 保留）。位置误差对柔光描边不敏感，视觉自然。预览三张均已截图验证。生产需重新 build 前端。
 - 2026-07-21：修正发光描边错位。按原图实测各按钮外框像素重标定：join d144b05e(马上加入) left76.2%/top80%/w17%/h15.5%；sectors 856cc85c(了解项目详情) left80%/top49.5%/w13.5%/h11%；recruit e2456e9f(立即加入) left74.5%/top80.8%/w16%/h14.5%。之前 join/sectors 描边过宽且偏左导致错位。三张均截图确认描边紧贴按钮。
 - 2026-07-21：彻底解决横幅按钮"错位"问题。放弃硬边描边/金块叠加（像素对齐太脆弱，右边缘总切到按钮）。改为「柔和径向发光聚光 + 呼吸」：按钮位置叠一个 radial-gradient 金色柔光（mix-blend-mode:screen），opacity .35↔1 + scale .96↔1.06 呼吸，无任何硬边；再叠一个透明可点 button 覆盖按钮区→跳客服。柔光中心亮边缘淡出，位置误差±40px 也看不出来。三张图均截图确认发光聚在对应按钮上。index.css promoCtaBtn 关键帧与 PromoCustomerService.jsx 均已更新。
+
+## 2026-07-21 推文独立 IP 统计（新功能，测试通过 后端100%/前端100%）
+- 需求：推文 /p/about 作为"B落地页"，用户用多个带 ?from= 的"A链接"引流，需独立统计。
+- 顶部 logo 不再跳官网（PromoPage.jsx 由 Link 改为纯 <img data-testid=promo-logo>）。
+- 新集合 db.promo_hits：{slug,type(view|click),target,ip,region,province,source(渠道/A链接),referrer(域名),referrer_full,visitor_id,ua,device,browser,is_bot,bot_reason,date(CN),created_at}。索引(slug,date,type)/(slug,ip,date)。
+- 埋点：前端 lib/promoTrack.js（trackPromoView 打开上报+2秒去重；trackPromoClick 按钮点击）。PromoPage 加载上报 view；PromoCustomerService 的 openCs(url,target) 上报 click，target：banner_join/recruit_join/learn/cs/cs_float。
+- 后端 POST /api/promos/{slug}/hit：取 X-Forwarded-For IP，lookup_geo_full(ip)（ip-api 含 hosting/proxy 标记），is_bot = UA含爬虫关键词 OR 数据中心 OR 代理；记录全部命中（含 bot，带标记）。
+- 后端 GET /api/admin/promos/{slug}/analytics?days&date（require_admin，默认排除 is_bot）：summary(PV/UV/点击/点击UV/已过滤爬虫)、daily[]、sources[](渠道)、referrers[](来源网站)、provinces{}(省份去重,供地图)、targets[](按钮点击分布)、ip_detail[](指定日去重IP明细)。
+- 后台新增「推文数据」标签页 PromoAnalytics.jsx：选推文+时间范围(7/30/90)+IP明细日期；汇总卡/每日趋势/来源渠道/来源网站/按钮点击分布/中国省份热力图(复用 ChinaMap)/当日IP明细表。
+- 生产上线：Save to GitHub → git pull → 重新 build 前端(deploy.sh)。无需新密钥（ip-api 免费）。
+- 待办(可选)：promo_hits 长期增长可加 TTL/定期清理；ip-api 免费限 45/分钟，量大可换离线库。
