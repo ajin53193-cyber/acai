@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, Fragment } from "react";
 import { useParams, Link } from "react-router-dom";
 import axios from "axios";
 import { Eye } from "lucide-react";
@@ -6,7 +6,7 @@ import { API } from "@/lib/api";
 import { toFullUrl } from "@/components/ImageUpload";
 import { Block } from "@/components/PromoBlocks";
 import { ToolsStrip } from "@/components/ToolsStrip";
-import { PromoCustomerService } from "@/components/PromoCustomerService";
+import { PromoCustomerService, JoinBanner } from "@/components/PromoCustomerService";
 
 export default function PromoPage() {
   const { slug } = useParams();
@@ -42,7 +42,12 @@ export default function PromoPage() {
             {promo.cover && (
               <img src={toFullUrl(promo.cover)} alt={promo.title} decoding="async" className="mt-6 w-full rounded-2xl border border-slate-200 shadow-md" data-testid="promo-cover" />
             )}
-            {(promo.blocks || []).map((b, i) => <Block key={i} block={b} index={i} />)}
+            {(promo.blocks || []).map((b, i) => (
+              <Fragment key={i}>
+                <Block block={b} index={i} />
+                {i === Math.floor(((promo.blocks || []).length - 1) / 2) && <JoinBanner />}
+              </Fragment>
+            ))}
 
             <ToolsStrip slugs={promo.tool_slugs} />
 
