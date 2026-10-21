@@ -190,6 +190,7 @@
 - SEO 元信息与分享卡片优化
 
 ## 更新记录
+- 2026-07-21：新增平台介绍页 /p/about（seed_promo_about.py，18区块）。封面=品牌横幅A，含四重体系/四大核心服务/多元赛道(配图)/真实10项目/招募团队长(配海报)/温馨提示；tool_slugs=["__hidden__"]隐藏热门工具栏。配套群发素材：品牌横幅A/B、欢迎图、招募团队长海报、本周项目速递、多元赛道图；社群运营SOP文档 deploy/baota/社群运营SOP.md。合规口径统一(不承诺收益/平台0费用/正规合规/风险自担)，已拒绝资金盘式"首码/油车/0撸/保本稳收益"话术。生产：git pull + 运行 seed_promo_about.py。
 - 2026-07-19：汇率自动更新。后端新增 GET /api/rates/usdt-cny（多源回退 currency-api(usdt.cny)→open.er-api(USD/CNY)→coingecko→静态6.65兜底，内存缓存 TTL 12h≈每日刷新，requests+asyncio.to_thread）。前端 GiftCardCalculator 挂载时 axios 拉取并带入实时汇率(显示绿色「实时」徽章)，用户仍可手动改。实测实时值≈6.67-6.68，1000卡净赚≈+¥39(+5.4%)。前后端均改动，生产需 deploy.sh 重建+后端重启。
 - 2026-07-19：搬砖页计算器升级为「净赚人民币」口径：新增可调 USDT 汇率输入(默认6.65，来自实时查询USDT/CNY≈6.64-6.68)，显示 买入成本$USDT(≈¥) / 核销实得¥ / 净赚人民币¥(=核销¥−买入折¥) / 收益率%(正绿负红)。1000卡@6.65≈+¥42.24(+5.8%)，8000卡≈+¥337.88。证实约5%价差成立(此前误用7.2汇率致判断偏差)。纯前端改动，生产需 build。
 - 2026-07-19：代理页 /p/agent-recruit 新增「代理收益计算器」（PromoBlocks 复用 calculator 区块，text="agent" → AgentCommissionCalculator；text="" → GiftCardCalculator）。输入一级/二级月核销额，算 一级0.7%+二级0.3% 佣金与合计。搬砖页计算器按用户决定保持核销实得只显示人民币¥(不加USDT换算,因折算后约5%价差被汇率抵消)。seed_promo_agent.py=19区块。生产需重新 build 前端(deploy.sh)+重跑 seed_promo_agent.py。
