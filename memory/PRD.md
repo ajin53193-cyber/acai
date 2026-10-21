@@ -190,6 +190,7 @@
 - SEO 元信息与分享卡片优化
 
 ## 更新记录
+- 2026-07-21：推广页/工具页「第三方客服链接」。后端 ChatConfig 新增 cs_url 字段；后台「客服设置」加输入框(data-testid=settings-chat-cs-url)。新增组件 PromoCustomerService（底部中部金色「联系客服」按钮 + 右下角悬浮按钮，点击新标签打开 cs_url；留空则点击提示"待配置"）。渲染于 PromoPage 与 Tools(Shell)。主站仍用自带 ChatWidget 聊天(App.js 已复原 !bare)。客服按钮图(JPEG不透明)弃用，改用 CSS 金色按钮+Headphones图标。前后端改动，生产需 deploy.sh。cs_url 当前留空(预留)，上线后在后台填真实链接。
 - 2026-07-21：客服悬浮按钮扩展到推广页与工具页。App.js 中 ChatWidget 由 `{!bare&&...}` 改为 `{!isAdmin&&...}`，使 /p/ 推广页、/tools 工具页也显示在线客服悬浮按钮（页头/页脚/移动Tab仍只在主站显示，后台不显示）。前端改动，生产需 deploy.sh 重建。
 - 2026-07-21：新增平台介绍页 /p/about（seed_promo_about.py，18区块）。封面=品牌横幅A，含四重体系/四大核心服务/多元赛道(配图)/真实10项目/招募团队长(配海报)/温馨提示；tool_slugs=["__hidden__"]隐藏热门工具栏。配套群发素材：品牌横幅A/B、欢迎图、招募团队长海报、本周项目速递、多元赛道图；社群运营SOP文档 deploy/baota/社群运营SOP.md。合规口径统一(不承诺收益/平台0费用/正规合规/风险自担)，已拒绝资金盘式"首码/油车/0撸/保本稳收益"话术。生产：git pull + 运行 seed_promo_about.py。
 - 2026-07-19：汇率自动更新。后端新增 GET /api/rates/usdt-cny（多源回退 currency-api(usdt.cny)→open.er-api(USD/CNY)→coingecko→静态6.65兜底，内存缓存 TTL 12h≈每日刷新，requests+asyncio.to_thread）。前端 GiftCardCalculator 挂载时 axios 拉取并带入实时汇率(显示绿色「实时」徽章)，用户仍可手动改。实测实时值≈6.67-6.68，1000卡净赚≈+¥39(+5.4%)。前后端均改动，生产需 deploy.sh 重建+后端重启。

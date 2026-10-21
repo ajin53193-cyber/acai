@@ -6,6 +6,7 @@ import { API } from "@/lib/api";
 import { toFullUrl } from "@/components/ImageUpload";
 import { Block } from "@/components/PromoBlocks";
 import { SharePoster } from "@/components/SharePoster";
+import { PromoCustomerService } from "@/components/PromoCustomerService";
 
 const Shell = ({ children, back }) => (
   <main className="min-h-screen bg-white text-slate-900" data-testid="tools-page">
@@ -19,6 +20,7 @@ const Shell = ({ children, back }) => (
         )}
       </header>
       {children}
+      <PromoCustomerService />
       <footer className="mt-12 border-t border-slate-100 pt-6 text-center text-xs text-slate-400">
         合赢项目社 · 平台不收取任何费用 · 稳定项目供给 专业护航
       </footer>

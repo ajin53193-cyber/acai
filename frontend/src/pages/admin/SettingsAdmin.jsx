@@ -210,6 +210,18 @@ export default function SettingsAdmin({ token, onUnauthorized }) {
             </button>
           </div>
           <div>
+            <label className="mb-1.5 block text-xs tracking-widest text-slate-400">第三方客服链接（推广页 / 工具页专用）</label>
+            <input
+              data-testid="settings-chat-cs-url"
+              value={chatCfg.cs_url || ""}
+              onChange={(e) => setChatCfg({ ...chatCfg, cs_url: e.target.value })}
+              placeholder="如 https://你的客服系统链接（留空则推广页不显示客服按钮）"
+              className={inputCls}
+            />
+            <p className="mt-2 text-xs text-slate-600">填写后，推广图文页 / 工具页底部与右下角会显示「联系客服」按钮，点击新标签页打开此链接；主站在线聊天不受影响。</p>
+          </div>
+
+          <div>
             <label className="mb-1.5 block text-xs tracking-widest text-slate-400">欢迎语</label>
             <textarea
               data-testid="settings-chat-welcome-textarea"

@@ -273,6 +273,7 @@ class ChatConfig(BaseModel):
     welcome_group_label: str = Field(default="立即加入项目交流群", max_length=40)
     welcome_group_link: str = Field(default="/tutorials/join-group", max_length=300)
     ai_enabled: bool = True
+    cs_url: str = Field(default="", max_length=300)  # 推广页/工具页「第三方客服链接」，留空则不显示该客服按钮
     qr_image: str = ""
     qr_updated_at: str = ""
     qr_codes: List[QrCodeItem] = Field(default_factory=list)

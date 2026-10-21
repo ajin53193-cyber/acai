@@ -6,6 +6,7 @@ import { API } from "@/lib/api";
 import { toFullUrl } from "@/components/ImageUpload";
 import { Block } from "@/components/PromoBlocks";
 import { ToolsStrip } from "@/components/ToolsStrip";
+import { PromoCustomerService } from "@/components/PromoCustomerService";
 
 export default function PromoPage() {
   const { slug } = useParams();
@@ -44,6 +45,8 @@ export default function PromoPage() {
             {(promo.blocks || []).map((b, i) => <Block key={i} block={b} index={i} />)}
 
             <ToolsStrip slugs={promo.tool_slugs} />
+
+            <PromoCustomerService />
 
             <footer className="mt-12 border-t border-slate-100 pt-6 text-center text-xs text-slate-400">
               合赢项目社 · 平台不收取任何费用 · 稳定项目供给 专业护航
