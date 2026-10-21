@@ -19,6 +19,7 @@ import Tutorial from "@/pages/Tutorial";
 import PromoPage from "@/pages/PromoPage";
 import ToolDetail, { ToolsList } from "@/pages/Tools";
 import Admin from "@/pages/Admin";
+import CSWorkbench from "@/pages/CSWorkbench";
 import { ChatWidget } from "@/components/ChatWidget";
 
 export const lenisRef = { current: null };
@@ -37,7 +38,8 @@ const Layout = () => {
   const { pathname } = useLocation();
   const isAdmin = pathname.startsWith("/admin");
   const isPromo = pathname.startsWith("/p/") || pathname.startsWith("/tools");
-  const bare = isAdmin || isPromo; // 后台与白底推广页/工具页不显示站点页头/页脚/客服
+  const isCS = pathname === "/cs";
+  const bare = isAdmin || isPromo || isCS; // 后台/客服工作台/白底推广页 不显示站点页头/页脚/客服
 
   useEffect(() => {
     captureSource();
@@ -47,7 +49,7 @@ const Layout = () => {
     } else {
       window.scrollTo(0, 0);
     }
-    if (!pathname.startsWith("/admin")) {
+    if (!pathname.startsWith("/admin") && pathname !== "/cs") {
       axios.post(`${API}/track`, { path: pathname, source: getSource() }).catch(() => {});
     }
   }, [pathname]);
@@ -68,6 +70,7 @@ const Layout = () => {
         <Route path="/tools" element={<ToolsList />} />
         <Route path="/tools/:slug" element={<ToolDetail />} />
         <Route path="/admin" element={<Admin />} />
+        <Route path="/cs" element={<CSWorkbench />} />
       </Routes>
       {!bare && <Footer />}
       {!bare && <MobileTabBar />}

@@ -583,6 +583,9 @@ async def startup():
     await db.visits.create_index([("date", 1), ("ip", 1)], unique=False)
     await db.promo_hits.create_index([("slug", 1), ("date", 1), ("type", 1)], unique=False)
     await db.promo_hits.create_index([("slug", 1), ("ip", 1), ("date", 1)], unique=False)
+    await db.cs_agents.create_index("username", unique=True)
+    await db.cs_sessions.create_index([("agent_id", 1), ("last_message_at", -1)], unique=False)
+    await db.cs_messages.create_index([("session_id", 1), ("created_at", 1)], unique=False)
     username = os.environ.get("ADMIN_USERNAME", "admin")
     password = os.environ.get("ADMIN_PASSWORD", "admin123")
     existing = await db.users.find_one({"username": username})
@@ -2464,6 +2467,332 @@ async def usdt_cny_rate():
         "source": _usdt_cny_cache["source"],
     }
 
+
+
+# ============================================================
+# 站内多坐席客服系统（推文页/工具页专用，替代单个外链）
+# ============================================================
+
+class AgentLogin(BaseModel):
+    username: str
+    password: str
+
+
+class CSAgentInput(BaseModel):
+    name: str = Field(min_length=1, max_length=40)
+    avatar: str = Field(default="", max_length=500)
+    username: str = Field(min_length=3, max_length=40)
+    password: str = Field(default="", max_length=128)  # 编辑时留空=不改密码
+    weight: int = Field(default=1, ge=1, le=100)
+    enabled: bool = True
+    remark: str = Field(default="", max_length=200)
+
+
+class CSConfigInput(BaseModel):
+    welcome: str = Field(default="您好，很高兴为您服务，请问有什么可以帮您？", max_length=500)
+    enabled: bool = True
+
+
+class CSStart(BaseModel):
+    session_id: str = Field(min_length=8, max_length=64)
+    slug: str = Field(default="", max_length=60)
+    source: str = Field(default="", max_length=50)
+    referrer: str = Field(default="", max_length=300)
+    visitor_id: str = Field(default="", max_length=64)
+
+
+class CSMessageInput(BaseModel):
+    text: str = Field(min_length=1, max_length=2000)
+
+
+class QuickRepliesInput(BaseModel):
+    replies: List[str] = Field(default_factory=list)
+
+
+def create_agent_token(agent_id: str, username: str) -> str:
+    payload = {
+        "sub": agent_id,
+        "username": username,
+        "role": "agent",
+        "exp": datetime.now(timezone.utc) + timedelta(hours=12),
+    }
+    return jwt.encode(payload, os.environ["JWT_SECRET"], algorithm=JWT_ALGORITHM)
+
+
+async def require_agent(creds: HTTPAuthorizationCredentials = Depends(security)):
+    try:
+        payload = jwt.decode(creds.credentials, os.environ["JWT_SECRET"], algorithms=[JWT_ALGORITHM])
+        if payload.get("role") != "agent":
+            raise HTTPException(status_code=401, detail="无权限")
+        agent = await db.cs_agents.find_one({"id": payload["sub"]})
+        if not agent or not agent.get("enabled", True):
+            raise HTTPException(status_code=401, detail="坐席账号不存在或已停用")
+        return agent
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(status_code=401, detail="登录已过期，请重新登录")
+    except jwt.InvalidTokenError:
+        raise HTTPException(status_code=401, detail="无效的登录凭证")
+
+
+async def get_cs_config() -> dict:
+    doc = await db.cs_config.find_one({"key": "cs"}) or {}
+    return {
+        "welcome": doc.get("welcome", CSConfigInput.model_fields["welcome"].default),
+        "enabled": doc.get("enabled", True),
+    }
+
+
+async def assign_cs_agent():
+    """加权轮流：挑选 已分配量/权重 最小的在线坐席，并累加其分配计数。"""
+    agents = await db.cs_agents.find({"enabled": True}).to_list(200)
+    if not agents:
+        return None
+    agents.sort(key=lambda a: (a.get("assigned_count", 0) / max(1, a.get("weight", 1)), a.get("last_assigned_at", "")))
+    chosen = agents[0]
+    await db.cs_agents.update_one(
+        {"id": chosen["id"]},
+        {"$inc": {"assigned_count": 1}, "$set": {"last_assigned_at": datetime.now(timezone.utc).isoformat()}},
+    )
+    return chosen
+
+
+def agent_public(a: dict) -> dict:
+    return {"id": a["id"], "name": a.get("name", "客服"), "avatar": a.get("avatar", "")}
+
+
+# ---------- 访客端（无需登录） ----------
+@api_router.get("/cs/config")
+async def cs_public_config():
+    cfg = await get_cs_config()
+    has = await db.cs_agents.count_documents({"enabled": True})
+    return {"enabled": bool(cfg["enabled"]) and has > 0, "welcome": cfg["welcome"]}
+
+
+@api_router.post("/cs/start", status_code=201)
+async def cs_start(data: CSStart, request: Request):
+    cfg = await get_cs_config()
+    if not cfg["enabled"]:
+        return {"enabled": False}
+    now = datetime.now(timezone.utc)
+    now_iso = now.isoformat()
+    existing = await db.cs_sessions.find_one({"id": data.session_id})
+    if existing:
+        agent = await db.cs_agents.find_one({"id": existing.get("agent_id")})
+        if not agent or not agent.get("enabled", True):
+            agent = await assign_cs_agent()
+            if agent:
+                await db.cs_sessions.update_one({"id": data.session_id}, {"$set": {"agent_id": agent["id"]}})
+        return {"enabled": True, "session_id": data.session_id, "agent": agent_public(agent) if agent else None, "welcome": cfg["welcome"]}
+    agent = await assign_cs_agent()
+    if not agent:
+        return {"enabled": False}
+    ip = request.headers.get("x-forwarded-for", "").split(",")[0].strip() or (request.client.host if request.client else "unknown")
+    geo = await asyncio.to_thread(lookup_geo_full, ip)
+    await db.cs_sessions.insert_one({
+        "id": data.session_id,
+        "agent_id": agent["id"],
+        "slug": data.slug.strip(),
+        "source": (data.source or "").split("/")[0],
+        "referrer": referrer_host(data.referrer),
+        "visitor_id": data.visitor_id.strip(),
+        "ip": ip,
+        "region": geo["region"],
+        "created_at": now_iso,
+        "last_message_at": now_iso,
+        "last_message": cfg["welcome"][:50],
+        "unread_agent": 0,
+        "unread_visitor": 1,
+    })
+    await db.cs_messages.insert_one({
+        "id": str(uuid.uuid4()),
+        "session_id": data.session_id,
+        "sender": "agent",
+        "agent_id": agent["id"],
+        "text": cfg["welcome"],
+        "created_at": now_iso,
+    })
+    return {"enabled": True, "session_id": data.session_id, "agent": agent_public(agent), "welcome": cfg["welcome"]}
+
+
+@api_router.post("/cs/{session_id}/message", status_code=201)
+async def cs_visitor_message(session_id: str, data: CSMessageInput):
+    sess = await db.cs_sessions.find_one({"id": session_id})
+    if not sess:
+        raise HTTPException(status_code=404, detail="会话不存在")
+    now_iso = datetime.now(timezone.utc).isoformat()
+    await db.cs_messages.insert_one({
+        "id": str(uuid.uuid4()), "session_id": session_id, "sender": "visitor",
+        "agent_id": sess.get("agent_id", ""), "text": data.text, "created_at": now_iso,
+    })
+    await db.cs_sessions.update_one(
+        {"id": session_id},
+        {"$set": {"last_message_at": now_iso, "last_message": data.text[:50]}, "$inc": {"unread_agent": 1}},
+    )
+    return {"ok": True}
+
+
+@api_router.get("/cs/{session_id}/messages")
+async def cs_visitor_messages(session_id: str, after: str = ""):
+    sess = await db.cs_sessions.find_one({"id": session_id})
+    if not sess:
+        return {"messages": [], "agent": None}
+    q = {"session_id": session_id}
+    if after:
+        q["created_at"] = {"$gt": after}
+    msgs = await db.cs_messages.find(q, {"_id": 0}).sort("created_at", 1).to_list(500)
+    if not after:
+        await db.cs_sessions.update_one({"id": session_id}, {"$set": {"unread_visitor": 0}})
+    agent = await db.cs_agents.find_one({"id": sess.get("agent_id")})
+    return {"messages": msgs, "agent": agent_public(agent) if agent else None}
+
+
+# ---------- 坐席端 ----------
+@api_router.post("/cs/agent/login")
+async def cs_agent_login(data: AgentLogin):
+    agent = await db.cs_agents.find_one({"username": data.username})
+    if not agent or not verify_password(data.password, agent.get("password_hash", "")):
+        raise HTTPException(status_code=401, detail="账号或密码错误")
+    if not agent.get("enabled", True):
+        raise HTTPException(status_code=403, detail="该坐席账号已停用")
+    return {"token": create_agent_token(agent["id"], agent["username"]), "agent": {**agent_public(agent), "quick_replies": agent.get("quick_replies", [])}}
+
+
+@api_router.get("/cs/agent/me")
+async def cs_agent_me(agent: dict = Depends(require_agent)):
+    return {**agent_public(agent), "quick_replies": agent.get("quick_replies", [])}
+
+
+@api_router.put("/cs/agent/quick-replies")
+async def cs_agent_quick_replies(data: QuickRepliesInput, agent: dict = Depends(require_agent)):
+    cleaned = [r.strip()[:200] for r in data.replies if r.strip()][:50]
+    await db.cs_agents.update_one({"id": agent["id"]}, {"$set": {"quick_replies": cleaned}})
+    return {"replies": cleaned}
+
+
+@api_router.get("/cs/agent/sessions")
+async def cs_agent_sessions(agent: dict = Depends(require_agent)):
+    rows = await db.cs_sessions.find({"agent_id": agent["id"]}, {"_id": 0}).sort("last_message_at", -1).to_list(500)
+    return {"sessions": rows}
+
+
+@api_router.get("/cs/agent/sessions/{session_id}/messages")
+async def cs_agent_messages(session_id: str, after: str = "", agent: dict = Depends(require_agent)):
+    sess = await db.cs_sessions.find_one({"id": session_id, "agent_id": agent["id"]})
+    if not sess:
+        raise HTTPException(status_code=404, detail="会话不存在")
+    q = {"session_id": session_id}
+    if after:
+        q["created_at"] = {"$gt": after}
+    msgs = await db.cs_messages.find(q, {"_id": 0}).sort("created_at", 1).to_list(500)
+    if not after:
+        await db.cs_sessions.update_one({"id": session_id}, {"$set": {"unread_agent": 0}})
+    return {"messages": msgs, "visitor": {"region": sess.get("region", ""), "source": sess.get("source", ""), "referrer": sess.get("referrer", ""), "ip": sess.get("ip", "")}}
+
+
+@api_router.post("/cs/agent/sessions/{session_id}/read")
+async def cs_agent_read(session_id: str, agent: dict = Depends(require_agent)):
+    await db.cs_sessions.update_one({"id": session_id, "agent_id": agent["id"]}, {"$set": {"unread_agent": 0}})
+    return {"ok": True}
+
+
+@api_router.post("/cs/agent/sessions/{session_id}/reply", status_code=201)
+async def cs_agent_reply(session_id: str, data: CSMessageInput, agent: dict = Depends(require_agent)):
+    sess = await db.cs_sessions.find_one({"id": session_id, "agent_id": agent["id"]})
+    if not sess:
+        raise HTTPException(status_code=404, detail="会话不存在")
+    now_iso = datetime.now(timezone.utc).isoformat()
+    await db.cs_messages.insert_one({
+        "id": str(uuid.uuid4()), "session_id": session_id, "sender": "agent",
+        "agent_id": agent["id"], "text": data.text, "created_at": now_iso,
+    })
+    await db.cs_sessions.update_one(
+        {"id": session_id},
+        {"$set": {"last_message_at": now_iso, "last_message": data.text[:50], "unread_agent": 0}, "$inc": {"unread_visitor": 1}},
+    )
+    return {"ok": True}
+
+
+# ---------- 后台管理（超级管理员） ----------
+@api_router.get("/admin/cs/agents")
+async def admin_cs_agents(_: str = Depends(require_admin)):
+    rows = await db.cs_agents.find({}, {"_id": 0, "password_hash": 0}).sort("created_at", 1).to_list(200)
+    return {"agents": rows}
+
+
+@api_router.post("/admin/cs/agents", status_code=201)
+async def admin_cs_create_agent(data: CSAgentInput, _: str = Depends(require_admin)):
+    if await db.cs_agents.find_one({"username": data.username}):
+        raise HTTPException(status_code=400, detail="该登录账号已存在")
+    if not data.password:
+        raise HTTPException(status_code=400, detail="请设置登录密码")
+    doc = {
+        "id": str(uuid.uuid4()), "name": data.name, "avatar": data.avatar,
+        "username": data.username, "password_hash": hash_password(data.password),
+        "weight": data.weight, "enabled": data.enabled, "remark": data.remark,
+        "quick_replies": [], "assigned_count": 0, "last_assigned_at": "",
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    }
+    await db.cs_agents.insert_one(doc)
+    return {"id": doc["id"]}
+
+
+@api_router.put("/admin/cs/agents/{agent_id}")
+async def admin_cs_update_agent(agent_id: str, data: CSAgentInput, _: str = Depends(require_admin)):
+    dup = await db.cs_agents.find_one({"username": data.username, "id": {"$ne": agent_id}})
+    if dup:
+        raise HTTPException(status_code=400, detail="该登录账号已被占用")
+    upd = {
+        "name": data.name, "avatar": data.avatar, "username": data.username,
+        "weight": data.weight, "enabled": data.enabled, "remark": data.remark,
+    }
+    if data.password:
+        upd["password_hash"] = hash_password(data.password)
+    res = await db.cs_agents.update_one({"id": agent_id}, {"$set": upd})
+    if res.matched_count == 0:
+        raise HTTPException(status_code=404, detail="坐席不存在")
+    return {"ok": True}
+
+
+@api_router.delete("/admin/cs/agents/{agent_id}")
+async def admin_cs_delete_agent(agent_id: str, _: str = Depends(require_admin)):
+    await db.cs_agents.delete_one({"id": agent_id})
+    return {"ok": True}
+
+
+@api_router.get("/admin/cs/config")
+async def admin_cs_get_config(_: str = Depends(require_admin)):
+    return await get_cs_config()
+
+
+@api_router.put("/admin/cs/config")
+async def admin_cs_set_config(data: CSConfigInput, _: str = Depends(require_admin)):
+    await db.cs_config.update_one({"key": "cs"}, {"$set": {"key": "cs", "welcome": data.welcome, "enabled": data.enabled}}, upsert=True)
+    return {"ok": True}
+
+
+@api_router.get("/admin/cs/stats")
+async def admin_cs_stats(days: int = 30, _: str = Depends(require_admin)):
+    days = max(1, min(days, 365))
+    start = (datetime.now(CN_TZ) - timedelta(days=days - 1)).strftime("%Y-%m-%d")
+    start_iso = f"{start}T00:00:00"
+    agents = await db.cs_agents.find({}, {"_id": 0, "password_hash": 0}).sort("created_at", 1).to_list(200)
+    sess_rows = await db.cs_sessions.aggregate([
+        {"$match": {"created_at": {"$gte": start_iso}}},
+        {"$group": {"_id": "$agent_id", "sessions": {"$sum": 1}}},
+    ]).to_list(300)
+    sess_map = {r["_id"]: r["sessions"] for r in sess_rows}
+    msg_rows = await db.cs_messages.aggregate([
+        {"$match": {"sender": "agent", "created_at": {"$gte": start_iso}}},
+        {"$group": {"_id": "$agent_id", "replies": {"$sum": 1}}},
+    ]).to_list(300)
+    msg_map = {r["_id"]: r["replies"] for r in msg_rows}
+    out = [{
+        "id": a["id"], "name": a.get("name", ""), "avatar": a.get("avatar", ""),
+        "enabled": a.get("enabled", True), "weight": a.get("weight", 1),
+        "sessions": sess_map.get(a["id"], 0), "replies": msg_map.get(a["id"], 0),
+    } for a in agents]
+    out.sort(key=lambda x: x["sessions"], reverse=True)
+    return {"days": days, "agents": out, "total_sessions": sum(sess_map.values())}
 
 
 app.include_router(api_router)

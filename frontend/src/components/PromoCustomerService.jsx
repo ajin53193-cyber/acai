@@ -2,6 +2,8 @@ import { Headphones } from "lucide-react";
 import { toast } from "sonner";
 import { useSettings } from "@/lib/useSettings";
 import { trackPromoClick } from "@/lib/promoTrack";
+import { isCSEnabled, openCSWidget } from "@/lib/csWidget";
+import { CSWidget } from "@/components/CSWidget";
 
 const JOIN_BANNER_IMG = "https://customer-assets-v7afamib.emergentagent.net/job_corporate-web-95/artifacts/d144b05e42c9942b_image.webp";
 
@@ -20,8 +22,10 @@ export const bannerCtaForImage = (url = "") => {
 
 const openCs = (url, target) => {
   if (target) trackPromoClick(target);
+  // 已启用站内多坐席客服系统 → 打开站内聊天窗；否则回退到后台配置的外链
+  if (isCSEnabled()) { openCSWidget(); return; }
   if (!url) {
-    toast.info("客服链接待配置：请在后台「客服设置 → 第三方客服链接」填写");
+    toast.info("客服链接待配置：请在后台「客服设置 → 第三方客服链接」填写，或在「在线客服」添加坐席");
     return;
   }
   window.open(url, "_blank", "noopener");
@@ -95,6 +99,8 @@ export const PromoCustomerService = () => {
       >
         <Headphones size={24} />
       </button>
+
+      <CSWidget />
     </>
   );
 };

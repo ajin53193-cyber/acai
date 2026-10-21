@@ -1,7 +1,7 @@
 import { useCallback, useState } from "react";
 import axios from "axios";
 import { toast } from "sonner";
-import { Lock, LogOut, Inbox, FolderKanban, Settings2, Newspaper, MessagesSquare, BarChart3, Share2, PlayCircle, Type, FileImage, Wrench, LineChart } from "lucide-react";
+import { Lock, LogOut, Inbox, FolderKanban, Settings2, Newspaper, MessagesSquare, BarChart3, Share2, PlayCircle, Type, FileImage, Wrench, LineChart, Headphones } from "lucide-react";
 import { LogoMark } from "@/components/Logo";
 import { API, formatDetail } from "@/lib/api";
 import InboxAdmin from "@/pages/admin/InboxAdmin";
@@ -15,6 +15,7 @@ import PromosAdmin from "@/pages/admin/PromosAdmin";
 import ToolsAdmin from "@/pages/admin/ToolsAdmin";
 import StatsAdmin from "@/pages/admin/StatsAdmin";
 import PromoAnalytics from "@/pages/admin/PromoAnalytics";
+import CSAdmin from "@/pages/admin/CSAdmin";
 import PosterAdmin from "@/pages/admin/PosterAdmin";
 
 const TOKEN_KEY = "hy_admin_token";
@@ -27,6 +28,7 @@ const TABS = [
   { key: "chat", name: "在线客服", icon: MessagesSquare, testid: "admin-tab-chat" },
   { key: "stats", name: "访问统计", icon: BarChart3, testid: "admin-tab-stats" },
   { key: "promo-analytics", name: "推文数据", icon: LineChart, testid: "admin-tab-promo-analytics" },
+  { key: "cs", name: "在线客服", icon: Headphones, testid: "admin-tab-cs" },
   { key: "poster", name: "推广海报", icon: Share2, testid: "admin-tab-poster" },
   { key: "settings", name: "站点设置", icon: Settings2, testid: "admin-tab-settings" },
   { key: "copy", name: "页面文案", icon: Type, testid: "admin-tab-copy" },
@@ -138,6 +140,7 @@ export default function Admin() {
       {tab === "chat" && <ChatAdmin token={token} onUnauthorized={onUnauthorized} />}
       {tab === "stats" && <StatsAdmin token={token} onUnauthorized={onUnauthorized} />}
       {tab === "promo-analytics" && <PromoAnalytics token={token} onUnauthorized={onUnauthorized} />}
+      {tab === "cs" && <CSAdmin token={token} onUnauthorized={onUnauthorized} />}
       {tab === "poster" && <PosterAdmin />}
       {tab === "settings" && <SettingsAdmin token={token} onUnauthorized={onUnauthorized} />}
       {tab === "copy" && <CopyAdmin token={token} onUnauthorized={onUnauthorized} />}
