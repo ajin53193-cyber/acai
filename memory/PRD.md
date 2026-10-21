@@ -224,3 +224,11 @@
 - 后台新增「推文数据」标签页 PromoAnalytics.jsx：选推文+时间范围(7/30/90)+IP明细日期；汇总卡/每日趋势/来源渠道/来源网站/按钮点击分布/中国省份热力图(复用 ChinaMap)/当日IP明细表。
 - 生产上线：Save to GitHub → git pull → 重新 build 前端(deploy.sh)。无需新密钥（ip-api 免费）。
 - 待办(可选)：promo_hits 长期增长可加 TTL/定期清理；ip-api 免费限 45/分钟，量大可换离线库。
+
+## 2026-07-21 站内多坐席客服系统（新功能，测试通过 后端100% 23/23 / 前端100%）
+- 需求：推文/工具页用站内实时客服替代单个外链；每个坐席=可登录独立工作台的账号；加权轮流分配；坐席自管快捷回复；管理员设全局欢迎语；按坐席统计接待量。
+- 集合：cs_agents{id,name,avatar,username,password_hash,weight,enabled,remark,quick_replies[],assigned_count,last_assigned_at}、cs_sessions{id,agent_id,slug,source,referrer,ip,region,unread_agent,unread_visitor,last_message...}、cs_messages{id,session_id,sender(visitor|agent),text,created_at}、cs_config{key:cs,welcome,enabled}。
+- 后端：复用 bcrypt+JWT（role=agent）。require_agent/create_agent_token。assign_cs_agent=加权最少分配(assigned_count/weight 最小)。端点：公开 /cs/config、/cs/start、/cs/{sid}/message、/cs/{sid}/messages；坐席 /cs/agent/login|me|sessions|sessions/{sid}/messages|reply|read、/cs/agent/quick-replies；管理 /admin/cs/agents(CRUD)、/admin/cs/config、/admin/cs/stats。实时=2秒轮询。
+- 前端：lib/csWidget.js(共享开窗+启用标志+会话ID)；components/CSWidget.jsx(访客聊天窗,乐观消息去重)；PromoCustomerService.openCs 启用则开站内窗否则回退外链；pages/CSWorkbench.jsx(路由/cs，坐席登录+会话列表+聊天+右侧快捷回复)；pages/admin/CSAdmin.jsx(后台「在线客服」标签：系统开关+欢迎语+坐席CRUD+接待统计)。App.js 加 /cs 路由(bare)。
+- 坐席工作台：你的域名/cs。演示坐席 agent01/Pass@123。
+- 生产上线：Save to GitHub → git pull → 重新 build 前端+重启后端(deploy.sh)。无需新密钥。
