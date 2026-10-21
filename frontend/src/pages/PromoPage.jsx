@@ -1,5 +1,5 @@
 import { useEffect, useState, Fragment } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useParams } from "react-router-dom";
 import axios from "axios";
 import { Eye } from "lucide-react";
 import { API } from "@/lib/api";
@@ -7,6 +7,7 @@ import { toFullUrl } from "@/components/ImageUpload";
 import { Block } from "@/components/PromoBlocks";
 import { ToolsStrip } from "@/components/ToolsStrip";
 import { PromoCustomerService, JoinBanner } from "@/components/PromoCustomerService";
+import { trackPromoView } from "@/lib/promoTrack";
 
 export default function PromoPage() {
   const { slug } = useParams();
@@ -19,6 +20,7 @@ export default function PromoPage() {
         setPromo(res.data);
         document.title = `${res.data.title} | 合赢项目社`;
         axios.post(`${API}/promos/${slug}/view`).catch(() => {});
+        trackPromoView(slug);
       })
       .catch((err) => setError(err.response?.data?.detail || "页面加载失败"));
   }, [slug]);
@@ -27,7 +29,7 @@ export default function PromoPage() {
     <main className="min-h-screen bg-white text-slate-900" data-testid="promo-page">
       <div className="mx-auto max-w-2xl px-5 pb-16 pt-6">
         <header className="flex items-center justify-between border-b border-slate-100 pb-4">
-          <Link to="/" data-testid="promo-logo-link"><img src="/images/logo-hy.png" alt="合赢项目社" className="h-12 w-auto" /></Link>
+          <img src="/images/logo-hy.png" alt="合赢项目社" className="h-12 w-auto" data-testid="promo-logo" />
           {promo && (
             <span className="flex items-center gap-1 text-xs text-slate-400"><Eye size={13} /> {promo.views || 0}</span>
           )}

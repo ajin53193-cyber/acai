@@ -354,6 +354,14 @@ class TrackInput(BaseModel):
     source: str = Field(default="", max_length=50)
 
 
+class PromoHitInput(BaseModel):
+    type: str = Field(pattern=r"^(view|click)$")
+    target: str = Field(default="", max_length=40)
+    source: str = Field(default="", max_length=50)
+    referrer: str = Field(default="", max_length=300)
+    visitor_id: str = Field(default="", max_length=64)
+
+
 def parse_ua(ua: str):
     u = ua.lower()
     if "micromessenger" in u:
@@ -375,6 +383,64 @@ def parse_ua(ua: str):
     else:
         device = "电脑"
     return device, browser
+
+
+# ---- 推文 IP 统计：爬虫识别 + 带数据中心/代理标记的地理查询 ----
+BOT_UA_KEYWORDS = (
+    "bot", "spider", "crawl", "slurp", "crawler", "scrapy", "python-requests",
+    "curl", "wget", "headless", "phantomjs", "facebookexternalhit", "bingpreview",
+    "baiduspider", "yisouspider", "sogou", "360spider", "bytespider", "petalbot",
+    "ahrefs", "semrush", "mj12bot", "dotbot", "applebot", "googlebot", "yandex",
+    "duckduckbot", "embedly", "preview", "monitor", "uptimerobot", "go-http-client",
+)
+
+
+def is_bot_ua(ua: str) -> bool:
+    u = (ua or "").lower()
+    if not u:
+        return True  # 无 UA 视为爬虫/非正常访问
+    return any(k in u for k in BOT_UA_KEYWORDS)
+
+
+_geo_full_cache = {}
+
+
+def lookup_geo_full(ip: str) -> dict:
+    """返回 {region, hosting, proxy}。用于推文统计的爬虫/数据中心识别。"""
+    if ip in _geo_full_cache:
+        return _geo_full_cache[ip]
+    if ip.startswith(("10.", "192.168.", "127.", "172.")) or ip in ("::1", "localhost", "unknown", ""):
+        res = {"region": "本地访问", "hosting": False, "proxy": False}
+        _geo_full_cache[ip] = res
+        return res
+    try:
+        resp = requests.get(
+            f"http://ip-api.com/json/{ip}?lang=zh-CN&fields=status,country,regionName,city,proxy,hosting",
+            timeout=5,
+        )
+        d = resp.json()
+        if d.get("status") == "success":
+            region = " ".join(x for x in [d.get("country"), d.get("regionName"), d.get("city")] if x)
+            res = {"region": region or "未知地区", "hosting": bool(d.get("hosting")), "proxy": bool(d.get("proxy"))}
+        else:
+            res = {"region": "未知地区", "hosting": False, "proxy": False}
+    except Exception:
+        res = {"region": "未知地区", "hosting": False, "proxy": False}
+    _geo_full_cache[ip] = res
+    return res
+
+
+def referrer_host(referrer: str) -> str:
+    """从完整 referrer URL 中解析出域名（去掉协议/路径）。"""
+    r = (referrer or "").strip()
+    if not r:
+        return ""
+    try:
+        from urllib.parse import urlparse
+        host = urlparse(r).netloc or r
+        return host.split(":")[0][:120]
+    except Exception:
+        return r[:120]
 
 
 ARTICLES_SEED = [
@@ -515,6 +581,8 @@ async def startup():
             print(f"Storage init failed: {e}")
     await db.users.create_index("username", unique=True)
     await db.visits.create_index([("date", 1), ("ip", 1)], unique=False)
+    await db.promo_hits.create_index([("slug", 1), ("date", 1), ("type", 1)], unique=False)
+    await db.promo_hits.create_index([("slug", 1), ("ip", 1), ("date", 1)], unique=False)
     username = os.environ.get("ADMIN_USERNAME", "admin")
     password = os.environ.get("ADMIN_PASSWORD", "admin123")
     existing = await db.users.find_one({"username": username})
@@ -2045,6 +2113,173 @@ async def get_promo(slug: str):
 async def promo_view(slug: str):
     await db.promos.update_one({"slug": slug}, {"$inc": {"views": 1}})
     return {"ok": True}
+
+
+# 推文独立 IP 统计：记录每次浏览 / 引导按钮点击（含来源渠道、referrer、地区、爬虫标记）
+TARGET_LABELS = {
+    "banner_join": "立即加入横幅",
+    "recruit_join": "团队长招募·立即加入",
+    "learn": "了解项目详情",
+    "cs": "联系客服按钮",
+    "cs_float": "悬浮客服按钮",
+}
+
+
+@api_router.post("/promos/{slug}/hit", status_code=201)
+async def promo_hit(slug: str, data: PromoHitInput, request: Request):
+    ip = request.headers.get("x-forwarded-for", "").split(",")[0].strip() or (
+        request.client.host if request.client else "unknown"
+    )
+    now = datetime.now(timezone.utc)
+    date_str = now.astimezone(CN_TZ).strftime("%Y-%m-%d")
+    ua = request.headers.get("user-agent", "")[:300]
+    geo = await asyncio.to_thread(lookup_geo_full, ip)
+    region = geo["region"]
+    is_bot = is_bot_ua(ua) or geo["hosting"] or geo["proxy"]
+    bot_reason = ""
+    if is_bot:
+        bot_reason = "UA" if is_bot_ua(ua) else ("数据中心" if geo["hosting"] else "代理")
+    device, browser = parse_ua(ua)
+    await db.promo_hits.insert_one({
+        "id": str(uuid.uuid4()),
+        "slug": slug,
+        "type": data.type,
+        "target": data.target.strip(),
+        "ip": ip,
+        "region": region,
+        "province": province_of(region) or "",
+        "source": data.source.strip(),
+        "referrer": referrer_host(data.referrer),
+        "referrer_full": (data.referrer or "")[:300],
+        "visitor_id": data.visitor_id.strip(),
+        "ua": ua,
+        "device": device,
+        "browser": browser,
+        "is_bot": is_bot,
+        "bot_reason": bot_reason,
+        "date": date_str,
+        "created_at": now.isoformat(),
+    })
+    return {"ok": True}
+
+
+@api_router.get("/admin/promos/{slug}/analytics")
+async def promo_analytics(slug: str, days: int = 30, date: str = "", _: str = Depends(require_admin)):
+    """推文独立 IP 统计：汇总 / 每日趋势 / 来源渠道(A链接) / 来源网站 / 省份分布 / 指定日 IP 明细。默认排除爬虫。"""
+    days = max(1, min(days, 365))
+    today = datetime.now(CN_TZ)
+    start = (today - timedelta(days=days - 1)).strftime("%Y-%m-%d")
+    base = {"slug": slug, "date": {"$gte": start}, "is_bot": {"$ne": True}}
+
+    # 汇总
+    views = await db.promo_hits.count_documents({**base, "type": "view"})
+    clicks = await db.promo_hits.count_documents({**base, "type": "click"})
+    view_ips = await db.promo_hits.distinct("ip", {**base, "type": "view"})
+    click_ips = await db.promo_hits.distinct("ip", {**base, "type": "click"})
+    bots = await db.promo_hits.count_documents({"slug": slug, "date": {"$gte": start}, "is_bot": True})
+
+    # 每日趋势（访问量 PV / 去重 UV / 点击 / 点击去重 IP）
+    async def daily_group(hit_type):
+        rows = await db.promo_hits.aggregate([
+            {"$match": {**base, "type": hit_type}},
+            {"$group": {"_id": "$date", "n": {"$sum": 1}, "ips": {"$addToSet": "$ip"}}},
+        ]).to_list(400)
+        return {r["_id"]: r for r in rows}
+
+    vmap = await daily_group("view")
+    cmap = await daily_group("click")
+    daily = []
+    for i in range(days):
+        d = (today - timedelta(days=days - 1 - i)).strftime("%Y-%m-%d")
+        vr, cr = vmap.get(d), cmap.get(d)
+        daily.append({
+            "date": d,
+            "pv": vr["n"] if vr else 0,
+            "uv": len(vr["ips"]) if vr else 0,
+            "clicks": cr["n"] if cr else 0,
+            "click_uv": len(cr["ips"]) if cr else 0,
+        })
+
+    # 来源渠道（A 链接 ?from= 标记）与 来源网站（referrer 域名）
+    async def breakdown(field):
+        rows = await db.promo_hits.aggregate([
+            {"$match": {**base, "type": "view"}},
+            {"$group": {"_id": f"${field}", "visits": {"$sum": 1}, "ips": {"$addToSet": "$ip"}}},
+            {"$sort": {"visits": -1}},
+            {"$limit": 50},
+        ]).to_list(50)
+        out = []
+        for r in rows:
+            name = r["_id"] or ""
+            out.append({"name": name or ("直接访问" if field == "source" else "直接进入/无来源"), "visits": r["visits"], "uv": len(r["ips"])})
+        return out
+
+    sources = await breakdown("source")
+    referrers = await breakdown("referrer")
+
+    # 省份分布（按独立 IP 去重）
+    prows = await db.promo_hits.aggregate([
+        {"$match": {**base, "type": "view"}},
+        {"$group": {"_id": {"p": "$province", "ip": "$ip"}}},
+        {"$group": {"_id": "$_id.p", "n": {"$sum": 1}}},
+    ]).to_list(100)
+    provinces = sorted(
+        ({"name": r["_id"], "count": r["n"]} for r in prows if r["_id"]),
+        key=lambda x: x["count"], reverse=True,
+    )
+    prov_total = sum(p["count"] for p in provinces)
+    prov_unknown = sum(r["n"] for r in prows if not r["_id"])
+
+    # 点击按钮分布
+    trows = await db.promo_hits.aggregate([
+        {"$match": {**base, "type": "click"}},
+        {"$group": {"_id": "$target", "n": {"$sum": 1}, "ips": {"$addToSet": "$ip"}}},
+        {"$sort": {"n": -1}},
+    ]).to_list(20)
+    targets = [{"name": TARGET_LABELS.get(r["_id"], r["_id"] or "其他"), "clicks": r["n"], "uv": len(r["ips"])} for r in trows]
+
+    # 指定日 IP 明细（去重，含访问/点击次数、地区、来源）
+    detail_date = date or today.strftime("%Y-%m-%d")
+    hits = await db.promo_hits.find(
+        {"slug": slug, "date": detail_date, "is_bot": {"$ne": True}},
+        {"_id": 0, "ip": 1, "region": 1, "source": 1, "referrer": 1, "type": 1, "target": 1, "device": 1, "browser": 1, "created_at": 1},
+    ).to_list(20000)
+    ip_map: dict = {}
+    for h in hits:
+        row = ip_map.setdefault(h["ip"], {
+            "ip": h["ip"], "region": h.get("region", ""), "source": h.get("source", ""),
+            "referrer": h.get("referrer", ""), "device": h.get("device", ""), "browser": h.get("browser", ""),
+            "views": 0, "clicks": 0, "first_seen": h.get("created_at", ""),
+        })
+        if h["type"] == "view":
+            row["views"] += 1
+        else:
+            row["clicks"] += 1
+        if h.get("created_at", "") < row["first_seen"]:
+            row["first_seen"] = h["created_at"]
+    ip_rows = sorted(ip_map.values(), key=lambda r: (r["clicks"], r["views"]), reverse=True)
+    for r in ip_rows:
+        try:
+            r["first_seen"] = datetime.fromisoformat(r["first_seen"]).astimezone(CN_TZ).strftime("%H:%M")
+        except Exception:
+            r["first_seen"] = ""
+
+    return {
+        "slug": slug,
+        "days": days,
+        "summary": {
+            "views": views, "unique_ips": len(view_ips),
+            "clicks": clicks, "click_unique_ips": len(click_ips),
+            "bots_excluded": bots,
+        },
+        "daily": daily,
+        "sources": sources,
+        "referrers": referrers,
+        "provinces": {"provinces": provinces, "total": prov_total, "unknown": prov_unknown},
+        "targets": targets,
+        "detail_date": detail_date,
+        "ip_detail": ip_rows,
+    }
 
 
 @api_router.get("/admin/promos")
