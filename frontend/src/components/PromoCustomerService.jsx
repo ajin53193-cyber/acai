@@ -4,6 +4,19 @@ import { useSettings } from "@/lib/useSettings";
 
 const JOIN_BANNER_IMG = "https://customer-assets-v7afamib.emergentagent.net/job_corporate-web-95/artifacts/d144b05e42c9942b_image.webp";
 
+// 三张含金色按钮的横幅图：图保持静态，按钮做成动态可点，叠在图里原按钮位置上。
+// key 为图片 URL 中的唯一片段；pos 为按钮在图中的占比位置（覆盖图里画的金色按钮）。
+const BANNER_CTAS = {
+  "d144b05e": { text: "立即加入", font: "3cqw", pos: { left: "71.5%", top: "79.5%", width: "25.5%", height: "16%" } },
+  "e2456e9f": { text: "立即加入", font: "3cqw", pos: { left: "72%", top: "80%", width: "21%", height: "15.5%" } },
+  "856cc85c": { text: "了解项目详情", font: "2.4cqw", pos: { left: "78%", top: "49.5%", width: "19.5%", height: "13.5%" } },
+};
+
+export const bannerCtaForImage = (url = "") => {
+  for (const key in BANNER_CTAS) if (url.includes(key)) return BANNER_CTAS[key];
+  return null;
+};
+
 const openCs = (url) => {
   if (!url) {
     toast.info("客服链接待配置：请在后台「客服设置 → 第三方客服链接」填写");
@@ -12,30 +25,43 @@ const openCs = (url) => {
   window.open(url, "_blank", "noopener");
 };
 
-// 文章中部「立即加入」横幅，点击跳转第三方客服链接
-export const JoinBanner = () => {
+// 通用：静态横幅图 + 叠在图里按钮位置上的动态金色按钮，点击跳转第三方客服链接
+export const PromoActionBanner = ({ img, alt, cta, caption, className = "mt-5" }) => {
   const { chat } = useSettings();
   const url = (chat?.cs_url || "").trim();
   return (
-    <button
-      type="button"
-      onClick={() => openCs(url)}
-      data-testid="promo-join-banner"
-      className="join-breath group relative mt-8 block w-full overflow-hidden rounded-2xl shadow-md"
-    >
-      <img src={JOIN_BANNER_IMG} alt="立即加入" loading="lazy" className="block w-full" />
-      {/* 流光扫过 */}
-      <span className="pointer-events-none absolute inset-0 overflow-hidden rounded-2xl">
-        <span className="join-shine absolute top-0 h-full w-1/3 bg-gradient-to-r from-transparent via-white/35 to-transparent" />
-      </span>
-      {/* 「立即加入」按钮柔和脉冲光晕 */}
-      <span
-        className="join-cta-glow pointer-events-none absolute rounded-full"
-        style={{ right: "5.5%", bottom: "2%", width: "19.5%", height: "16%" }}
-      />
-    </button>
+    <figure className={className} data-testid="promo-action-banner">
+      <div
+        className="relative w-full overflow-hidden rounded-xl border border-slate-200 shadow-sm"
+        style={{ containerType: "inline-size" }}
+      >
+        <img src={img} alt={alt || cta.text} loading="lazy" decoding="async" className="block w-full" />
+        <button
+          type="button"
+          onClick={() => openCs(url)}
+          data-testid="promo-action-cta"
+          className="promo-cta-animate absolute flex items-center justify-center whitespace-nowrap rounded-full font-extrabold leading-none text-[#3B2A06] transition-transform active:scale-95"
+          style={{
+            ...cta.pos,
+            fontSize: `clamp(8px, ${cta.font}, 16px)`,
+            background: "linear-gradient(180deg,#FBE38C 0%,#E9C45A 42%,#CB9A2C 100%)",
+            border: "1.5px solid #F6DF93",
+          }}
+        >
+          {cta.text}
+        </button>
+      </div>
+      {caption && (
+        <figcaption className="mt-3 text-center text-base font-semibold text-slate-700 md:text-lg">{caption}</figcaption>
+      )}
+    </figure>
   );
 };
+
+// 文章中部「立即加入」横幅：静态图 + 动态「立即加入」按钮，点击跳转第三方客服链接
+export const JoinBanner = () => (
+  <PromoActionBanner img={JOIN_BANNER_IMG} alt="立即加入" cta={BANNER_CTAS["d144b05e"]} className="mt-8" />
+);
 
 // 推广页 / 工具页专用「联系客服」：跳转后台配置的第三方客服链接
 export const PromoCustomerService = () => {

@@ -4,6 +4,7 @@ import axios from "axios";
 import { ArrowRight, Calculator } from "lucide-react";
 import { API } from "@/lib/api";
 import { toFullUrl } from "@/components/ImageUpload";
+import { bannerCtaForImage, PromoActionBanner } from "@/components/PromoCustomerService";
 
 export const isExternal = (link) => /^https?:\/\//i.test(link || "");
 
@@ -207,6 +208,18 @@ export const Block = ({ block, index }) => {
     );
   }
   if (block.type === "image") {
+    const cta = bannerCtaForImage(block.image);
+    if (cta) {
+      return (
+        <PromoActionBanner
+          key={index}
+          img={toFullUrl(block.image)}
+          alt={block.text || cta.text}
+          cta={cta}
+          caption={block.text}
+        />
+      );
+    }
     return (
       <figure className="mt-5" data-testid={`promo-block-${index}`}>
         <img src={toFullUrl(block.image)} alt={block.text || `图 ${index + 1}`} loading="lazy" decoding="async" className="w-full rounded-xl border border-slate-200 shadow-sm" />
