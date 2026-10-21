@@ -2,7 +2,7 @@ import { Headphones } from "lucide-react";
 import { toast } from "sonner";
 import { useSettings } from "@/lib/useSettings";
 
-const JOIN_BANNER_IMG = "https://static.prod-images.emergentagent.com/jobs/dd977e8b-1776-4e0e-b7ca-f75b73af51cb/images/9620f46a77a2178fcc5593ba11fed8cd4e569567f75fb3776c0ca2dc2bcfa771.jpeg";
+const JOIN_BANNER_IMG = "https://customer-assets-v7afamib.emergentagent.net/job_corporate-web-95/artifacts/d144b05e42c9942b_image.webp";
 
 const openCs = (url) => {
   if (!url) {
@@ -21,9 +21,13 @@ export const JoinBanner = () => {
       type="button"
       onClick={() => openCs(url)}
       data-testid="promo-join-banner"
-      className="mt-8 block w-full overflow-hidden rounded-2xl shadow-md transition-transform duration-200 hover:scale-[1.01] active:scale-[0.99]"
+      className="join-breath group relative mt-8 block w-full overflow-hidden rounded-2xl shadow-md"
     >
-      <img src={JOIN_BANNER_IMG} alt="立即加入" loading="lazy" className="w-full" />
+      <img src={JOIN_BANNER_IMG} alt="立即加入" loading="lazy" className="block w-full" />
+      {/* 流光扫过 */}
+      <span className="pointer-events-none absolute inset-0 overflow-hidden rounded-2xl">
+        <span className="join-shine absolute top-0 h-full w-1/3 bg-gradient-to-r from-transparent via-white/35 to-transparent" />
+      </span>
     </button>
   );
 };

@@ -206,3 +206,22 @@
   50% { transform: scale(1.06); box-shadow: 0 0 18px rgba(255, 110, 70, 0.8); }
 }
 .hot-badge { animation: hotPulse 1.8s ease-in-out infinite; }
+
+/* 立即加入横幅动画 */
+@keyframes joinBreath {
+  0%, 100% { transform: scale(1); box-shadow: 0 6px 22px rgba(212,175,55,0.35); }
+  50% { transform: scale(1.015); box-shadow: 0 10px 34px rgba(212,175,55,0.6); }
+}
+.join-breath { animation: joinBreath 2.6s ease-in-out infinite; }
+@keyframes joinShine {
+  0% { transform: translateX(-130%) skewX(-18deg); opacity: 0; }
+  10% { opacity: .9; }
+  40% { transform: translateX(280%) skewX(-18deg); opacity: 0; }
+  100% { transform: translateX(280%) skewX(-18deg); opacity: 0; }
+}
+.join-shine { animation: joinShine 3.8s ease-in-out infinite; }
+@keyframes joinCtaPulse {
+  0%, 100% { transform: scale(1); opacity: .45; }
+  50% { transform: scale(1.1); opacity: .9; }
+}
+.join-cta-pulse { animation: joinCtaPulse 1.4s ease-in-out infinite; }

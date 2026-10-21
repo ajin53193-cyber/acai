@@ -190,6 +190,7 @@
 - SEO 元信息与分享卡片优化
 
 ## 更新记录
+- 2026-07-21：「立即加入」横幅换用用户上传的新图(d144b05e..._image.webp)，并做成动态：整张横幅 join-breath 呼吸脉冲(scale+glow) + join-shine 流光扫过(keyframes 加在 index.css)。移除此前错位的「马上加入」按钮脉冲框(烤进图片的按钮无法精准叠框)。点击仍跳 cs_url。纯前端，生产需 deploy.sh。
 - 2026-07-21：推广文章中部自动插入「立即加入」横幅图（JoinBanner 组件，图片为生成的金色"立即加入·抢占名额·专业对接"横幅），点击跳转 cs_url 第三方客服链接（留空提示待配置）。PromoPage.jsx 在 blocks 中点(Math.floor((len-1)/2))后用 Fragment 注入，所有推广页生效。纯前端，生产需 deploy.sh。
 - 2026-07-21：推广页/工具页「第三方客服链接」。后端 ChatConfig 新增 cs_url 字段；后台「客服设置」加输入框(data-testid=settings-chat-cs-url)。新增组件 PromoCustomerService（底部中部金色「联系客服」按钮 + 右下角悬浮按钮，点击新标签打开 cs_url；留空则点击提示"待配置"）。渲染于 PromoPage 与 Tools(Shell)。主站仍用自带 ChatWidget 聊天(App.js 已复原 !bare)。客服按钮图(JPEG不透明)弃用，改用 CSS 金色按钮+Headphones图标。前后端改动，生产需 deploy.sh。cs_url 当前留空(预留)，上线后在后台填真实链接。
 - 2026-07-21：客服悬浮按钮扩展到推广页与工具页。App.js 中 ChatWidget 由 `{!bare&&...}` 改为 `{!isAdmin&&...}`，使 /p/ 推广页、/tools 工具页也显示在线客服悬浮按钮（页头/页脚/移动Tab仍只在主站显示，后台不显示）。前端改动，生产需 deploy.sh 重建。
