@@ -46,6 +46,39 @@ function Login({ onLogin }) {
   );
 }
 
+function QRLibrary({ token, onSend }) {
+  const [list, setList] = useState([]);
+  const [group, setGroup] = useState("全部");
+  useEffect(() => {
+    const headers = { Authorization: `Bearer ${token}` };
+    const load = () => axios.get(`${API}/cs/agent/quick-replies`, { headers }).then((r) => setList(r.data.replies || [])).catch(() => {});
+    load();
+    const t = setInterval(load, 60000); // 后台改了话术，坐席端一分钟内同步
+    return () => clearInterval(t);
+  }, [token]);
+  if (list.length === 0) return null;
+  const groups = [...new Set(list.map((r) => r.group))];
+  const shown = group === "全部" ? list : list.filter((r) => r.group === group);
+  return (
+    <div className="mb-5" data-testid="cs-qr-library">
+      <div className="mb-2 flex items-center gap-1.5 text-xs font-semibold tracking-widest text-[#9a7a16]"><Zap size={13} /> 话术库（点一下即发送）</div>
+      <div className="mb-2 flex flex-wrap gap-1.5">
+        {["全部", ...groups].map((g) => (
+          <button key={g} onClick={() => setGroup(g)} data-testid={`cs-qrlib-group-${g}`} className={`rounded-full px-2.5 py-1 text-[11px] transition-colors ${group === g ? "bg-[#D4AF37]/25 text-[#9a7a16] ring-1 ring-[#D4AF37]/40" : "bg-amber-900/5 text-slate-500 hover:bg-amber-900/10"}`}>{g}</button>
+        ))}
+      </div>
+      <div className="space-y-2">
+        {shown.map((r) => (
+          <button key={r.id} onClick={() => onSend(r)} data-testid={`cs-qrlib-${r.id}`} className="flex w-full items-start gap-2 rounded-xl border border-amber-900/10 bg-white p-2.5 text-left text-sm text-slate-600 shadow-sm transition-colors hover:border-[#D4AF37]/50 hover:text-[#9a7a16]">
+            {r.image && <img src={toFullUrl(r.image)} alt="" className="h-10 w-10 shrink-0 rounded-lg object-cover ring-1 ring-amber-900/10" />}
+            <span className="line-clamp-3 min-w-0 flex-1 whitespace-pre-wrap break-words leading-relaxed">{r.text || <span className="italic text-slate-400">[图片]</span>}</span>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function QuickReplies({ token, initial, onInsert }) {
   const [replies, setReplies] = useState(initial || []);
   const [draft, setDraft] = useState("");
@@ -57,7 +90,7 @@ function QuickReplies({ token, initial, onInsert }) {
   const add = () => { const t = draft.trim(); if (!t) return; save([...replies, t]); setDraft(""); };
   return (
     <div data-testid="cs-quick-replies">
-      <div className="mb-3 flex items-center gap-1.5 text-xs font-semibold tracking-widest text-[#9a7a16]"><Zap size={13} /> 快捷回复（点一下即发送）</div>
+      <div className="mb-3 flex items-center gap-1.5 text-xs font-semibold tracking-widest text-[#9a7a16]"><Zap size={13} /> 我的常用语（点一下即发送）</div>
       <div className="space-y-2">
         {replies.map((r, i) => (
           <div key={i} className="group flex items-start gap-2 rounded-xl border border-amber-900/10 bg-white p-2.5 text-sm text-slate-600 shadow-sm transition-colors hover:border-[#D4AF37]/50">
@@ -149,6 +182,18 @@ function Workbench({ token, onLogout }) {
     } catch { toast.error("图片发送失败"); }
   };
 
+  const sendLibrary = async (r) => {
+    if (!active) return toast.info("请先选择一个会话");
+    try {
+      if (r.image) {
+        setMessages((p) => [...p, { id: `tmp-${Date.now()}-img`, sender: "agent", text: "", image: r.image, created_at: new Date().toISOString() }]);
+        await axios.post(`${API}/cs/agent/sessions/${active}/reply`, { text: "", image: r.image }, { headers });
+      }
+      if (r.text) await send(r.text);
+      else { await pollMessages(active); loadSessions(); }
+    } catch { toast.error("发送失败"); }
+  };
+
   const activeSession = sessions.find((s) => s.id === active);
 
   return (
@@ -238,6 +283,7 @@ function Workbench({ token, onLogout }) {
 
       {/* 快捷回复 */}
       <aside className="cs-scroll-light hidden w-72 shrink-0 overflow-y-auto border-l border-amber-900/10 bg-[#fbf9f3] p-4 lg:block">
+        {me && <QRLibrary token={token} onSend={sendLibrary} />}
         {me && <QuickReplies token={token} initial={me.quick_replies} onInsert={(t) => (active ? send(t) : toast.info("请先选择一个会话"))} />}
       </aside>
     </div>

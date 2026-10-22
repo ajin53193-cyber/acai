@@ -2528,6 +2528,18 @@ class QuickRepliesInput(BaseModel):
     replies: List[str] = Field(default_factory=list)
 
 
+class QRLibraryInput(BaseModel):
+    """后台统一话术库：分组 + 文本 + 图片（文本/图片至少一项）"""
+    group: str = Field(default="默认", max_length=30)
+    text: str = Field(default="", max_length=1000)
+    image: str = Field(default="", max_length=500)
+
+
+class QRGroupRename(BaseModel):
+    old: str = Field(min_length=1, max_length=30)
+    new: str = Field(min_length=1, max_length=30)
+
+
 def create_agent_token(agent_id: str, username: str) -> str:
     payload = {
         "sub": agent_id,
@@ -2854,6 +2866,58 @@ async def admin_cs_get_config(_: str = Depends(require_admin)):
 async def admin_cs_set_config(data: CSConfigInput, _: str = Depends(require_admin)):
     await db.cs_config.update_one({"key": "cs"}, {"$set": {"key": "cs", "welcome": data.welcome, "enabled": data.enabled, "faqs": [f.model_dump() for f in data.faqs]}}, upsert=True)
     return {"ok": True}
+
+
+# ---------- 后台统一话术库（所有坐席共用，支持分组与图片） ----------
+async def qr_library_list() -> list:
+    return await db.cs_quick_replies.find({}, {"_id": 0}).sort([("group", 1), ("created_at", 1)]).to_list(500)
+
+
+def qr_clean(data: QRLibraryInput) -> dict:
+    text, image, group = data.text.strip(), data.image.strip(), (data.group.strip() or "默认")
+    if not text and not image:
+        raise HTTPException(status_code=400, detail="话术文本和图片至少填写一项")
+    return {"group": group, "text": text, "image": image}
+
+
+@api_router.get("/admin/cs/quick-replies")
+async def admin_qr_list(_: str = Depends(require_admin)):
+    return {"replies": await qr_library_list()}
+
+
+@api_router.post("/admin/cs/quick-replies", status_code=201)
+async def admin_qr_create(data: QRLibraryInput, _: str = Depends(require_admin)):
+    doc = {"id": str(uuid.uuid4()), **qr_clean(data), "created_at": datetime.now(timezone.utc).isoformat()}
+    await db.cs_quick_replies.insert_one(doc)
+    doc.pop("_id", None)
+    return doc
+
+
+@api_router.put("/admin/cs/quick-replies/group")
+async def admin_qr_rename_group(data: QRGroupRename, _: str = Depends(require_admin)):
+    res = await db.cs_quick_replies.update_many({"group": data.old.strip()}, {"$set": {"group": data.new.strip()}})
+    return {"ok": True, "updated": res.modified_count}
+
+
+@api_router.put("/admin/cs/quick-replies/{qr_id}")
+async def admin_qr_update(qr_id: str, data: QRLibraryInput, _: str = Depends(require_admin)):
+    res = await db.cs_quick_replies.update_one({"id": qr_id}, {"$set": qr_clean(data)})
+    if res.matched_count == 0:
+        raise HTTPException(status_code=404, detail="话术不存在")
+    return {"ok": True}
+
+
+@api_router.delete("/admin/cs/quick-replies/{qr_id}")
+async def admin_qr_delete(qr_id: str, _: str = Depends(require_admin)):
+    res = await db.cs_quick_replies.delete_one({"id": qr_id})
+    if res.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="话术不存在")
+    return {"ok": True}
+
+
+@api_router.get("/cs/agent/quick-replies")
+async def cs_agent_qr_library(_: dict = Depends(require_agent)):
+    return {"replies": await qr_library_list()}
 
 
 @api_router.get("/admin/cs/stats")

@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import { Plus, Pencil, Trash2, Save, Users, X } from "lucide-react";
 import { API, formatDetail } from "@/lib/api";
 import { ImageUpload } from "@/components/ImageUpload";
+import CSQuickReplies from "@/pages/admin/CSQuickReplies";
 
 const emptyAgent = { name: "", avatar: "", username: "", password: "", weight: 1, enabled: true, remark: "" };
 const inputCls = "w-full rounded-xl border border-amber-500/20 bg-[#060B18]/70 px-4 py-2.5 text-sm text-slate-200 outline-none focus:border-[#D4AF37]/60";
@@ -117,8 +118,11 @@ export default function CSAdmin({ token, onUnauthorized }) {
           ))}
         </div>
         <button onClick={saveCfg} data-testid="cs-config-save" className="mt-4 rounded-xl bg-[#D4AF37]/20 px-5 py-2.5 text-sm font-bold text-[#E5C158] hover:bg-[#D4AF37]/30">保存设置</button>
-        <p className="mt-3 text-xs text-slate-600">坐席工作台地址：<span className="text-[#E5C158]">你的域名/cs</span>（坐席用下方分配的账号密码登录）。快捷回复由每位坐席在工作台里自行添加。</p>
+        <p className="mt-3 text-xs text-slate-600">坐席工作台地址：<span className="text-[#E5C158]">你的域名/cs</span>（坐席用下方分配的账号密码登录）。统一话术在下方「快捷回复话术库」维护，坐席也可在工作台添加自己的常用语。</p>
       </div>
+
+      {/* 快捷回复话术库 */}
+      <CSQuickReplies token={token} />
 
       {/* 坐席列表 */}
       <div className="glass-card rounded-2xl p-6">
