@@ -56,8 +56,11 @@ const Layout = () => {
     }
   }, [pathname]);
 
+  // 页面底色跟随路由：访客聊天窗纯白、客服工作台米白、其余为站点深色
+  const rootBg = isChat ? "bg-white" : isCS ? "bg-[#f6f2e9]" : "bg-[#060B18] text-slate-100";
+
   return (
-    <>
+    <div className={`min-h-screen ${rootBg}`} data-testid="app-root">
       {!bare && <Header />}
       <Routes>
         <Route path="/" element={<Home />} />
@@ -78,7 +81,7 @@ const Layout = () => {
       {!bare && <Footer />}
       {!bare && <MobileTabBar />}
       {!bare && <ChatWidget />}
-    </>
+    </div>
   );
 };
 
@@ -106,12 +109,10 @@ function App() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-[#060B18] text-slate-100" data-testid="app-root">
-      <BrowserRouter>
-        <Layout />
-        <Toaster position="top-center" theme="dark" richColors />
-      </BrowserRouter>
-    </div>
+    <BrowserRouter>
+      <Layout />
+      <Toaster position="top-center" theme="dark" richColors />
+    </BrowserRouter>
   );
 }
 

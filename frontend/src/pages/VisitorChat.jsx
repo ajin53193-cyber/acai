@@ -53,7 +53,14 @@ export default function VisitorChat() {
     const meta = document.querySelector('meta[name="theme-color"]');
     const prev = meta?.getAttribute("content");
     if (meta) meta.setAttribute("content", "#ffffff");
-    return () => { if (meta && prev) meta.setAttribute("content", prev); };
+    // iOS Safari 的状态栏与底部工具栏取色自 html/body 背景，主站是深色，这里强制切白
+    const html = document.documentElement, body = document.body;
+    const prevHtmlBg = html.style.backgroundColor, prevBodyBg = body.style.backgroundColor, prevScheme = html.style.colorScheme;
+    html.style.backgroundColor = "#ffffff"; body.style.backgroundColor = "#ffffff"; html.style.colorScheme = "light";
+    return () => {
+      if (meta && prev) meta.setAttribute("content", prev);
+      html.style.backgroundColor = prevHtmlBg; body.style.backgroundColor = prevBodyBg; html.style.colorScheme = prevScheme;
+    };
   }, []);
   useEffect(() => { if (bottomRef.current) bottomRef.current.scrollIntoView({ behavior: "smooth" }); }, [messages]);
   useEffect(() => { soundRef.current = soundOn; localStorage.setItem(SOUND_KEY, soundOn ? "1" : "0"); }, [soundOn]);
@@ -117,14 +124,14 @@ export default function VisitorChat() {
   };
 
   return (
-    <div className="flex h-[100dvh] flex-col bg-white" data-testid="visitor-chat">
-      {/* 顶部蓝色条 */}
-      <header className="flex items-center justify-between bg-gradient-to-r from-[#4a9fe8] to-[#3b8ede] px-4 py-3 text-white shadow-md">
+    <div className="flex h-[100dvh] flex-col border-[5px] border-[#3aa6f2] bg-white" data-testid="visitor-chat">
+      {/* 顶部蓝色条（参照模版） */}
+      <header className="flex items-center justify-between bg-[#3aa6f2] px-3 py-2.5 text-white">
         <div className="flex items-center gap-2">
-          <MessageCircle size={18} className="shrink-0" />
+          <span className="h-2.5 w-2.5 rounded-full bg-[#22c55e] shadow-[0_0_6px_rgba(34,197,94,0.8)]" />
           <span className="text-[15px] font-bold tracking-wide" data-testid="visitor-chat-agent">在线聊天</span>
         </div>
-        <button onClick={() => { try { window.close(); } catch { /* ignore */ } }} aria-label="关闭" data-testid="visitor-chat-close" className="flex h-7 w-7 items-center justify-center rounded-full text-white/90 transition-colors hover:bg-white/20"><X size={18} /></button>
+        <button onClick={() => { try { window.close(); } catch { /* ignore */ } }} aria-label="关闭" data-testid="visitor-chat-close" className="flex h-7 w-7 items-center justify-center rounded-full text-white transition-colors hover:bg-white/20"><X size={22} strokeWidth={2.5} /></button>
       </header>
 
       {!enabled ? (
@@ -183,7 +190,7 @@ export default function VisitorChat() {
           </div>
 
           {/* 输入区（参照样式：两行布局） */}
-          <div className="border-t border-blue-200/50 bg-white/95 px-3 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur-md">
+          <div className="bg-white px-3 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom))]">
             <div className="mx-auto w-full max-w-2xl">
               <div className="flex items-center gap-2">
                 <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={sendImage} data-testid="visitor-chat-file" />

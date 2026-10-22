@@ -252,7 +252,13 @@ export default function CSWorkbench() {
     const meta = document.querySelector('meta[name="theme-color"]');
     const prev = meta?.getAttribute("content");
     if (meta) meta.setAttribute("content", "#f6f2e9");
-    return () => { if (meta && prev) meta.setAttribute("content", prev); };
+    const html = document.documentElement, body = document.body;
+    const prevHtmlBg = html.style.backgroundColor, prevBodyBg = body.style.backgroundColor, prevScheme = html.style.colorScheme;
+    html.style.backgroundColor = "#f6f2e9"; body.style.backgroundColor = "#f6f2e9"; html.style.colorScheme = "light";
+    return () => {
+      if (meta && prev) meta.setAttribute("content", prev);
+      html.style.backgroundColor = prevHtmlBg; body.style.backgroundColor = prevBodyBg; html.style.colorScheme = prevScheme;
+    };
   }, []);
   return token ? <Workbench token={token} onLogout={logout} /> : <Login onLogin={setToken} />;
 }
