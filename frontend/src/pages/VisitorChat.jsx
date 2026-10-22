@@ -124,12 +124,20 @@ export default function VisitorChat() {
   };
 
   return (
-    <div className="flex h-[100dvh] w-full max-w-full flex-col overflow-hidden rounded-t-xl border-[5px] border-[#3aa6f2] bg-white" data-testid="visitor-chat">
-      {/* 顶部蓝色条（参照模版） */}
-      <header className="flex items-center justify-between bg-[#3aa6f2] px-3 py-2.5 text-white">
-        <div className="flex items-center gap-2">
-          <span className="h-2.5 w-2.5 rounded-full bg-[#22c55e] shadow-[0_0_6px_rgba(34,197,94,0.8)]" />
-          <span className="text-[15px] font-bold tracking-wide" data-testid="visitor-chat-agent">在线聊天</span>
+    <div className="flex h-[100dvh] w-full max-w-full flex-col overflow-hidden bg-white" data-testid="visitor-chat">
+      {/* 顶部蓝色条：客服头像 + 名称 */}
+      <header className="flex items-center justify-between bg-[#3aa6f2] px-3 py-2 text-white">
+        <div className="flex min-w-0 items-center gap-2.5">
+          <div className="relative shrink-0">
+            {agent?.avatar
+              ? <img src={toFullUrl(agent.avatar)} alt={agent?.name || "客服"} className="h-9 w-9 rounded-full object-cover ring-2 ring-white/70" data-testid="visitor-chat-header-avatar" />
+              : <div className="flex h-9 w-9 items-center justify-center rounded-full bg-white/25 text-xs font-bold" data-testid="visitor-chat-header-avatar">客服</div>}
+            <span className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-[#3aa6f2] bg-[#22c55e]" />
+          </div>
+          <div className="min-w-0 leading-tight">
+            <div className="truncate text-[15px] font-bold tracking-wide" data-testid="visitor-chat-agent">{agent?.name || "在线客服"}</div>
+            <div className="text-[11px] text-white/85">在线聊天 · 为您服务</div>
+          </div>
         </div>
         <button onClick={() => { try { window.close(); } catch { /* ignore */ } }} aria-label="关闭" data-testid="visitor-chat-close" className="flex h-7 w-7 items-center justify-center rounded-full text-white transition-colors hover:bg-white/20"><X size={22} strokeWidth={2.5} /></button>
       </header>
