@@ -1,11 +1,18 @@
-// 站内客服聊天窗：供推文页多个按钮共享「打开聊天窗」能力，并判断客服系统是否启用
-let opener = null;
+// 站内客服聊天：供推文页按钮共享「是否启用」判断 + 在新窗口打开聊天页
 let enabled = false;
 
-export const registerCSWidget = (fn) => { opener = fn; };
 export const setCSEnabled = (v) => { enabled = !!v; };
 export const isCSEnabled = () => enabled;
-export const openCSWidget = () => { if (opener) opener(); };
+
+// 在新窗口打开独立客服聊天页，携带推文 slug 与来源渠道（供分配/统计）
+export const openCSChatWindow = (slug, source) => {
+  const qs = new URLSearchParams();
+  if (slug) qs.set("slug", slug);
+  if (source) qs.set("src", source);
+  if (document.referrer) qs.set("ref", document.referrer);
+  const url = `/chat?${qs.toString()}`;
+  window.open(url, "hy_cs_chat", "width=420,height=680,menubar=no,toolbar=no,location=no,resizable=yes");
+};
 
 const CS_SESSION_KEY = "hy_cs_session";
 

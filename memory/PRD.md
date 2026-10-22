@@ -238,3 +238,9 @@
 - 3天自动清除：cs_messages 存 created_at_dt(Date)、cs_sessions 存 last_activity_dt(Date)，建 MongoDB TTL 索引 expireAfterSeconds=259200。消息按创建时间、会话按最后活动时间自动清除。标准 MongoDB 特性，宝塔也生效，无需 cron。
 - 预览环境已临时设 LOCAL_STORAGE=1 + UPLOAD_DIR=/app/uploads 以便测试图片上传（生产宝塔本就 LOCAL_STORAGE=1）。
 - 注：图片上传依赖 LOCAL_STORAGE=1（自托管写本地磁盘）；生产需确保 backend/.env 有此项。
+
+## 2026-07-21 客服改为新窗口 + 消息头像 + 并发修复（已自测）
+- 点「联系客服/悬浮/横幅CTA」改为 window.open 打开独立聊天页（新窗口）而非页内弹窗。新增页面 VisitorChat.jsx，路由 /chat（bare，不计入 /track），参数 slug/src(来源渠道)/ref。移除页内 CSWidget.jsx（已删除），PromoCustomerService 挂载时拉取 /cs/config 设置启用标志，openCs 启用则 openCSChatWindow(slug,source) 否则回退外链。
+- 客服消息头像：VisitorChat 中客服(agent)每条消息气泡左侧显示坐席头像（无头像则「客服」圆形占位），顶部也有头像。
+- 并发修复：cs_start 用 $setOnInsert+upsert 原子创建会话，欢迎语用确定性 id welcome-{sid} upsert，彻底避免 StrictMode/双击导致的重复会话与重复欢迎语。
+- 演示坐席 agent01 已设头像（客服小海）。图片发送 + 3天TTL（上一轮）保持不变。

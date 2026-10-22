@@ -2597,32 +2597,47 @@ async def cs_start(data: CSStart, request: Request):
         return {"enabled": False}
     ip = request.headers.get("x-forwarded-for", "").split(",")[0].strip() or (request.client.host if request.client else "unknown")
     geo = await asyncio.to_thread(lookup_geo_full, ip)
-    await db.cs_sessions.insert_one({
-        "id": data.session_id,
-        "agent_id": agent["id"],
-        "slug": data.slug.strip(),
-        "source": (data.source or "").split("/")[0],
-        "referrer": referrer_host(data.referrer),
-        "visitor_id": data.visitor_id.strip(),
-        "ip": ip,
-        "region": geo["region"],
-        "created_at": now_iso,
-        "last_message_at": now_iso,
-        "last_activity_dt": now,
-        "last_message": cfg["welcome"][:50],
-        "unread_agent": 0,
-        "unread_visitor": 1,
-    })
-    await db.cs_messages.insert_one({
-        "id": str(uuid.uuid4()),
-        "session_id": data.session_id,
-        "sender": "agent",
-        "agent_id": agent["id"],
-        "text": cfg["welcome"],
-        "image": "",
-        "created_at": now_iso,
-        "created_at_dt": now,
-    })
+    # 原子创建会话，避免并发/重复请求（如 StrictMode、快速双击）产生重复会话与重复欢迎语
+    res = await db.cs_sessions.update_one(
+        {"id": data.session_id},
+        {"$setOnInsert": {
+            "id": data.session_id,
+            "agent_id": agent["id"],
+            "slug": data.slug.strip(),
+            "source": (data.source or "").split("/")[0],
+            "referrer": referrer_host(data.referrer),
+            "visitor_id": data.visitor_id.strip(),
+            "ip": ip,
+            "region": geo["region"],
+            "created_at": now_iso,
+            "last_message_at": now_iso,
+            "last_activity_dt": now,
+            "last_message": cfg["welcome"][:50],
+            "unread_agent": 0,
+            "unread_visitor": 1,
+        }},
+        upsert=True,
+    )
+    if res.upserted_id is None:
+        # 并发竞争失败：会话已被另一请求创建，直接返回现有会话，不再重复插入欢迎语
+        existing = await db.cs_sessions.find_one({"id": data.session_id})
+        ag = await db.cs_agents.find_one({"id": existing.get("agent_id")}) if existing else None
+        return {"enabled": True, "session_id": data.session_id, "agent": agent_public(ag) if ag else agent_public(agent), "welcome": cfg["welcome"]}
+    # 欢迎语用确定性 id，并发 upsert 保证只有一条
+    await db.cs_messages.update_one(
+        {"id": f"welcome-{data.session_id}"},
+        {"$setOnInsert": {
+            "id": f"welcome-{data.session_id}",
+            "session_id": data.session_id,
+            "sender": "agent",
+            "agent_id": agent["id"],
+            "text": cfg["welcome"],
+            "image": "",
+            "created_at": now_iso,
+            "created_at_dt": now,
+        }},
+        upsert=True,
+    )
     return {"enabled": True, "session_id": data.session_id, "agent": agent_public(agent), "welcome": cfg["welcome"]}
 
 

@@ -1,9 +1,12 @@
+import { useEffect } from "react";
 import { Headphones } from "lucide-react";
+import axios from "axios";
 import { toast } from "sonner";
+import { API } from "@/lib/api";
 import { useSettings } from "@/lib/useSettings";
 import { trackPromoClick } from "@/lib/promoTrack";
-import { isCSEnabled, openCSWidget } from "@/lib/csWidget";
-import { CSWidget } from "@/components/CSWidget";
+import { isCSEnabled, setCSEnabled, openCSChatWindow } from "@/lib/csWidget";
+import { getSource } from "@/lib/source";
 
 const JOIN_BANNER_IMG = "https://customer-assets-v7afamib.emergentagent.net/job_corporate-web-95/artifacts/d144b05e42c9942b_image.webp";
 
@@ -20,10 +23,15 @@ export const bannerCtaForImage = (url = "") => {
   return null;
 };
 
+const slugFromPath = () => {
+  const m = window.location.pathname.match(/\/(?:p|t)\/([^/]+)/);
+  return m ? m[1] : "";
+};
+
 const openCs = (url, target) => {
   if (target) trackPromoClick(target);
-  // 已启用站内多坐席客服系统 → 打开站内聊天窗；否则回退到后台配置的外链
-  if (isCSEnabled()) { openCSWidget(); return; }
+  // 已启用站内多坐席客服系统 → 新窗口打开站内客服聊天页；否则回退到后台配置的外链
+  if (isCSEnabled()) { openCSChatWindow(slugFromPath(), getSource()); return; }
   if (!url) {
     toast.info("客服链接待配置：请在后台「客服设置 → 第三方客服链接」填写，或在「在线客服」添加坐席");
     return;
@@ -72,10 +80,14 @@ export const JoinBanner = () => (
   <PromoActionBanner img={JOIN_BANNER_IMG} alt="立即加入" cta={BANNER_CTAS["d144b05e"]} className="mt-8" />
 );
 
-// 推广页 / 工具页专用「联系客服」：跳转后台配置的第三方客服链接
+// 推广页 / 工具页专用「联系客服」：启用站内客服则新窗口打开聊天页，否则跳第三方外链
 export const PromoCustomerService = () => {
   const { chat } = useSettings();
   const url = (chat?.cs_url || "").trim();
+
+  useEffect(() => {
+    axios.get(`${API}/cs/config`).then((r) => setCSEnabled(r.data.enabled)).catch(() => setCSEnabled(false));
+  }, []);
 
   return (
     <>
@@ -99,8 +111,6 @@ export const PromoCustomerService = () => {
       >
         <Headphones size={24} />
       </button>
-
-      <CSWidget />
     </>
   );
 };
