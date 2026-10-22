@@ -1,0 +1,35 @@
+{
+  "summary": "Full backend + frontend testing for iter_11 (admin CS chat-record browser, agent workbench sound/title, FAQ unread_agent inc, status-log date-range, import_from_live ONLY_CS syntax). Backend: 16/16 pytest PASS in /app/backend/tests/test_cs_admin_chat_logs.py (3.5s on preview URL). Verified: GET /api/admin/cs/sessions requires admin JWT (401 raw, 403 with agent token); returns {sessions,total,page,size} shape; each row has agent_name/msg_total/msg_visitor/last_message_at; agent_id filter works; URL-encoded Chinese q (越南) not blocked by ingress and returns valid shape; start=not-a-date -> 400; date range 2026-01-01..2026-12-31 works; pagination size=2 page=1 vs page=2 returns disjoint id sets. GET /api/admin/cs/sessions/{id}/messages: unknown id 404; valid returns {session,agent,messages} with messages sorted asc by created_at. POST /api/cs/{sid}/faq: created session via /cs/start (with session_id in body), confirmed via /cs/agent/sessions that unread_agent >= before+1 after FAQ click. GET /api/cs/agent/status-log?start=2026-10-01&end=2026-10-21 returns {days:[]} (future range correctly empty); start=bad -> 400; GET /api/admin/cs/status-log with range+agent_id returns {days,online_now}. import_from_live.py py_compile OK and contains 'ONLY_CS' token. Frontend /cs (agent01/Pass@123): cs-wb-sound-btn toggles localStorage hy_cs_agent_sound between '1' and '0', persisted across full reload; with sound ON, sent a visitor message via /api/cs/start + /api/cs/{sid}/message and document.title became '(4) 新消息 · 客服工作台' within ~2s poll cycle. Frontend /admin (admin/Heying@2026) -> SECOND '在线客服' tab: cs-chat-logs renders, cs-chat-total='共 41 个会话', 30 rows (default size), filter cs-chat-q='越南' + cs-chat-query narrows to '共 2 个会话'; clicking cs-chat-view-<id> opens cs-chat-viewer portal modal, cs-chat-viewer-messages contains '· 欢迎语' label and visitor-side bubble, cs-chat-viewer-close closes it; cs-chat-prev/next pagination controls present (41>30). cs-status-log date filters (cs-status-start/end/agent) all present; cs-status-days-30 preset sets start=2026-09-23 end=2026-10-22 correctly. Regression /chat (390px): 4 FAQ buttons render, first FAQ click adds Q+A bubbles, text send shows 'regression hello' bubble. Home / renders '合赢项目社 | 聚力项目，合作共赢'. Agent01 brought back ONLINE at end via /api/cs/agent/status.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_cs_admin_chat_logs.py",
+    "/app/test_reports/pytest/cs_admin_chat_logs.xml"
+  ],
+  "action_items": [
+    "Pre-existing (from iter_9/10, still present): React 'Encountered two children with the same key cc61c833-24f8-4036-80d7-9db405ad4386' warning fires repeatedly in /cs CSWorkbench on each poll tick. Not visually broken but noisy. Suggested fix: dedupe sessions/messages by id (`Array.from(new Map(items.map(x=>[x.id,x])).values())`) before setState in loadSessions/loadMessages polling branches."
+  ],
+  "critical_code_review_comments": [
+    "admin_cs_sessions correctly projects {_id:0} and attaches agent_name/msg_total/msg_visitor via a single aggregation on cs_messages — no N+1. Falls back to '（已删除坐席）' when agent missing. Date range uses CN_TZ -> UTC conversion with [start_day, end_day+1) half-open on last_message_at ISO strings. Note: comparing ISO strings relies on consistent ISO format (all writes use .isoformat() on UTC datetimes, so OK).",
+    "admin_cs_session_messages projects {_id:0, created_at_dt:0} and sorts by created_at ASC — correct for chat replay. 404 on unknown session id.",
+    "cs_visitor_faq increments unread_agent by 1 (single $inc) alongside last_message_at — correct and matches /message endpoint. Verified via /cs/agent/sessions.",
+    "parse_cn_date raises HTTPException(400) on ValueError, re-used by both admin and agent status-log + sessions endpoints — consistent error contract.",
+    "CSChatLogs.jsx uses createPortal(..., document.body) with a note explaining that backdrop-filter on parent would break fixed positioning — nice defensive comment.",
+    "CSWorkbench playAlert uses WebAudio OscillatorNode (dual-tone, no asset) — safe fallback if browser blocks autoplay (wrapped in try). document.title update uses unread aggregate across sessions; soundRef guards against stale closure in polling interval.",
+    "Minor: /api/admin/cs/sessions accepts page without upper bound on skip — large page numbers will just return empty array (no error), acceptable.",
+    "No ObjectId leakage; all find/aggregate project _id:0."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_cs_admin_chat_logs.py (new, 16 cases)"
+  ],
+  "success_rate": {"backend": "100% (16/16)", "frontend": "100% (all target data-testids present and functional)"},
+  "test_credentials": "Admin admin/Heying@2026; Agent agent01/Pass@123 — both verified working on preview URL.",
+  "seed_data_creation": "Created 2 test chat sessions via API during the FAQ unread test and the UI sound-title test (session ids prefixed TEST_FAQ_* and TEST_UI_*). They now appear in admin chat logs — not deleted (auto-cleanup after 3 days per existing retention). No admin/agents/library data modified. Agent01 left ONLINE at the end as per instructions.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "iter_11 all green. Reusable regression file /app/backend/tests/test_cs_admin_chat_logs.py (16 cases, ~3.5s). Must `export $(grep -v '^#' /app/frontend/.env | xargs)` before running pytest since tests read REACT_APP_BACKEND_URL. Previous regression suites still valid: test_cs_status_qrlib.py, test_cs_faq_qr.py, test_cs_system.py. Pre-existing React duplicate-key warning in /cs still open."
+}

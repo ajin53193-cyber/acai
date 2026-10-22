@@ -280,3 +280,10 @@
 - 分配优先在线坐席，无人在线退回全部启用坐席。
 - 报表 build_status_report(days, agent_id, start, end)：按天（北京时间）首次上线/最后下线/在线分钟/时段明细；GET /cs/agent/status-log 与 /admin/cs/status-log 支持 start/end/agent_id 日期查询。
 - 工作台：上线/下线按钮、我的上下线记录弹窗（日期范围查询）；后台：坐席在线徽标 + 上下线统计（日期范围 + 坐席筛选 + 合计）。
+
+## 2026-07 更新：坐席声音提醒 + 后台聊天记录
+- 工作台：任意会话总未读上升时播放 Web Audio 双音提示（可静音，localStorage hy_cs_agent_sound），标签页标题显示 (N) 新消息。
+- 后台：GET /admin/cs/sessions（agent_id/start/end/q/分页）+ GET /admin/cs/sessions/{id}/messages；CSChatLogs.jsx 列表 + 对话弹窗（createPortal 到 body，规避 glass-card backdrop-filter 使 fixed 失效）。
+- 访客点常见问题自动回复时 unread_agent +1，坐席端出红点。
+- import_from_live.py 支持 ONLY_CS=1 仅同步客服配置与话术库。
+- 测试：iteration_11 全部通过（后端 16/16，前端流程通过）。
