@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import axios from "axios";
 import { motion, AnimatePresence } from "framer-motion";
-import { Send, Paperclip, Volume2, VolumeX, Lock } from "lucide-react";
+import { Send, Paperclip, Volume2, VolumeX, Lock, MessageCircle, X, Info } from "lucide-react";
 import { API } from "@/lib/api";
 import { toFullUrl } from "@/components/ImageUpload";
 import { getVisitorId } from "@/lib/source";
@@ -117,43 +117,43 @@ export default function VisitorChat() {
   };
 
   return (
-    <div className="flex h-[100dvh] flex-col bg-[#eef4fc]" data-testid="visitor-chat">
-      {/* 玻璃拟态头部 */}
-      <header className="flex items-center gap-3 border-b border-blue-200/50 bg-white/90 px-5 py-3.5 backdrop-blur-md shadow-[0_6px_22px_-16px_rgba(59,130,246,0.5)]">
-        <div className="relative">
-          {agent?.avatar ? (
-            <img src={toFullUrl(agent.avatar)} alt={agent.name} className="h-11 w-11 rounded-full object-cover ring-2 ring-blue-300/70 shadow" />
-          ) : (
-            <div className="flex h-11 w-11 items-center justify-center rounded-full bg-gradient-to-br from-sky-400 to-blue-500 text-sm font-bold text-white shadow">客服</div>
-          )}
-          <span className="cs-online-dot absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-white bg-green-500" />
+    <div className="flex h-[100dvh] flex-col bg-white" data-testid="visitor-chat">
+      {/* 顶部蓝色条 */}
+      <header className="flex items-center justify-between bg-gradient-to-r from-[#4a9fe8] to-[#3b8ede] px-4 py-3 text-white shadow-md">
+        <div className="flex items-center gap-2">
+          <MessageCircle size={18} className="shrink-0" />
+          <span className="text-[15px] font-bold tracking-wide" data-testid="visitor-chat-agent">在线聊天</span>
         </div>
-        <div className="min-w-0 flex-1">
-          <div className="truncate text-base font-bold text-slate-800" data-testid="visitor-chat-agent">{agent?.name || "在线客服"}</div>
-          <div className="flex items-center gap-1 text-xs text-green-600"><span className="inline-block h-1.5 w-1.5 rounded-full bg-green-500" /> 在线为您服务</div>
-        </div>
-        <div className="hidden items-center gap-1.5 rounded-full bg-blue-50 px-3 py-1.5 text-[11px] font-medium text-blue-600 ring-1 ring-blue-100 sm:flex">
-          <Lock size={12} /> 安全加密
-        </div>
+        <button onClick={() => { try { window.close(); } catch { /* ignore */ } }} aria-label="关闭" data-testid="visitor-chat-close" className="flex h-7 w-7 items-center justify-center rounded-full text-white/90 transition-colors hover:bg-white/20"><X size={18} /></button>
       </header>
 
       {!enabled ? (
         <div className="flex flex-1 items-center justify-center px-6 text-center text-sm text-slate-500">客服暂时不在线，请稍后再试。</div>
       ) : (
         <>
-          <div className="cs-scroll-light mx-auto w-full max-w-2xl flex-1 space-y-4 overflow-y-auto px-4 py-6" data-testid="visitor-chat-messages">
-            {messages.length === 0 && (
-              <div className="mt-10 text-center">
-                <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-sky-400 to-blue-500 text-white shadow-lg">
-                  <Lock size={24} />
-                </div>
-                <p className="text-sm font-medium text-slate-600">您好，欢迎咨询合赢项目社</p>
-                <p className="mt-1 text-xs text-slate-400">请描述您的需求，我们将第一时间为您服务</p>
-              </div>
-            )}
+          <div className="cs-scroll-light mx-auto w-full max-w-2xl flex-1 space-y-4 overflow-y-auto px-4 py-5" data-testid="visitor-chat-messages">
             <AnimatePresence initial={false}>
               {messages.map((m) => {
                 const isVisitor = m.sender === "visitor";
+                const isWelcome = String(m.id).startsWith("welcome-");
+                if (isWelcome) {
+                  return (
+                    <motion.div
+                      key={m.id}
+                      initial={{ opacity: 0, y: 12 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.4 }}
+                      className="w-full"
+                      data-testid="visitor-chat-welcome"
+                    >
+                      <div className="mb-1.5 flex items-center gap-1.5 text-xs text-slate-400">
+                        <Info size={14} className="text-[#4a9fe8]" />
+                        <span>{timeShort(m.created_at)}</span>
+                      </div>
+                      <div className="whitespace-pre-wrap break-words text-[15px] leading-7 text-slate-700">{m.text}</div>
+                    </motion.div>
+                  );
+                }
                 return (
                   <motion.div
                     key={m.id}

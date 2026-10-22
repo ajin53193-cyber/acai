@@ -253,3 +253,10 @@
 - 工作台 CSWorkbench.jsx：米白色暖色调（底色 #f6f2e9，侧栏 #fbf9f3，聊天区 #faf8f2，白卡+金色#D4AF37点缀）。三栏(会话列表/聊天/快捷回复)保留；登录页米白卡；会话未读红点脉冲动画；消息 framer-motion 弹入+时间戳；在线状态脉冲点；自定义浅色滚动条。
 - index.css 新增工具类：cs-scroll-light/cs-scroll-dark(滚动条)、cs-light-bg(金色点阵底纹)、cs-online-dot(在线脉冲)、cs-glass-light(浅色玻璃)。
 - 所有 data-testid 保留；轮询/乐观消息去重逻辑完全未改；后端未改。测试代理 iteration_8 验证双向聊天/去重/快捷回复/图片按钮全通过、零控制台错误。
+
+## 2026-07-22 客服访客页改为「在线聊天」模版（参照用户提供样式）
+- 顶部蓝色条：💬图标+「在线聊天」标题（左），关闭✕（右，window.close()）。替换原客服头像头部。data-testid=visitor-chat-close。
+- 欢迎语改为公告式：检测 message.id 以 "welcome-" 开头的那条，渲染为 ⓘ图标+时间+多行富文本（whitespace-pre-wrap 保留换行与表情），全宽无气泡，data-testid=visitor-chat-welcome。其余消息仍为常规气泡。
+- 页面底色改白；手机 OS 状态栏(theme-color)在客服页动态设浅色(访客#ffffff/工作台#f6f2e9)，离开恢复黑金。
+- 后端 CSConfigInput.welcome max_length 500→1000（支持长促销文案）；后台「在线客服」欢迎语输入框 rows 2→6。
+- 管理员在后台「在线客服→欢迎语」粘贴长文案（表情/换行）即可呈现参照图效果。无其它后端改动。

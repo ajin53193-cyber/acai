@@ -96,8 +96,8 @@ export default function CSAdmin({ token, onUnauthorized }) {
             <button data-testid="cs-config-enabled" onClick={() => setCfg({ ...cfg, enabled: !cfg.enabled })} className={`relative h-7 w-12 rounded-full transition-colors ${cfg.enabled ? "bg-gold-gradient" : "bg-slate-700"}`}><span className={`absolute top-1 h-5 w-5 rounded-full bg-white transition-all ${cfg.enabled ? "left-6" : "left-1"}`} /></button>
           </div>
         </div>
-        <label className="mb-1.5 block text-xs tracking-widest text-slate-400">欢迎语（访客打开聊天窗自动发送）</label>
-        <textarea data-testid="cs-config-welcome" rows={2} value={cfg.welcome} onChange={(e) => setCfg({ ...cfg, welcome: e.target.value })} className={inputCls} />
+        <label className="mb-1.5 block text-xs tracking-widest text-slate-400">欢迎语（访客打开聊天窗自动发送，支持换行与表情）</label>
+        <textarea data-testid="cs-config-welcome" rows={6} value={cfg.welcome} onChange={(e) => setCfg({ ...cfg, welcome: e.target.value })} className={inputCls} />
         <button onClick={saveCfg} data-testid="cs-config-save" className="mt-3 rounded-xl bg-[#D4AF37]/20 px-5 py-2.5 text-sm font-bold text-[#E5C158] hover:bg-[#D4AF37]/30">保存设置</button>
         <p className="mt-3 text-xs text-slate-600">坐席工作台地址：<span className="text-[#E5C158]">你的域名/cs</span>（坐席用下方分配的账号密码登录）。快捷回复由每位坐席在工作台里自行添加。</p>
       </div>

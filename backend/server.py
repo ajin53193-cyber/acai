@@ -2497,7 +2497,7 @@ class CSAgentInput(BaseModel):
 
 
 class CSConfigInput(BaseModel):
-    welcome: str = Field(default="您好，很高兴为您服务，请问有什么可以帮您？", max_length=500)
+    welcome: str = Field(default="您好，很高兴为您服务，请问有什么可以帮您？", max_length=1000)
     enabled: bool = True
 
 
