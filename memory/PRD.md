@@ -270,3 +270,7 @@
 - 后台「在线客服（坐席）」设置新增常见问题编辑（问题≤100字、答案≤1000字、最多 20 条），存于 cs_config.faqs。
 - 访客聊天窗欢迎语下方显示常见问题列表，点击后 POST /api/cs/{sid}/faq 写入一条访客提问 + 一条自动回复（via=faq），坐席端同步可见。
 - 聊天窗顶栏改为蓝色并显示分配坐席头像与名称；去掉左右/底部蓝边。
+
+## 2026-07 更新：快捷回复话术库（分组 + 图片 + 坐席可添加）
+- 集合 cs_quick_replies {id, group, text, image, created_by?, created_by_name?, created_at}。后台 /admin/cs/quick-replies CRUD + 分组重命名；坐席 GET/POST/DELETE(仅自己添加的) /cs/agent/quick-replies。
+- 坐席旧的个人 quick_replies 首次加载时自动迁入分组「我的常用语」。工作台右侧为统一分组话术面板，可添加文本/图片话术，点一下即发送（图片与文本分两条）。

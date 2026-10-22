@@ -1,0 +1,33 @@
+{
+  "summary": "Full backend + frontend testing for iter_9 new features: visitor FAQ list under welcome, admin FAQ editor + QR library CRUD, agent QR library in /cs workbench. Backend: 15/15 pytest cases PASS (CS config faqs CRUD + validation, cs/start returns faqs, visitor /faq endpoint ok/404s, admin QR library auth-required list/create/update/delete, group rename cascades, empty text+image rejected 400, agent sees same list). Frontend: visitor /chat on 390px shows header avatar+agent name, FAQ block with 3 buttons under welcome, clicking FAQ 0 produces visitor question + agent answer bubbles, send text works, send button fully inside viewport (no horizontal overflow). Admin -> second 在线客服 tab: FAQ editor add/save/delete persists, QR library add form opens, item creation shows in group tab, group tab + delete work. /cs workbench: agent login ok, cs-qr-library shows 3 groups + 2 items, clicking item appends into chat (text pane length grew), personal cs-quick-replies panel present. Regression: visitor->agent messaging works via polling.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_cs_faq_qr.py",
+    "/app/test_reports/pytest/cs_faq_qr.xml"
+  ],
+  "action_items": [
+    "React warning in /cs workbench console: 'Encountered two children with the same key cc61c833-24f8-4036-80d7-9db405ad4386' repeats on every poll tick. Key UUID looks like a message id (not welcome- prefixed). Likely a dedupe miss in CSWorkbench messages polling (or session list) when the same message/session is returned twice by the API. Not visually broken, no duplicate bubbles observed, but worth hardening the dedupe-by-id or using a composite key (`${m.id}-${idx}`) to silence the warning."
+  ],
+  "critical_code_review_comments": [
+    "Backend models/endpoints clean: QRLibraryInput enforces at least one of text/image (400), group rename returns {ok,updated}, admin GET returns {replies:[...]} wrapper while agent GET returns the same wrapper — consistent.",
+    "FAQ pydantic constraints (max_length 20 FAQ, q<=100, a<=1000) validated and 422 returned correctly for overflow.",
+    "cs_visitor_faq correctly 404s on both unknown session and out-of-range index.",
+    "Admin endpoints protected by require_admin (401 without token verified).",
+    "Minor: GET /api/admin/cs/quick-replies and /api/cs/agent/quick-replies wrap list under 'replies' key — frontend code needs to match; test confirmed both agents and admin see identical list."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_cs_faq_qr.py (new)"
+  ],
+  "success_rate": {"backend": "100% (15/15)", "frontend": "100% (all target data-testids present, flows pass)"},
+  "test_credentials": "Admin admin/Heying@2026; Agent agent01/Pass@123 (both verified working)",
+  "seed_data_creation": "No persistent test data. Created ephemeral TEST_ FAQs/QR items and deleted them within same run. Preserved seeded 3 FAQs + 2 QR items (groups 欢迎语/项目介绍) as instructed.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "All iter_9 features working end-to-end on preview URL. Only observation: React duplicate-key warning on /cs during message polling (uuid cc61c833-...), likely a session/message list dedupe gap in CSWorkbench.jsx — cosmetic console-only, no functional impact. Backend pytest file at /app/backend/tests/test_cs_faq_qr.py is reusable regression (15 cases, 5s runtime). Must set REACT_APP_BACKEND_URL env before running pytest.",
+  "rca of the issue": "React key warning root cause (unverified, hypothesis): CSWorkbench.jsx uses `key={s.id}` for sessions and `key={m.id}` for messages. If a 2s poll pushes the same message/session object into state twice without a Set-dedupe by id, React logs the dup-key warning. Mitigation: in the polling merge logic, filter new items by `!existing.some(x=>x.id===new.id)` before append, or use `Array.from(new Map(all.map(m=>[m.id,m])).values())`."
+}

@@ -2916,8 +2916,35 @@ async def admin_qr_delete(qr_id: str, _: str = Depends(require_admin)):
 
 
 @api_router.get("/cs/agent/quick-replies")
-async def cs_agent_qr_library(_: dict = Depends(require_agent)):
-    return {"replies": await qr_library_list()}
+async def cs_agent_qr_library(agent: dict = Depends(require_agent)):
+    # 一次性迁移：坐席旧的个人常用语并入话术库（分组「我的常用语」），之后统一在话术库维护
+    old = [t for t in agent.get("quick_replies", []) if isinstance(t, str) and t.strip()]
+    if old:
+        now = datetime.now(timezone.utc).isoformat()
+        await db.cs_quick_replies.insert_many([
+            {"id": str(uuid.uuid4()), "group": "我的常用语", "text": t.strip(), "image": "", "created_by": agent["id"], "created_by_name": agent.get("name", ""), "created_at": now}
+            for t in old
+        ])
+        await db.cs_agents.update_one({"id": agent["id"]}, {"$set": {"quick_replies": []}})
+    return {"replies": await qr_library_list(), "me": agent["id"]}
+
+
+@api_router.post("/cs/agent/quick-replies", status_code=201)
+async def cs_agent_qr_create(data: QRLibraryInput, agent: dict = Depends(require_agent)):
+    """坐席在工作台添加话术（进入共享话术库，记录创建人）"""
+    doc = {"id": str(uuid.uuid4()), **qr_clean(data), "created_by": agent["id"], "created_by_name": agent.get("name", ""), "created_at": datetime.now(timezone.utc).isoformat()}
+    await db.cs_quick_replies.insert_one(doc)
+    doc.pop("_id", None)
+    return doc
+
+
+@api_router.delete("/cs/agent/quick-replies/{qr_id}")
+async def cs_agent_qr_delete(qr_id: str, agent: dict = Depends(require_agent)):
+    """坐席只能删除自己添加的话术，后台添加的由管理员维护"""
+    res = await db.cs_quick_replies.delete_one({"id": qr_id, "created_by": agent["id"]})
+    if res.deleted_count == 0:
+        raise HTTPException(status_code=403, detail="只能删除自己添加的话术")
+    return {"ok": True}
 
 
 @api_router.get("/admin/cs/stats")

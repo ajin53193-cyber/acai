@@ -106,6 +106,7 @@ export default function CSQuickReplies({ token }) {
               {r.image && <a href={toFullUrl(r.image)} target="_blank" rel="noreferrer" className="shrink-0"><img src={toFullUrl(r.image)} alt="" className="h-16 w-16 rounded-lg object-cover ring-1 ring-[#D4AF37]/30" /></a>}
               <div className="min-w-0 flex-1">
                 <span className="mb-1 inline-block rounded-md bg-[#D4AF37]/15 px-2 py-0.5 text-[10px] font-bold text-[#E5C158]">{r.group}</span>
+                {r.created_by_name && <span className="ml-1.5 text-[10px] text-slate-500">坐席「{r.created_by_name}」添加</span>}
                 <p className="line-clamp-3 whitespace-pre-wrap break-words text-sm text-slate-300">{r.text || <span className="italic text-slate-500">（仅图片）</span>}</p>
               </div>
               <div className="flex shrink-0 flex-col gap-1">

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import axios from "axios";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
-import { Send, LogOut, Plus, Trash2, Headphones, MessageSquare, ImagePlus, Zap } from "lucide-react";
+import { Send, LogOut, Plus, Trash2, Headphones, MessageSquare, ImagePlus, Zap, X } from "lucide-react";
 import { API, formatDetail } from "@/lib/api";
 import { toFullUrl } from "@/components/ImageUpload";
 
@@ -46,63 +46,82 @@ function Login({ onLogin }) {
   );
 }
 
-function QRLibrary({ token, onSend }) {
-  const [list, setList] = useState([]);
-  const [group, setGroup] = useState("全部");
-  useEffect(() => {
-    const headers = { Authorization: `Bearer ${token}` };
-    const load = () => axios.get(`${API}/cs/agent/quick-replies`, { headers }).then((r) => setList(r.data.replies || [])).catch(() => {});
-    load();
-    const t = setInterval(load, 60000); // 后台改了话术，坐席端一分钟内同步
-    return () => clearInterval(t);
-  }, [token]);
-  if (list.length === 0) return null;
-  const groups = [...new Set(list.map((r) => r.group))];
-  const shown = group === "全部" ? list : list.filter((r) => r.group === group);
+function QRAddForm({ token, groups, defaultGroup, onSaved, onClose }) {
+  const [group, setGroup] = useState(defaultGroup || "我的常用语");
+  const [text, setText] = useState("");
+  const [image, setImage] = useState("");
+  const [busy, setBusy] = useState(false);
+  const fileRef = useRef(null);
+  const headers = { Authorization: `Bearer ${token}` };
+  const upload = async (e) => {
+    const file = e.target.files?.[0]; e.target.value = "";
+    if (!file) return;
+    setBusy(true);
+    try { const fd = new FormData(); fd.append("file", file); const up = await axios.post(`${API}/cs/agent/upload`, fd, { headers }); setImage(up.data.url); }
+    catch { toast.error("图片上传失败"); } finally { setBusy(false); }
+  };
+  const save = async () => {
+    if (!text.trim() && !image) return toast.error("话术文本和图片至少填写一项");
+    setBusy(true);
+    try { await axios.post(`${API}/cs/agent/quick-replies`, { group: group.trim() || "我的常用语", text, image }, { headers }); toast.success("话术已添加"); onSaved(); onClose(); }
+    catch (err) { toast.error(formatDetail(err.response?.data?.detail) || "添加失败"); } finally { setBusy(false); }
+  };
   return (
-    <div className="mb-5" data-testid="cs-qr-library">
-      <div className="mb-2 flex items-center gap-1.5 text-xs font-semibold tracking-widest text-[#9a7a16]"><Zap size={13} /> 话术库（点一下即发送）</div>
-      <div className="mb-2 flex flex-wrap gap-1.5">
-        {["全部", ...groups].map((g) => (
-          <button key={g} onClick={() => setGroup(g)} data-testid={`cs-qrlib-group-${g}`} className={`rounded-full px-2.5 py-1 text-[11px] transition-colors ${group === g ? "bg-[#D4AF37]/25 text-[#9a7a16] ring-1 ring-[#D4AF37]/40" : "bg-amber-900/5 text-slate-500 hover:bg-amber-900/10"}`}>{g}</button>
-        ))}
+    <div className="mb-3 rounded-xl border border-[#D4AF37]/40 bg-white p-3 shadow-sm" data-testid="cs-qrlib-form">
+      <input list="cs-qrlib-groups" data-testid="cs-qrlib-form-group" maxLength={30} value={group} onChange={(e) => setGroup(e.target.value)} placeholder="分组（可输入新分组名）" className="mb-2 w-full rounded-lg border border-amber-900/15 bg-[#faf8f2] px-3 py-2 text-sm text-slate-700 outline-none focus:border-[#D4AF37]" />
+      <datalist id="cs-qrlib-groups">{groups.map((g) => <option key={g} value={g} />)}</datalist>
+      <textarea data-testid="cs-qrlib-form-text" rows={3} maxLength={1000} value={text} onChange={(e) => setText(e.target.value)} placeholder="话术文本（支持换行）" className="mb-2 w-full rounded-lg border border-amber-900/15 bg-[#faf8f2] px-3 py-2 text-sm text-slate-700 outline-none focus:border-[#D4AF37]" />
+      <div className="mb-2 flex items-center gap-2">
+        <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={upload} data-testid="cs-qrlib-form-file" />
+        <button onClick={() => fileRef.current?.click()} disabled={busy} data-testid="cs-qrlib-form-image-btn" className="flex items-center gap-1 rounded-lg border border-amber-900/15 px-2.5 py-1.5 text-xs text-slate-500 hover:border-[#D4AF37] hover:text-[#9a7a16] disabled:opacity-50"><ImagePlus size={13} /> {image ? "更换图片" : "添加图片"}</button>
+        {image && <div className="relative"><img src={toFullUrl(image)} alt="" className="h-9 w-9 rounded-lg object-cover ring-1 ring-amber-900/10" /><button onClick={() => setImage("")} className="absolute -right-1.5 -top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-slate-500 text-white"><X size={10} /></button></div>}
       </div>
-      <div className="space-y-2">
-        {shown.map((r) => (
-          <button key={r.id} onClick={() => onSend(r)} data-testid={`cs-qrlib-${r.id}`} className="flex w-full items-start gap-2 rounded-xl border border-amber-900/10 bg-white p-2.5 text-left text-sm text-slate-600 shadow-sm transition-colors hover:border-[#D4AF37]/50 hover:text-[#9a7a16]">
-            {r.image && <img src={toFullUrl(r.image)} alt="" className="h-10 w-10 shrink-0 rounded-lg object-cover ring-1 ring-amber-900/10" />}
-            <span className="line-clamp-3 min-w-0 flex-1 whitespace-pre-wrap break-words leading-relaxed">{r.text || <span className="italic text-slate-400">[图片]</span>}</span>
-          </button>
-        ))}
+      <div className="flex justify-end gap-2">
+        <button onClick={onClose} className="rounded-lg px-3 py-1.5 text-xs text-slate-400 hover:text-slate-600">取消</button>
+        <button onClick={save} disabled={busy} data-testid="cs-qrlib-form-save" className="rounded-lg bg-gradient-to-r from-[#D4AF37] to-[#FFE896] px-4 py-1.5 text-xs font-bold text-[#1B1403] disabled:opacity-50">{busy ? "保存中…" : "保存"}</button>
       </div>
     </div>
   );
 }
 
-function QuickReplies({ token, initial, onInsert }) {
-  const [replies, setReplies] = useState(initial || []);
-  const [draft, setDraft] = useState("");
+function QRLibrary({ token, onSend }) {
+  const [list, setList] = useState([]);
+  const [me, setMe] = useState("");
+  const [group, setGroup] = useState("全部");
+  const [adding, setAdding] = useState(false);
   const headers = { Authorization: `Bearer ${token}` };
-  const save = async (list) => {
-    setReplies(list);
-    try { await axios.put(`${API}/cs/agent/quick-replies`, { replies: list }, { headers }); } catch { toast.error("保存失败"); }
+  const load = useCallback(() => axios.get(`${API}/cs/agent/quick-replies`, { headers }).then((r) => { setList(r.data.replies || []); setMe(r.data.me || ""); }).catch(() => {}), [token]); // eslint-disable-line
+  useEffect(() => { load(); const t = setInterval(load, 60000); return () => clearInterval(t); }, [load]); // 后台改了话术，坐席端一分钟内同步
+  const groups = [...new Set(list.map((r) => r.group))];
+  const shown = group === "全部" ? list : list.filter((r) => r.group === group);
+  const del = async (id) => {
+    if (!window.confirm("确定删除这条话术？")) return;
+    try { await axios.delete(`${API}/cs/agent/quick-replies/${id}`, { headers }); load(); }
+    catch (err) { toast.error(formatDetail(err.response?.data?.detail) || "删除失败"); }
   };
-  const add = () => { const t = draft.trim(); if (!t) return; save([...replies, t]); setDraft(""); };
   return (
-    <div data-testid="cs-quick-replies">
-      <div className="mb-3 flex items-center gap-1.5 text-xs font-semibold tracking-widest text-[#9a7a16]"><Zap size={13} /> 我的常用语（点一下即发送）</div>
+    <div data-testid="cs-qr-library">
+      <div className="mb-2 flex items-center justify-between">
+        <div className="flex items-center gap-1.5 text-xs font-semibold tracking-widest text-[#9a7a16]"><Zap size={13} /> 快捷回复（点一下即发送）</div>
+        <button onClick={() => setAdding((v) => !v)} data-testid="cs-qrlib-add" aria-label="添加话术" className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#D4AF37]/20 text-[#9a7a16] transition-colors hover:bg-[#D4AF37]/35"><Plus size={15} /></button>
+      </div>
+      <div className="mb-2 flex flex-wrap gap-1.5" data-testid="cs-qrlib-groups">
+        {["全部", ...groups].map((g) => (
+          <button key={g} onClick={() => setGroup(g)} data-testid={`cs-qrlib-group-${g}`} className={`rounded-full px-2.5 py-1 text-[11px] transition-colors ${group === g ? "bg-[#D4AF37]/25 text-[#9a7a16] ring-1 ring-[#D4AF37]/40" : "bg-amber-900/5 text-slate-500 hover:bg-amber-900/10"}`}>{g}</button>
+        ))}
+      </div>
+      {adding && <QRAddForm token={token} groups={groups} defaultGroup={group === "全部" ? "我的常用语" : group} onSaved={load} onClose={() => setAdding(false)} />}
       <div className="space-y-2">
-        {replies.map((r, i) => (
-          <div key={i} className="group flex items-start gap-2 rounded-xl border border-amber-900/10 bg-white p-2.5 text-sm text-slate-600 shadow-sm transition-colors hover:border-[#D4AF37]/50">
-            <button onClick={() => onInsert(r)} data-testid={`cs-qr-${i}`} className="flex-1 text-left leading-relaxed transition-colors hover:text-[#9a7a16]">{r}</button>
-            <button onClick={() => save(replies.filter((_, idx) => idx !== i))} className="shrink-0 text-slate-300 transition-colors hover:text-red-400"><Trash2 size={14} /></button>
+        {shown.length === 0 && <div className="rounded-xl border border-dashed border-amber-900/15 px-3 py-4 text-center text-xs text-slate-400">暂无话术，点右上角 + 添加</div>}
+        {shown.map((r) => (
+          <div key={r.id} className="group flex items-start gap-2 rounded-xl border border-amber-900/10 bg-white p-2.5 text-sm text-slate-600 shadow-sm transition-colors hover:border-[#D4AF37]/50">
+            <button onClick={() => onSend(r)} data-testid={`cs-qrlib-${r.id}`} className="flex min-w-0 flex-1 items-start gap-2 text-left transition-colors hover:text-[#9a7a16]">
+              {r.image && <img src={toFullUrl(r.image)} alt="" className="h-10 w-10 shrink-0 rounded-lg object-cover ring-1 ring-amber-900/10" />}
+              <span className="line-clamp-3 min-w-0 flex-1 whitespace-pre-wrap break-words leading-relaxed">{r.text || <span className="italic text-slate-400">[图片]</span>}</span>
+            </button>
+            {r.created_by === me && <button onClick={() => del(r.id)} data-testid={`cs-qrlib-del-${r.id}`} aria-label="删除" className="shrink-0 text-slate-300 transition-colors hover:text-red-400"><Trash2 size={14} /></button>}
           </div>
         ))}
-        {replies.length === 0 && <div className="rounded-xl border border-dashed border-amber-900/15 px-3 py-4 text-center text-xs text-slate-400">暂无常用语，添加后一键发送</div>}
-      </div>
-      <div className="mt-3 flex gap-2">
-        <input data-testid="cs-qr-input" value={draft} onChange={(e) => setDraft(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") add(); }} placeholder="添加常用语…" className="flex-1 rounded-lg border border-amber-900/15 bg-[#faf8f2] px-3 py-2 text-sm text-slate-700 outline-none transition-colors focus:border-[#D4AF37]" />
-        <button onClick={add} data-testid="cs-qr-add" className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#D4AF37]/20 text-[#9a7a16] transition-colors hover:bg-[#D4AF37]/35"><Plus size={16} /></button>
       </div>
     </div>
   );
@@ -284,7 +303,6 @@ function Workbench({ token, onLogout }) {
       {/* 快捷回复 */}
       <aside className="cs-scroll-light hidden w-72 shrink-0 overflow-y-auto border-l border-amber-900/10 bg-[#fbf9f3] p-4 lg:block">
         {me && <QRLibrary token={token} onSend={sendLibrary} />}
-        {me && <QuickReplies token={token} initial={me.quick_replies} onInsert={(t) => (active ? send(t) : toast.info("请先选择一个会话"))} />}
       </aside>
     </div>
   );
