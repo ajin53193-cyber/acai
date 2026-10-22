@@ -2,12 +2,29 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import axios from "axios";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
-import { Send, LogOut, Plus, Trash2, Headphones, MessageSquare, ImagePlus, Zap, X, Power, Clock } from "lucide-react";
+import { Send, LogOut, Plus, Trash2, Headphones, MessageSquare, ImagePlus, Zap, X, Power, Clock, Volume2, VolumeX } from "lucide-react";
 import { API, formatDetail } from "@/lib/api";
 import { toFullUrl } from "@/components/ImageUpload";
 import { StatusLogTable } from "@/components/StatusLogTable";
 
 const TOKEN_KEY = "hy_cs_agent_token";
+const SOUND_KEY = "hy_cs_agent_sound";
+
+// 新消息提示音（Web Audio 双音，无需音频文件）
+let _ac = null;
+const playAlert = () => {
+  try {
+    _ac = _ac || new (window.AudioContext || window.webkitAudioContext)();
+    if (_ac.state === "suspended") _ac.resume();
+    [[660, 0], [990, 0.14]].forEach(([f, d]) => {
+      const o = _ac.createOscillator(); const g = _ac.createGain();
+      o.connect(g); g.connect(_ac.destination); o.type = "sine"; o.frequency.value = f;
+      const t = _ac.currentTime + d;
+      g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.22, t + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.28);
+      o.start(t); o.stop(t + 0.3);
+    });
+  } catch { /* ignore */ }
+};
 const timeShort = (iso) => { try { return new Date(iso).toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit" }); } catch { return ""; } };
 
 function Login({ onLogin }) {
@@ -164,6 +181,10 @@ function Workbench({ token, onLogout }) {
   const [me, setMe] = useState(null);
   const [online, setOnline] = useState(false);
   const [showLog, setShowLog] = useState(false);
+  const [soundOn, setSoundOn] = useState(() => localStorage.getItem(SOUND_KEY) !== "0");
+  const soundRef = useRef(soundOn);
+  const unreadRef = useRef(null); // 上一次轮询的总未读数，null 表示首次
+  useEffect(() => { soundRef.current = soundOn; localStorage.setItem(SOUND_KEY, soundOn ? "1" : "0"); }, [soundOn]);
   const [sessions, setSessions] = useState([]);
   const [active, setActive] = useState(null);
   const [messages, setMessages] = useState([]);
@@ -183,7 +204,17 @@ function Workbench({ token, onLogout }) {
   };
 
   const loadSessions = useCallback(async () => {
-    try { const r = await axios.get(`${API}/cs/agent/sessions`, { headers }); setSessions(r.data.sessions || []); if (typeof r.data.online === "boolean") setOnline(r.data.online); }
+    try {
+      const r = await axios.get(`${API}/cs/agent/sessions`, { headers });
+      const list = r.data.sessions || [];
+      setSessions(list);
+      if (typeof r.data.online === "boolean") setOnline(r.data.online);
+      // 任意会话有新的访客消息（总未读数上升）→ 响铃 + 标题提示
+      const unread = list.reduce((a, s) => a + (s.unread_agent || 0), 0);
+      if (unreadRef.current !== null && unread > unreadRef.current && soundRef.current) playAlert();
+      unreadRef.current = unread;
+      document.title = unread > 0 ? `(${unread}) 新消息 · 客服工作台` : "客服工作台 | 合赢项目社";
+    }
     catch (e) { if (e.response?.status === 401) onLogout(); }
     // eslint-disable-next-line
   }, []);
@@ -272,6 +303,7 @@ function Workbench({ token, onLogout }) {
             </div>
           </div>
           <div className="flex items-center gap-1">
+            <button onClick={() => { setSoundOn((v) => !v); if (!soundOn) playAlert(); }} data-testid="cs-wb-sound-btn" title={soundOn ? "新消息提示音：开（点击静音）" : "新消息提示音：关（点击开启）"} className={`rounded-lg p-1.5 transition-colors hover:bg-amber-900/5 ${soundOn ? "text-[#9a7a16]" : "text-slate-300"}`}>{soundOn ? <Volume2 size={15} /> : <VolumeX size={15} />}</button>
             <button onClick={() => setShowLog(true)} data-testid="cs-wb-log-btn" title="我的上下线记录" className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-amber-900/5 hover:text-[#9a7a16]"><Clock size={15} /></button>
             <button onClick={onLogout} data-testid="cs-wb-logout" className="rounded-lg p-1.5 text-slate-400 transition-colors hover:text-red-500"><LogOut size={15} /></button>
           </div>

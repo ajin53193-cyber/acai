@@ -5,6 +5,7 @@ import { Plus, Pencil, Trash2, Save, Users, X, Clock } from "lucide-react";
 import { API, formatDetail } from "@/lib/api";
 import { ImageUpload } from "@/components/ImageUpload";
 import CSQuickReplies from "@/pages/admin/CSQuickReplies";
+import CSChatLogs from "@/pages/admin/CSChatLogs";
 import { StatusLogTable } from "@/components/StatusLogTable";
 
 const emptyAgent = { name: "", avatar: "", username: "", password: "", weight: 1, enabled: true, remark: "" };
@@ -209,6 +210,9 @@ export default function CSAdmin({ token, onUnauthorized }) {
 
       {/* 坐席上下线统计 */}
       <StatusLogSection token={token} agents={agents} />
+
+      {/* 坐席聊天记录 */}
+      <CSChatLogs token={token} agents={agents} />
 
       {formOpen && <AgentForm token={token} editing={editing} onClose={() => setFormOpen(false)} onSaved={() => { setFormOpen(false); load(); }} />}
     </div>
