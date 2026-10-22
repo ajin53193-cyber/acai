@@ -300,3 +300,5 @@
 - cs_config 新增 offline_enabled / offline_reply(≤2000) / offline_image；默认文案为蝙蝠进群教程。后台「在线客服」设置可编辑 + 上传群二维码。
 - maybe_send_offline_reply：无任何坐席在线时，新会话（欢迎语后）及访客发消息时自动发送（via=offline），同一会话 6 小时冷却。
 - 访客端 /messages 返回 online，顶栏显示「客服暂时不在线 · 留言会尽快回复」+ 灰点。
+
+- 离线回复随附站内教程卡片：cs_config.offline_tutorial（默认 join-group），消息带 link{url,title,desc,cover}，访客端渲染为可点击卡片；后台可选择教程或不发送。

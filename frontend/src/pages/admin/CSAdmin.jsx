@@ -107,7 +107,9 @@ function StatusLogSection({ token, agents }) {
 export default function CSAdmin({ token, onUnauthorized }) {
   const [agents, setAgents] = useState([]);
   const [stats, setStats] = useState([]);
-  const [cfg, setCfg] = useState({ welcome: "", enabled: true, faqs: [], offline_enabled: true, offline_reply: "", offline_image: "" });
+  const [cfg, setCfg] = useState({ welcome: "", enabled: true, faqs: [], offline_enabled: true, offline_reply: "", offline_image: "", offline_tutorial: "join-group" });
+  const [tutorials, setTutorials] = useState([]);
+  useEffect(() => { axios.get(`${API}/tutorials`).then((r) => setTutorials(r.data.tutorials || [])).catch(() => {}); }, []);
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState(null);
   const headers = { Authorization: `Bearer ${token}` };
@@ -163,6 +165,11 @@ export default function CSAdmin({ token, onUnauthorized }) {
           <div className="grid gap-4 md:grid-cols-[1fr_200px]">
             <textarea data-testid="cs-offline-reply" rows={9} maxLength={2000} value={cfg.offline_reply || ""} onChange={(e) => setCfg({ ...cfg, offline_reply: e.target.value })} className={inputCls} placeholder="离线自动回复内容，例如蝙蝠进群教程" />
             <div>
+              <label className="mb-1.5 block text-xs tracking-widest text-slate-400">随附站内教程（以卡片发送）</label>
+              <select data-testid="cs-offline-tutorial" value={cfg.offline_tutorial ?? "join-group"} onChange={(e) => setCfg({ ...cfg, offline_tutorial: e.target.value })} className={`${inputCls} mb-4`}>
+                <option value="">不发送教程</option>
+                {tutorials.map((t) => <option key={t.slug} value={t.slug}>{t.title}（/tutorials/{t.slug}）</option>)}
+              </select>
               <label className="mb-1.5 block text-xs tracking-widest text-slate-400">群二维码 / 教程图片（可选）</label>
               <ImageUpload token={token} value={cfg.offline_image || ""} onChange={(url) => setCfg({ ...cfg, offline_image: url })} testid="cs-offline-image" />
             </div>

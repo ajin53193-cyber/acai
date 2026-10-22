@@ -2504,11 +2504,7 @@ class CSFaq(BaseModel):
 
 OFFLINE_REPLY_DEFAULT = (
     "您好，当前客服暂时不在线，您的留言我们已收到，上线后会第一时间回复您。\n\n"
-    "您可以先按下面步骤加入我们的官方社群，群里有最新项目资料和图文教程：\n"
-    "① 下载「蝙蝠」聊天 App：在手机应用商店搜索「蝙蝠」下载安装\n"
-    "② 用手机号注册并登录蝙蝠\n"
-    "③ 在蝙蝠中搜索群号或扫描下方二维码加入官方社群\n"
-    "④ 进群后先看群公告和置顶教程，最新渠道都在里面\n\n"
+    "您可以先点击下方教程卡片，三步加入我们的蝙蝠官方社群，最新项目资料和图文教程都会第一时间在群内同步。\n\n"
     "有任何问题请直接在此留言，客服上线后会立即处理。"
 )
 OFFLINE_REPLY_COOLDOWN_HOURS = 6  # 同一会话 6 小时内只自动发一次，避免刷屏
@@ -2521,6 +2517,7 @@ class CSConfigInput(BaseModel):
     offline_enabled: bool = True
     offline_reply: str = Field(default=OFFLINE_REPLY_DEFAULT, max_length=2000)
     offline_image: str = Field(default="", max_length=500)
+    offline_tutorial: str = Field(default="join-group", max_length=60)  # 随离线回复一起发送的站内教程 slug（卡片）
 
 
 class CSFaqPick(BaseModel):
@@ -2590,13 +2587,14 @@ async def get_cs_config() -> dict:
         "offline_enabled": doc.get("offline_enabled", True),
         "offline_reply": doc.get("offline_reply", OFFLINE_REPLY_DEFAULT),
         "offline_image": doc.get("offline_image", ""),
+        "offline_tutorial": doc.get("offline_tutorial", "join-group"),
     }
 
 
 async def maybe_send_offline_reply(sess: dict, cfg: dict | None = None) -> bool:
     """全部坐席都不在线时，自动给访客发「蝙蝠进群教程」（文字 + 可选二维码图片）。同一会话有冷却时间。"""
     cfg = cfg or await get_cs_config()
-    if not cfg["offline_enabled"] or not (cfg["offline_reply"].strip() or cfg["offline_image"]):
+    if not cfg["offline_enabled"] or not (cfg["offline_reply"].strip() or cfg["offline_image"] or cfg.get("offline_tutorial")):
         return False
     if await pick_online_agent():
         return False
@@ -2614,6 +2612,14 @@ async def maybe_send_offline_reply(sess: dict, cfg: dict | None = None) -> bool:
         docs.append({**base, "id": str(uuid.uuid4()), "text": cfg["offline_reply"], "image": "", "created_at": (now + timedelta(milliseconds=2)).isoformat(), "created_at_dt": now})
     if cfg["offline_image"]:
         docs.append({**base, "id": str(uuid.uuid4()), "text": "", "image": cfg["offline_image"], "created_at": (now + timedelta(milliseconds=3)).isoformat(), "created_at_dt": now})
+    if cfg.get("offline_tutorial"):
+        tut = await db.tutorials.find_one({"slug": cfg["offline_tutorial"], "published": {"$ne": False}}, {"_id": 0, "title": 1, "summary": 1, "cover": 1, "slug": 1, "steps": 1})
+        if tut:
+            docs.append({**base, "id": str(uuid.uuid4()), "text": f"📖 图文教程：{tut['title']}", "image": "",
+                         "link": {"url": f"/tutorials/{tut['slug']}", "title": tut["title"], "desc": tut.get("summary") or f"{len(tut.get('steps', []))} 个步骤 · 点击查看", "cover": tut.get("cover", "")},
+                         "created_at": (now + timedelta(milliseconds=4)).isoformat(), "created_at_dt": now})
+    if not docs:
+        return False
     await db.cs_messages.insert_many(docs)
     await db.cs_sessions.update_one({"id": sess["id"]}, {"$set": {"offline_reply_at": now.isoformat(), "last_message": "[自动回复] 蝙蝠进群教程"}, "$inc": {"unread_visitor": len(docs)}})
     return True
@@ -3117,7 +3123,7 @@ async def admin_cs_get_config(_: str = Depends(require_admin)):
 @api_router.put("/admin/cs/config")
 async def admin_cs_set_config(data: CSConfigInput, _: str = Depends(require_admin)):
     await db.cs_config.update_one({"key": "cs"}, {"$set": {"key": "cs", "welcome": data.welcome, "enabled": data.enabled, "faqs": [f.model_dump() for f in data.faqs],
-                  "offline_enabled": data.offline_enabled, "offline_reply": data.offline_reply, "offline_image": data.offline_image}}, upsert=True)
+                  "offline_enabled": data.offline_enabled, "offline_reply": data.offline_reply, "offline_image": data.offline_image, "offline_tutorial": data.offline_tutorial.strip()}}, upsert=True)
     return {"ok": True}
 
 

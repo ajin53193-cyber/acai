@@ -367,9 +367,16 @@ function Workbench({ token, onLogout }) {
                   >
                     {m.sender !== "agent" && <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-amber-900/8 text-[10px] text-slate-500">访</div>}
                     <div className="flex max-w-[70%] flex-col">
+                      {m.link ? (
+                        <a href={m.link.url} target="_blank" rel="noreferrer" className="block w-56 overflow-hidden rounded-2xl rounded-br-md border border-amber-900/10 bg-white shadow-sm">
+                          {m.link.cover && <img src={toFullUrl(m.link.cover)} alt="" className="h-20 w-full object-cover" />}
+                          <div className="px-3 py-2"><div className="text-xs font-bold text-slate-700">{m.link.title}</div><div className="text-[10px] text-slate-400">教程卡片 · 点击预览</div></div>
+                        </a>
+                      ) : (
                       <div className={`overflow-hidden whitespace-pre-wrap break-words text-sm leading-relaxed shadow-sm ${m.image ? "rounded-2xl p-1" : "px-3.5 py-2"} ${m.sender === "agent" ? "rounded-2xl rounded-br-md bg-gradient-to-br from-[#E5C158] to-[#D4AF37] text-[#1B1403]" : "rounded-2xl rounded-bl-md border border-amber-900/10 bg-white text-slate-700"}`}>
                         {m.image ? <a href={toFullUrl(m.image)} target="_blank" rel="noreferrer"><img src={toFullUrl(m.image)} alt="图片" className="max-h-60 rounded-xl" /></a> : m.text}
                       </div>
+                      )}
                       <span className={`mt-1 px-1 text-[10px] text-slate-400 ${m.sender === "agent" ? "text-right" : "text-left"}`}>{timeShort(m.created_at)}</span>
                     </div>
                   </motion.div>

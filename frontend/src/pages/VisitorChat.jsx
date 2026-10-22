@@ -211,6 +211,16 @@ export default function VisitorChat() {
                       ? <img src={toFullUrl(agent.avatar)} alt={agent?.name || "客服"} className="h-8 w-8 shrink-0 rounded-full object-cover ring-1 ring-blue-200" />
                       : <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-blue-100 text-[11px] font-bold text-blue-600">客服</div>)}
                     <div className="flex max-w-[76%] flex-col">
+                      {m.link ? (
+                        <a href={m.link.url} target="_blank" rel="noreferrer" data-testid="visitor-chat-link-card" className="block w-64 max-w-full overflow-hidden rounded-2xl rounded-bl-md border border-blue-100 bg-white shadow-sm transition-transform active:scale-[0.98]">
+                          {m.link.cover && <img src={toFullUrl(m.link.cover)} alt="" className="h-28 w-full object-cover" />}
+                          <div className="px-3.5 py-2.5">
+                            <div className="text-sm font-bold text-slate-800">{m.link.title}</div>
+                            <div className="mt-0.5 line-clamp-2 text-xs text-slate-500">{m.link.desc}</div>
+                            <div className="mt-2 inline-flex items-center gap-1 rounded-full bg-[#3aa6f2] px-3 py-1 text-xs font-bold text-white">查看教程 ›</div>
+                          </div>
+                        </a>
+                      ) : (
                       <div className={`overflow-hidden whitespace-pre-wrap break-words text-sm leading-relaxed shadow-sm ${m.image ? "rounded-2xl p-1" : "px-4 py-2.5"} ${isVisitor
                         ? "rounded-2xl rounded-br-md bg-gradient-to-br from-sky-500 to-blue-600 text-white"
                         : "rounded-2xl rounded-bl-md border border-blue-100 bg-white text-slate-700"}`}>
@@ -218,6 +228,7 @@ export default function VisitorChat() {
                           ? <a href={toFullUrl(m.image)} target="_blank" rel="noreferrer"><img src={toFullUrl(m.image)} alt="图片" className="max-h-72 rounded-xl" /></a>
                           : m.text}
                       </div>
+                      )}
                       <span className={`mt-1 px-1 text-[10px] text-slate-400 ${isVisitor ? "text-right" : "text-left"}`}>{timeShort(m.created_at)}</span>
                     </div>
                   </motion.div>
