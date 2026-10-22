@@ -124,7 +124,7 @@ export default function VisitorChat() {
   };
 
   return (
-    <div className="flex h-[100dvh] flex-col border-[5px] border-[#3aa6f2] bg-white" data-testid="visitor-chat">
+    <div className="flex h-[100dvh] w-full max-w-full flex-col overflow-hidden rounded-t-xl border-[5px] border-[#3aa6f2] bg-white" data-testid="visitor-chat">
       {/* 顶部蓝色条（参照模版） */}
       <header className="flex items-center justify-between bg-[#3aa6f2] px-3 py-2.5 text-white">
         <div className="flex items-center gap-2">
@@ -194,8 +194,8 @@ export default function VisitorChat() {
             <div className="mx-auto w-full max-w-2xl">
               <div className="flex items-center gap-2">
                 <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={sendImage} data-testid="visitor-chat-file" />
-                <input data-testid="visitor-chat-input" value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") send(); }} placeholder="在这里输入消息" className="flex-1 rounded-2xl border-2 border-blue-200 bg-white px-4 py-3 text-sm text-slate-700 outline-none transition-colors placeholder:text-slate-400 focus:border-blue-400" />
-                <motion.button whileTap={{ scale: 0.85 }} onClick={send} disabled={sending || !input.trim()} data-testid="visitor-chat-send" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-blue-500 transition-colors hover:bg-blue-50 disabled:opacity-40"><Send size={22} /></motion.button>
+                <input data-testid="visitor-chat-input" value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") send(); }} placeholder="在这里输入消息" className="w-0 min-w-0 flex-1 rounded-2xl border-2 border-blue-200 bg-white px-4 py-3 text-base text-slate-700 outline-none transition-colors placeholder:text-slate-400 focus:border-blue-400" />
+                <motion.button whileTap={{ scale: 0.85 }} onClick={send} disabled={sending || !input.trim()} data-testid="visitor-chat-send" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-[#3aa6f2] transition-colors hover:bg-blue-50"><Send size={26} /></motion.button>
               </div>
               <div className="mt-2 flex items-center justify-between px-1">
                 <div className="flex items-center gap-1">
