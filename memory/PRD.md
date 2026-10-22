@@ -287,3 +287,6 @@
 - 访客点常见问题自动回复时 unread_agent +1，坐席端出红点。
 - import_from_live.py 支持 ONLY_CS=1 仅同步客服配置与话术库。
 - 测试：iteration_11 全部通过（后端 16/16，前端流程通过）。
+
+## 2026-07 更新：坐席可修改/删除话术库任意话术
+- PUT/DELETE /cs/agent/quick-replies/{id} 不再限制 created_by；记录 updated_by_name/updated_at。工作台每条话术带修改/删除按钮。

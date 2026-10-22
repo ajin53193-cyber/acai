@@ -3076,12 +3076,21 @@ async def cs_agent_qr_create(data: QRLibraryInput, agent: dict = Depends(require
     return doc
 
 
+@api_router.put("/cs/agent/quick-replies/{qr_id}")
+async def cs_agent_qr_update(qr_id: str, data: QRLibraryInput, agent: dict = Depends(require_agent)):
+    """坐席可修改话术库任意话术（含后台配置的），记录最后修改人"""
+    res = await db.cs_quick_replies.update_one({"id": qr_id}, {"$set": {**qr_clean(data), "updated_by_name": agent.get("name", ""), "updated_at": datetime.now(timezone.utc).isoformat()}})
+    if res.matched_count == 0:
+        raise HTTPException(status_code=404, detail="话术不存在")
+    return {"ok": True}
+
+
 @api_router.delete("/cs/agent/quick-replies/{qr_id}")
-async def cs_agent_qr_delete(qr_id: str, agent: dict = Depends(require_agent)):
-    """坐席只能删除自己添加的话术，后台添加的由管理员维护"""
-    res = await db.cs_quick_replies.delete_one({"id": qr_id, "created_by": agent["id"]})
+async def cs_agent_qr_delete(qr_id: str, _: dict = Depends(require_agent)):
+    """坐席可删除话术库任意话术（含后台配置的）"""
+    res = await db.cs_quick_replies.delete_one({"id": qr_id})
     if res.deleted_count == 0:
-        raise HTTPException(status_code=403, detail="只能删除自己添加的话术")
+        raise HTTPException(status_code=404, detail="话术不存在")
     return {"ok": True}
 
 
