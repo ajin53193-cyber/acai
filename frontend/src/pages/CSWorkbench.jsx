@@ -355,7 +355,9 @@ function Workbench({ token, onLogout }) {
             </div>
             <div className="cs-scroll-light flex-1 space-y-3.5 overflow-y-auto px-5 py-5" data-testid="cs-wb-messages">
               <AnimatePresence initial={false}>
-                {messages.map((m) => (
+                {messages.map((m) => m.via === "system" ? (
+                  <div key={m.id} className="flex justify-center py-1" data-testid="cs-wb-system-msg"><span className="rounded-full bg-amber-900/5 px-3 py-1 text-[11px] text-slate-500">{m.text}</span></div>
+                ) : (
                   <motion.div
                     key={m.id}
                     initial={{ opacity: 0, y: 10, scale: 0.97 }}

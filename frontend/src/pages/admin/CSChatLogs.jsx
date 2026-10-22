@@ -32,6 +32,7 @@ function ChatViewer({ token, sessionId, onClose }) {
           {!data && <div className="py-10 text-center text-xs text-slate-500">加载中…</div>}
           {data?.messages.map((m) => {
             const mine = m.sender === "agent";
+            if (m.via === "system") return <div key={m.id} className="flex justify-center py-1"><span className="rounded-full bg-white/5 px-3 py-1 text-[11px] text-slate-400">{m.text}</span></div>;
             return (
               <div key={m.id} className={`flex items-end gap-2 ${mine ? "justify-end" : "justify-start"}`}>
                 {!mine && <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-white/10 text-[10px] text-slate-400">访</div>}

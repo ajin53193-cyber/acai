@@ -2598,15 +2598,71 @@ async def agent_status_log(agent: dict, action: str, at: datetime, auto: bool = 
 
 
 async def agent_auto_offline_if_stale(agent: dict):
-    """掉线补记：标记在线但心跳超时的坐席，按最后心跳时间记一条「自动下线」并置为离线。"""
+    """掉线补记：标记在线但心跳超时的坐席，按最后心跳时间记一条「自动下线」并置为离线，并把会话移交给在线坐席。"""
     if agent.get("online") and not agent_is_online(agent):
         try:
             at = datetime.fromisoformat(agent["last_seen_at"]) if agent.get("last_seen_at") else datetime.now(timezone.utc)
         except ValueError:
             at = datetime.now(timezone.utc)
-        await db.cs_agents.update_one({"id": agent["id"], "online": True}, {"$set": {"online": False}})
-        await agent_status_log(agent, "offline", at, auto=True)
+        res = await db.cs_agents.update_one({"id": agent["id"], "online": True}, {"$set": {"online": False}})
         agent["online"] = False
+        if res.modified_count:
+            await agent_status_log(agent, "offline", at, auto=True)
+            await handover_sessions(agent["id"])
+
+
+HANDOVER_WINDOW_HOURS = 24  # 坐席下线时，移交最近 24 小时内有过消息的会话
+
+
+async def pick_online_agent(exclude_id: str = ""):
+    """在线坐席中按 已分配量/权重 选一位（不含 exclude_id）；无人在线返回 None。"""
+    agents = await db.cs_agents.find({"enabled": True, "online": True, "id": {"$ne": exclude_id}}).to_list(200)
+    online = [a for a in agents if agent_is_online(a)]
+    if not online:
+        return None
+    online.sort(key=lambda a: (a.get("assigned_count", 0) / max(1, a.get("weight", 1)), a.get("last_assigned_at", "")))
+    return online[0]
+
+
+async def transfer_session(sess: dict, to_agent: dict, note: str = "") -> None:
+    """把会话移交给 to_agent：改归属、计数、写一条系统提示，访客端头像/名称随之更新。"""
+    now = datetime.now(timezone.utc)
+    await db.cs_sessions.update_one({"id": sess["id"]}, {"$set": {"agent_id": to_agent["id"], "handover_from": sess.get("agent_id", ""), "handover_at": now.isoformat()}, "$inc": {"unread_visitor": 1}})
+    await db.cs_agents.update_one({"id": to_agent["id"]}, {"$inc": {"assigned_count": 1}, "$set": {"last_assigned_at": now.isoformat()}})
+    await db.cs_messages.insert_one({
+        "id": str(uuid.uuid4()), "session_id": sess["id"], "sender": "agent", "via": "system", "agent_id": to_agent["id"],
+        "text": note or f"客服「{to_agent.get('name', '客服')}」已接入，继续为您服务", "image": "", "created_at": now.isoformat(), "created_at_dt": now,
+    })
+
+
+async def handover_sessions(from_agent_id: str) -> int:
+    """坐席下线：把其最近活跃的会话移交给在线坐席（轮流分配）。无人在线则保留，待访客再发消息时再移交。"""
+    since = (datetime.now(timezone.utc) - timedelta(hours=HANDOVER_WINDOW_HOURS)).isoformat()
+    sessions = await db.cs_sessions.find({"agent_id": from_agent_id, "last_message_at": {"$gte": since}}).to_list(500)
+    moved = 0
+    for sess in sessions:
+        target = await pick_online_agent(exclude_id=from_agent_id)
+        if not target:
+            break
+        await transfer_session(sess, target)
+        moved += 1
+    if moved:
+        logging.info("CS handover: %s sessions moved from agent %s", moved, from_agent_id)
+    return moved
+
+
+async def ensure_online_agent(sess: dict) -> dict:
+    """访客来消息时：若当前坐席不在线而有其他坐席在线，则当场移交。返回（可能已更新的）会话。"""
+    cur = await db.cs_agents.find_one({"id": sess.get("agent_id")})
+    if cur:
+        await agent_auto_offline_if_stale(cur)
+    if cur and agent_is_online(cur) and cur.get("enabled", True):
+        return sess
+    target = await pick_online_agent(exclude_id=sess.get("agent_id", ""))
+    if not target:
+        return sess
+    await transfer_session(sess, target)
+    return {**sess, "agent_id": target["id"]}
 
 
 async def assign_cs_agent():
@@ -2714,6 +2770,7 @@ async def cs_visitor_message(session_id: str, data: CSMessageInput):
     sess = await db.cs_sessions.find_one({"id": session_id})
     if not sess:
         raise HTTPException(status_code=404, detail="会话不存在")
+    sess = await ensure_online_agent(sess)
     now = datetime.now(timezone.utc)
     now_iso = now.isoformat()
     await db.cs_messages.insert_one({
@@ -2738,6 +2795,7 @@ async def cs_visitor_faq(session_id: str, data: CSFaqPick):
     if data.index >= len(cfg["faqs"]):
         raise HTTPException(status_code=404, detail="该问题不存在")
     faq = cfg["faqs"][data.index]
+    sess = await ensure_online_agent(sess)
     now = datetime.now(timezone.utc)
     base = {"session_id": session_id, "agent_id": sess.get("agent_id", ""), "image": ""}
     await db.cs_messages.insert_many([
@@ -2793,10 +2851,12 @@ async def cs_agent_set_status(data: AgentStatusInput, agent: dict = Depends(requ
     """坐席手动上线 / 下线，并记录日志"""
     await agent_auto_offline_if_stale(agent)
     now = datetime.now(timezone.utc)
-    if bool(agent.get("online")) != data.online:
+    changed = bool(agent.get("online")) != data.online
+    if changed:
         await agent_status_log(agent, "online" if data.online else "offline", now)
     await db.cs_agents.update_one({"id": agent["id"]}, {"$set": {"online": data.online, "last_seen_at": now.isoformat()}})
-    return {"online": data.online}
+    moved = await handover_sessions(agent["id"]) if (changed and not data.online) else 0
+    return {"online": data.online, "handover": moved}
 
 
 @api_router.get("/cs/agent/status-log")
@@ -2992,7 +3052,13 @@ async def admin_cs_update_agent(agent_id: str, data: CSAgentInput, _: str = Depe
 @api_router.delete("/admin/cs/agents/{agent_id}")
 async def admin_cs_delete_agent(agent_id: str, _: str = Depends(require_admin)):
     await db.cs_agents.delete_one({"id": agent_id})
-    return {"ok": True}
+    # 该坐席名下的会话整体移交给其他坐席（优先在线，其次任一启用坐席），避免访客无人接待
+    target = await pick_online_agent(exclude_id=agent_id) or await db.cs_agents.find_one({"enabled": True, "id": {"$ne": agent_id}})
+    moved = 0
+    if target:
+        res = await db.cs_sessions.update_many({"agent_id": agent_id}, {"$set": {"agent_id": target["id"], "handover_from": agent_id, "handover_at": datetime.now(timezone.utc).isoformat()}})
+        moved = res.modified_count
+    return {"ok": True, "handover": moved}
 
 
 @api_router.get("/admin/cs/config")

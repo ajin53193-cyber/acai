@@ -161,6 +161,13 @@ export default function VisitorChat() {
               {messages.map((m) => {
                 const isVisitor = m.sender === "visitor";
                 const isWelcome = String(m.id).startsWith("welcome-");
+                if (m.via === "system") {
+                  return (
+                    <motion.div key={m.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex justify-center py-1" data-testid="visitor-chat-system">
+                      <span className="rounded-full bg-slate-100 px-3 py-1 text-[11px] text-slate-500">{m.text}</span>
+                    </motion.div>
+                  );
+                }
                 if (isWelcome) {
                   return (
                     <motion.div
