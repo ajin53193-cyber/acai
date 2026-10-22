@@ -40,7 +40,7 @@ function ChatViewer({ token, sessionId, onClose }) {
                   <div className={`whitespace-pre-wrap break-words text-sm leading-relaxed ${m.image ? "rounded-xl p-1" : "px-3 py-2"} ${mine ? "rounded-2xl rounded-br-md bg-[#D4AF37]/20 text-[#f3e3b0]" : "rounded-2xl rounded-bl-md bg-white/10 text-slate-200"}`}>
                     {m.image ? <a href={toFullUrl(m.image)} target="_blank" rel="noreferrer"><img src={toFullUrl(m.image)} alt="图片" className="max-h-56 rounded-lg" /></a> : m.text}
                   </div>
-                  <span className={`mt-0.5 px-1 text-[10px] text-slate-500 ${mine ? "text-right" : ""}`}>{fmtClock(m.created_at)}{m.via === "faq" && " · 常见问题自动回复"}{String(m.id).startsWith("welcome-") && " · 欢迎语"}</span>
+                  <span className={`mt-0.5 px-1 text-[10px] text-slate-500 ${mine ? "text-right" : ""}`}>{fmtClock(m.created_at)}{m.via === "faq" && " · 常见问题自动回复"}{m.via === "offline" && " · 离线自动回复"}{String(m.id).startsWith("welcome-") && " · 欢迎语"}</span>
                 </div>
                 {mine && (data.agent?.avatar ? <img src={toFullUrl(data.agent.avatar)} alt="" className="h-6 w-6 shrink-0 rounded-full object-cover" /> : <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#D4AF37]/30 text-[10px] text-[#E5C158]">客</div>)}
               </div>

@@ -107,7 +107,7 @@ function StatusLogSection({ token, agents }) {
 export default function CSAdmin({ token, onUnauthorized }) {
   const [agents, setAgents] = useState([]);
   const [stats, setStats] = useState([]);
-  const [cfg, setCfg] = useState({ welcome: "", enabled: true, faqs: [] });
+  const [cfg, setCfg] = useState({ welcome: "", enabled: true, faqs: [], offline_enabled: true, offline_reply: "", offline_image: "" });
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState(null);
   const headers = { Authorization: `Bearer ${token}` };
@@ -150,6 +150,24 @@ export default function CSAdmin({ token, onUnauthorized }) {
         </div>
         <label className="mb-1.5 block text-xs tracking-widest text-slate-400">欢迎语（访客打开聊天窗自动发送，支持换行与表情）</label>
         <textarea data-testid="cs-config-welcome" rows={6} value={cfg.welcome} onChange={(e) => setCfg({ ...cfg, welcome: e.target.value })} className={inputCls} />
+
+        {/* 全员离线自动回复 */}
+        <div className="mt-5 rounded-xl border border-white/10 bg-white/[0.03] p-4" data-testid="cs-offline-box">
+          <div className="mb-3 flex items-center justify-between gap-3">
+            <div>
+              <div className="text-sm font-bold text-slate-200">全部客服不在线时自动回复（蝙蝠进群教程）</div>
+              <p className="mt-0.5 text-xs text-slate-500">所有坐席都下线/掉线时，访客打开聊天窗或发消息会自动收到这段文字（可附带群二维码图片），同一访客 6 小时内只发一次。</p>
+            </div>
+            <button data-testid="cs-offline-enabled" onClick={() => setCfg({ ...cfg, offline_enabled: !cfg.offline_enabled })} className={`relative h-7 w-12 shrink-0 rounded-full transition-colors ${cfg.offline_enabled ? "bg-gold-gradient" : "bg-slate-700"}`}><span className={`absolute top-1 h-5 w-5 rounded-full bg-white transition-all ${cfg.offline_enabled ? "left-6" : "left-1"}`} /></button>
+          </div>
+          <div className="grid gap-4 md:grid-cols-[1fr_200px]">
+            <textarea data-testid="cs-offline-reply" rows={9} maxLength={2000} value={cfg.offline_reply || ""} onChange={(e) => setCfg({ ...cfg, offline_reply: e.target.value })} className={inputCls} placeholder="离线自动回复内容，例如蝙蝠进群教程" />
+            <div>
+              <label className="mb-1.5 block text-xs tracking-widest text-slate-400">群二维码 / 教程图片（可选）</label>
+              <ImageUpload token={token} value={cfg.offline_image || ""} onChange={(url) => setCfg({ ...cfg, offline_image: url })} testid="cs-offline-image" />
+            </div>
+          </div>
+        </div>
 
         <div className="mt-5 mb-2 flex items-center justify-between">
           <label className="block text-xs tracking-widest text-slate-400">常见问题（显示在欢迎语下方，访客点击问题自动回复答案，最多 20 条）</label>

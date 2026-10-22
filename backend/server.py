@@ -2502,10 +2502,25 @@ class CSFaq(BaseModel):
     a: str = Field(min_length=1, max_length=1000)
 
 
+OFFLINE_REPLY_DEFAULT = (
+    "您好，当前客服暂时不在线，您的留言我们已收到，上线后会第一时间回复您。\n\n"
+    "您可以先按下面步骤加入我们的官方社群，群里有最新项目资料和图文教程：\n"
+    "① 下载「蝙蝠」聊天 App：在手机应用商店搜索「蝙蝠」下载安装\n"
+    "② 用手机号注册并登录蝙蝠\n"
+    "③ 在蝙蝠中搜索群号或扫描下方二维码加入官方社群\n"
+    "④ 进群后先看群公告和置顶教程，最新渠道都在里面\n\n"
+    "有任何问题请直接在此留言，客服上线后会立即处理。"
+)
+OFFLINE_REPLY_COOLDOWN_HOURS = 6  # 同一会话 6 小时内只自动发一次，避免刷屏
+
+
 class CSConfigInput(BaseModel):
     welcome: str = Field(default="您好，很高兴为您服务，请问有什么可以帮您？", max_length=1000)
     enabled: bool = True
     faqs: list[CSFaq] = Field(default_factory=list, max_length=20)
+    offline_enabled: bool = True
+    offline_reply: str = Field(default=OFFLINE_REPLY_DEFAULT, max_length=2000)
+    offline_image: str = Field(default="", max_length=500)
 
 
 class CSFaqPick(BaseModel):
@@ -2572,7 +2587,36 @@ async def get_cs_config() -> dict:
         "welcome": doc.get("welcome", CSConfigInput.model_fields["welcome"].default),
         "enabled": doc.get("enabled", True),
         "faqs": doc.get("faqs", []),
+        "offline_enabled": doc.get("offline_enabled", True),
+        "offline_reply": doc.get("offline_reply", OFFLINE_REPLY_DEFAULT),
+        "offline_image": doc.get("offline_image", ""),
     }
+
+
+async def maybe_send_offline_reply(sess: dict, cfg: dict | None = None) -> bool:
+    """全部坐席都不在线时，自动给访客发「蝙蝠进群教程」（文字 + 可选二维码图片）。同一会话有冷却时间。"""
+    cfg = cfg or await get_cs_config()
+    if not cfg["offline_enabled"] or not (cfg["offline_reply"].strip() or cfg["offline_image"]):
+        return False
+    if await pick_online_agent():
+        return False
+    now = datetime.now(timezone.utc)
+    last = sess.get("offline_reply_at")
+    if last:
+        try:
+            if (now - datetime.fromisoformat(last)).total_seconds() < OFFLINE_REPLY_COOLDOWN_HOURS * 3600:
+                return False
+        except ValueError:
+            pass
+    base = {"session_id": sess["id"], "sender": "agent", "via": "offline", "agent_id": sess.get("agent_id", "")}
+    docs = []
+    if cfg["offline_reply"].strip():
+        docs.append({**base, "id": str(uuid.uuid4()), "text": cfg["offline_reply"], "image": "", "created_at": (now + timedelta(milliseconds=2)).isoformat(), "created_at_dt": now})
+    if cfg["offline_image"]:
+        docs.append({**base, "id": str(uuid.uuid4()), "text": "", "image": cfg["offline_image"], "created_at": (now + timedelta(milliseconds=3)).isoformat(), "created_at_dt": now})
+    await db.cs_messages.insert_many(docs)
+    await db.cs_sessions.update_one({"id": sess["id"]}, {"$set": {"offline_reply_at": now.isoformat(), "last_message": "[自动回复] 蝙蝠进群教程"}, "$inc": {"unread_visitor": len(docs)}})
+    return True
 
 
 ONLINE_TIMEOUT_SEC = 120  # 坐席超过 2 分钟无心跳视为掉线（自动记一条下线）
@@ -2756,6 +2800,7 @@ async def cs_start(data: CSStart, request: Request):
         }},
         upsert=True,
     )
+    await maybe_send_offline_reply({"id": data.session_id, "agent_id": agent["id"]}, cfg)
     return {"enabled": True, "session_id": data.session_id, "agent": agent_public(agent), "welcome": cfg["welcome"], "faqs": cfg["faqs"]}
 
 
@@ -2782,6 +2827,7 @@ async def cs_visitor_message(session_id: str, data: CSMessageInput):
         {"id": session_id},
         {"$set": {"last_message_at": now_iso, "last_activity_dt": now, "last_message": cs_preview(data.text, data.image)}, "$inc": {"unread_agent": 1}},
     )
+    await maybe_send_offline_reply(sess)
     return {"ok": True}
 
 
@@ -2822,7 +2868,9 @@ async def cs_visitor_messages(session_id: str, after: str = ""):
     if not after:
         await db.cs_sessions.update_one({"id": session_id}, {"$set": {"unread_visitor": 0}})
     agent = await db.cs_agents.find_one({"id": sess.get("agent_id")})
-    return {"messages": msgs, "agent": agent_public(agent) if agent else None}
+    # 访客端显示客服是否在线：当前坐席在线，或任一坐席在线（会在访客发消息时接管）
+    online = bool(agent and agent_is_online(agent)) or (await pick_online_agent()) is not None
+    return {"messages": msgs, "agent": agent_public(agent) if agent else None, "online": online}
 
 
 # ---------- 坐席端 ----------
@@ -3068,7 +3116,8 @@ async def admin_cs_get_config(_: str = Depends(require_admin)):
 
 @api_router.put("/admin/cs/config")
 async def admin_cs_set_config(data: CSConfigInput, _: str = Depends(require_admin)):
-    await db.cs_config.update_one({"key": "cs"}, {"$set": {"key": "cs", "welcome": data.welcome, "enabled": data.enabled, "faqs": [f.model_dump() for f in data.faqs]}}, upsert=True)
+    await db.cs_config.update_one({"key": "cs"}, {"$set": {"key": "cs", "welcome": data.welcome, "enabled": data.enabled, "faqs": [f.model_dump() for f in data.faqs],
+                  "offline_enabled": data.offline_enabled, "offline_reply": data.offline_reply, "offline_image": data.offline_image}}, upsert=True)
     return {"ok": True}
 
 

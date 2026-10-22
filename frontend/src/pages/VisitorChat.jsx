@@ -36,6 +36,7 @@ export default function VisitorChat() {
   const referrer = params.get("ref") || document.referrer || "";
 
   const [agent, setAgent] = useState(null);
+  const [agentOnline, setAgentOnline] = useState(true);
   const [enabled, setEnabled] = useState(true);
   const [faqs, setFaqs] = useState([]);
   const [messages, setMessages] = useState([]);
@@ -70,6 +71,7 @@ export default function VisitorChat() {
     try {
       const r = await axios.get(`${API}/cs/${sid.current}/messages`, { params: lastTs.current ? { after: lastTs.current } : {} });
       if (r.data.agent) setAgent(r.data.agent);
+      if (typeof r.data.online === "boolean") setAgentOnline(r.data.online);
       const list = r.data.messages || [];
       if (list.length) {
         lastTs.current = list[list.length - 1].created_at;
@@ -142,11 +144,11 @@ export default function VisitorChat() {
             {agent?.avatar
               ? <img src={toFullUrl(agent.avatar)} alt={agent?.name || "客服"} className="h-9 w-9 rounded-full object-cover ring-2 ring-white/70" data-testid="visitor-chat-header-avatar" />
               : <div className="flex h-9 w-9 items-center justify-center rounded-full bg-white/25 text-xs font-bold" data-testid="visitor-chat-header-avatar">客服</div>}
-            <span className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-[#3aa6f2] bg-[#22c55e]" />
+            <span className={`absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-[#3aa6f2] ${agentOnline ? "bg-[#22c55e]" : "bg-slate-300"}`} data-testid="visitor-chat-online-dot" />
           </div>
           <div className="min-w-0 leading-tight">
             <div className="truncate text-[15px] font-bold tracking-wide" data-testid="visitor-chat-agent">{agent?.name || "在线客服"}</div>
-            <div className="text-[11px] text-white/85">在线聊天 · 为您服务</div>
+            <div className="text-[11px] text-white/85" data-testid="visitor-chat-status">{agentOnline ? "在线聊天 · 为您服务" : "客服暂时不在线 · 留言会尽快回复"}</div>
           </div>
         </div>
         <button onClick={() => { try { window.close(); } catch { /* ignore */ } }} aria-label="关闭" data-testid="visitor-chat-close" className="flex h-7 w-7 items-center justify-center rounded-full text-white transition-colors hover:bg-white/20"><X size={22} strokeWidth={2.5} /></button>
