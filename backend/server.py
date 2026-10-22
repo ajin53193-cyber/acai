@@ -2496,9 +2496,19 @@ class CSAgentInput(BaseModel):
     remark: str = Field(default="", max_length=200)
 
 
+class CSFaq(BaseModel):
+    q: str = Field(min_length=1, max_length=100)
+    a: str = Field(min_length=1, max_length=1000)
+
+
 class CSConfigInput(BaseModel):
     welcome: str = Field(default="您好，很高兴为您服务，请问有什么可以帮您？", max_length=1000)
     enabled: bool = True
+    faqs: list[CSFaq] = Field(default_factory=list, max_length=20)
+
+
+class CSFaqPick(BaseModel):
+    index: int = Field(ge=0, le=19)
 
 
 class CSStart(BaseModel):
@@ -2548,6 +2558,7 @@ async def get_cs_config() -> dict:
     return {
         "welcome": doc.get("welcome", CSConfigInput.model_fields["welcome"].default),
         "enabled": doc.get("enabled", True),
+        "faqs": doc.get("faqs", []),
     }
 
 
@@ -2574,7 +2585,7 @@ def agent_public(a: dict) -> dict:
 async def cs_public_config():
     cfg = await get_cs_config()
     has = await db.cs_agents.count_documents({"enabled": True})
-    return {"enabled": bool(cfg["enabled"]) and has > 0, "welcome": cfg["welcome"]}
+    return {"enabled": bool(cfg["enabled"]) and has > 0, "welcome": cfg["welcome"], "faqs": cfg["faqs"]}
 
 
 @api_router.post("/cs/start", status_code=201)
@@ -2591,7 +2602,7 @@ async def cs_start(data: CSStart, request: Request):
             agent = await assign_cs_agent()
             if agent:
                 await db.cs_sessions.update_one({"id": data.session_id}, {"$set": {"agent_id": agent["id"]}})
-        return {"enabled": True, "session_id": data.session_id, "agent": agent_public(agent) if agent else None, "welcome": cfg["welcome"]}
+        return {"enabled": True, "session_id": data.session_id, "agent": agent_public(agent) if agent else None, "welcome": cfg["welcome"], "faqs": cfg["faqs"]}
     agent = await assign_cs_agent()
     if not agent:
         return {"enabled": False}
@@ -2622,7 +2633,7 @@ async def cs_start(data: CSStart, request: Request):
         # 并发竞争失败：会话已被另一请求创建，直接返回现有会话，不再重复插入欢迎语
         existing = await db.cs_sessions.find_one({"id": data.session_id})
         ag = await db.cs_agents.find_one({"id": existing.get("agent_id")}) if existing else None
-        return {"enabled": True, "session_id": data.session_id, "agent": agent_public(ag) if ag else agent_public(agent), "welcome": cfg["welcome"]}
+        return {"enabled": True, "session_id": data.session_id, "agent": agent_public(ag) if ag else agent_public(agent), "welcome": cfg["welcome"], "faqs": cfg["faqs"]}
     # 欢迎语用确定性 id，并发 upsert 保证只有一条
     await db.cs_messages.update_one(
         {"id": f"welcome-{data.session_id}"},
@@ -2638,7 +2649,7 @@ async def cs_start(data: CSStart, request: Request):
         }},
         upsert=True,
     )
-    return {"enabled": True, "session_id": data.session_id, "agent": agent_public(agent), "welcome": cfg["welcome"]}
+    return {"enabled": True, "session_id": data.session_id, "agent": agent_public(agent), "welcome": cfg["welcome"], "faqs": cfg["faqs"]}
 
 
 def cs_preview(text: str, image: str) -> str:
@@ -2662,6 +2673,30 @@ async def cs_visitor_message(session_id: str, data: CSMessageInput):
     await db.cs_sessions.update_one(
         {"id": session_id},
         {"$set": {"last_message_at": now_iso, "last_activity_dt": now, "last_message": cs_preview(data.text, data.image)}, "$inc": {"unread_agent": 1}},
+    )
+    return {"ok": True}
+
+
+@api_router.post("/cs/{session_id}/faq", status_code=201)
+async def cs_visitor_faq(session_id: str, data: CSFaqPick):
+    """访客点击常见问题：写入一条访客提问 + 一条自动回复（坐席端同样可见）。"""
+    sess = await db.cs_sessions.find_one({"id": session_id})
+    if not sess:
+        raise HTTPException(status_code=404, detail="会话不存在")
+    cfg = await get_cs_config()
+    if data.index >= len(cfg["faqs"]):
+        raise HTTPException(status_code=404, detail="该问题不存在")
+    faq = cfg["faqs"][data.index]
+    now = datetime.now(timezone.utc)
+    base = {"session_id": session_id, "agent_id": sess.get("agent_id", ""), "image": ""}
+    await db.cs_messages.insert_many([
+        {**base, "id": str(uuid.uuid4()), "sender": "visitor", "text": faq["q"], "created_at": now.isoformat(), "created_at_dt": now},
+        {**base, "id": str(uuid.uuid4()), "sender": "agent", "via": "faq", "text": faq["a"],
+         "created_at": (now + timedelta(milliseconds=1)).isoformat(), "created_at_dt": now + timedelta(milliseconds=1)},
+    ])
+    await db.cs_sessions.update_one(
+        {"id": session_id},
+        {"$set": {"last_message_at": now.isoformat(), "last_activity_dt": now, "last_message": cs_preview(faq["a"], "")}},
     )
     return {"ok": True}
 
@@ -2817,7 +2852,7 @@ async def admin_cs_get_config(_: str = Depends(require_admin)):
 
 @api_router.put("/admin/cs/config")
 async def admin_cs_set_config(data: CSConfigInput, _: str = Depends(require_admin)):
-    await db.cs_config.update_one({"key": "cs"}, {"$set": {"key": "cs", "welcome": data.welcome, "enabled": data.enabled}}, upsert=True)
+    await db.cs_config.update_one({"key": "cs"}, {"$set": {"key": "cs", "welcome": data.welcome, "enabled": data.enabled, "faqs": [f.model_dump() for f in data.faqs]}}, upsert=True)
     return {"ok": True}
 
 

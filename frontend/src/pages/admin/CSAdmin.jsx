@@ -55,7 +55,7 @@ function AgentForm({ token, editing, onClose, onSaved }) {
 export default function CSAdmin({ token, onUnauthorized }) {
   const [agents, setAgents] = useState([]);
   const [stats, setStats] = useState([]);
-  const [cfg, setCfg] = useState({ welcome: "", enabled: true });
+  const [cfg, setCfg] = useState({ welcome: "", enabled: true, faqs: [] });
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState(null);
   const headers = { Authorization: `Bearer ${token}` };
@@ -98,7 +98,25 @@ export default function CSAdmin({ token, onUnauthorized }) {
         </div>
         <label className="mb-1.5 block text-xs tracking-widest text-slate-400">欢迎语（访客打开聊天窗自动发送，支持换行与表情）</label>
         <textarea data-testid="cs-config-welcome" rows={6} value={cfg.welcome} onChange={(e) => setCfg({ ...cfg, welcome: e.target.value })} className={inputCls} />
-        <button onClick={saveCfg} data-testid="cs-config-save" className="mt-3 rounded-xl bg-[#D4AF37]/20 px-5 py-2.5 text-sm font-bold text-[#E5C158] hover:bg-[#D4AF37]/30">保存设置</button>
+
+        <div className="mt-5 mb-2 flex items-center justify-between">
+          <label className="block text-xs tracking-widest text-slate-400">常见问题（显示在欢迎语下方，访客点击问题自动回复答案，最多 20 条）</label>
+          <button data-testid="cs-faq-add" disabled={(cfg.faqs || []).length >= 20} onClick={() => setCfg({ ...cfg, faqs: [...(cfg.faqs || []), { q: "", a: "" }] })} className="flex items-center gap-1 rounded-full bg-[#D4AF37]/15 px-3 py-1.5 text-xs font-bold text-[#E5C158] hover:bg-[#D4AF37]/25 disabled:opacity-40"><Plus size={13} /> 添加问题</button>
+        </div>
+        {(cfg.faqs || []).length === 0 && <p className="rounded-xl border border-dashed border-white/10 py-5 text-center text-xs text-slate-600">暂无常见问题，点「添加问题」新增</p>}
+        <div className="space-y-3">
+          {(cfg.faqs || []).map((f, i) => (
+            <div key={i} className="rounded-xl border border-white/10 bg-white/[0.03] p-3" data-testid={`cs-faq-row-${i}`}>
+              <div className="mb-2 flex items-center gap-2">
+                <span className="w-6 shrink-0 text-center text-xs font-bold text-[#E5C158]">{i + 1}</span>
+                <input data-testid={`cs-faq-q-${i}`} maxLength={100} placeholder="问题，例如：如何加入项目交流群？" value={f.q} onChange={(e) => setCfg({ ...cfg, faqs: cfg.faqs.map((x, j) => (j === i ? { ...x, q: e.target.value } : x)) })} className={inputCls} />
+                <button data-testid={`cs-faq-del-${i}`} onClick={() => setCfg({ ...cfg, faqs: cfg.faqs.filter((_, j) => j !== i) })} aria-label="删除" className="shrink-0 rounded-lg p-2 text-slate-500 hover:bg-red-500/10 hover:text-red-400"><Trash2 size={15} /></button>
+              </div>
+              <textarea data-testid={`cs-faq-a-${i}`} rows={3} maxLength={1000} placeholder="答案（支持换行）" value={f.a} onChange={(e) => setCfg({ ...cfg, faqs: cfg.faqs.map((x, j) => (j === i ? { ...x, a: e.target.value } : x)) })} className={`${inputCls} ml-8 w-[calc(100%-2rem)]`} />
+            </div>
+          ))}
+        </div>
+        <button onClick={saveCfg} data-testid="cs-config-save" className="mt-4 rounded-xl bg-[#D4AF37]/20 px-5 py-2.5 text-sm font-bold text-[#E5C158] hover:bg-[#D4AF37]/30">保存设置</button>
         <p className="mt-3 text-xs text-slate-600">坐席工作台地址：<span className="text-[#E5C158]">你的域名/cs</span>（坐席用下方分配的账号密码登录）。快捷回复由每位坐席在工作台里自行添加。</p>
       </div>
 

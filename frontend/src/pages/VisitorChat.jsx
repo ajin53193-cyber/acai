@@ -37,6 +37,7 @@ export default function VisitorChat() {
 
   const [agent, setAgent] = useState(null);
   const [enabled, setEnabled] = useState(true);
+  const [faqs, setFaqs] = useState([]);
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
@@ -92,6 +93,7 @@ export default function VisitorChat() {
         const r = await axios.post(`${API}/cs/start`, { session_id: sid.current, slug, source, referrer, visitor_id: getVisitorId() });
         if (r.data.enabled === false) { setEnabled(false); return; }
         setAgent(r.data.agent);
+        setFaqs(r.data.faqs || []);
         await poll();
         timer = setInterval(poll, 2000);
       } catch { /* ignore */ }
@@ -107,6 +109,14 @@ export default function VisitorChat() {
     setMessages((p) => [...p, { id: `tmp-${Date.now()}`, sender: "visitor", text, created_at: new Date().toISOString() }]);
     setInput("");
     try { await axios.post(`${API}/cs/${sid.current}/message`, { text }); await poll(); }
+    catch { /* ignore */ } finally { setSending(false); }
+  };
+
+  const pickFaq = async (i) => {
+    if (sending) return;
+    setSending(true);
+    setMessages((p) => [...p, { id: `tmp-${Date.now()}`, sender: "visitor", text: faqs[i].q, created_at: new Date().toISOString() }]);
+    try { await axios.post(`${API}/cs/${sid.current}/faq`, { index: i }); await poll(); }
     catch { /* ignore */ } finally { setSending(false); }
   };
 
@@ -166,6 +176,17 @@ export default function VisitorChat() {
                         <span>{timeShort(m.created_at)}</span>
                       </div>
                       <div className="whitespace-pre-wrap break-words text-[15px] leading-7 text-slate-700">{m.text}</div>
+                      {faqs.length > 0 && (
+                        <div className="mt-3 overflow-hidden rounded-xl border border-blue-100 bg-[#f4f9ff]" data-testid="visitor-chat-faqs">
+                          <div className="flex items-center gap-1.5 border-b border-blue-100 px-3 py-2 text-xs font-bold text-[#3aa6f2]"><MessageCircle size={13} /> 常见问题（点击即可查看答案）</div>
+                          {faqs.map((f, i) => (
+                            <button key={i} onClick={() => pickFaq(i)} disabled={sending} data-testid={`visitor-chat-faq-${i}`} className="flex w-full items-center justify-between gap-2 border-b border-blue-50 px-3 py-2.5 text-left text-sm text-slate-700 transition-colors last:border-b-0 hover:bg-blue-50 active:bg-blue-100 disabled:opacity-60">
+                              <span className="min-w-0 flex-1 truncate"><span className="mr-1.5 text-[#3aa6f2]">{i + 1}.</span>{f.q}</span>
+                              <span className="shrink-0 text-xs text-[#3aa6f2]">查看 ›</span>
+                            </button>
+                          ))}
+                        </div>
+                      )}
                     </motion.div>
                   );
                 }
