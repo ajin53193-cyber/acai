@@ -113,7 +113,7 @@ export default function VisitorChat() {
   return (
     <div className="flex h-[100dvh] flex-col bg-[#eef4fc]" data-testid="visitor-chat">
       {/* 玻璃拟态头部 */}
-      <header className="flex items-center gap-3 border-b border-blue-200/60 bg-[#dceafd]/90 px-5 py-3.5 backdrop-blur-md shadow-[0_6px_22px_-16px_rgba(59,130,246,0.6)]">
+      <header className="flex items-center gap-3 border-b border-blue-200/50 bg-white/90 px-5 py-3.5 backdrop-blur-md shadow-[0_6px_22px_-16px_rgba(59,130,246,0.5)]">
         <div className="relative">
           {agent?.avatar ? (
             <img src={toFullUrl(agent.avatar)} alt={agent.name} className="h-11 w-11 rounded-full object-cover ring-2 ring-blue-300/70 shadow" />
@@ -177,7 +177,7 @@ export default function VisitorChat() {
           </div>
 
           {/* 输入区（参照样式：两行布局） */}
-          <div className="border-t border-blue-200/60 bg-[#dceafd]/90 px-3 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur-md">
+          <div className="border-t border-blue-200/50 bg-white/95 px-3 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur-md">
             <div className="mx-auto w-full max-w-2xl">
               <div className="flex items-center gap-2">
                 <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={sendImage} data-testid="visitor-chat-file" />
