@@ -2746,7 +2746,7 @@ async def cs_visitor_faq(session_id: str, data: CSFaqPick):
     ])
     await db.cs_sessions.update_one(
         {"id": session_id},
-        {"$set": {"last_message_at": now.isoformat(), "last_activity_dt": now, "last_message": cs_preview(faq["a"], "")}},
+        {"$set": {"last_message_at": now.isoformat(), "last_activity_dt": now, "last_message": cs_preview(faq["a"], "")}, "$inc": {"unread_agent": 1}},
     )
     return {"ok": True}
 
