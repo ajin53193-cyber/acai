@@ -56,11 +56,11 @@ const Layout = () => {
     }
   }, [pathname]);
 
-  // 页面底色跟随路由：访客聊天窗纯白、客服工作台米白、其余为站点深色
-  const rootBg = isChat ? "bg-white" : isCS ? "bg-[#f6f2e9]" : "bg-[#060B18] text-slate-100";
+  // 页面底色跟随路由：访客聊天窗纯白、客服工作台米白、其余为站点深色；聊天/工作台锁定视口高度，禁止页面自身滚动
+  const rootBg = isChat ? "h-[100dvh] overflow-hidden bg-white" : isCS ? "h-[100dvh] overflow-hidden bg-[#f6f2e9]" : "min-h-screen bg-[#060B18] text-slate-100";
 
   return (
-    <div className={`min-h-screen ${rootBg}`} data-testid="app-root">
+    <div className={rootBg} data-testid="app-root">
       {!bare && <Header />}
       <Routes>
         <Route path="/" element={<Home />} />
