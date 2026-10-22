@@ -1,0 +1,35 @@
+{
+  "summary": "Full backend + frontend testing for iter_12 session-handover feature. Backend: 9 passed + 1 intentionally skipped in /app/backend/tests/test_cs_handover.py (18s). Verified: (1) temp agent create via POST /api/admin/cs/agents + both agent01 & temp login + status online; (2) manual offline handover: POST /api/cs/start -> assigned agent -> POST /api/cs/agent/status {online:false} returns handover>=1, GET /api/cs/{sid}/messages .agent swapped and messages contain via='system' pill with text '客服「X」已接入，继续为您服务', new agent sees session in /api/cs/agent/sessions; (3) lazy handover on visitor message: Mongo-flipped assigned agent offline, POST /api/cs/{sid}/message -> agent swapped, system msg inserted, new agent unread_agent>=1; (4) lazy handover on FAQ: POST /api/cs/{sid}/faq {index:0} with assigned agent offline -> swapped + system msg; (5) no-online-agent case: both offline -> POST /message keeps agent unchanged and inserts NO new system msg; (6) auto-offline: set assigned agent last_seen_at=10min ago in Mongo, GET /api/cs/agent/me with that agent's token flips it offline AND triggers handover_sessions, session moves to other online agent with system msg; (7) admin DELETE /api/admin/cs/agents/{tmpId} returns {ok:true, handover:>=1}; verified via Mongo cs_sessions that session's agent_id is now agent01 (only online); (8) agent library: PUT /api/cs/agent/quick-replies/{id} on admin-created item (no created_by) returns 200 and persists new text; agent-created temp item deleted via DELETE returns 200; unknown id returns 404; (9) orphan-session check on TEST_HO_* sessions: none. Temp agent cleaned up at module teardown; agent01 left ONLINE at end (verified via admin/cs/agents list: only agent01, online=True). Frontend /cs (agent01/Pass@123, 1920x1080): cs-qrlib-edit-{id} (31 shown) and cs-qrlib-del-{id} (31) rendered; clicking first edit opens cs-qrlib-form with title '修改话术'; cancelled without changes. Browsed sessions list (58 rows) -> opening a TEST_HO_* session shows cs-wb-system-msg pill text '客服「客服小海」已接入，继续为您服务'. Frontend /chat (390x844): seeded localStorage.hy_cs_session to a TEST_HO_* sid that has via=system msg -> visitor-chat-agent shows '客服小海' and visitor-chat-system pill rendered centered with the correct text.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_cs_handover.py",
+    "/app/test_reports/pytest/cs_handover.xml"
+  ],
+  "action_items": [
+    "Pre-existing (from iter_9/10/11, still present): React 'Encountered two children with the same key cc61c833-24f8-4036-80d7-9db405ad4386' warning fires repeatedly in /cs CSWorkbench on each poll tick. Dedupe sessions/messages by id before setState."
+  ],
+  "critical_code_review_comments": [
+    "handover_sessions picks target via pick_online_agent inside loop, which uses current assigned_count — this provides a weighted round-robin across the moved sessions (good). Breaks early if no target to avoid tight loop (correct).",
+    "transfer_session writes handover_from/handover_at on cs_sessions and inserts a system msg with sender='agent', via='system' — matches spec exactly; also $inc unread_visitor by 1 so visitor sees the pill badge.",
+    "ensure_online_agent calls agent_auto_offline_if_stale first — guarantees heartbeat-stale agents are reclassified before lazy handover check. Correct ordering.",
+    "admin_cs_delete_agent chooses target with `pick_online_agent OR any-other-enabled-agent` fallback — prevents orphan sessions when no agent is currently online. Good.",
+    "cs_agent_qr_update/delete have NO created_by filter — matches new requirement that agents may edit/delete any library item (including admin-created).",
+    "cs_agent_set_status only triggers handover_sessions when going online->offline (gated on `changed and not data.online`) — avoids spurious moves on repeated offline calls.",
+    "Potential race: between agent_auto_offline_if_stale's update_one (filter online:True) and the status log insert — update_one is atomic so if two concurrent requests race, only one wins and logs. Acceptable.",
+    "Minor: assign_cs_agent falls back to ALL enabled agents when none online (including just-logged-out ones). Resulting session may be assigned to offline agent then lazy-handed-over on first visitor message. Correct, by design."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_cs_handover.py (new, 10 cases: 9 passed + 1 intentional skip)"
+  ],
+  "success_rate": {"backend": "100% (9/9 run, 1 intentional skip)", "frontend": "100% (edit/del buttons, 修改话术 form, cs-wb-system-msg, visitor-chat-system all verified)"},
+  "test_credentials": "Admin admin/Heying@2026; Agent agent01/Pass@123 — verified working on preview URL.",
+  "seed_data_creation": "During tests created ~5 TEST_HO_* sessions (via /api/cs/start) and one short-lived tmp agent (deleted at teardown). All agent-created transient quick-reply items (iter12_tmp) were deleted. One admin QR 'iter12_原始' may remain if the admin-created library was initially empty — but it was created-and-deleted in test_08 only when no admin-item existed; in current state it was auto-cleaned.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "iter_12 all green. Reusable regression file /app/backend/tests/test_cs_handover.py (10 cases, ~18s). Run with: `export $(grep -v '^#' /app/frontend/.env | xargs) && export $(grep -v '^#' /app/backend/.env | xargs) && pytest /app/backend/tests/test_cs_handover.py -v`. Previous regression suites still valid. Agent01 left ONLINE; no temp agents remain; no orphan TEST_HO_* sessions. Pre-existing React duplicate-key warning in /cs still open."
+}
