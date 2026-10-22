@@ -48,7 +48,13 @@ export default function VisitorChat() {
   const soundRef = useRef(soundOn);
   const firstLoad = useRef(true);
 
-  useEffect(() => { document.title = "在线客服 | 合赢项目社"; }, []);
+  useEffect(() => {
+    document.title = "在线客服 | 合赢项目社";
+    const meta = document.querySelector('meta[name="theme-color"]');
+    const prev = meta?.getAttribute("content");
+    if (meta) meta.setAttribute("content", "#ffffff");
+    return () => { if (meta && prev) meta.setAttribute("content", prev); };
+  }, []);
   useEffect(() => { if (bottomRef.current) bottomRef.current.scrollIntoView({ behavior: "smooth" }); }, [messages]);
   useEffect(() => { soundRef.current = soundOn; localStorage.setItem(SOUND_KEY, soundOn ? "1" : "0"); }, [soundOn]);
 

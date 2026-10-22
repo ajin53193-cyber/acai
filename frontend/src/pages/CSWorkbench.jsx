@@ -247,6 +247,12 @@ function Workbench({ token, onLogout }) {
 export default function CSWorkbench() {
   const [token, setToken] = useState(() => localStorage.getItem(TOKEN_KEY) || "");
   const logout = () => { localStorage.removeItem(TOKEN_KEY); setToken(""); };
-  useEffect(() => { document.title = "客服工作台 | 合赢项目社"; }, []);
+  useEffect(() => {
+    document.title = "客服工作台 | 合赢项目社";
+    const meta = document.querySelector('meta[name="theme-color"]');
+    const prev = meta?.getAttribute("content");
+    if (meta) meta.setAttribute("content", "#f6f2e9");
+    return () => { if (meta && prev) meta.setAttribute("content", prev); };
+  }, []);
   return token ? <Workbench token={token} onLogout={logout} /> : <Login onLogin={setToken} />;
 }
