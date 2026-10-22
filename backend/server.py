@@ -2759,6 +2759,8 @@ async def cs_start(data: CSStart, request: Request):
             agent = await assign_cs_agent()
             if agent:
                 await db.cs_sessions.update_one({"id": data.session_id}, {"$set": {"agent_id": agent["id"]}})
+        # 老访客重新打开聊天窗：若全员离线且该会话冷却期已过，同样自动发进群教程
+        await maybe_send_offline_reply(existing, cfg)
         return {"enabled": True, "session_id": data.session_id, "agent": agent_public(agent) if agent else None, "welcome": cfg["welcome"], "faqs": cfg["faqs"]}
     agent = await assign_cs_agent()
     if not agent:
@@ -2859,6 +2861,7 @@ async def cs_visitor_faq(session_id: str, data: CSFaqPick):
         {"id": session_id},
         {"$set": {"last_message_at": now.isoformat(), "last_activity_dt": now, "last_message": cs_preview(faq["a"], "")}, "$inc": {"unread_agent": 1}},
     )
+    await maybe_send_offline_reply(sess)
     return {"ok": True}
 
 
