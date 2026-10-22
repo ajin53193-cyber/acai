@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useState } from "react";
 import axios from "axios";
 import { toast } from "sonner";
-import { Plus, Pencil, Trash2, Save, Users, X } from "lucide-react";
+import { Plus, Pencil, Trash2, Save, Users, X, Clock } from "lucide-react";
 import { API, formatDetail } from "@/lib/api";
 import { ImageUpload } from "@/components/ImageUpload";
 import CSQuickReplies from "@/pages/admin/CSQuickReplies";
+import { StatusLogTable } from "@/components/StatusLogTable";
 
 const emptyAgent = { name: "", avatar: "", username: "", password: "", weight: 1, enabled: true, remark: "" };
 const inputCls = "w-full rounded-xl border border-amber-500/20 bg-[#060B18]/70 px-4 py-2.5 text-sm text-slate-200 outline-none focus:border-[#D4AF37]/60";
@@ -49,6 +50,28 @@ function AgentForm({ token, editing, onClose, onSaved }) {
         </div>
         <button onClick={save} disabled={saving} data-testid="cs-agent-save" className="mt-6 flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#D4AF37] to-[#FFE896] py-3 font-bold text-[#1B1403] active:scale-95 disabled:opacity-50"><Save size={16} /> 保存</button>
       </div>
+    </div>
+  );
+}
+
+function StatusLogSection({ token }) {
+  const [days, setDays] = useState(7);
+  const [data, setData] = useState({ days: [], online_now: [] });
+  useEffect(() => {
+    axios.get(`${API}/admin/cs/status-log?days=${days}`, { headers: { Authorization: `Bearer ${token}` } }).then((r) => setData(r.data)).catch(() => {});
+  }, [days, token]);
+  return (
+    <div className="glass-card rounded-2xl p-6" data-testid="cs-status-log-admin">
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h3 className="flex items-center gap-2 font-display text-base font-bold text-gold-gradient"><Clock size={16} /> 坐席上下线统计</h3>
+          <p className="mt-1 text-xs text-slate-500">按天记录每位坐席的首次上线、最后下线与在线时长；超过 2 分钟无操作会被系统自动记为下线。当前在线：{data.online_now.length ? data.online_now.map((a) => a.name).join("、") : "无"}</p>
+        </div>
+        <div className="flex gap-1.5">
+          {[7, 14, 30].map((d) => <button key={d} onClick={() => setDays(d)} data-testid={`cs-status-days-${d}`} className={`rounded-full px-3 py-1.5 text-xs ${days === d ? "bg-[#D4AF37]/25 text-[#E5C158] ring-1 ring-[#D4AF37]/50" : "bg-white/5 text-slate-400 hover:bg-white/10"}`}>近{d}天</button>)}
+        </div>
+      </div>
+      <div className="overflow-x-auto text-slate-300"><StatusLogTable rows={data.days} showAgent /></div>
     </div>
   );
 }
@@ -144,7 +167,7 @@ export default function CSAdmin({ token, onUnauthorized }) {
                     <td className="py-2.5 pr-3"><div className="flex items-center gap-2">{a.avatar ? <img src={a.avatar.startsWith("/api/") ? `${process.env.REACT_APP_BACKEND_URL}${a.avatar}` : a.avatar} alt="" className="h-8 w-8 rounded-full object-cover" /> : <div className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-700 text-xs">{a.name?.[0] || "客"}</div>}<span className="text-slate-200">{a.name}</span></div></td>
                     <td className="py-2.5 pr-3 font-mono text-xs text-slate-400">{a.username}</td>
                     <td className="py-2.5 pr-3 text-slate-300">{a.weight}</td>
-                    <td className="py-2.5 pr-3">{a.enabled ? <span className="text-green-400">启用</span> : <span className="text-slate-500">停用</span>}</td>
+                    <td className="py-2.5 pr-3 whitespace-nowrap">{a.enabled ? <span className="text-green-400">启用</span> : <span className="text-slate-500">停用</span>}<span className={`ml-2 inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] ${statFor(a.id).online ? "bg-green-500/15 text-green-400" : "bg-white/5 text-slate-500"}`} data-testid={`cs-agent-online-${a.id}`}><span className={`h-1.5 w-1.5 rounded-full ${statFor(a.id).online ? "bg-green-400" : "bg-slate-500"}`} />{statFor(a.id).online ? "在线" : "离线"}</span></td>
                     <td className="py-2.5 pr-3 font-bold text-[#E5C158]">{statFor(a.id).sessions}</td>
                     <td className="py-2.5 pr-3 text-slate-300">{statFor(a.id).replies}</td>
                     <td className="py-2.5 pr-3 text-slate-500">{a.remark || "—"}</td>
@@ -156,6 +179,9 @@ export default function CSAdmin({ token, onUnauthorized }) {
           </div>
         )}
       </div>
+
+      {/* 坐席上下线统计 */}
+      <StatusLogSection token={token} />
 
       {formOpen && <AgentForm token={token} editing={editing} onClose={() => setFormOpen(false)} onSaved={() => { setFormOpen(false); load(); }} />}
     </div>

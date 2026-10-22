@@ -4,7 +4,7 @@ import uuid
 import mimetypes
 import bcrypt
 import jwt
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timezone, timedelta, time
 from pathlib import Path
 from typing import List, Optional
 
@@ -2574,13 +2574,51 @@ async def get_cs_config() -> dict:
     }
 
 
+ONLINE_TIMEOUT_SEC = 120  # 坐席超过 2 分钟无心跳视为掉线（自动记一条下线）
+
+
+def agent_is_online(a: dict) -> bool:
+    if not a.get("online"):
+        return False
+    seen = a.get("last_seen_at")
+    if not seen:
+        return False
+    try:
+        return (datetime.now(timezone.utc) - datetime.fromisoformat(seen)).total_seconds() <= ONLINE_TIMEOUT_SEC
+    except ValueError:
+        return False
+
+
+async def agent_status_log(agent: dict, action: str, at: datetime, auto: bool = False):
+    await db.cs_agent_status_log.insert_one({
+        "id": str(uuid.uuid4()), "agent_id": agent["id"], "agent_name": agent.get("name", ""),
+        "action": action, "auto": auto, "at": at.isoformat(), "date": at.astimezone(CN_TZ).strftime("%Y-%m-%d"),
+    })
+
+
+async def agent_auto_offline_if_stale(agent: dict):
+    """掉线补记：标记在线但心跳超时的坐席，按最后心跳时间记一条「自动下线」并置为离线。"""
+    if agent.get("online") and not agent_is_online(agent):
+        try:
+            at = datetime.fromisoformat(agent["last_seen_at"]) if agent.get("last_seen_at") else datetime.now(timezone.utc)
+        except ValueError:
+            at = datetime.now(timezone.utc)
+        await db.cs_agents.update_one({"id": agent["id"], "online": True}, {"$set": {"online": False}})
+        await agent_status_log(agent, "offline", at, auto=True)
+        agent["online"] = False
+
+
 async def assign_cs_agent():
-    """加权轮流：挑选 已分配量/权重 最小的在线坐席，并累加其分配计数。"""
+    """加权轮流：优先在线坐席；无人在线时退回所有启用坐席（访客仍可留言）。挑选 已分配量/权重 最小者并累加计数。"""
     agents = await db.cs_agents.find({"enabled": True}).to_list(200)
     if not agents:
         return None
-    agents.sort(key=lambda a: (a.get("assigned_count", 0) / max(1, a.get("weight", 1)), a.get("last_assigned_at", "")))
-    chosen = agents[0]
+    for a in agents:
+        await agent_auto_offline_if_stale(a)
+    online = [a for a in agents if agent_is_online(a)]
+    pool = online or agents
+    pool.sort(key=lambda a: (a.get("assigned_count", 0) / max(1, a.get("weight", 1)), a.get("last_assigned_at", "")))
+    chosen = pool[0]
     await db.cs_agents.update_one(
         {"id": chosen["id"]},
         {"$inc": {"assigned_count": 1}, "$set": {"last_assigned_at": datetime.now(timezone.utc).isoformat()}},
@@ -2741,7 +2779,29 @@ async def cs_agent_login(data: AgentLogin):
 
 @api_router.get("/cs/agent/me")
 async def cs_agent_me(agent: dict = Depends(require_agent)):
-    return {**agent_public(agent), "quick_replies": agent.get("quick_replies", [])}
+    await agent_auto_offline_if_stale(agent)
+    return {**agent_public(agent), "quick_replies": agent.get("quick_replies", []), "online": bool(agent.get("online"))}
+
+
+class AgentStatusInput(BaseModel):
+    online: bool
+
+
+@api_router.post("/cs/agent/status")
+async def cs_agent_set_status(data: AgentStatusInput, agent: dict = Depends(require_agent)):
+    """坐席手动上线 / 下线，并记录日志"""
+    await agent_auto_offline_if_stale(agent)
+    now = datetime.now(timezone.utc)
+    if bool(agent.get("online")) != data.online:
+        await agent_status_log(agent, "online" if data.online else "offline", now)
+    await db.cs_agents.update_one({"id": agent["id"]}, {"$set": {"online": data.online, "last_seen_at": now.isoformat()}})
+    return {"online": data.online}
+
+
+@api_router.get("/cs/agent/status-log")
+async def cs_agent_status_log_mine(days: int = 7, agent: dict = Depends(require_agent)):
+    """坐席查看自己最近几天的上下线统计"""
+    return {"days": await build_status_report(days, agent_id=agent["id"])}
 
 
 @api_router.put("/cs/agent/quick-replies")
@@ -2753,8 +2813,70 @@ async def cs_agent_quick_replies(data: QuickRepliesInput, agent: dict = Depends(
 
 @api_router.get("/cs/agent/sessions")
 async def cs_agent_sessions(agent: dict = Depends(require_agent)):
+    # 工作台每 3 秒轮询一次，顺便作为在线心跳；心跳超时的会被判定掉线并自动补记下线
+    await agent_auto_offline_if_stale(agent)
+    if agent.get("online"):
+        await db.cs_agents.update_one({"id": agent["id"]}, {"$set": {"last_seen_at": datetime.now(timezone.utc).isoformat()}})
     rows = await db.cs_sessions.find({"agent_id": agent["id"]}, {"_id": 0}).sort("last_message_at", -1).to_list(500)
-    return {"sessions": rows}
+    return {"sessions": rows, "online": bool(agent.get("online"))}
+
+
+async def build_status_report(days: int, agent_id: str = "") -> list:
+    """按天汇总每位坐席的上下线：首次上线、最后下线、在线时长(分钟)、时段明细。跨天的在线段按天切分。"""
+    days = max(1, min(days, 90))
+    now = datetime.now(timezone.utc)
+    today_cn = now.astimezone(CN_TZ).date()
+    start_day = today_cn - timedelta(days=days - 1)
+    start_utc = datetime.combine(start_day, time.min, tzinfo=CN_TZ).astimezone(timezone.utc)
+    q = {"at": {"$gte": start_utc.isoformat()}}
+    if agent_id:
+        q["agent_id"] = agent_id
+    logs = await db.cs_agent_status_log.find(q, {"_id": 0}).sort("at", 1).to_list(20000)
+    agents_q = {"id": agent_id} if agent_id else {}
+    agents = {a["id"]: a for a in await db.cs_agents.find(agents_q, {"_id": 0, "password_hash": 0}).to_list(300)}
+    # 起始时刻之前仍处于在线的坐席：补一个起始「上线」点
+    by_agent: dict[str, list] = {aid: [] for aid in agents}
+    for aid, a in agents.items():
+        prev = await db.cs_agent_status_log.find_one({"agent_id": aid, "at": {"$lt": start_utc.isoformat()}}, sort=[("at", -1)])
+        if prev and prev["action"] == "online":
+            by_agent[aid].append({"action": "online", "at": start_utc.isoformat(), "auto": False})
+    for lg in logs:
+        by_agent.setdefault(lg["agent_id"], []).append(lg)
+    # 配对成在线时段
+    report: dict[str, dict] = {}  # key: date|agent
+    for aid, items in by_agent.items():
+        a = agents.get(aid, {})
+        open_at = None
+        segments = []
+        for lg in items:
+            at = datetime.fromisoformat(lg["at"])
+            if lg["action"] == "online":
+                if open_at is None:
+                    open_at = at
+            elif open_at is not None:
+                segments.append((open_at, at, lg.get("auto", False)))
+                open_at = None
+        if open_at is not None:
+            segments.append((open_at, now if agent_is_online(a) else open_at, None))  # 仍在线：算到当前
+        for s_at, e_at, auto in segments:
+            cur = s_at
+            while cur < e_at:
+                d = cur.astimezone(CN_TZ).date()
+                day_end = datetime.combine(d + timedelta(days=1), time.min, tzinfo=CN_TZ).astimezone(timezone.utc)
+                seg_end = min(e_at, day_end)
+                key = f"{d.isoformat()}|{aid}"
+                row = report.setdefault(key, {"date": d.isoformat(), "agent_id": aid, "agent_name": a.get("name", ""), "avatar": a.get("avatar", ""),
+                                               "first_online": None, "last_offline": None, "online_minutes": 0, "segments": []})
+                row["online_minutes"] += int((seg_end - cur).total_seconds() // 60)
+                row["first_online"] = row["first_online"] or cur.astimezone(CN_TZ).strftime("%H:%M")
+                still = seg_end == e_at and auto is None
+                row["last_offline"] = None if still else (seg_end.astimezone(CN_TZ).strftime("%H:%M") if seg_end == e_at else "24:00")
+                row["segments"].append({"from": cur.astimezone(CN_TZ).strftime("%H:%M"), "to": None if still else seg_end.astimezone(CN_TZ).strftime("%H:%M"), "auto": bool(auto)})
+                cur = seg_end
+    rows = sorted(report.values(), key=lambda r: (r["date"], r["agent_name"]), reverse=True)
+    for r in rows:
+        r["online_now"] = agent_is_online(agents.get(r["agent_id"], {})) and r["date"] == today_cn.isoformat()
+    return rows
 
 
 @api_router.get("/cs/agent/sessions/{session_id}/messages")
@@ -2947,6 +3069,14 @@ async def cs_agent_qr_delete(qr_id: str, agent: dict = Depends(require_agent)):
     return {"ok": True}
 
 
+@api_router.get("/admin/cs/status-log")
+async def admin_cs_status_log(days: int = 7, _: str = Depends(require_admin)):
+    agents = await db.cs_agents.find({}, {"_id": 0, "password_hash": 0}).to_list(300)
+    for a in agents:
+        await agent_auto_offline_if_stale(a)
+    return {"days": await build_status_report(days), "online_now": [agent_public(a) for a in agents if agent_is_online(a)]}
+
+
 @api_router.get("/admin/cs/stats")
 async def admin_cs_stats(days: int = 30, _: str = Depends(require_admin)):
     days = max(1, min(days, 365))
@@ -2965,7 +3095,7 @@ async def admin_cs_stats(days: int = 30, _: str = Depends(require_admin)):
     msg_map = {r["_id"]: r["replies"] for r in msg_rows}
     out = [{
         "id": a["id"], "name": a.get("name", ""), "avatar": a.get("avatar", ""),
-        "enabled": a.get("enabled", True), "weight": a.get("weight", 1),
+        "enabled": a.get("enabled", True), "weight": a.get("weight", 1), "online": agent_is_online(a),
         "sessions": sess_map.get(a["id"], 0), "replies": msg_map.get(a["id"], 0),
     } for a in agents]
     out.sort(key=lambda x: x["sessions"], reverse=True)

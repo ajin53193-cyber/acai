@@ -2,9 +2,10 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import axios from "axios";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
-import { Send, LogOut, Plus, Trash2, Headphones, MessageSquare, ImagePlus, Zap, X } from "lucide-react";
+import { Send, LogOut, Plus, Trash2, Headphones, MessageSquare, ImagePlus, Zap, X, Power, Clock } from "lucide-react";
 import { API, formatDetail } from "@/lib/api";
 import { toFullUrl } from "@/components/ImageUpload";
+import { StatusLogTable } from "@/components/StatusLogTable";
 
 const TOKEN_KEY = "hy_cs_agent_token";
 const timeShort = (iso) => { try { return new Date(iso).toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit" }); } catch { return ""; } };
@@ -127,8 +128,26 @@ function QRLibrary({ token, onSend }) {
   );
 }
 
+function StatusLogModal({ token, onClose }) {
+  const [rows, setRows] = useState(null);
+  useEffect(() => { axios.get(`${API}/cs/agent/status-log?days=14`, { headers: { Authorization: `Bearer ${token}` } }).then((r) => setRows(r.data.days || [])).catch(() => setRows([])); }, [token]);
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4 backdrop-blur-sm" onClick={onClose} data-testid="cs-status-log-modal">
+      <motion.div initial={{ opacity: 0, scale: 0.96 }} animate={{ opacity: 1, scale: 1 }} onClick={(e) => e.stopPropagation()} className="max-h-[80vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-white p-6 shadow-2xl">
+        <div className="mb-4 flex items-center justify-between">
+          <h3 className="flex items-center gap-2 text-base font-bold text-slate-800"><Clock size={16} className="text-[#9a7a16]" /> 我的上下线记录（近 14 天）</h3>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-700"><X size={18} /></button>
+        </div>
+        {rows === null ? <div className="py-8 text-center text-xs text-slate-400">加载中…</div> : <StatusLogTable rows={rows} />}
+      </motion.div>
+    </div>
+  );
+}
+
 function Workbench({ token, onLogout }) {
   const [me, setMe] = useState(null);
+  const [online, setOnline] = useState(false);
+  const [showLog, setShowLog] = useState(false);
   const [sessions, setSessions] = useState([]);
   const [active, setActive] = useState(null);
   const [messages, setMessages] = useState([]);
@@ -139,10 +158,16 @@ function Workbench({ token, onLogout }) {
   const fileRef = useRef(null);
   const headers = { Authorization: `Bearer ${token}` };
 
-  useEffect(() => { axios.get(`${API}/cs/agent/me`, { headers }).then((r) => setMe(r.data)).catch(() => onLogout()); /* eslint-disable-next-line */ }, []);
+  useEffect(() => { axios.get(`${API}/cs/agent/me`, { headers }).then((r) => { setMe(r.data); setOnline(!!r.data.online); }).catch(() => onLogout()); /* eslint-disable-next-line */ }, []);
+
+  const toggleOnline = async () => {
+    const next = !online;
+    try { await axios.post(`${API}/cs/agent/status`, { online: next }, { headers }); setOnline(next); toast.success(next ? "已上线，开始接待新访客" : "已下线，新访客不再分配给你"); }
+    catch { toast.error("操作失败"); }
+  };
 
   const loadSessions = useCallback(async () => {
-    try { const r = await axios.get(`${API}/cs/agent/sessions`, { headers }); setSessions(r.data.sessions || []); }
+    try { const r = await axios.get(`${API}/cs/agent/sessions`, { headers }); setSessions(r.data.sessions || []); if (typeof r.data.online === "boolean") setOnline(r.data.online); }
     catch (e) { if (e.response?.status === 401) onLogout(); }
     // eslint-disable-next-line
   }, []);
@@ -223,15 +248,22 @@ function Workbench({ token, onLogout }) {
           <div className="flex items-center gap-2.5">
             <div className="relative">
               {me?.avatar ? <img src={toFullUrl(me.avatar)} alt="" className="h-9 w-9 rounded-full object-cover ring-2 ring-[#D4AF37]/50" /> : <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-[#FFE896] to-[#D4AF37] text-xs font-bold text-[#6b5410]">客服</div>}
-              <span className="cs-online-dot absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-white bg-green-500" />
+              <span className={`absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-white ${online ? "cs-online-dot bg-green-500" : "bg-slate-400"}`} />
             </div>
             <div className="leading-tight">
               <span className="block text-sm font-bold text-slate-800" data-testid="cs-wb-me">{me?.name || "客服"}</span>
-              <span className="text-[10px] text-green-600">在线接待中</span>
+              <span className={`text-[10px] ${online ? "text-green-600" : "text-slate-400"}`} data-testid="cs-wb-status-text">{online ? "在线接待中" : "已下线"}</span>
             </div>
           </div>
-          <button onClick={onLogout} data-testid="cs-wb-logout" className="text-slate-400 transition-colors hover:text-red-500"><LogOut size={16} /></button>
+          <div className="flex items-center gap-1">
+            <button onClick={() => setShowLog(true)} data-testid="cs-wb-log-btn" title="我的上下线记录" className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-amber-900/5 hover:text-[#9a7a16]"><Clock size={15} /></button>
+            <button onClick={onLogout} data-testid="cs-wb-logout" className="rounded-lg p-1.5 text-slate-400 transition-colors hover:text-red-500"><LogOut size={15} /></button>
+          </div>
         </div>
+        <button onClick={toggleOnline} data-testid="cs-wb-toggle-online" className={`mx-3 mt-3 flex items-center justify-between rounded-xl px-3.5 py-2.5 text-sm font-bold shadow-sm transition-all active:scale-[0.98] ${online ? "bg-white text-slate-600 ring-1 ring-amber-900/10 hover:ring-red-300" : "bg-gradient-to-r from-green-500 to-emerald-500 text-white shadow-green-500/25"}`}>
+          <span className="flex items-center gap-2"><Power size={15} /> {online ? "点击下线" : "点击上线接待"}</span>
+          <span className={`relative h-5 w-9 rounded-full transition-colors ${online ? "bg-green-500" : "bg-white/40"}`}><span className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-all ${online ? "left-[18px]" : "left-0.5"}`} /></span>
+        </button>
         <div className="px-4 pt-3 pb-1 text-[11px] font-semibold tracking-widest text-slate-400">访客会话 · {sessions.length}</div>
         <div className="cs-scroll-light flex-1 overflow-y-auto px-2 pb-2" data-testid="cs-wb-sessions">
           {sessions.length === 0 ? (
@@ -304,6 +336,8 @@ function Workbench({ token, onLogout }) {
       <aside className="cs-scroll-light hidden w-72 shrink-0 overflow-y-auto border-l border-amber-900/10 bg-[#fbf9f3] p-4 lg:block">
         {me && <QRLibrary token={token} onSend={sendLibrary} />}
       </aside>
+
+      {showLog && <StatusLogModal token={token} onClose={() => setShowLog(false)} />}
     </div>
   );
 }
