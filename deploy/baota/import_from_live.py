@@ -8,6 +8,7 @@
     cd /www/wwwroot/heying
     backend/.venv/bin/python deploy/baota/import_from_live.py
 可选环境变量：LIVE_URL（默认 https://eztyv.com）、LIVE_ADMIN_USERNAME / LIVE_ADMIN_PASSWORD（默认取 backend/.env 里的管理员账号）
+    ONLY_CS=1  只同步客服配置（欢迎语/常见问题）与话术库，不覆盖项目/新闻/教程/站点设置
 """
 import os
 import re
@@ -105,21 +106,25 @@ def replace_collection(name: str, docs: list, key: str = "id"):
     print(f"  {name}：已导入 {len(docs)} 条")
 
 
+ONLY_CS = os.environ.get("ONLY_CS", "") == "1"  # 只同步客服配置 + 话术库，不动项目/新闻/教程/站点设置
+
+
 def main():
-    print(f"从 {LIVE} 迁移数据到 {os.environ['DB_NAME']} ...")
+    print(f"从 {LIVE} 迁移{'【仅客服配置与话术库】' if ONLY_CS else ''}数据到 {os.environ['DB_NAME']} ...")
     headers = login()
 
-    settings = get("/api/settings", headers)
-    projects = get("/api/admin/projects", headers)["projects"]
-    articles = get("/api/admin/articles", headers)["articles"]
-    tutorials = get("/api/admin/tutorials", headers)["tutorials"]
-
+    settings = projects = articles = tutorials = []
     print("写入数据库：")
-    db.settings.update_one({"key": "site"}, {"$set": {**settings, "key": "site"}}, upsert=True)
-    print("  settings：已更新")
-    replace_collection("projects", projects)
-    replace_collection("articles", articles)
-    replace_collection("tutorials", tutorials)
+    if not ONLY_CS:
+        settings = get("/api/settings", headers)
+        projects = get("/api/admin/projects", headers)["projects"]
+        articles = get("/api/admin/articles", headers)["articles"]
+        tutorials = get("/api/admin/tutorials", headers)["tutorials"]
+        db.settings.update_one({"key": "site"}, {"$set": {**settings, "key": "site"}}, upsert=True)
+        print("  settings：已更新")
+        replace_collection("projects", projects)
+        replace_collection("articles", articles)
+        replace_collection("tutorials", tutorials)
 
     # 客服系统：欢迎语 + 常见问题、话术库（分组/图片）
     try:
@@ -138,7 +143,7 @@ def main():
     print(f"下载引用的上传文件（{len(paths)} 个）到 {UPLOAD_DIR}：")
     download_files(paths)
 
-    print("\n迁移完成。请打开后台核对：项目 / 新闻 / 教程 / 客服二维码是否正常显示。")
+    print("\n迁移完成。请打开后台核对：" + ("在线客服 → 常见问题 / 话术库。" if ONLY_CS else "项目 / 新闻 / 教程 / 客服二维码 / 话术库是否正常显示。"))
 
 
 if __name__ == "__main__":

@@ -1,5 +1,6 @@
 import os
 import io
+import re
 import uuid
 import mimetypes
 import bcrypt
@@ -3082,6 +3083,51 @@ async def cs_agent_qr_delete(qr_id: str, agent: dict = Depends(require_agent)):
     if res.deleted_count == 0:
         raise HTTPException(status_code=403, detail="只能删除自己添加的话术")
     return {"ok": True}
+
+
+# ---------- 后台查看坐席聊天记录 ----------
+@api_router.get("/admin/cs/sessions")
+async def admin_cs_sessions(agent_id: str = "", start: str = "", end: str = "", q: str = "", page: int = 1, size: int = 30, _: str = Depends(require_admin)):
+    """按坐席 / 日期（北京时间）/ 关键词（地区、IP、最后消息）分页列出会话"""
+    size = max(1, min(size, 100))
+    cond: dict = {}
+    if agent_id:
+        cond["agent_id"] = agent_id
+    s_day, e_day = parse_cn_date(start), parse_cn_date(end)
+    if s_day or e_day:
+        rng = {}
+        if s_day:
+            rng["$gte"] = datetime.combine(s_day, time.min, tzinfo=CN_TZ).astimezone(timezone.utc).isoformat()
+        if e_day:
+            rng["$lt"] = datetime.combine(e_day + timedelta(days=1), time.min, tzinfo=CN_TZ).astimezone(timezone.utc).isoformat()
+        cond["last_message_at"] = rng
+    if q.strip():
+        rx = {"$regex": re.escape(q.strip()), "$options": "i"}
+        cond["$or"] = [{"region": rx}, {"ip": rx}, {"last_message": rx}, {"source": rx}]
+    total = await db.cs_sessions.count_documents(cond)
+    rows = await db.cs_sessions.find(cond, {"_id": 0, "last_activity_dt": 0}).sort("last_message_at", -1).skip((page - 1) * size).to_list(size)
+    agents = {a["id"]: a for a in await db.cs_agents.find({}, {"_id": 0, "id": 1, "name": 1, "avatar": 1}).to_list(300)}
+    ids = [r["id"] for r in rows]
+    counts = {c["_id"]: c for c in await db.cs_messages.aggregate([
+        {"$match": {"session_id": {"$in": ids}}},
+        {"$group": {"_id": "$session_id", "total": {"$sum": 1}, "visitor": {"$sum": {"$cond": [{"$eq": ["$sender", "visitor"]}, 1, 0]}}}},
+    ]).to_list(len(ids) or 1)}
+    for r in rows:
+        a = agents.get(r.get("agent_id"), {})
+        r["agent_name"], r["agent_avatar"] = a.get("name", "（已删除坐席）"), a.get("avatar", "")
+        c = counts.get(r["id"], {})
+        r["msg_total"], r["msg_visitor"] = c.get("total", 0), c.get("visitor", 0)
+    return {"sessions": rows, "total": total, "page": page, "size": size}
+
+
+@api_router.get("/admin/cs/sessions/{session_id}/messages")
+async def admin_cs_session_messages(session_id: str, _: str = Depends(require_admin)):
+    sess = await db.cs_sessions.find_one({"id": session_id}, {"_id": 0, "last_activity_dt": 0})
+    if not sess:
+        raise HTTPException(status_code=404, detail="会话不存在")
+    msgs = await db.cs_messages.find({"session_id": session_id}, {"_id": 0, "created_at_dt": 0}).sort("created_at", 1).to_list(2000)
+    agent = await db.cs_agents.find_one({"id": sess.get("agent_id")})
+    return {"session": sess, "agent": agent_public(agent) if agent else None, "messages": msgs}
 
 
 @api_router.get("/admin/cs/status-log")
