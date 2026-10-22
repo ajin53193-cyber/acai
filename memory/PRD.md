@@ -244,3 +244,12 @@
 - 客服消息头像：VisitorChat 中客服(agent)每条消息气泡左侧显示坐席头像（无头像则「客服」圆形占位），顶部也有头像。
 - 并发修复：cs_start 用 $setOnInsert+upsert 原子创建会话，欢迎语用确定性 id welcome-{sid} upsert，彻底避免 StrictMode/双击导致的重复会话与重复欢迎语。
 - 演示坐席 agent01 已设头像（客服小海）。图片发送 + 3天TTL（上一轮）保持不变。
+
+## 2026-07-22 客服页面 UI 高级化升级（前端视觉，逻辑零改动，功能流已测通过）
+- 需求：客服页面优化、UI 高级。用户选定：访客聊天页按参照图样式（清爽浅蓝风格）；客服工作台改米白色暖色调。
+- 访客页 VisitorChat.jsx：浅蓝主题（页面底色 #eef4fc；顶部状态栏与底部输入区浅蓝 #dceafd/90 玻璃拟态）。底部参照样式=两行布局：第1行 圆角输入框(占位「在这里输入消息」)+✈️发送；第2行 📎发图片 / 🔊新消息提示音开关 / 🔒安全加密标识。消息气泡 framer-motion 弹入动画(visitor=蓝渐变，agent=白底)，带时间戳。空状态欢迎语。
+- 新功能 新消息提示音开关：soundOn 持久化 localStorage(hy_cs_sound_on)；Web Audio 轻量 ping（无需音频文件）；仅在非首次加载且开关开启且收到 agent 新消息时响；data-testid=visitor-chat-sound-btn。
+- 移动端修复：根容器用 h-[100dvh]（替代 h-screen/100vh），底部输入区加 pb-[max(0.75rem,env(safe-area-inset-bottom))]，解决手机 Safari 工具栏遮挡发送按钮问题。
+- 工作台 CSWorkbench.jsx：米白色暖色调（底色 #f6f2e9，侧栏 #fbf9f3，聊天区 #faf8f2，白卡+金色#D4AF37点缀）。三栏(会话列表/聊天/快捷回复)保留；登录页米白卡；会话未读红点脉冲动画；消息 framer-motion 弹入+时间戳；在线状态脉冲点；自定义浅色滚动条。
+- index.css 新增工具类：cs-scroll-light/cs-scroll-dark(滚动条)、cs-light-bg(金色点阵底纹)、cs-online-dot(在线脉冲)、cs-glass-light(浅色玻璃)。
+- 所有 data-testid 保留；轮询/乐观消息去重逻辑完全未改；后端未改。测试代理 iteration_8 验证双向聊天/去重/快捷回复/图片按钮全通过、零控制台错误。
