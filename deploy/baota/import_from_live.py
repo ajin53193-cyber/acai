@@ -121,8 +121,19 @@ def main():
     replace_collection("articles", articles)
     replace_collection("tutorials", tutorials)
 
+    # 客服系统：欢迎语 + 常见问题、话术库（分组/图片）
+    try:
+        cs_cfg = get("/api/admin/cs/config", headers)
+        db.cs_config.update_one({"key": "cs"}, {"$set": {**cs_cfg, "key": "cs"}}, upsert=True)
+        print(f"  cs_config：已更新（常见问题 {len(cs_cfg.get('faqs', []))} 条）")
+        qrs = get("/api/admin/cs/quick-replies", headers)["replies"]
+        replace_collection("cs_quick_replies", qrs)
+    except Exception as e:  # noqa: BLE001
+        print(f"  客服配置/话术库迁移跳过：{e}")
+        qrs = []
+
     paths: set = set()
-    for obj in (settings, projects, articles, tutorials):
+    for obj in (settings, projects, articles, tutorials, qrs):
         collect_file_paths(obj, paths)
     print(f"下载引用的上传文件（{len(paths)} 个）到 {UPLOAD_DIR}：")
     download_files(paths)
