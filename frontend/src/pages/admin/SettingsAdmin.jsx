@@ -192,7 +192,7 @@ export default function SettingsAdmin({ token, onUnauthorized }) {
 
       <div className="glass-card rounded-3xl p-7" data-testid="settings-chat-card">
         <h3 className="font-display text-lg font-bold text-gold-gradient">在线客服</h3>
-        <p className="mt-1 text-xs text-slate-500">访客打开聊天窗即收到欢迎语 + 海鸥官方群二维码；点击常见问题卡片回复固定文案；其余留言由 AI 客服自动回答（可关闭），人工可随时在「在线客服」版块接管</p>
+        <p className="mt-1 text-xs text-slate-500">访客打开聊天窗即收到欢迎语 + 蝙蝠官方群二维码；点击常见问题卡片回复固定文案；其余留言由 AI 客服自动回答（可关闭），人工可随时在「在线客服」版块接管</p>
         <div className="mt-6 space-y-5">
           <div className="flex items-center justify-between rounded-2xl border border-amber-500/10 bg-[#060B18]/50 p-4">
             <div>
@@ -231,7 +231,7 @@ export default function SettingsAdmin({ token, onUnauthorized }) {
               placeholder="您好，欢迎来到合赢项目社！…"
               className={`${inputCls} resize-none`}
             />
-            <p className="mb-2 mt-3 text-xs text-slate-600">欢迎语下方显示两个按钮：「查看教程」与「加入海鸥官方群」，均跳转到指定页面（留空则不显示）</p>
+            <p className="mb-2 mt-3 text-xs text-slate-600">欢迎语下方显示两个按钮：「查看教程」与「加入蝙蝠官方群」，均跳转到指定页面（留空则不显示）</p>
             <div className="grid gap-3 sm:grid-cols-2">
               <input
                 data-testid="settings-chat-welcome-tutorial-label"
@@ -251,7 +251,7 @@ export default function SettingsAdmin({ token, onUnauthorized }) {
                 data-testid="settings-chat-welcome-group-label"
                 value={chatCfg.welcome_group_label || ""}
                 onChange={(e) => setChatCfg({ ...chatCfg, welcome_group_label: e.target.value })}
-                placeholder="群按钮文字，如：加入海鸥官方群"
+                placeholder="群按钮文字，如：加入蝙蝠官方群"
                 className={inputCls}
               />
               <input
@@ -334,7 +334,7 @@ export default function SettingsAdmin({ token, onUnauthorized }) {
             </div>
           </div>
           <div className="rounded-2xl border border-amber-500/10 bg-[#060B18]/50 p-4">
-            <div className="text-sm font-medium text-slate-200">海鸥官方群二维码（活码管理）</div>
+            <div className="text-sm font-medium text-slate-200">蝙蝠官方群二维码（活码管理）</div>
             <div className="mb-3 mt-0.5 text-xs text-slate-500">可上传多个群二维码，访客询问怎么合作/怎么加入/联系方式/人工客服时，自动发送当前启用的群二维码引导进群，同时显示在联系我们页；群快满 200 人或码快过期时会标红提醒换群。所有启用的群二维码（含群 ID）会以小卡片形式一起显示在「加入官方群教程」第三步</div>
             <div className="space-y-3">
               {(chatCfg.qr_codes || []).map((q, i) => (
@@ -357,7 +357,7 @@ export default function SettingsAdmin({ token, onUnauthorized }) {
                       <input
                         value={q.group_id || ""}
                         onChange={(e) => setChatCfg({ ...chatCfg, qr_codes: chatCfg.qr_codes.map((x, idx) => (idx === i ? { ...x, group_id: e.target.value } : x)) })}
-                        placeholder="群 ID（可选，访客可复制后在海鸥 App 搜索加群）"
+                        placeholder="群 ID（可选，访客可复制后在蝙蝠 App 搜索加群）"
                         className={inputCls}
                         data-testid={`qr-code-group-id-${i}`}
                       />

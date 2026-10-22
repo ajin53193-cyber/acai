@@ -6,7 +6,7 @@ export const DEFAULT_COPY = {
     hero_tag: "HEYING PROJECT CLUB",
     hero_title1: "合赢项目社",
     hero_title2: "聚力项目，合作共赢",
-    hero_subtitle: "招募团队长，平台提供优质稳定项目。专业项目审核、评估、整合，每月新项目海鸥官方群内同步分享。",
+    hero_subtitle: "招募团队长，平台提供优质稳定项目。专业项目审核、评估、整合，每月新项目蝙蝠官方群内同步分享。",
     hero_btn_primary: "浏览项目",
     hero_btn_secondary: "加入合作",
     services_title: "优质项目推荐",
@@ -67,7 +67,7 @@ export const DEFAULT_COPY = {
     intro_image: "/images/ui/about-intro.webp",
     intro: [
       "合赢项目社专注优质项目资源对接，主要面向全国招募团队长。团队通过专业的项目审核、项目评估、项目整合，为团队长提供稳定可靠的优质项目。",
-      "平台每月在海鸥官方群内分享最新项目，团队长带领团队协作发展，多劳多得。我们相信，好的项目值得被更多人看见，合赢项目社让每一次合作都有迹可循、有始有终。",
+      "平台每月在蝙蝠官方群内分享最新项目，团队长带领团队协作发展，多劳多得。我们相信，好的项目值得被更多人看见，合赢项目社让每一次合作都有迹可循、有始有终。",
     ],
     values_title: "平台价值观",
     values_subtitle: "开放 · 可信 · 共赢",
