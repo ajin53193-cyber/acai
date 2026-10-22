@@ -274,3 +274,9 @@
 ## 2026-07 更新：快捷回复话术库（分组 + 图片 + 坐席可添加）
 - 集合 cs_quick_replies {id, group, text, image, created_by?, created_by_name?, created_at}。后台 /admin/cs/quick-replies CRUD + 分组重命名；坐席 GET/POST/DELETE(仅自己添加的) /cs/agent/quick-replies。
 - 坐席旧的个人 quick_replies 首次加载时自动迁入分组「我的常用语」。工作台右侧为统一分组话术面板，可添加文本/图片话术，点一下即发送（图片与文本分两条）。
+
+## 2026-07 更新：坐席上下线 + 日期查询
+- cs_agents.online / last_seen_at；cs_agent_status_log {agent_id, action online|offline, auto, at, date}。POST /cs/agent/status 切换；/cs/agent/sessions 轮询作心跳，120s 无心跳自动补记下线。
+- 分配优先在线坐席，无人在线退回全部启用坐席。
+- 报表 build_status_report(days, agent_id, start, end)：按天（北京时间）首次上线/最后下线/在线分钟/时段明细；GET /cs/agent/status-log 与 /admin/cs/status-log 支持 start/end/agent_id 日期查询。
+- 工作台：上线/下线按钮、我的上下线记录弹窗（日期范围查询）；后台：坐席在线徽标 + 上下线统计（日期范围 + 坐席筛选 + 合计）。

@@ -4,7 +4,7 @@ import uuid
 import mimetypes
 import bcrypt
 import jwt
-from datetime import datetime, timezone, timedelta, time
+from datetime import datetime, timezone, timedelta, time, date
 from pathlib import Path
 from typing import List, Optional
 
@@ -2799,9 +2799,9 @@ async def cs_agent_set_status(data: AgentStatusInput, agent: dict = Depends(requ
 
 
 @api_router.get("/cs/agent/status-log")
-async def cs_agent_status_log_mine(days: int = 7, agent: dict = Depends(require_agent)):
-    """坐席查看自己最近几天的上下线统计"""
-    return {"days": await build_status_report(days, agent_id=agent["id"])}
+async def cs_agent_status_log_mine(days: int = 7, start: str = "", end: str = "", agent: dict = Depends(require_agent)):
+    """坐席查看自己的上下线统计（最近 days 天，或 start/end 日期范围）"""
+    return {"days": await build_status_report(days, agent_id=agent["id"], start=start, end=end)}
 
 
 @api_router.put("/cs/agent/quick-replies")
@@ -2821,14 +2821,28 @@ async def cs_agent_sessions(agent: dict = Depends(require_agent)):
     return {"sessions": rows, "online": bool(agent.get("online"))}
 
 
-async def build_status_report(days: int, agent_id: str = "") -> list:
-    """按天汇总每位坐席的上下线：首次上线、最后下线、在线时长(分钟)、时段明细。跨天的在线段按天切分。"""
+def parse_cn_date(s: str):
+    try:
+        return date.fromisoformat(s) if s else None
+    except ValueError:
+        raise HTTPException(status_code=400, detail="日期格式应为 YYYY-MM-DD")
+
+
+async def build_status_report(days: int, agent_id: str = "", start: str = "", end: str = "") -> list:
+    """按天汇总每位坐席的上下线：首次上线、最后下线、在线时长(分钟)、时段明细。跨天的在线段按天切分。
+    可用 start/end（YYYY-MM-DD，北京时间）指定日期范围；未指定则取最近 days 天。"""
     days = max(1, min(days, 90))
     now = datetime.now(timezone.utc)
     today_cn = now.astimezone(CN_TZ).date()
-    start_day = today_cn - timedelta(days=days - 1)
+    end_day = parse_cn_date(end) or today_cn
+    start_day = parse_cn_date(start) or (end_day - timedelta(days=days - 1))
+    if start_day > end_day:
+        start_day, end_day = end_day, start_day
+    if (end_day - start_day).days > 365:
+        raise HTTPException(status_code=400, detail="查询范围最多 1 年")
     start_utc = datetime.combine(start_day, time.min, tzinfo=CN_TZ).astimezone(timezone.utc)
-    q = {"at": {"$gte": start_utc.isoformat()}}
+    end_utc = min(now, datetime.combine(end_day + timedelta(days=1), time.min, tzinfo=CN_TZ).astimezone(timezone.utc))
+    q = {"at": {"$gte": start_utc.isoformat(), "$lt": end_utc.isoformat()}}
     if agent_id:
         q["agent_id"] = agent_id
     logs = await db.cs_agent_status_log.find(q, {"_id": 0}).sort("at", 1).to_list(20000)
@@ -2857,7 +2871,8 @@ async def build_status_report(days: int, agent_id: str = "") -> list:
                 segments.append((open_at, at, lg.get("auto", False)))
                 open_at = None
         if open_at is not None:
-            segments.append((open_at, now if agent_is_online(a) else open_at, None))  # 仍在线：算到当前
+            # 仍在线：算到查询范围结束（范围含今天则为当前时刻）；若实际已掉线但未记录，则忽略
+            segments.append((open_at, end_utc if agent_is_online(a) or end_utc < now else open_at, None))
         for s_at, e_at, auto in segments:
             cur = s_at
             while cur < e_at:
@@ -3070,11 +3085,11 @@ async def cs_agent_qr_delete(qr_id: str, agent: dict = Depends(require_agent)):
 
 
 @api_router.get("/admin/cs/status-log")
-async def admin_cs_status_log(days: int = 7, _: str = Depends(require_admin)):
+async def admin_cs_status_log(days: int = 7, start: str = "", end: str = "", agent_id: str = "", _: str = Depends(require_admin)):
     agents = await db.cs_agents.find({}, {"_id": 0, "password_hash": 0}).to_list(300)
     for a in agents:
         await agent_auto_offline_if_stale(a)
-    return {"days": await build_status_report(days), "online_now": [agent_public(a) for a in agents if agent_is_online(a)]}
+    return {"days": await build_status_report(days, agent_id=agent_id, start=start, end=end), "online_now": [agent_public(a) for a in agents if agent_is_online(a)]}
 
 
 @api_router.get("/admin/cs/stats")

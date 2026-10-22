@@ -129,14 +129,30 @@ function QRLibrary({ token, onSend }) {
 }
 
 function StatusLogModal({ token, onClose }) {
+  const day = (n) => { const d = new Date(Date.now() + 8 * 3600 * 1000); d.setUTCDate(d.getUTCDate() - n); return d.toISOString().slice(0, 10); };
+  const [range, setRange] = useState({ start: day(13), end: day(0) });
   const [rows, setRows] = useState(null);
-  useEffect(() => { axios.get(`${API}/cs/agent/status-log?days=14`, { headers: { Authorization: `Bearer ${token}` } }).then((r) => setRows(r.data.days || [])).catch(() => setRows([])); }, [token]);
+  const query = (r = range) => {
+    setRows(null);
+    axios.get(`${API}/cs/agent/status-log`, { headers: { Authorization: `Bearer ${token}` }, params: { start: r.start, end: r.end } }).then((res) => setRows(res.data.days || [])).catch(() => setRows([]));
+  };
+  useEffect(() => { query(); }, [token]); // eslint-disable-line
+  const dateCls = "rounded-lg border border-amber-900/15 bg-[#faf8f2] px-2.5 py-1.5 text-xs text-slate-700 outline-none focus:border-[#D4AF37]";
+  const total = (rows || []).reduce((a, r) => a + r.online_minutes, 0);
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4 backdrop-blur-sm" onClick={onClose} data-testid="cs-status-log-modal">
       <motion.div initial={{ opacity: 0, scale: 0.96 }} animate={{ opacity: 1, scale: 1 }} onClick={(e) => e.stopPropagation()} className="max-h-[80vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-white p-6 shadow-2xl">
         <div className="mb-4 flex items-center justify-between">
-          <h3 className="flex items-center gap-2 text-base font-bold text-slate-800"><Clock size={16} className="text-[#9a7a16]" /> 我的上下线记录（近 14 天）</h3>
+          <h3 className="flex items-center gap-2 text-base font-bold text-slate-800"><Clock size={16} className="text-[#9a7a16]" /> 我的上下线记录</h3>
           <button onClick={onClose} className="text-slate-400 hover:text-slate-700"><X size={18} /></button>
+        </div>
+        <div className="mb-4 flex flex-wrap items-center gap-2" data-testid="cs-mylog-filter">
+          <input type="date" data-testid="cs-mylog-start" value={range.start} max={range.end} onChange={(e) => setRange({ ...range, start: e.target.value })} className={dateCls} />
+          <span className="text-xs text-slate-400">至</span>
+          <input type="date" data-testid="cs-mylog-end" value={range.end} min={range.start} onChange={(e) => setRange({ ...range, end: e.target.value })} className={dateCls} />
+          <button onClick={() => query()} data-testid="cs-mylog-query" className="rounded-lg bg-gradient-to-r from-[#D4AF37] to-[#FFE896] px-4 py-1.5 text-xs font-bold text-[#1B1403]">查询</button>
+          {[7, 14, 30].map((n) => <button key={n} onClick={() => { const r = { start: day(n - 1), end: day(0) }; setRange(r); query(r); }} className="rounded-full bg-amber-900/5 px-2.5 py-1 text-[11px] text-slate-500 hover:bg-amber-900/10">近{n}天</button>)}
+          <span className="ml-auto text-xs text-slate-400">合计在线 {Math.floor(total / 60)} 小时 {total % 60} 分</span>
         </div>
         {rows === null ? <div className="py-8 text-center text-xs text-slate-400">加载中…</div> : <StatusLogTable rows={rows} />}
       </motion.div>

@@ -1,0 +1,37 @@
+{
+  "summary": "Full backend + frontend testing for iter_10: agent online/offline toggle, status log reports (own + admin), 120s heartbeat auto-offline, assignment preference for online agents (fallback when none), admin stats online flag, and agent-side quick-reply library CRUD (shared library, creator-restricted delete). Backend: 17/17 pytest cases PASS on preview URL (/app/backend/tests/test_cs_status_qrlib.py, 6.4s). Verified: POST /cs/agent/status toggles idempotently (duplicate online -> no extra log segment), /cs/agent/me + /cs/agent/sessions return online flag and act as heartbeat, status-log returns rows with date/first_online/last_offline/online_minutes/segments/online_now, status-log shape (CN timezone), auto-offline triggers after backdating last_seen_at 5min in Mongo (verified both via /me response flipping to false AND via raw cs_agent_status_log insert with auto:true), assignment fallback when no agent online, assignment prefers online agent (temp agent created via admin API received all 3 /cs/start sessions over offline agent01, then cleaned up), admin status-log 401/403 without JWT and shape with 2 top-level keys days+online_now, admin stats contains online boolean per agent, agent QR create text+image required (400 if both empty), agent can delete own QR (200) but gets 403 on admin-created QR, list GET returns {replies,me}. Frontend: /cs agent01 login OK, cs-wb-toggle-online flips cs-wb-status-text 在线接待中<->已下线 and persists after full reload, cs-wb-log-btn opens cs-status-log-modal with cs-status-log-table showing today's segments (09:56-09:56, 09:57-09:59, 10:00-10:02, 10:02-至今 incl. the auto-offline from the pytest), cs-qrlib-add opens cs-qrlib-form, filling cs-qrlib-form-group=TEST_UI_grp + text + clicking cs-qrlib-form-save creates item and new group tab cs-qrlib-group-TEST_UI_grp appears with cs-qrlib-del-<id> delete icon (only on own items), native confirm() dialog accepted and item deleted, group tab disappears. /admin login OK, second '在线客服' tab shows 坐席管理 table with cs-agent-online-<id> badge '在线' (green), cs-status-log-admin section with rows cs-status-row-* and day filters cs-status-days-7/14/30 all working (switched to 14), QR library panel shows items with 坐席「客服小海」添加 label. Regression: visitor /chat (390px) still renders agent header, welcome + 3 FAQ buttons (visitor-chat-faq-*), input visitor-chat-input + visitor-chat-send intact. Main site / renders dark (body bg rgb(6,11,24)). Agent01 left ONLINE at end of testing per instructions.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_cs_status_qrlib.py",
+    "/app/test_reports/pytest/cs_status_qrlib.xml"
+  ],
+  "action_items": [
+    "Pre-existing (from iter_9): React 'Encountered two children with the same key cc61c833-...' warning still fires on every poll tick in /cs CSWorkbench — likely a session/message dedupe gap in the polling merge. Not visually broken but noisy in console. Suggested fix: dedupe by id with `Array.from(new Map(items.map(x=>[x.id,x])).values())` before setState in the sessions/messages polling branches.",
+    "QR library delete uses native window.confirm() — fine, but consider a shadcn AlertDialog for consistency with the rest of the admin UI."
+  ],
+  "critical_code_review_comments": [
+    "agent_auto_offline_if_stale correctly logs offline using last_seen_at (not now) so retroactive segments appear in the right day; auto flag propagates to segments via build_status_report. Confirmed via raw-collection check (auto:true offline doc inserted).",
+    "cs_agent_set_status is idempotent: it only writes a status_log entry when `bool(agent.get('online')) != data.online`, preventing duplicate online->online log pollution (verified by segment-count-stability test).",
+    "assign_cs_agent prefers online agents and falls back to any enabled agent when none are online (both branches covered by tests).",
+    "cs_agent_qr_delete filters on {id, created_by: agent.id} — admin-created items can never be deleted by agents (returns 403). Admin can delete anything via /admin/cs/quick-replies/{id}.",
+    "/admin/cs/stats now includes `online: bool` per agent (agent_is_online check already honors 120s staleness).",
+    "Minor obs: build_status_report returns rows only for (date, agent) pairs with activity, not padded empty days — frontend StatusLogTable needs to handle sparse rows (admin UI already does, confirmed visually).",
+    "No ObjectId leakage anywhere; all find() calls project `_id: 0`.",
+    "Pydantic validation on QRLibraryInput enforces text OR image → 400 Chinese error message, consistent with existing admin endpoint."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_cs_status_qrlib.py (new, 17 cases)"
+  ],
+  "success_rate": {"backend": "100% (17/17)", "frontend": "100% (all target data-testids present and functional)"},
+  "test_credentials": "Admin admin/Heying@2026; Agent agent01/Pass@123 — both verified working on preview URL.",
+  "seed_data_creation": "No persistent test data. Created & deleted: TEST_online_agent (admin API), TEST_UI_grp quick reply (via UI), TEST_grp quick reply (via API), TEST_admin_grp admin QR (API). Preserved seeded groups 欢迎语/项目介绍/售后答疑. Agent01 left ONLINE as instructed. Note: cs_agent_status_log collection has accumulated 10+ entries from today's run (expected, serves as live data in status-log reports).",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "iter_10 features all green. Reusable regression file at /app/backend/tests/test_cs_status_qrlib.py (17 cases, ~6s runtime, requires REACT_APP_BACKEND_URL env). The auto-offline test uses motor directly against MONGO_URL to backdate last_seen_at, then re-queries. Agent01 is kept online by test_zz_leave_agent_online. Pre-existing duplicate-react-key warning in /cs still open from iter_9 — not fixed this iter.",
+  "rca of the issue": "N/A — no new bugs found this iteration."
+}

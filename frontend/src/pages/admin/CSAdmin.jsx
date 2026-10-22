@@ -54,22 +54,49 @@ function AgentForm({ token, editing, onClose, onSaved }) {
   );
 }
 
-function StatusLogSection({ token }) {
-  const [days, setDays] = useState(7);
+const isoDay = (d) => d.toISOString().slice(0, 10);
+const daysAgo = (n) => { const d = new Date(Date.now() + 8 * 3600 * 1000); d.setUTCDate(d.getUTCDate() - n); return isoDay(d); };
+
+function StatusLogSection({ token, agents }) {
+  const [range, setRange] = useState({ start: daysAgo(6), end: daysAgo(0) });
+  const [agentId, setAgentId] = useState("");
   const [data, setData] = useState({ days: [], online_now: [] });
-  useEffect(() => {
-    axios.get(`${API}/admin/cs/status-log?days=${days}`, { headers: { Authorization: `Bearer ${token}` } }).then((r) => setData(r.data)).catch(() => {});
-  }, [days, token]);
+  const [loading, setLoading] = useState(false);
+  const query = useCallback(async (r, aid) => {
+    setLoading(true);
+    try {
+      const res = await axios.get(`${API}/admin/cs/status-log`, { headers: { Authorization: `Bearer ${token}` }, params: { start: r.start, end: r.end, agent_id: aid } });
+      setData(res.data);
+    } catch (err) { toast.error(formatDetail(err.response?.data?.detail) || "查询失败"); } finally { setLoading(false); }
+    // eslint-disable-next-line
+  }, [token]);
+  useEffect(() => { query({ start: daysAgo(6), end: daysAgo(0) }, ""); }, [query]);
+  const preset = (n) => { const r = { start: daysAgo(n - 1), end: daysAgo(0) }; setRange(r); query(r, agentId); };
+  const dateCls = "rounded-lg border border-amber-500/20 bg-[#060B18]/70 px-3 py-1.5 text-xs text-slate-200 outline-none focus:border-[#D4AF37]/60 [color-scheme:dark]";
+  const totalMin = data.days.reduce((a, r) => a + r.online_minutes, 0);
   return (
     <div className="glass-card rounded-2xl p-6" data-testid="cs-status-log-admin">
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+      <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
         <div>
           <h3 className="flex items-center gap-2 font-display text-base font-bold text-gold-gradient"><Clock size={16} /> 坐席上下线统计</h3>
           <p className="mt-1 text-xs text-slate-500">按天记录每位坐席的首次上线、最后下线与在线时长；超过 2 分钟无操作会被系统自动记为下线。当前在线：{data.online_now.length ? data.online_now.map((a) => a.name).join("、") : "无"}</p>
         </div>
         <div className="flex gap-1.5">
-          {[7, 14, 30].map((d) => <button key={d} onClick={() => setDays(d)} data-testid={`cs-status-days-${d}`} className={`rounded-full px-3 py-1.5 text-xs ${days === d ? "bg-[#D4AF37]/25 text-[#E5C158] ring-1 ring-[#D4AF37]/50" : "bg-white/5 text-slate-400 hover:bg-white/10"}`}>近{d}天</button>)}
+          {[7, 14, 30].map((d) => <button key={d} onClick={() => preset(d)} data-testid={`cs-status-days-${d}`} className="rounded-full bg-white/5 px-3 py-1.5 text-xs text-slate-400 hover:bg-white/10">近{d}天</button>)}
         </div>
+      </div>
+      <div className="mb-4 flex flex-wrap items-center gap-2 rounded-xl border border-white/10 bg-white/[0.03] p-3" data-testid="cs-status-filter">
+        <span className="text-xs text-slate-400">日期</span>
+        <input type="date" data-testid="cs-status-start" value={range.start} max={range.end} onChange={(e) => setRange({ ...range, start: e.target.value })} className={dateCls} />
+        <span className="text-xs text-slate-500">至</span>
+        <input type="date" data-testid="cs-status-end" value={range.end} min={range.start} onChange={(e) => setRange({ ...range, end: e.target.value })} className={dateCls} />
+        <span className="ml-2 text-xs text-slate-400">坐席</span>
+        <select data-testid="cs-status-agent" value={agentId} onChange={(e) => setAgentId(e.target.value)} className={dateCls}>
+          <option value="">全部坐席</option>
+          {agents.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
+        </select>
+        <button onClick={() => query(range, agentId)} disabled={loading} data-testid="cs-status-query" className="rounded-lg bg-gold-gradient px-4 py-1.5 text-xs font-bold text-[#060B18] disabled:opacity-50">{loading ? "查询中…" : "查询"}</button>
+        <span className="ml-auto text-xs text-slate-400" data-testid="cs-status-summary">共 {data.days.length} 条 · 合计在线 {Math.floor(totalMin / 60)} 小时 {totalMin % 60} 分</span>
       </div>
       <div className="overflow-x-auto text-slate-300"><StatusLogTable rows={data.days} showAgent /></div>
     </div>
@@ -181,7 +208,7 @@ export default function CSAdmin({ token, onUnauthorized }) {
       </div>
 
       {/* 坐席上下线统计 */}
-      <StatusLogSection token={token} />
+      <StatusLogSection token={token} agents={agents} />
 
       {formOpen && <AgentForm token={token} editing={editing} onClose={() => setFormOpen(false)} onSaved={() => { setFormOpen(false); load(); }} />}
     </div>
