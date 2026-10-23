@@ -15,7 +15,7 @@ export function BindPhoneDialog({ onClose, kind = "phone" }) {
   const { user } = useUser();
   const callApi = useApi();
   const isPhone = kind === "phone";
-  const [dialCode, setDialCode] = useState("+886");
+  const [dialCode, setDialCode] = useState("+86");
   const [raw, setRaw] = useState("");
   const [code, setCode] = useState("");
   const [sent, setSent] = useState(false);

@@ -11,7 +11,7 @@ const validPassword = (p) => p.length >= 8 && p.length <= 32 && [/[0-9]/, /[a-zA
 
 export function Register({ onBack, onClose, finishTicket }) {
   const [kind, setKind] = useState("phone");
-  const [dialCode, setDialCode] = useState("+886");
+  const [dialCode, setDialCode] = useState("+86");
   const [email, setEmail] = useState("");
   const [code, setCode] = useState("");
   const [pw1, setPw1] = useState("");

@@ -3,9 +3,9 @@ import { ChevronDown, Search } from "lucide-react";
 import { tr } from "@/i18n";
 
 export const COUNTRIES = [
-  { flag: "🇹🇼", name: tr("中國台灣"), code: "+886" },
-  { flag: "🇭🇰", name: tr("香港"), code: "+852" },
   { flag: "🇨🇳", name: tr("中國大陸"), code: "+86" },
+  { flag: "🇭🇰", name: tr("香港"), code: "+852" },
+  { flag: "🇹🇼", name: tr("中國台灣"), code: "+886" },
   { flag: "🇺🇸", name: tr("美國"), code: "+1" },
   { flag: "🇨🇦", name: tr("加拿大"), code: "+1" },
   { flag: "🇬🇧", name: tr("英國"), code: "+44" },

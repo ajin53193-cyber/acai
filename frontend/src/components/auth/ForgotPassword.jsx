@@ -25,7 +25,7 @@ export function ForgotPassword({ onBack, onClose }) {
   const { signIn, setActive, isLoaded } = useSignIn();
   const [tab, setTab] = useState("email");
   const [identifier, setIdentifier] = useState("");
-  const [dialCode, setDialCode] = useState("+886");
+  const [dialCode, setDialCode] = useState("+86");
   const [code, setCode] = useState("");
   const [pw1, setPw1] = useState("");
   const [pw2, setPw2] = useState("");

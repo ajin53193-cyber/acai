@@ -43,7 +43,7 @@ function AuthModal({ open, onOpenChange, initialView = "login" }) {
   const [sent, setSent] = useState(false);
   const [agree, setAgree] = useState(true);
   const [loading, setLoading] = useState(false);
-  const [dialCode, setDialCode] = useState("+886");
+  const [dialCode, setDialCode] = useState("+86");
   const [view, setView] = useState("login");
   const [trust, setTrust] = useState(null);
 
