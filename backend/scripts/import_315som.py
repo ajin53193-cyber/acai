@@ -24,14 +24,30 @@ if ENV_FILE.is_file():
 
 USER = os.environ.get("ADMIN_USERNAME") or env.get("ADMIN_USERNAME", "admin")
 PWD = os.environ.get("ADMIN_PASSWORD") or env.get("ADMIN_PASSWORD", "")
-API = (os.environ.get("API_BASE") or (env.get("CORS_ORIGINS", "").split(",")[0]) or "http://127.0.0.1:8001").rstrip("/")
 URLS = [a for a in sys.argv[1:] if a.startswith("http")]
 if not URLS:
     sys.exit("请在命令后面跟上要采集的文章链接")
 
+
+def find_api() -> str:
+    """优先用 API_BASE；否则在本机常用端口 + .env 的域名里找一个能直接返回 JSON（不跳转）的后端。"""
+    candidates = [os.environ.get("API_BASE", "")]
+    candidates += [f"http://127.0.0.1:{p}" for p in (8001, 8011, 8002, 8003, 8010)]
+    candidates += [o.strip() for o in env.get("CORS_ORIGINS", "").split(",")]
+    for base in [c.rstrip("/") for c in candidates if c]:
+        try:
+            r = requests.get(f"{base}/api/settings", timeout=5, allow_redirects=False)
+            if r.status_code == 200 and r.headers.get("content-type", "").startswith("application/json"):
+                return base
+        except requests.RequestException:
+            continue
+    sys.exit("找不到后端地址，请用 API_BASE=https://你的域名 指定")
+
+
+API = find_api()
 UA = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/124 Safari/537.36"}
-login = requests.post(f"{API}/api/admin/login", json={"username": USER, "password": PWD}, timeout=20)
-if not login.ok:
+login = requests.post(f"{API}/api/admin/login", json={"username": USER, "password": PWD}, timeout=20, allow_redirects=False)
+if not login.ok or not login.headers.get("content-type", "").startswith("application/json"):
     sys.exit(f"登录 {API} 失败（{login.status_code}）：{login.text[:120]}\n请检查 backend/.env 里的 ADMIN_USERNAME / ADMIN_PASSWORD，或用 API_BASE=... ADMIN_PASSWORD=... 指定")
 tok = login.json()
 H = {"Authorization": f"Bearer {tok.get('token') or tok.get('access_token')}"}
