@@ -29,27 +29,29 @@ if not URLS:
     sys.exit("请在命令后面跟上要采集的文章链接")
 
 
-def find_api() -> str:
-    """优先用 API_BASE；否则在本机常用端口 + .env 的域名里找一个能直接返回 JSON（不跳转）的后端。"""
+def find_api_and_login():
+    """优先用 API_BASE；否则在本机常用端口 + .env 的域名里逐个尝试登录。
+    同一台服务器可能跑着别的 FastAPI 站点（/api/admin/login 返回 404），要跳过。"""
     candidates = [os.environ.get("API_BASE", "")]
-    candidates += [f"http://127.0.0.1:{p}" for p in (8001, 8011, 8002, 8003, 8010)]
+    candidates += [f"http://127.0.0.1:{p}" for p in (8011, 8001, 8002, 8003, 8010, 8012)]
     candidates += [o.strip() for o in env.get("CORS_ORIGINS", "").split(",")]
+    tried = []
     for base in [c.rstrip("/") for c in candidates if c]:
         try:
-            r = requests.get(f"{base}/api/settings", timeout=5, allow_redirects=False)
-            if r.status_code == 200 and r.headers.get("content-type", "").startswith("application/json"):
-                return base
+            r = requests.post(f"{base}/api/admin/login", json={"username": USER, "password": PWD}, timeout=8, allow_redirects=False)
         except requests.RequestException:
             continue
-    sys.exit("找不到后端地址，请用 API_BASE=https://你的域名 指定")
+        if r.status_code == 404 or not r.headers.get("content-type", "").startswith("application/json"):
+            tried.append(f"{base}（不是本站后端）")
+            continue
+        if r.ok:
+            return base, r.json()
+        sys.exit(f"登录 {base} 失败（{r.status_code}）：{r.text[:120]}\n请检查 backend/.env 里的 ADMIN_USERNAME / ADMIN_PASSWORD 是否与后台登录密码一致")
+    sys.exit("找不到本站后端，请用 API_BASE=https://你的域名 指定。已尝试：" + "，".join(tried))
 
 
-API = find_api()
+API, tok = find_api_and_login()
 UA = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/124 Safari/537.36"}
-login = requests.post(f"{API}/api/admin/login", json={"username": USER, "password": PWD}, timeout=20, allow_redirects=False)
-if not login.ok or not login.headers.get("content-type", "").startswith("application/json"):
-    sys.exit(f"登录 {API} 失败（{login.status_code}）：{login.text[:120]}\n请检查 backend/.env 里的 ADMIN_USERNAME / ADMIN_PASSWORD，或用 API_BASE=... ADMIN_PASSWORD=... 指定")
-tok = login.json()
 H = {"Authorization": f"Bearer {tok.get('token') or tok.get('access_token')}"}
 print(f"已登录 {API}，开始采集 {len(URLS)} 篇 ...")
 
