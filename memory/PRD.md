@@ -313,3 +313,6 @@
 - OFFLINE_REPLY_DEFAULT 改为「人工客服不在线 → 点上方常见问题 / 点教程卡片进蝙蝠群」；留言冷却 3 分钟、重开聊天窗冷却 6 小时。
 - 后端预留 mode=auto 全自动模式（默认 manual，未在后台暴露）；话术模板变量 {蝙蝠ID} ← cs_config.owner_bat_id。
 - 用户原有 4 条常见问题与话术库未改动。
+
+## 2026-07 更新：315som 文章采集到图文推广
+- scripts/import_315som.py <API> <admin> <pwd> <urls...>：抓标题/段落/图片（图片下载后经 /admin/upload 转存站内），POST /admin/promos 创建草稿（published=false）。
