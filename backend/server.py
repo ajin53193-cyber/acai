@@ -2503,11 +2503,22 @@ class CSFaq(BaseModel):
 
 
 OFFLINE_REPLY_DEFAULT = (
-    "您好，当前客服暂时不在线，您的留言我们已收到，上线后会第一时间回复您。\n\n"
-    "您可以先点击下方教程卡片，三步加入我们的蝙蝠官方社群，最新项目资料和图文教程都会第一时间在群内同步。\n\n"
-    "有任何问题请直接在此留言，客服上线后会立即处理。"
+    "您好，当前人工客服暂时不在线，您的留言我们已收到，客服上线后会第一时间回复您。\n\n"
+    "👉 您可以先点击上方欢迎语下方的「常见问题」，快速了解礼品卡项目、收益、风险和开始方式；\n"
+    "👉 也可以点击下方教程卡片，3 分钟加入蝙蝠官方群，最新项目资料都在群里。\n\n"
+    "有其他问题请直接留言。"
 )
-OFFLINE_REPLY_COOLDOWN_HOURS = 6  # 同一会话 6 小时内只自动发一次，避免刷屏
+OFFLINE_REPLY_COOLDOWN_SEC = 180  # 访客连续留言：3 分钟内只自动回一次
+OFFLINE_REOPEN_COOLDOWN_SEC = 6 * 3600  # 重新打开聊天窗：6 小时内只自动发一次
+AUTO_REPLY_COOLDOWN_SEC = 180  # 全自动模式：访客连续留言 3 分钟内只回一次引导
+AUTO_REPLY_DEFAULT = (
+    "您好，这里是合赢项目社自动回复助手。项目详情由【项目负责人】在蝙蝠上一对一为您介绍：\n"
+    "① 下载「蝙蝠」聊天 App（应用商店搜索「蝙蝠」，或点下方教程里的下载按钮）\n"
+    "② 用手机号注册并登录蝙蝠\n"
+    "③ 在蝙蝠搜索负责人 ID：{蝙蝠ID}，添加好友并备注「礼品卡」\n\n"
+    "添加后，负责人会为您详细介绍礼品卡等最新项目，并邀请您加入官方项目交流群，群里每天发布最新项目。\n"
+    "您也可以点击上方常见问题快速了解。"
+)
 
 
 class CSConfigInput(BaseModel):
@@ -2518,6 +2529,12 @@ class CSConfigInput(BaseModel):
     offline_reply: str = Field(default=OFFLINE_REPLY_DEFAULT, max_length=2000)
     offline_image: str = Field(default="", max_length=500)
     offline_tutorial: str = Field(default="join-group", max_length=60)  # 随离线回复一起发送的站内教程 slug（卡片）
+    # 全自动回复模式（无人工客服）：欢迎语 + 常见问题 + 访客任意留言自动回复引导添加项目负责人
+    mode: str = Field(default="manual", pattern="^(auto|manual)$")  # manual=人工客服+离线自动回复（默认）；auto=全自动
+    bot_name: str = Field(default="合赢项目社 · 智能助手", max_length=40)
+    owner_bat_id: str = Field(default="", max_length=60)
+    auto_reply: str = Field(default="", max_length=2000)
+    auto_tutorial: str = Field(default="join-group", max_length=60)
 
 
 class CSFaqPick(BaseModel):
@@ -2600,11 +2617,49 @@ async def get_cs_config() -> dict:
         "offline_reply": doc.get("offline_reply", OFFLINE_REPLY_DEFAULT),
         "offline_image": doc.get("offline_image", ""),
         "offline_tutorial": doc.get("offline_tutorial", "join-group"),
+        "mode": doc.get("mode", "manual"),
+        "bot_name": doc.get("bot_name", "合赢项目社 · 智能助手"),
+        "owner_bat_id": doc.get("owner_bat_id", ""),
+        "auto_reply": doc.get("auto_reply") or AUTO_REPLY_DEFAULT,
+        "auto_tutorial": doc.get("auto_tutorial", "join-group"),
     }
 
 
-async def maybe_send_offline_reply(sess: dict, cfg: dict | None = None) -> bool:
-    """全部坐席都不在线时，自动给访客发「蝙蝠进群教程」（文字 + 可选二维码图片）。同一会话有冷却时间。"""
+def cs_tpl(text: str, cfg: dict) -> str:
+    """话术模板变量：{蝙蝠ID} → 后台配置的项目负责人蝙蝠 ID"""
+    return (text or "").replace("{蝙蝠ID}", cfg.get("owner_bat_id") or "（请在后台填写负责人蝙蝠ID）")
+
+
+def cs_bot_public(cfg: dict) -> dict:
+    return {"id": "bot", "name": cfg["bot_name"], "avatar": ""}
+
+
+def cs_faqs_public(cfg: dict) -> list:
+    return [{"q": f["q"], "a": cs_tpl(f["a"], cfg)} for f in cfg["faqs"]]
+
+
+async def maybe_send_auto_reply(sess: dict, cfg: dict) -> bool:
+    """全自动模式：访客任意留言 → 自动回复引导（文字 + 教程卡片），3 分钟冷却"""
+    now = datetime.now(timezone.utc)
+    last = sess.get("auto_reply_at")
+    if last:
+        try:
+            if (now - datetime.fromisoformat(last)).total_seconds() < AUTO_REPLY_COOLDOWN_SEC:
+                return False
+        except ValueError:
+            pass
+    base = {"session_id": sess["id"], "sender": "agent", "via": "auto", "agent_id": sess.get("agent_id", "")}
+    docs = [{**base, "id": str(uuid.uuid4()), "text": cs_tpl(cfg["auto_reply"], cfg), "image": "", "created_at": (now + timedelta(milliseconds=2)).isoformat(), "created_at_dt": now}]
+    link = await tutorial_link_card(cfg["auto_tutorial"]) if cfg.get("auto_tutorial") else None
+    if link:
+        docs.append({**base, "id": str(uuid.uuid4()), "text": f"📖 图文教程：{link['title']}", "image": "", "link": link, "created_at": (now + timedelta(milliseconds=3)).isoformat(), "created_at_dt": now})
+    await db.cs_messages.insert_many(docs)
+    await db.cs_sessions.update_one({"id": sess["id"]}, {"$set": {"auto_reply_at": now.isoformat(), "last_message": "[自动回复] 引导添加负责人"}, "$inc": {"unread_visitor": len(docs)}})
+    return True
+
+
+async def maybe_send_offline_reply(sess: dict, cfg: dict | None = None, cooldown_sec: int = OFFLINE_REPLY_COOLDOWN_SEC) -> bool:
+    """全部坐席都不在线时，自动回复引导（点常见问题 + 教程卡片 + 可选二维码图片）。同一会话有冷却时间。"""
     cfg = cfg or await get_cs_config()
     if not cfg["offline_enabled"] or not (cfg["offline_reply"].strip() or cfg["offline_image"] or cfg.get("offline_tutorial")):
         return False
@@ -2614,14 +2669,14 @@ async def maybe_send_offline_reply(sess: dict, cfg: dict | None = None) -> bool:
     last = sess.get("offline_reply_at")
     if last:
         try:
-            if (now - datetime.fromisoformat(last)).total_seconds() < OFFLINE_REPLY_COOLDOWN_HOURS * 3600:
+            if (now - datetime.fromisoformat(last)).total_seconds() < cooldown_sec:
                 return False
         except ValueError:
             pass
     base = {"session_id": sess["id"], "sender": "agent", "via": "offline", "agent_id": sess.get("agent_id", "")}
     docs = []
     if cfg["offline_reply"].strip():
-        docs.append({**base, "id": str(uuid.uuid4()), "text": cfg["offline_reply"], "image": "", "created_at": (now + timedelta(milliseconds=2)).isoformat(), "created_at_dt": now})
+        docs.append({**base, "id": str(uuid.uuid4()), "text": cs_tpl(cfg["offline_reply"], cfg), "image": "", "created_at": (now + timedelta(milliseconds=2)).isoformat(), "created_at_dt": now})
     if cfg["offline_image"]:
         docs.append({**base, "id": str(uuid.uuid4()), "text": "", "image": cfg["offline_image"], "created_at": (now + timedelta(milliseconds=3)).isoformat(), "created_at_dt": now})
     if cfg.get("offline_tutorial"):
@@ -2632,7 +2687,7 @@ async def maybe_send_offline_reply(sess: dict, cfg: dict | None = None) -> bool:
     if not docs:
         return False
     await db.cs_messages.insert_many(docs)
-    await db.cs_sessions.update_one({"id": sess["id"]}, {"$set": {"offline_reply_at": now.isoformat(), "last_message": "[自动回复] 蝙蝠进群教程"}, "$inc": {"unread_visitor": len(docs)}})
+    await db.cs_sessions.update_one({"id": sess["id"]}, {"$set": {"offline_reply_at": now.isoformat(), "last_message": "[自动回复] 引导点常见问题/进群教程"}, "$inc": {"unread_visitor": len(docs)}})
     return True
 
 
@@ -2753,7 +2808,7 @@ def agent_public(a: dict) -> dict:
 async def cs_public_config():
     cfg = await get_cs_config()
     has = await db.cs_agents.count_documents({"enabled": True})
-    return {"enabled": bool(cfg["enabled"]) and has > 0, "welcome": cfg["welcome"], "faqs": cfg["faqs"]}
+    return {"enabled": bool(cfg["enabled"]) and (cfg["mode"] == "auto" or has > 0), "mode": cfg["mode"], "welcome": cs_tpl(cfg["welcome"], cfg), "faqs": cs_faqs_public(cfg)}
 
 
 @api_router.post("/cs/start", status_code=201)
@@ -2763,6 +2818,9 @@ async def cs_start(data: CSStart, request: Request):
         return {"enabled": False}
     now = datetime.now(timezone.utc)
     now_iso = now.isoformat()
+    auto = cfg["mode"] == "auto"
+    pub = (lambda a: cs_bot_public(cfg)) if auto else (lambda a: agent_public(a) if a else None)
+    base_resp = {"enabled": True, "session_id": data.session_id, "mode": cfg["mode"], "welcome": cs_tpl(cfg["welcome"], cfg), "faqs": cs_faqs_public(cfg)}
     existing = await db.cs_sessions.find_one({"id": data.session_id})
     if existing:
         agent = await db.cs_agents.find_one({"id": existing.get("agent_id")})
@@ -2770,12 +2828,14 @@ async def cs_start(data: CSStart, request: Request):
             agent = await assign_cs_agent()
             if agent:
                 await db.cs_sessions.update_one({"id": data.session_id}, {"$set": {"agent_id": agent["id"]}})
-        # 老访客重新打开聊天窗：若全员离线且该会话冷却期已过，同样自动发进群教程
-        await maybe_send_offline_reply(existing, cfg)
-        return {"enabled": True, "session_id": data.session_id, "agent": agent_public(agent) if agent else None, "welcome": cfg["welcome"], "faqs": cfg["faqs"]}
+        # 老访客重新打开聊天窗：人工模式下若全员离线且冷却期已过，自动发进群教程
+        if not auto:
+            await maybe_send_offline_reply(existing, cfg, cooldown_sec=OFFLINE_REOPEN_COOLDOWN_SEC)
+        return {**base_resp, "agent": pub(agent)}
     agent = await assign_cs_agent()
-    if not agent:
+    if not agent and not auto:
         return {"enabled": False}
+    agent_id = agent["id"] if agent else ""
     ip = request.headers.get("x-forwarded-for", "").split(",")[0].strip() or (request.client.host if request.client else "unknown")
     geo = await asyncio.to_thread(lookup_geo_full, ip)
     # 原子创建会话，避免并发/重复请求（如 StrictMode、快速双击）产生重复会话与重复欢迎语
@@ -2783,7 +2843,7 @@ async def cs_start(data: CSStart, request: Request):
         {"id": data.session_id},
         {"$setOnInsert": {
             "id": data.session_id,
-            "agent_id": agent["id"],
+            "agent_id": agent_id,
             "slug": data.slug.strip(),
             "source": (data.source or "").split("/")[0],
             "referrer": referrer_host(data.referrer),
@@ -2803,7 +2863,7 @@ async def cs_start(data: CSStart, request: Request):
         # 并发竞争失败：会话已被另一请求创建，直接返回现有会话，不再重复插入欢迎语
         existing = await db.cs_sessions.find_one({"id": data.session_id})
         ag = await db.cs_agents.find_one({"id": existing.get("agent_id")}) if existing else None
-        return {"enabled": True, "session_id": data.session_id, "agent": agent_public(ag) if ag else agent_public(agent), "welcome": cfg["welcome"], "faqs": cfg["faqs"]}
+        return {**base_resp, "agent": pub(ag or agent)}
     # 欢迎语用确定性 id，并发 upsert 保证只有一条
     await db.cs_messages.update_one(
         {"id": f"welcome-{data.session_id}"},
@@ -2811,16 +2871,17 @@ async def cs_start(data: CSStart, request: Request):
             "id": f"welcome-{data.session_id}",
             "session_id": data.session_id,
             "sender": "agent",
-            "agent_id": agent["id"],
-            "text": cfg["welcome"],
+            "agent_id": agent_id,
+            "text": cs_tpl(cfg["welcome"], cfg),
             "image": "",
             "created_at": now_iso,
             "created_at_dt": now,
         }},
         upsert=True,
     )
-    await maybe_send_offline_reply({"id": data.session_id, "agent_id": agent["id"]}, cfg)
-    return {"enabled": True, "session_id": data.session_id, "agent": agent_public(agent), "welcome": cfg["welcome"], "faqs": cfg["faqs"]}
+    if not auto:
+        await maybe_send_offline_reply({"id": data.session_id, "agent_id": agent_id}, cfg)
+    return {**base_resp, "agent": pub(agent)}
 
 
 def cs_preview(text: str, image: str) -> str:
@@ -2834,7 +2895,10 @@ async def cs_visitor_message(session_id: str, data: CSMessageInput):
     sess = await db.cs_sessions.find_one({"id": session_id})
     if not sess:
         raise HTTPException(status_code=404, detail="会话不存在")
-    sess = await ensure_online_agent(sess)
+    cfg = await get_cs_config()
+    auto = cfg["mode"] == "auto"
+    if not auto:
+        sess = await ensure_online_agent(sess)
     now = datetime.now(timezone.utc)
     now_iso = now.isoformat()
     await db.cs_messages.insert_one({
@@ -2846,7 +2910,10 @@ async def cs_visitor_message(session_id: str, data: CSMessageInput):
         {"id": session_id},
         {"$set": {"last_message_at": now_iso, "last_activity_dt": now, "last_message": cs_preview(data.text, data.image)}, "$inc": {"unread_agent": 1}},
     )
-    await maybe_send_offline_reply(sess)
+    if auto:
+        await maybe_send_auto_reply(sess, cfg)
+    else:
+        await maybe_send_offline_reply(sess, cfg)
     return {"ok": True}
 
 
@@ -2860,19 +2927,22 @@ async def cs_visitor_faq(session_id: str, data: CSFaqPick):
     if data.index >= len(cfg["faqs"]):
         raise HTTPException(status_code=404, detail="该问题不存在")
     faq = cfg["faqs"][data.index]
-    sess = await ensure_online_agent(sess)
+    auto = cfg["mode"] == "auto"
+    if not auto:
+        sess = await ensure_online_agent(sess)
     now = datetime.now(timezone.utc)
     base = {"session_id": session_id, "agent_id": sess.get("agent_id", ""), "image": ""}
     await db.cs_messages.insert_many([
         {**base, "id": str(uuid.uuid4()), "sender": "visitor", "text": faq["q"], "created_at": now.isoformat(), "created_at_dt": now},
-        {**base, "id": str(uuid.uuid4()), "sender": "agent", "via": "faq", "text": faq["a"],
+        {**base, "id": str(uuid.uuid4()), "sender": "agent", "via": "faq", "text": cs_tpl(faq["a"], cfg),
          "created_at": (now + timedelta(milliseconds=1)).isoformat(), "created_at_dt": now + timedelta(milliseconds=1)},
     ])
     await db.cs_sessions.update_one(
         {"id": session_id},
         {"$set": {"last_message_at": now.isoformat(), "last_activity_dt": now, "last_message": cs_preview(faq["a"], "")}, "$inc": {"unread_agent": 1}},
     )
-    await maybe_send_offline_reply(sess)
+    if not auto:
+        await maybe_send_offline_reply(sess, cfg)
     return {"ok": True}
 
 
@@ -2887,10 +2957,13 @@ async def cs_visitor_messages(session_id: str, after: str = ""):
     msgs = await db.cs_messages.find(q, {"_id": 0}).sort("created_at", 1).to_list(500)
     if not after:
         await db.cs_sessions.update_one({"id": session_id}, {"$set": {"unread_visitor": 0}})
+    cfg = await get_cs_config()
+    if cfg["mode"] == "auto":
+        return {"messages": msgs, "agent": cs_bot_public(cfg), "online": True, "mode": "auto"}
     agent = await db.cs_agents.find_one({"id": sess.get("agent_id")})
     # 访客端显示客服是否在线：当前坐席在线，或任一坐席在线（会在访客发消息时接管）
     online = bool(agent and agent_is_online(agent)) or (await pick_online_agent()) is not None
-    return {"messages": msgs, "agent": agent_public(agent) if agent else None, "online": online}
+    return {"messages": msgs, "agent": agent_public(agent) if agent else None, "online": online, "mode": "manual"}
 
 
 # ---------- 坐席端 ----------
@@ -3139,7 +3212,8 @@ async def admin_cs_get_config(_: str = Depends(require_admin)):
 @api_router.put("/admin/cs/config")
 async def admin_cs_set_config(data: CSConfigInput, _: str = Depends(require_admin)):
     await db.cs_config.update_one({"key": "cs"}, {"$set": {"key": "cs", "welcome": data.welcome, "enabled": data.enabled, "faqs": [f.model_dump() for f in data.faqs],
-                  "offline_enabled": data.offline_enabled, "offline_reply": data.offline_reply, "offline_image": data.offline_image, "offline_tutorial": data.offline_tutorial.strip()}}, upsert=True)
+                  "offline_enabled": data.offline_enabled, "offline_reply": data.offline_reply, "offline_image": data.offline_image, "offline_tutorial": data.offline_tutorial.strip(),
+                  "mode": data.mode, "bot_name": data.bot_name.strip() or "智能助手", "owner_bat_id": data.owner_bat_id.strip(), "auto_reply": data.auto_reply, "auto_tutorial": data.auto_tutorial.strip()}}, upsert=True)
     return {"ok": True}
 
 
