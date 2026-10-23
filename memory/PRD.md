@@ -302,3 +302,9 @@
 - 访客端 /messages 返回 online，顶栏显示「客服暂时不在线 · 留言会尽快回复」+ 灰点。
 
 - 离线回复随附站内教程卡片：cs_config.offline_tutorial（默认 join-group），消息带 link{url,title,desc,cover}，访客端渲染为可点击卡片；后台可选择教程或不发送。
+
+## 2026-07 更新：话术可附带教程卡片（引流蝙蝠群）
+- cs_quick_replies.tutorial(slug)；坐席回复接口 CSAgentReplyInput.tutorial → 发送 link 卡片（tutorial_link_card 复用）。工作台/后台话术表单可选教程；点话术发送文字后自动附卡片。
+- 访客端客服文本中的 URL 自动可点击（linkify）。
+- 「咨询回复」分组重做为引流话术 18 条（13 条附「加入蝙蝠官方群教程」卡片）。
+- 老会话重开 / 点常见问题也触发全员离线自动回复。

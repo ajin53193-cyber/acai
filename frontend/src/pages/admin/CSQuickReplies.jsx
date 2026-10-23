@@ -6,14 +6,14 @@ import { API, formatDetail } from "@/lib/api";
 import { ImageUpload, toFullUrl } from "@/components/ImageUpload";
 
 const inputCls = "w-full rounded-xl border border-amber-500/20 bg-[#060B18]/70 px-4 py-2.5 text-sm text-slate-200 outline-none focus:border-[#D4AF37]/60";
-const empty = { group: "默认", text: "", image: "" };
+const empty = { group: "默认", text: "", image: "", tutorial: "" };
 
-function QRForm({ token, editing, groups, defaultGroup, onClose, onSaved }) {
-  const [form, setForm] = useState(editing ? { group: editing.group, text: editing.text, image: editing.image } : { ...empty, group: defaultGroup || "默认" });
+function QRForm({ token, editing, groups, defaultGroup, tutorials, onClose, onSaved }) {
+  const [form, setForm] = useState(editing ? { group: editing.group, text: editing.text, image: editing.image, tutorial: editing.tutorial || "" } : { ...empty, group: defaultGroup || "默认" });
   const [saving, setSaving] = useState(false);
   const headers = { Authorization: `Bearer ${token}` };
   const save = async () => {
-    if (!form.text.trim() && !form.image) return toast.error("话术文本和图片至少填写一项");
+    if (!form.text.trim() && !form.image && !form.tutorial) return toast.error("话术文本、图片、教程卡片至少填写一项");
     setSaving(true);
     try {
       if (editing) await axios.put(`${API}/admin/cs/quick-replies/${editing.id}`, form, { headers });
@@ -37,7 +37,12 @@ function QRForm({ token, editing, groups, defaultGroup, onClose, onSaved }) {
         </div>
         <div>
           <label className="mb-1.5 block text-xs tracking-widest text-slate-400">话术文本（可选，支持换行）</label>
-          <textarea data-testid="cs-qr-form-text" rows={7} maxLength={1000} value={form.text} onChange={(e) => setForm({ ...form, text: e.target.value })} className={inputCls} placeholder="例如：您好，我是合赢项目社的客服，很高兴为您服务～" />
+          <textarea data-testid="cs-qr-form-text" rows={5} maxLength={1000} value={form.text} onChange={(e) => setForm({ ...form, text: e.target.value })} className={inputCls} placeholder="例如：您好，我是合赢项目社的客服，很高兴为您服务～" />
+          <label className="mt-3 mb-1.5 block text-xs tracking-widest text-slate-400">附带教程卡片（可选，发送文字后自动附上可点击的教程卡片，用于引流到蝙蝠群）</label>
+          <select data-testid="cs-qr-form-tutorial" value={form.tutorial} onChange={(e) => setForm({ ...form, tutorial: e.target.value })} className={inputCls}>
+            <option value="">不附带</option>
+            {tutorials.map((t) => <option key={t.slug} value={t.slug}>{t.title}（/tutorials/{t.slug}）</option>)}
+          </select>
         </div>
       </div>
       <div className="mt-4 flex justify-end gap-2">
@@ -53,6 +58,8 @@ export default function CSQuickReplies({ token }) {
   const [group, setGroup] = useState("全部");
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState(null);
+  const [tutorials, setTutorials] = useState([]);
+  useEffect(() => { axios.get(`${API}/tutorials`).then((r) => setTutorials(r.data.tutorials || [])).catch(() => {}); }, []);
   const headers = { Authorization: `Bearer ${token}` };
 
   const load = useCallback(async () => {
@@ -95,7 +102,7 @@ export default function CSQuickReplies({ token }) {
         {group !== "全部" && <button onClick={renameGroup} data-testid="cs-qr-rename-group" className="ml-1 flex items-center gap-1 text-xs text-slate-400 hover:text-[#E5C158]"><FolderPen size={13} /> 重命名分组</button>}
       </div>
 
-      {formOpen && <div className="mb-4"><QRForm token={token} editing={editing} groups={groups} defaultGroup={group === "全部" ? "默认" : group} onClose={() => setFormOpen(false)} onSaved={load} /></div>}
+      {formOpen && <div className="mb-4"><QRForm token={token} editing={editing} groups={groups} tutorials={tutorials} defaultGroup={group === "全部" ? "默认" : group} onClose={() => setFormOpen(false)} onSaved={load} /></div>}
 
       {shown.length === 0 ? (
         <div className="rounded-xl border border-dashed border-white/10 py-10 text-center text-sm text-slate-500">暂无话术，点「新增话术」添加</div>
@@ -107,7 +114,8 @@ export default function CSQuickReplies({ token }) {
               <div className="min-w-0 flex-1">
                 <span className="mb-1 inline-block rounded-md bg-[#D4AF37]/15 px-2 py-0.5 text-[10px] font-bold text-[#E5C158]">{r.group}</span>
                 {r.created_by_name && <span className="ml-1.5 text-[10px] text-slate-500">坐席「{r.created_by_name}」添加</span>}
-                <p className="line-clamp-3 whitespace-pre-wrap break-words text-sm text-slate-300">{r.text || <span className="italic text-slate-500">（仅图片）</span>}</p>
+                <p className="line-clamp-3 whitespace-pre-wrap break-words text-sm text-slate-300">{r.text || (!r.tutorial && <span className="italic text-slate-500">（仅图片）</span>)}</p>
+                {r.tutorial && <span className="mt-1 inline-block rounded-md bg-sky-500/15 px-2 py-0.5 text-[10px] font-bold text-sky-300">附教程卡片：{tutorials.find((t) => t.slug === r.tutorial)?.title || r.tutorial}</span>}
               </div>
               <div className="flex shrink-0 flex-col gap-1">
                 <button onClick={() => { setEditing(r); setFormOpen(true); }} data-testid={`cs-qr-edit-${r.id}`} className="rounded-lg p-1.5 text-slate-400 hover:bg-white/10 hover:text-[#E5C158]"><Pencil size={14} /></button>

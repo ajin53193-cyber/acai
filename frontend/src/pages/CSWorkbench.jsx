@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import axios from "axios";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
-import { Send, LogOut, Plus, Trash2, Pencil, Headphones, MessageSquare, ImagePlus, Zap, X, Power, Clock, Volume2, VolumeX } from "lucide-react";
+import { Send, LogOut, Plus, Trash2, Pencil, Headphones, MessageSquare, ImagePlus, Zap, X, Power, Clock, Volume2, VolumeX, BookOpen } from "lucide-react";
 import { API, formatDetail } from "@/lib/api";
 import { toFullUrl } from "@/components/ImageUpload";
 import { StatusLogTable } from "@/components/StatusLogTable";
@@ -64,10 +64,11 @@ function Login({ onLogin }) {
   );
 }
 
-function QRAddForm({ token, groups, defaultGroup, editing, onSaved, onClose }) {
+function QRAddForm({ token, groups, defaultGroup, editing, tutorials, onSaved, onClose }) {
   const [group, setGroup] = useState(editing?.group || defaultGroup || "我的常用语");
   const [text, setText] = useState(editing?.text || "");
   const [image, setImage] = useState(editing?.image || "");
+  const [tutorial, setTutorial] = useState(editing?.tutorial || "");
   const [busy, setBusy] = useState(false);
   const fileRef = useRef(null);
   const headers = { Authorization: `Bearer ${token}` };
@@ -79,10 +80,10 @@ function QRAddForm({ token, groups, defaultGroup, editing, onSaved, onClose }) {
     catch { toast.error("图片上传失败"); } finally { setBusy(false); }
   };
   const save = async () => {
-    if (!text.trim() && !image) return toast.error("话术文本和图片至少填写一项");
+    if (!text.trim() && !image && !tutorial) return toast.error("话术文本、图片、教程卡片至少填写一项");
     setBusy(true);
     try {
-      const body = { group: group.trim() || "我的常用语", text, image };
+      const body = { group: group.trim() || "我的常用语", text, image, tutorial };
       if (editing) await axios.put(`${API}/cs/agent/quick-replies/${editing.id}`, body, { headers });
       else await axios.post(`${API}/cs/agent/quick-replies`, body, { headers });
       toast.success(editing ? "话术已修改" : "话术已添加"); onSaved(); onClose();
@@ -100,6 +101,10 @@ function QRAddForm({ token, groups, defaultGroup, editing, onSaved, onClose }) {
         <button onClick={() => fileRef.current?.click()} disabled={busy} data-testid="cs-qrlib-form-image-btn" className="flex items-center gap-1 rounded-lg border border-amber-900/15 px-2.5 py-1.5 text-xs text-slate-500 hover:border-[#D4AF37] hover:text-[#9a7a16] disabled:opacity-50"><ImagePlus size={13} /> {image ? "更换图片" : "添加图片"}</button>
         {image && <div className="relative"><img src={toFullUrl(image)} alt="" className="h-9 w-9 rounded-lg object-cover ring-1 ring-amber-900/10" /><button onClick={() => setImage("")} className="absolute -right-1.5 -top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-slate-500 text-white"><X size={10} /></button></div>}
       </div>
+      <select data-testid="cs-qrlib-form-tutorial" value={tutorial} onChange={(e) => setTutorial(e.target.value)} className="mb-2 w-full rounded-lg border border-amber-900/15 bg-[#faf8f2] px-3 py-2 text-xs text-slate-600 outline-none focus:border-[#D4AF37]">
+        <option value="">不附带教程卡片</option>
+        {tutorials.map((t) => <option key={t.slug} value={t.slug}>附带教程卡片：{t.title}</option>)}
+      </select>
       <div className="flex justify-end gap-2">
         <button onClick={onClose} className="rounded-lg px-3 py-1.5 text-xs text-slate-400 hover:text-slate-600">取消</button>
         <button onClick={save} disabled={busy} data-testid="cs-qrlib-form-save" className="rounded-lg bg-gradient-to-r from-[#D4AF37] to-[#FFE896] px-4 py-1.5 text-xs font-bold text-[#1B1403] disabled:opacity-50">{busy ? "保存中…" : "保存"}</button>
@@ -114,6 +119,8 @@ function QRLibrary({ token, onSend }) {
   const [group, setGroup] = useState("全部");
   const [adding, setAdding] = useState(false);
   const [editing, setEditing] = useState(null);
+  const [tutorials, setTutorials] = useState([]);
+  useEffect(() => { axios.get(`${API}/tutorials`).then((r) => setTutorials(r.data.tutorials || [])).catch(() => {}); }, []);
   const headers = { Authorization: `Bearer ${token}` };
   const load = useCallback(() => axios.get(`${API}/cs/agent/quick-replies`, { headers }).then((r) => { setList(r.data.replies || []); setMe(r.data.me || ""); }).catch(() => {}), [token]); // eslint-disable-line
   useEffect(() => { load(); const t = setInterval(load, 60000); return () => clearInterval(t); }, [load]); // 后台改了话术，坐席端一分钟内同步
@@ -135,14 +142,17 @@ function QRLibrary({ token, onSend }) {
           <button key={g} onClick={() => setGroup(g)} data-testid={`cs-qrlib-group-${g}`} className={`rounded-full px-2.5 py-1 text-[11px] transition-colors ${group === g ? "bg-[#D4AF37]/25 text-[#9a7a16] ring-1 ring-[#D4AF37]/40" : "bg-amber-900/5 text-slate-500 hover:bg-amber-900/10"}`}>{g}</button>
         ))}
       </div>
-      {(adding || editing) && <QRAddForm key={editing?.id || "new"} token={token} groups={groups} defaultGroup={group === "全部" ? "我的常用语" : group} editing={editing} onSaved={load} onClose={() => { setAdding(false); setEditing(null); }} />}
+      {(adding || editing) && <QRAddForm key={editing?.id || "new"} token={token} groups={groups} defaultGroup={group === "全部" ? "我的常用语" : group} editing={editing} tutorials={tutorials} onSaved={load} onClose={() => { setAdding(false); setEditing(null); }} />}
       <div className="space-y-2">
         {shown.length === 0 && <div className="rounded-xl border border-dashed border-amber-900/15 px-3 py-4 text-center text-xs text-slate-400">暂无话术，点右上角 + 添加</div>}
         {shown.map((r) => (
           <div key={r.id} className="group flex items-start gap-2 rounded-xl border border-amber-900/10 bg-white p-2.5 text-sm text-slate-600 shadow-sm transition-colors hover:border-[#D4AF37]/50">
             <button onClick={() => onSend(r)} data-testid={`cs-qrlib-${r.id}`} className="flex min-w-0 flex-1 items-start gap-2 text-left transition-colors hover:text-[#9a7a16]">
               {r.image && <img src={toFullUrl(r.image)} alt="" className="h-10 w-10 shrink-0 rounded-lg object-cover ring-1 ring-amber-900/10" />}
-              <span className="line-clamp-3 min-w-0 flex-1 whitespace-pre-wrap break-words leading-relaxed">{r.text || <span className="italic text-slate-400">[图片]</span>}</span>
+              <span className="min-w-0 flex-1">
+                <span className="line-clamp-3 whitespace-pre-wrap break-words leading-relaxed">{r.text || (!r.tutorial && <span className="italic text-slate-400">[图片]</span>)}</span>
+                {r.tutorial && <span className="mt-1 inline-flex items-center gap-1 rounded-md bg-[#3aa6f2]/10 px-1.5 py-0.5 text-[10px] font-bold text-[#2b8fd6]"><BookOpen size={10} /> 教程卡片：{tutorials.find((t) => t.slug === r.tutorial)?.title || r.tutorial}</span>}
+              </span>
             </button>
             <div className="flex shrink-0 flex-col gap-1.5">
               <button onClick={() => { setAdding(false); setEditing(r); }} data-testid={`cs-qrlib-edit-${r.id}`} aria-label="修改" className="text-slate-300 transition-colors hover:text-[#9a7a16]"><Pencil size={13} /></button>
@@ -291,7 +301,8 @@ function Workbench({ token, onLogout }) {
         await axios.post(`${API}/cs/agent/sessions/${active}/reply`, { text: "", image: r.image }, { headers });
       }
       if (r.text) await send(r.text);
-      else { await pollMessages(active); loadSessions(); }
+      if (r.tutorial) await axios.post(`${API}/cs/agent/sessions/${active}/reply`, { text: "", image: "", tutorial: r.tutorial }, { headers });
+      if (!r.text || r.tutorial) { await pollMessages(active); loadSessions(); }
     } catch { toast.error("发送失败"); }
   };
 

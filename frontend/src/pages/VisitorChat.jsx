@@ -10,6 +10,14 @@ import { csSessionId } from "@/lib/csWidget";
 const timeShort = (iso) => { try { return new Date(iso).toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit" }); } catch { return ""; } };
 const SOUND_KEY = "hy_cs_sound_on";
 
+// 把文本中的 URL 变成可点击链接（客服发的蝙蝠下载/邀请链接等）
+const URL_RE = /(https?:\/\/[^\s<>"')\]]+)/g;
+const linkify = (text, mine) => String(text).split(URL_RE).map((part, i) =>
+  /^https?:\/\//.test(part)
+    ? <a key={i} href={part} target="_blank" rel="noreferrer" className={`break-all underline ${mine ? "text-white" : "text-[#2b8fd6]"}`}>{part}</a>
+    : part,
+);
+
 // 轻量提示音（Web Audio，无需外部音频文件）
 let _ac = null;
 const playPing = () => {
@@ -226,7 +234,7 @@ export default function VisitorChat() {
                         : "rounded-2xl rounded-bl-md border border-blue-100 bg-white text-slate-700"}`}>
                         {m.image
                           ? <a href={toFullUrl(m.image)} target="_blank" rel="noreferrer"><img src={toFullUrl(m.image)} alt="图片" className="max-h-72 rounded-xl" /></a>
-                          : m.text}
+                          : linkify(m.text, isVisitor)}
                       </div>
                       )}
                       <span className={`mt-1 px-1 text-[10px] text-slate-400 ${isVisitor ? "text-right" : "text-left"}`}>{timeShort(m.created_at)}</span>

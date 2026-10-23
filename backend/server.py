@@ -2537,15 +2537,27 @@ class CSMessageInput(BaseModel):
     image: str = Field(default="", max_length=500)
 
 
+class CSAgentReplyInput(CSMessageInput):
+    tutorial: str = Field(default="", max_length=60)  # 站内教程 slug：以卡片形式发送（引流到蝙蝠群）
+
+
+async def tutorial_link_card(slug: str) -> dict | None:
+    tut = await db.tutorials.find_one({"slug": slug, "published": {"$ne": False}}, {"_id": 0, "title": 1, "summary": 1, "cover": 1, "slug": 1, "steps": 1})
+    if not tut:
+        return None
+    return {"url": f"/tutorials/{tut['slug']}", "title": tut["title"], "desc": tut.get("summary") or f"{len(tut.get('steps', []))} 个步骤 · 点击查看", "cover": tut.get("cover", "")}
+
+
 class QuickRepliesInput(BaseModel):
     replies: List[str] = Field(default_factory=list)
 
 
 class QRLibraryInput(BaseModel):
-    """后台统一话术库：分组 + 文本 + 图片（文本/图片至少一项）"""
+    """后台统一话术库：分组 + 文本 + 图片 + 可选教程卡片（文本/图片/教程至少一项）"""
     group: str = Field(default="默认", max_length=30)
     text: str = Field(default="", max_length=1000)
     image: str = Field(default="", max_length=500)
+    tutorial: str = Field(default="", max_length=60)
 
 
 class QRGroupRename(BaseModel):
@@ -2613,10 +2625,9 @@ async def maybe_send_offline_reply(sess: dict, cfg: dict | None = None) -> bool:
     if cfg["offline_image"]:
         docs.append({**base, "id": str(uuid.uuid4()), "text": "", "image": cfg["offline_image"], "created_at": (now + timedelta(milliseconds=3)).isoformat(), "created_at_dt": now})
     if cfg.get("offline_tutorial"):
-        tut = await db.tutorials.find_one({"slug": cfg["offline_tutorial"], "published": {"$ne": False}}, {"_id": 0, "title": 1, "summary": 1, "cover": 1, "slug": 1, "steps": 1})
-        if tut:
-            docs.append({**base, "id": str(uuid.uuid4()), "text": f"📖 图文教程：{tut['title']}", "image": "",
-                         "link": {"url": f"/tutorials/{tut['slug']}", "title": tut["title"], "desc": tut.get("summary") or f"{len(tut.get('steps', []))} 个步骤 · 点击查看", "cover": tut.get("cover", "")},
+        link = await tutorial_link_card(cfg["offline_tutorial"])
+        if link:
+            docs.append({**base, "id": str(uuid.uuid4()), "text": f"📖 图文教程：{link['title']}", "image": "", "link": link,
                          "created_at": (now + timedelta(milliseconds=4)).isoformat(), "created_at_dt": now})
     if not docs:
         return False
@@ -3033,22 +3044,24 @@ async def cs_agent_read(session_id: str, agent: dict = Depends(require_agent)):
 
 
 @api_router.post("/cs/agent/sessions/{session_id}/reply", status_code=201)
-async def cs_agent_reply(session_id: str, data: CSMessageInput, agent: dict = Depends(require_agent)):
-    if not data.text.strip() and not data.image.strip():
+async def cs_agent_reply(session_id: str, data: CSAgentReplyInput, agent: dict = Depends(require_agent)):
+    link = await tutorial_link_card(data.tutorial.strip()) if data.tutorial.strip() else None
+    if not data.text.strip() and not data.image.strip() and not link:
         raise HTTPException(status_code=400, detail="消息不能为空")
     sess = await db.cs_sessions.find_one({"id": session_id, "agent_id": agent["id"]})
     if not sess:
         raise HTTPException(status_code=404, detail="会话不存在")
     now = datetime.now(timezone.utc)
     now_iso = now.isoformat()
-    await db.cs_messages.insert_one({
-        "id": str(uuid.uuid4()), "session_id": session_id, "sender": "agent",
-        "agent_id": agent["id"], "text": data.text, "image": data.image,
-        "created_at": now_iso, "created_at_dt": now,
-    })
+    doc = {"id": str(uuid.uuid4()), "session_id": session_id, "sender": "agent", "agent_id": agent["id"],
+           "text": data.text, "image": data.image, "created_at": now_iso, "created_at_dt": now}
+    if link:
+        doc.update({"text": f"📖 图文教程：{link['title']}", "image": "", "link": link})
+    await db.cs_messages.insert_one(doc)
+    preview = f"[教程] {link['title']}" if link else cs_preview(data.text, data.image)
     await db.cs_sessions.update_one(
         {"id": session_id},
-        {"$set": {"last_message_at": now_iso, "last_activity_dt": now, "last_message": cs_preview(data.text, data.image), "unread_agent": 0}, "$inc": {"unread_visitor": 1}},
+        {"$set": {"last_message_at": now_iso, "last_activity_dt": now, "last_message": preview, "unread_agent": 0}, "$inc": {"unread_visitor": 1}},
     )
     return {"ok": True}
 
@@ -3136,10 +3149,10 @@ async def qr_library_list() -> list:
 
 
 def qr_clean(data: QRLibraryInput) -> dict:
-    text, image, group = data.text.strip(), data.image.strip(), (data.group.strip() or "默认")
-    if not text and not image:
-        raise HTTPException(status_code=400, detail="话术文本和图片至少填写一项")
-    return {"group": group, "text": text, "image": image}
+    text, image, group, tutorial = data.text.strip(), data.image.strip(), (data.group.strip() or "默认"), data.tutorial.strip()
+    if not text and not image and not tutorial:
+        raise HTTPException(status_code=400, detail="话术文本、图片、教程卡片至少填写一项")
+    return {"group": group, "text": text, "image": image, "tutorial": tutorial}
 
 
 @api_router.get("/admin/cs/quick-replies")
