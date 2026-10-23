@@ -1,16 +1,41 @@
-"""采集 315som.com 文章到「图文推广」（草稿），用法：
-  cd /app/backend && python3 scripts/import_315som.py <API_BASE> <admin_user> <admin_pwd> <url1> <url2> ...
+"""采集 315som.com 文章到「图文推广」（草稿）。
+
+服务器上（自动读取 backend/.env 里的后台账号，无需输密码）：
+  cd /www/wwwroot/heying && backend/.venv/bin/python backend/scripts/import_315som.py <url1> <url2> ...
+手动指定站点/账号：
+  API_BASE=https://你的域名 ADMIN_USERNAME=admin ADMIN_PASSWORD=xxx python3 backend/scripts/import_315som.py <url...>
+
 文字段落 → text 块，正文图片下载后上传为站内图片 → image 块，首图作为封面。默认不发布，后台审核后再上线。"""
+import os
 import re
 import sys
 import html
-import json
+from pathlib import Path
+
 import requests
 
-API, USER, PWD, *URLS = sys.argv[1:]
+ENV_FILE = Path(__file__).resolve().parents[1] / ".env"
+env = {}
+if ENV_FILE.is_file():
+    for line in ENV_FILE.read_text(encoding="utf-8").splitlines():
+        if "=" in line and not line.strip().startswith("#"):
+            k, v = line.split("=", 1)
+            env[k.strip()] = v.strip().strip('"').strip("'")
+
+USER = os.environ.get("ADMIN_USERNAME") or env.get("ADMIN_USERNAME", "admin")
+PWD = os.environ.get("ADMIN_PASSWORD") or env.get("ADMIN_PASSWORD", "")
+API = (os.environ.get("API_BASE") or (env.get("CORS_ORIGINS", "").split(",")[0]) or "http://127.0.0.1:8001").rstrip("/")
+URLS = [a for a in sys.argv[1:] if a.startswith("http")]
+if not URLS:
+    sys.exit("请在命令后面跟上要采集的文章链接")
+
 UA = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/124 Safari/537.36"}
-tok = requests.post(f"{API}/api/admin/login", json={"username": USER, "password": PWD}, timeout=20).json()
+login = requests.post(f"{API}/api/admin/login", json={"username": USER, "password": PWD}, timeout=20)
+if not login.ok:
+    sys.exit(f"登录 {API} 失败（{login.status_code}）：{login.text[:120]}\n请检查 backend/.env 里的 ADMIN_USERNAME / ADMIN_PASSWORD，或用 API_BASE=... ADMIN_PASSWORD=... 指定")
+tok = login.json()
 H = {"Authorization": f"Bearer {tok.get('token') or tok.get('access_token')}"}
+print(f"已登录 {API}，开始采集 {len(URLS)} 篇 ...")
 
 
 def upload(img_url: str) -> str:
