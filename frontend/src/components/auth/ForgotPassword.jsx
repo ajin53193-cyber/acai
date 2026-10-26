@@ -49,6 +49,7 @@ export function ForgotPassword({ onBack, onClose }) {
       setSent(true); cd.start();
       toast.success(sentToast(tr, tab === "phone"));
     } catch (e) {
+      if (e?.response?.status === 429) cd.start();
       toast.error(apiErr(e, tr("發送失敗，請確認帳號是否已註冊")));
     }
     setLoading(false);

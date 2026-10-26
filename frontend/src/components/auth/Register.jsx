@@ -38,6 +38,7 @@ export function Register({ onBack, onClose, finishTicket }) {
       setSent(true); cd.start();
       toast.success(sentToast(tr, kind === "phone"));
     } catch (e) {
+      if (e?.response?.status === 429) cd.start();
       toast.error(e?.detail || apiErr(e, tr("發送失敗，請稍後再試")));
     }
     setLoading(false);
