@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useSignIn } from "@clerk/react/legacy";
+import { useSession } from "@/lib/auth";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import { PhoneInput, toE164, isValidPhone } from "./PhoneInput";
@@ -23,7 +23,7 @@ const validPassword = (p) => {
 };
 
 export function ForgotPassword({ onBack, onClose }) {
-  const { signIn, setActive, isLoaded } = useSignIn();
+  const { signIn, isLoaded } = useSession();
   const [tab, setTab] = useState("email");
   const [identifier, setIdentifier] = useState("");
   const [dialCode, setDialCode] = useState("+86");
@@ -65,15 +65,13 @@ export function ForgotPassword({ onBack, onClose }) {
     try {
       if (tab === "email") {
         const res = await publicApi.post("/auth/email/reset-password", { email: identifier.trim(), code: code.trim(), new_password: pw1 });
-        const si = await signIn.create({ strategy: "ticket", ticket: res.data.ticket });
-        await setActive({ session: si.createdSessionId });
+        await signIn(res.data.token);
         toast.success(tr("密碼已重設，已為您登入"));
         onClose();
         return;
       }
       const res = await publicApi.post("/auth/email/phone/reset-password", { phone: toE164(dialCode, identifier), code: code.trim(), password: pw1 });
-      const si = await signIn.create({ strategy: "ticket", ticket: res.data.ticket });
-      await setActive({ session: si.createdSessionId });
+      await signIn(res.data.token);
       toast.success(tr("密碼已重設，已為您登入"));
       onClose();
       return;

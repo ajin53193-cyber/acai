@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useUser } from "@clerk/react";
+import { useUser } from "@/lib/auth";
 import { X } from "lucide-react";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
@@ -45,7 +45,7 @@ export function BindPhoneDialog({ onClose, kind = "phone" }) {
     setBusy(true);
     try {
       await callApi({ method: "POST", url: "/auth/email/me/bind", data: { identifier, code: code.trim() } });
-      await user.reload();
+      await user?.reload?.();
       toast.success(isPhone ? tr("手機號碼綁定成功") : tr("信箱綁定成功"));
       onClose();
     } catch (e) { toast.error(errMsg(e)); }

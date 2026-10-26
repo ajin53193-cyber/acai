@@ -1,4 +1,4 @@
-"""Email OTP auth via Mailgun SMTP; Clerk stays the session provider (sign-in tickets)."""
+"""Email / phone OTP + password auth. Sessions are our own JWTs (see local_auth.py); no third-party provider."""
 import hashlib
 import hmac
 import logging
@@ -12,7 +12,8 @@ import httpx
 from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel, EmailStr
 
-from clerk_auth import require_user, CLERK_BACKEND_API
+import local_auth
+from local_auth import require_user
 from mailer import send_mail, otp_email
 from sms import send_sms_code
 
@@ -25,8 +26,9 @@ MAX_ATTEMPTS = 5
 PURPOSES = ("login", "register", "reset", "change_password", "bind")
 TEST_SUFFIX = "+clerk_test@"
 TEST_PHONE_PREFIX = "+1201555"
-PHONE_DOMAIN = "phone.gogo589.com"
+PHONE_DOMAIN = local_auth.PHONE_DOMAIN
 TEST_CODE = "424242"
+PW_RULE = "密碼長度為8~32位，數字、字母、符號至少包含兩種"
 db = None  # injected from server.py
 
 
@@ -35,7 +37,7 @@ def _now():
 
 
 def _hash(email: str, code: str) -> str:
-    return hmac.new(os.environ["CLERK_SECRET_KEY"].encode(), f"{email.lower()}:{code}".encode(), hashlib.sha256).hexdigest()
+    return hmac.new(local_auth.secret().encode(), f"{email.lower()}:{code}".encode(), hashlib.sha256).hexdigest()
 
 
 def _pw_ok(p: str) -> bool:
@@ -44,35 +46,17 @@ def _pw_ok(p: str) -> bool:
     return sum(bool(re.search(r, p)) for r in (r"[0-9]", r"[a-zA-Z]", r"[^0-9a-zA-Z]")) >= 2
 
 
-async def _clerk(method: str, path: str, **kw) -> httpx.Response:
-    headers = {"Authorization": f"Bearer {os.environ['CLERK_SECRET_KEY']}", "User-Agent": "gogo589-backend"}
-    async with httpx.AsyncClient(timeout=20) as c:
-        return await c.request(method, f"{CLERK_BACKEND_API}{path}", headers=headers, **kw)
-
-
 async def _find_user(identifier: str) -> Optional[dict]:
-    key = "phone_number" if identifier.startswith("+") else "email_address"
-    r = await _clerk("GET", "/users", params={key: identifier, "limit": 1})
-    r.raise_for_status()
-    users = r.json()
-    return users[0] if users else None
+    return await local_auth.find_by_identifier(identifier)
 
 
 async def _ticket(user_id: str) -> str:
-    r = await _clerk("POST", "/sign_in_tokens", json={"user_id": user_id, "expires_in_seconds": 300})
-    if r.status_code >= 300:
-        logger.error("sign_in_token failed: %s", r.text[:200])
-        raise HTTPException(status_code=502, detail="登入服務暫時不可用，請稍後再試")
-    return r.json()["token"]
+    return await local_auth.token_for(user_id)
 
 
-def _primary_email(u: dict) -> str:
+def _primary_contact(u: dict) -> str:
     """Primary contact for OTP: real email, or the phone for phone-registered accounts."""
-    pid = u.get("primary_email_address_id")
-    email = next((e["email_address"] for e in u.get("email_addresses", []) if e["id"] == pid), "") or (u.get("email_addresses") or [{}])[0].get("email_address", "")
-    if email.endswith("@" + PHONE_DOMAIN):
-        return (u.get("public_metadata") or {}).get("phone", "")
-    return email
+    return local_auth.real_email(u.get("email", "")) or u.get("phone", "")
 
 
 class SendIn(BaseModel):
@@ -141,16 +125,6 @@ async def _issue_code(email: str, purpose: str) -> dict:
     return {"sent": True, "resend_after": RESEND_SECONDS, "expires_in": CODE_TTL_MIN * 60}
 
 
-def _clerk_err(r) -> str:
-    try:
-        err = (r.json().get("errors") or [{}])[0]
-    except Exception:
-        err = {}
-    if err.get("code") == "user_quota_exceeded":
-        return "系統註冊名額已滿，請聯繫客服處理"
-    return err.get("long_message") or "註冊失敗，請稍後再試"
-
-
 async def _consume_code(email: str, purpose: str, code: str):
     email = email.lower()
     rec = await db.email_codes.find_one({"email": email, "purpose": purpose})
@@ -163,6 +137,10 @@ async def _consume_code(email: str, purpose: str, code: str):
         await db.email_codes.update_one({"_id": rec["_id"]}, {"$inc": {"attempts": 1}})
         raise HTTPException(status_code=400, detail="驗證碼錯誤")
     await db.email_codes.delete_one({"_id": rec["_id"]})
+
+
+def _session(uid: str, token: str, **extra) -> dict:
+    return {"token": token, "ticket": token, "user_id": uid, **extra}
 
 
 @router.post("/send-code")
@@ -185,59 +163,53 @@ async def verify_login(body: VerifyIn):
     user = await _find_user(email)
     if not user:
         raise HTTPException(status_code=404, detail="此信箱尚未註冊，請先註冊")
-    return {"ticket": await _ticket(user["id"]), "is_new": False}
+    return _session(user["user_id"], await _ticket(user["user_id"]), is_new=False)
 
 
 @router.post("/register")
 async def register(body: RegisterIn):
     email = body.email.lower()
     if not _pw_ok(body.password):
-        raise HTTPException(status_code=400, detail="密碼長度為8~32位，數字、字母、符號至少包含兩種")
+        raise HTTPException(status_code=400, detail=PW_RULE)
     await _consume_code(email, "register", body.code)
     if await _find_user(email):
         raise HTTPException(status_code=409, detail="此信箱已註冊，請直接登入")
-    r = await _clerk("POST", "/users", json={"email_address": [email], "password": body.password, "skip_password_checks": True})
-    if r.status_code >= 300:
-        logger.error("register failed: %s", r.text[:300])
-        raise HTTPException(status_code=400, detail=_clerk_err(r))
-    return {"ticket": await _ticket(r.json()["id"])}
+    u = await local_auth.create_user(email=email, password=body.password)
+    return _session(u["user_id"], await _ticket(u["user_id"]))
 
 
 @router.post("/password-login")
 async def password_login(body: PasswordLoginIn):
     ident = body.identifier.strip().lower()
-    user = await _phone_user(ident) if ident.startswith("+") else await _find_user(ident)
+    user = await _find_user(ident)
     if not user:
         raise HTTPException(status_code=401, detail="帳號或密碼錯誤")
-    if not user.get("password_enabled"):
-        raise HTTPException(status_code=400, detail="此帳號尚未設定密碼，請使用驗證碼登入")
-    r = await _clerk("POST", f"/users/{user['id']}/verify_password", json={"password": body.password})
-    if r.status_code != 200 or not r.json().get("verified"):
+    if user.get("banned"):
+        raise HTTPException(status_code=403, detail="帳號已被停用")
+    if not await local_auth.verify_password(user, body.password):
+        if not await local_auth.has_password(user):
+            raise HTTPException(status_code=400, detail="此帳號尚未設定密碼，請使用驗證碼登入")
         raise HTTPException(status_code=401, detail="帳號或密碼錯誤")
-    return {"ticket": await _ticket(user["id"])}
+    return _session(user["user_id"], await _ticket(user["user_id"]))
 
 
 @router.post("/reset-password")
 async def reset_password(body: ResetIn):
     email = body.email.lower()
     if not _pw_ok(body.new_password):
-        raise HTTPException(status_code=400, detail="密碼長度為8~32位，數字、字母、符號至少包含兩種")
+        raise HTTPException(status_code=400, detail=PW_RULE)
     await _consume_code(email, "reset", body.code)
     user = await _find_user(email)
     if not user:
         raise HTTPException(status_code=404, detail="此信箱尚未註冊")
-    r = await _clerk("PATCH", f"/users/{user['id']}", json={"password": body.new_password, "skip_password_checks": True, "sign_out_of_other_sessions": True})
-    if r.status_code >= 300:
-        logger.error("reset password failed: %s", r.text[:300])
-        raise HTTPException(status_code=400, detail=(r.json().get("errors") or [{}])[0].get("long_message") or "重設失敗")
-    return {"ticket": await _ticket(user["id"])}
+    await local_auth.set_password(user["user_id"], body.new_password, sign_out_others=True)
+    return _session(user["user_id"], await _ticket(user["user_id"]))
 
 
 @router.post("/me/send-code")
 async def me_send_code(user: dict = Depends(require_user)):
-    r = await _clerk("GET", f"/users/{user['user_id']}")
-    r.raise_for_status()
-    email = _primary_email(r.json())
+    u = await local_auth.get_user(user["user_id"]) or {}
+    email = _primary_contact(u)
     if not email:
         raise HTTPException(status_code=400, detail="帳號未綁定信箱")
     res = await _issue_code(email, "change_password")
@@ -248,14 +220,10 @@ async def me_send_code(user: dict = Depends(require_user)):
 @router.post("/me/change-password")
 async def me_change_password(body: ChangePwIn, user: dict = Depends(require_user)):
     if not _pw_ok(body.new_password):
-        raise HTTPException(status_code=400, detail="密碼長度為8~32位，數字、字母、符號至少包含兩種")
-    r = await _clerk("GET", f"/users/{user['user_id']}")
-    r.raise_for_status()
-    email = _primary_email(r.json())
-    await _consume_code(email, "change_password", body.code)
-    r = await _clerk("PATCH", f"/users/{user['user_id']}", json={"password": body.new_password, "skip_password_checks": True})
-    if r.status_code >= 300:
-        raise HTTPException(status_code=400, detail=(r.json().get("errors") or [{}])[0].get("long_message") or "修改失敗")
+        raise HTTPException(status_code=400, detail=PW_RULE)
+    u = await local_auth.get_user(user["user_id"]) or {}
+    await _consume_code(_primary_contact(u), "change_password", body.code)
+    await local_auth.set_password(user["user_id"], body.new_password)
     return {"ok": True}
 
 
@@ -263,18 +231,15 @@ async def me_change_password(body: ChangePwIn, user: dict = Depends(require_user
 async def me_set_password(body: SetPwIn, user: dict = Depends(require_user)):
     """First-time password for accounts registered by phone (no code needed while no password exists)."""
     if not _pw_ok(body.password):
-        raise HTTPException(status_code=400, detail="密碼長度為8~32位，數字、字母、符號至少包含兩種")
-    r = await _clerk("GET", f"/users/{user['user_id']}")
-    r.raise_for_status()
-    if r.json().get("password_enabled"):
+        raise HTTPException(status_code=400, detail=PW_RULE)
+    u = await local_auth.get_user(user["user_id"]) or {}
+    if await local_auth.has_password(u):
         raise HTTPException(status_code=409, detail="帳號已設定密碼，請使用修改密碼")
-    r = await _clerk("PATCH", f"/users/{user['user_id']}", json={"password": body.password, "skip_password_checks": True})
-    if r.status_code >= 300:
-        raise HTTPException(status_code=400, detail=(r.json().get("errors") or [{}])[0].get("long_message") or "設定失敗")
+    await local_auth.set_password(user["user_id"], body.password)
     return {"ok": True}
 
 
-# ----------------------------- Phone (SUBMAIL international SMS) -----------------------------
+# ----------------------------- Phone -----------------------------
 def _phone_placeholder_email(phone: str) -> str:
     return f"p{phone.lstrip('+')}@{PHONE_DOMAIN}"
 
@@ -287,11 +252,7 @@ def _check_phone(phone: str) -> str:
 
 
 async def _phone_user(phone: str) -> Optional[dict]:
-    acct = await db.phone_accounts.find_one({"phone": phone}, {"_id": 0})
-    if not acct:
-        return None
-    r = await _clerk("GET", f"/users/{acct['user_id']}")
-    return r.json() if r.status_code == 200 else None
+    return await local_auth.find_by_phone(phone)
 
 
 class PhoneSendIn(BaseModel):
@@ -313,7 +274,7 @@ async def phone_send_code(body: PhoneSendIn):
     if body.purpose not in ("login", "register", "reset"):
         raise HTTPException(status_code=400, detail="invalid purpose")
     phone = _check_phone(body.phone)
-    exists = await db.phone_accounts.find_one({"phone": phone}) is not None
+    exists = await _phone_user(phone) is not None
     if body.purpose in ("login", "reset") and not exists:
         raise HTTPException(status_code=404, detail="此手機號尚未註冊，請先註冊")
     if body.purpose == "register" and exists:
@@ -325,19 +286,12 @@ async def phone_send_code(body: PhoneSendIn):
 async def phone_register(body: PhoneRegisterIn):
     phone = _check_phone(body.phone)
     if not _pw_ok(body.password):
-        raise HTTPException(status_code=400, detail="密碼長度為8~32位，數字、字母、符號至少包含兩種")
+        raise HTTPException(status_code=400, detail=PW_RULE)
     await _consume_code(phone, "register", body.code)
-    if await db.phone_accounts.find_one({"phone": phone}):
+    if await _phone_user(phone):
         raise HTTPException(status_code=409, detail="此手機號已註冊，請直接登入")
-    r = await _clerk("POST", "/users", json={"email_address": [_phone_placeholder_email(phone)], "password": body.password,
-                                             "skip_password_checks": True, "public_metadata": {"phone": phone}})
-    if r.status_code >= 300:
-        logger.error("phone register failed: %s", r.text[:300])
-        raise HTTPException(status_code=400, detail=_clerk_err(r))
-    uid = r.json()["id"]
-    await db.phone_accounts.insert_one({"phone": phone, "user_id": uid, "created_at": _now().isoformat()})
-    await db.users.update_one({"user_id": uid}, {"$set": {"phone": phone}, "$setOnInsert": {"created_at": _now().isoformat()}}, upsert=True)
-    return {"ticket": await _ticket(uid)}
+    u = await local_auth.create_user(phone=phone, password=body.password)
+    return _session(u["user_id"], await _ticket(u["user_id"]))
 
 
 @router.post("/phone/verify")
@@ -347,22 +301,20 @@ async def phone_verify(body: PhoneVerifyIn):
     user = await _phone_user(phone)
     if not user:
         raise HTTPException(status_code=404, detail="此手機號尚未註冊，請先註冊")
-    return {"ticket": await _ticket(user["id"])}
+    return _session(user["user_id"], await _ticket(user["user_id"]))
 
 
 @router.post("/phone/reset-password")
 async def phone_reset_password(body: PhoneRegisterIn):
     phone = _check_phone(body.phone)
     if not _pw_ok(body.password):
-        raise HTTPException(status_code=400, detail="密碼長度為8~32位，數字、字母、符號至少包含兩種")
+        raise HTTPException(status_code=400, detail=PW_RULE)
     await _consume_code(phone, "reset", body.code)
     user = await _phone_user(phone)
     if not user:
         raise HTTPException(status_code=404, detail="此手機號尚未註冊")
-    r = await _clerk("PATCH", f"/users/{user['id']}", json={"password": body.password, "skip_password_checks": True, "sign_out_of_other_sessions": True})
-    if r.status_code >= 300:
-        raise HTTPException(status_code=400, detail="重設失敗")
-    return {"ticket": await _ticket(user["id"])}
+    await local_auth.set_password(user["user_id"], body.password, sign_out_others=True)
+    return _session(user["user_id"], await _ticket(user["user_id"]))
 
 
 # ----------------------------- Google OAuth (own client, code flow) -----------------------------
@@ -391,32 +343,23 @@ async def google_login(body: GoogleIn):
     user = await _find_user(email)
     is_new = user is None
     if is_new:
-        payload = {"email_address": [email], "skip_password_requirement": True, "public_metadata": {"google_sub": g.get("sub", "")}}
-        if g.get("given_name"):
-            payload["first_name"] = g["given_name"]
-        if g.get("family_name"):
-            payload["last_name"] = g["family_name"]
-        r = await _clerk("POST", "/users", json=payload)
-        if r.status_code >= 300:
-            logger.error("google create user failed: %s", r.text[:300])
-            raise HTTPException(status_code=502, detail="建立帳號失敗，請稍後再試")
-        user = r.json()
-    return {"ticket": await _ticket(user["id"]), "is_new": is_new, "email": email}
+        name = " ".join(x for x in [g.get("given_name"), g.get("family_name")] if x)
+        user = await local_auth.create_user(email=email, name=name, google_sub=g.get("sub", ""))
+    elif not user.get("google_sub"):
+        await db.users.update_one({"user_id": user["user_id"]}, {"$set": {"google_sub": g.get("sub", "")}})
+    if user.get("banned"):
+        raise HTTPException(status_code=403, detail="帳號已被停用")
+    return _session(user["user_id"], await _ticket(user["user_id"]), is_new=is_new, email=email)
 
 
 @router.post("/me/change-password-by-old")
 async def me_change_password_by_old(body: ChangePwByOldIn, user: dict = Depends(require_user)):
     if not _pw_ok(body.new_password):
-        raise HTTPException(status_code=400, detail="密碼長度為8~32位，數字、字母、符號至少包含兩種")
-    r = await _clerk("GET", f"/users/{user['user_id']}")
-    r.raise_for_status()
-    if r.json().get("password_enabled"):
-        v = await _clerk("POST", f"/users/{user['user_id']}/verify_password", json={"password": body.current_password})
-        if v.status_code != 200 or not v.json().get("verified"):
-            raise HTTPException(status_code=400, detail="舊密碼錯誤")
-    r = await _clerk("PATCH", f"/users/{user['user_id']}", json={"password": body.new_password, "skip_password_checks": True})
-    if r.status_code >= 300:
-        raise HTTPException(status_code=400, detail=(r.json().get("errors") or [{}])[0].get("long_message") or "修改失敗")
+        raise HTTPException(status_code=400, detail=PW_RULE)
+    u = await local_auth.get_user(user["user_id"]) or {}
+    if await local_auth.has_password(u) and not await local_auth.verify_password(u, body.current_password):
+        raise HTTPException(status_code=400, detail="舊密碼錯誤")
+    await local_auth.set_password(user["user_id"], body.new_password)
     return {"ok": True}
 
 
@@ -434,13 +377,14 @@ async def bind_send_code(body: BindSendIn, user: dict = Depends(require_user)):
     ident = body.identifier.strip().lower()
     if ident.startswith("+"):
         ident = _check_phone(ident)
-        if await db.phone_accounts.find_one({"phone": ident, "user_id": {"$ne": user["user_id"]}}):
+        other = await _phone_user(ident)
+        if other and other["user_id"] != user["user_id"]:
             raise HTTPException(status_code=409, detail="此手機號已綁定其他帳號")
     else:
         if not re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+", ident) or ident.endswith("@" + PHONE_DOMAIN):
             raise HTTPException(status_code=400, detail="請輸入正確的信箱")
         other = await _find_user(ident)
-        if other and other["id"] != user["user_id"]:
+        if other and other["user_id"] != user["user_id"]:
             raise HTTPException(status_code=409, detail="此信箱已綁定其他帳號")
     return await _issue_code(ident, "bind")
 
@@ -452,25 +396,20 @@ async def bind_identifier(body: BindIn, user: dict = Depends(require_user)):
     await _consume_code(ident, "bind", body.code)
     if ident.startswith("+"):
         ident = _check_phone(ident)
-        if await db.phone_accounts.find_one({"phone": ident, "user_id": {"$ne": uid}}):
+        other = await _phone_user(ident)
+        if other and other["user_id"] != uid:
             raise HTTPException(status_code=409, detail="此手機號已綁定其他帳號")
         await db.phone_accounts.delete_many({"user_id": uid})
         await db.phone_accounts.insert_one({"phone": ident, "user_id": uid, "created_at": _now().isoformat()})
-        await db.users.update_one({"user_id": uid}, {"$set": {"phone": ident}, "$setOnInsert": {"created_at": _now().isoformat()}}, upsert=True)
-        r = await _clerk("GET", f"/users/{uid}")
-        meta = {**((r.json().get("public_metadata") or {}) if r.status_code == 200 else {}), "phone": ident}
-        await _clerk("PATCH", f"/users/{uid}", json={"public_metadata": meta})
+        await db.users.update_one({"user_id": uid}, {"$set": {"phone": ident}})
         return {"ok": True, "phone": ident}
     other = await _find_user(ident)
-    if other and other["id"] != uid:
+    if other and other["user_id"] != uid:
         raise HTTPException(status_code=409, detail="此信箱已綁定其他帳號")
-    if not other:
-        r = await _clerk("POST", "/email_addresses", json={"user_id": uid, "email_address": ident, "verified": True, "primary": True})
-        if r.status_code >= 300:
-            logger.error("bind email failed: %s", r.text[:300])
-            raise HTTPException(status_code=400, detail="綁定失敗，請稍後再試")
-        u = await _clerk("GET", f"/users/{uid}")
-        for e in (u.json().get("email_addresses") or []) if u.status_code == 200 else []:
-            if e["email_address"].endswith("@" + PHONE_DOMAIN):
-                await _clerk("DELETE", f"/email_addresses/{e['id']}")
+    u = await local_auth.get_user(uid) or {}
+    cur = local_auth.real_email(u.get("email", ""))
+    upd = {"$set": {"email": ident}}
+    if cur and cur != ident:
+        upd["$addToSet"] = {"alt_emails": cur}
+    await db.users.update_one({"user_id": uid}, upd)
     return {"ok": True, "email": ident}

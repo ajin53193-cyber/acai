@@ -1,5 +1,5 @@
 import axios from "axios";
-import { useAuth } from "@clerk/react";
+import { useAuth } from "@/lib/auth";
 import { useCallback } from "react";
 import { API_LANG } from "@/i18n";
 
@@ -28,10 +28,6 @@ export function useApi() {
   );
 }
 
-const PHONE_DOMAIN = "@phone.gogo589.com";
-export const userEmail = (user) => {
-  const e = user?.primaryEmailAddress?.emailAddress || "";
-  return e.endsWith(PHONE_DOMAIN) ? "" : e;
-};
-export const userPhone = (user) => user?.publicMetadata?.phone || user?.primaryPhoneNumber?.phoneNumber || "";
-export const userLabel = (user) => userEmail(user) || userPhone(user) || user?.username || "";
+export const userEmail = (user) => user?.email || "";
+export const userPhone = (user) => user?.phone || "";
+export const userLabel = (user) => userEmail(user) || userPhone(user) || user?.name || "";

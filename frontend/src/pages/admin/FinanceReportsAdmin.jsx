@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend } from "recharts";
 import { Download } from "lucide-react";
-import { useAuth } from "@clerk/react";
+import { useAuth } from "@/lib/auth";
 import { tr } from "@/i18n";
 import { Btn, Card, Head, Table, useLoad } from "./ui";
 import { API } from "@/lib/api";

@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useSignIn } from "@clerk/react/legacy";
-import { useClerk } from "@clerk/react";
+import { useSession } from "@/lib/auth";
 import { toast } from "sonner";
 import { publicApi } from "@/lib/api";
 import { tr } from "@/i18n";
@@ -11,8 +10,7 @@ const inp = "w-full h-12 rounded-xl bg-slate-100 px-4 text-sm outline-none focus
 const err = (e, f) => e?.response?.data?.detail || e?.errors?.[0]?.message || f;
 
 export default function AdminLogin() {
-  const { signIn, setActive, isLoaded } = useSignIn();
-  const { signOut, session } = useClerk();
+  const { signIn, isLoaded } = useSession();
   const navigate = useNavigate();
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
@@ -36,10 +34,7 @@ export default function AdminLogin() {
     try {
       const r = await publicApi.post("/admin/auth/totp", { pre_token: pre.pre_token, code: code.trim() });
       localStorage.setItem("admin_token", r.data.admin_token);
-      if (session) await signOut({ redirectUrl: null }).catch(() => {});
-      if (!isLoaded) throw new Error(tr("請稍候再試"));
-      const si = await signIn.create({ strategy: "ticket", ticket: r.data.ticket });
-      await setActive({ session: si.createdSessionId });
+      await signIn(r.data.token);
       toast.success(tr("後台登入成功"));
       navigate(ADMIN_BASE, { replace: true });
     } catch (e) { toast.error(err(e, tr("驗證失敗"))); }

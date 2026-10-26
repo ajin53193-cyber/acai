@@ -5,7 +5,7 @@ import { useParams, useNavigate, Link } from "react-router-dom";
 import { Star, Minus, Plus, ShoppingCart, Sparkles, CalendarCheck, Gift, Tags, BadgePercent, ChevronLeft, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
 import { publicApi, useApi } from "@/lib/api";
-import { useUser } from "@clerk/react";
+import { useUser } from "@/lib/auth";
 import { useCurrency } from "@/context/CurrencyContext";
 import { useIsMobile } from "@/lib/useIsMobile";
 import { useCart } from "@/context/CartContext";

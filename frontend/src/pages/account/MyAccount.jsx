@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useUser, useClerk } from "@clerk/react";
+import { useUser, useClerk } from "@/lib/auth";
 import { useNavigate } from "react-router-dom";
 import { LogOut } from "lucide-react";
 import { Check, ChevronDown } from "lucide-react";

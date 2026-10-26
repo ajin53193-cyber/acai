@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useCallback, useEffect } from "react";
-import { useSignIn } from "@clerk/react/legacy";
+import { useSession } from "@/lib/auth";
 import { Link } from "react-router-dom";
 import { X, Apple, Home, Gift } from "lucide-react";
 import { INFO_CONTENT } from "@/pages/Info";
@@ -35,7 +35,7 @@ const TABS = [
 ];
 
 function AuthModal({ open, onOpenChange, initialView = "login" }) {
-  const { signIn, setActive: setSignInActive, isLoaded: siLoaded } = useSignIn();
+  const { signIn } = useSession();
   const [tab, setTab] = useState("account");
   const [doc, setDoc] = useState(null);
   const [identifier, setIdentifier] = useState("");
@@ -47,7 +47,6 @@ function AuthModal({ open, onOpenChange, initialView = "login" }) {
   const [loading, setLoading] = useState(false);
   const [dialCode, setDialCode] = useState("+86");
   const [view, setView] = useState("login");
-  const [trust, setTrust] = useState(null);
 
   useEffect(() => { if (open) setView(initialView || "login"); }, [open, initialView]);
 
@@ -55,15 +54,6 @@ function AuthModal({ open, onOpenChange, initialView = "login" }) {
     setTab(t);
     setSent(false);
     setCode("");
-    setTrust(null);
-  };
-
-  const resendTrust = async () => {
-    if (!trust) return;
-    await signIn.prepareSecondFactor(
-      trust.strategy === "email_code" ? { strategy: "email_code", emailAddressId: trust.emailAddressId } : { strategy: "phone_code", phoneNumberId: trust.phoneNumberId }
-    );
-    toast.success(tr("驗證碼已重新發送"));
   };
 
   const close = () => { onOpenChange(false); setView("login"); };
@@ -84,20 +74,14 @@ function AuthModal({ open, onOpenChange, initialView = "login" }) {
     return () => { vv?.removeEventListener("resize", sync); document.removeEventListener("focusout", onFocusOut); };
   }, [open, view]);
 
-  const finish = async (sessionId, setter) => {
-    await setter({ session: sessionId });
+  const finishTicket = async (token) => {
+    if (!token) throw new Error("token");
+    await signIn(token);
     toast.success(tr("登入成功"));
     close();
   };
 
-  const finishTicket = async (ticket) => {
-    const r = await signIn.create({ strategy: "ticket", ticket });
-    if (r.status !== "complete") throw new Error("ticket");
-    await finish(r.createdSessionId, setSignInActive);
-  };
-
   async function sendCode() {
-    if (!siLoaded) return toast.error(tr("登入服務載入中，請稍候再試"));
     if (!identifier) return toast.error(tab === "phone" ? tr("請輸入手機號碼") : tr("請輸入信箱"));
     const phoneFull = toE164(dialCode, identifier);
     if (tab === "phone" && !isValidPhone(phoneFull))
@@ -117,7 +101,6 @@ function AuthModal({ open, onOpenChange, initialView = "login" }) {
 
   async function submit() {
     if (!agree) return toast.error(tr("請先勾選同意條款與條件"));
-    if (!siLoaded) return toast.error(tr("登入服務載入中，請稍候再試"));
     setLoading(true);
     try {
       if (tab === "account") {
@@ -128,7 +111,7 @@ function AuthModal({ open, onOpenChange, initialView = "login" }) {
         const raw = identifier.trim();
         const ident = raw.includes("@") ? raw : /^\+?\d[\d\s-]{5,}$/.test(raw) ? (raw.startsWith("+") ? raw.replace(/[\s-]/g, "") : toE164(dialCode, raw)) : raw;
         const r = await publicApi.post("/auth/email/password-login", { identifier: ident, password });
-        return await finishTicket(r.data.ticket);
+        return await finishTicket(r.data.token);
       } else {
         if (!sent) {
           setLoading(false);
@@ -140,10 +123,10 @@ function AuthModal({ open, onOpenChange, initialView = "login" }) {
         }
         if (tab === "email") {
           const r = await publicApi.post("/auth/email/verify", { email: identifier.trim(), code: code.trim() });
-          return await finishTicket(r.data.ticket);
+          return await finishTicket(r.data.token);
         }
         const r = await publicApi.post("/auth/email/phone/verify", { phone: toE164(dialCode, identifier), code: code.trim() });
-        return await finishTicket(r.data.ticket);
+        return await finishTicket(r.data.token);
       }
     } catch (e) {
       toast.error(apiErr(e, tr("登入失敗，請檢查輸入")));
@@ -168,16 +151,7 @@ function AuthModal({ open, onOpenChange, initialView = "login" }) {
       window.location.href = `https://accounts.google.com/o/oauth2/v2/auth?${params}`;
       return;
     }
-    if (!siLoaded) return;
-    try {
-      await signIn.authenticateWithRedirect({
-        strategy,
-        redirectUrl: "/sso-callback",
-        redirectUrlComplete: "/",
-      });
-    } catch (e) {
-      toast.error(e?.errors?.[0]?.message || tr("第三方登入暫時無法使用"));
-    }
+    toast.error(tr("第三方登入暫時無法使用"));
   }
 
   const codeTabs = tab !== "account";
@@ -239,9 +213,6 @@ function AuthModal({ open, onOpenChange, initialView = "login" }) {
               ))}
             </div>
           )}
-          {tab === "account" && trust && (
-            <div className="text-sm font-bold text-orange-500 mb-4" data-testid="auth-trust-hint">{tr("新裝置安全驗證：請輸入發送至")} {trust.safeIdentifier || tr("您信箱")} {tr("的驗證碼")}</div>
-          )}
 
           {/* fields */}
           <div className="space-y-3">
@@ -258,20 +229,7 @@ function AuthModal({ open, onOpenChange, initialView = "login" }) {
               />
             )}
 
-            {tab === "account" && trust ? (
-              <div className="relative flex items-center gap-2 w-full">
-                <input
-                  data-testid="auth-trust-code"
-                  size={1}
-                  value={code}
-                  onChange={(e) => setCode(e.target.value)}
-                  placeholder={tr("新裝置驗證碼")}
-                  inputMode="numeric"
-                  className="flex-1 min-w-0 basis-0 h-11 md:h-14 rounded-full md:rounded-2xl bg-[#F5F5F5] md:bg-slate-100 px-5 text-sm md:text-base outline-none focus:ring-2 focus:ring-orange-300 placeholder:text-slate-400"
-                />
-                <button data-testid="auth-trust-resend" onClick={resendTrust} className="shrink-0 h-12 md:h-14 px-3 md:px-4 rounded-full md:rounded-2xl bg-orange-100 text-orange-500 md:text-orange-600 font-medium md:font-bold text-sm hover:bg-orange-200 whitespace-nowrap max-md:absolute max-md:right-1.5 max-md:top-1/2 max-md:-translate-y-1/2 max-md:h-8 max-md:text-xs transition-colors">{tr("重新發送")}</button>
-              </div>
-            ) : tab === "account" ? (
+            {tab === "account" ? (
               <input
                 data-testid="auth-password"
                 size={1}

@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { toast } from "sonner";
 import { Search, Download, ChevronLeft, ChevronRight } from "lucide-react";
-import { useAuth } from "@clerk/react";
+import { useAuth } from "@/lib/auth";
 import { tr } from "@/i18n";
 import { Head, Btn, Input, Table, Pill, fmt } from "./ui";
 import { API } from "@/lib/api";

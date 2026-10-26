@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useUser } from "@clerk/react";
+import { useUser } from "@/lib/auth";
 import { toast } from "sonner";
 import { useApi } from "@/lib/api";
 import { Panel, OrangeBtn, SubTabs } from "./AccountLayout";

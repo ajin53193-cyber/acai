@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
-import { Show, useClerk } from "@clerk/react";
+import { Show, useClerk } from "@/lib/auth";
 import { UserRound, ClipboardList, ShieldCheck, Ticket, CircleHelp, LogOut, Wallet, Headphones, Home } from "lucide-react";
 import { useAuthModal } from "@/components/auth/AuthModal";
 import { tr } from "@/i18n";

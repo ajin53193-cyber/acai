@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { pageScrollY, onPageScroll, scrollPageTo } from "@/lib/scroller";
-import { useAuth } from "@clerk/react";
+import { useAuth } from "@/lib/auth";
 import { Headphones, X, MessageCircle, Clock, ChevronRight, ArrowUpToLine, ImagePlus, Send, Loader2 } from "lucide-react";
 import axios from "axios";
 import { publicApi, API } from "@/lib/api";

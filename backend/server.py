@@ -48,10 +48,8 @@ ipgeo.init(db)
 app = FastAPI()
 api_router = APIRouter(prefix="/api")
 
-try:
-    from backend.clerk_auth import clerk_router, require_user
-except ModuleNotFoundError:
-    from clerk_auth import clerk_router, require_user
+import local_auth
+from local_auth import require_user
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
@@ -61,8 +59,8 @@ ROLES = ["admin", "member"]
 DEFAULT_ROLE = "member"
 RETIRED_ROLES = {}
 RANK = {r: len(ROLES) - i for i, r in enumerate(ROLES)}
-ENV = "live" if os.environ.get("CLERK_PUBLISHABLE_KEY", "").startswith("pk_live_") else "preview"
-IN_ENV = {"env": {"$in": [ENV, None]}}
+ENV = "live"
+IN_ENV = {"env": {"$in": [ENV, None, "preview"]}}
 
 
 def effective_role(role) -> str:
@@ -70,48 +68,23 @@ def effective_role(role) -> str:
     return role if role in ROLES else DEFAULT_ROLE
 
 
-def _is_admin_email(user_id: str) -> bool:
+def _is_admin_email(email: str) -> bool:
     admins = {e.strip().lower() for e in os.environ.get("ADMIN_EMAIL", "").split(",") if e.strip()}
-    if not admins:
-        return False
-    r = requests.get(f"https://api.clerk.com/v1/users/{user_id}", timeout=10,
-                     headers={"Authorization": f"Bearer {os.environ['CLERK_SECRET_KEY']}", "User-Agent": "emergent-app"})
-    r.raise_for_status()
-    return any(e["email_address"].lower() in admins and (e.get("verification") or {}).get("status") == "verified"
-               for e in r.json()["email_addresses"])
-
-
-def _clerk_user_info(user_id: str) -> dict:
-    try:
-        r = requests.get(f"https://api.clerk.com/v1/users/{user_id}", timeout=10,
-                         headers={"Authorization": f"Bearer {os.environ['CLERK_SECRET_KEY']}", "User-Agent": "emergent-app"})
-        r.raise_for_status()
-        d = r.json()
-        emails = d.get("email_addresses", [])
-        email = emails[0]["email_address"] if emails else ""
-        name = " ".join(x for x in [d.get("first_name"), d.get("last_name")] if x) or email
-        return {"email": email, "name": name}
-    except Exception:
-        return {"email": "", "name": ""}
+    return bool(email) and email.lower() in admins
 
 
 async def current_member(request: Request, user: dict = Depends(require_user)) -> dict:
     uid = user["user_id"]
     ipgeo.touch(uid, request)
     member = await db.users.find_one({"user_id": uid}, {"_id": 0})
-    if member is None or not member.get("role"):
-        role = "admin" if _is_admin_email(uid) else DEFAULT_ROLE
-        info = _clerk_user_info(uid)
-        await db.users.update_one(
-            {"user_id": uid, "role": {"$in": [None, ""]}},
-            {"$set": {"role": role, "email": info["email"], "name": info["name"]}},
-        )
+    if member is None:
+        raise HTTPException(status_code=401, detail="Not signed in")
+    if not member.get("role"):
+        role = "admin" if _is_admin_email(member.get("email", "")) else DEFAULT_ROLE
+        await db.users.update_one({"user_id": uid}, {"$set": {"role": role}})
+        member["role"] = role
+    if not member.get("created_at"):
         await db.users.update_one({"user_id": uid, "created_at": {"$exists": False}}, {"$set": {"created_at": datetime.now(timezone.utc).isoformat()}})
-        member = await db.users.find_one_and_update(
-            {"user_id": uid},
-            {"$setOnInsert": {"user_id": uid, "role": role, "email": info["email"], "name": info["name"],
-                              "created_at": datetime.now(timezone.utc).isoformat()}},
-            upsert=True, projection={"_id": 0}, return_document=ReturnDocument.AFTER)
     if member.get("env") != ENV:
         await db.users.update_one({"user_id": uid}, {"$set": {"env": ENV}})
     return {**member, "env": ENV, "role": effective_role(member["role"])}
@@ -3827,6 +3800,7 @@ async def i18n_stats():
 
 
 email_auth.db = db
+local_auth.db = db
 admin_api.db = db
 giftcard_api.db = db
 admin_api.translator = translator
@@ -3868,7 +3842,7 @@ app.include_router(giftcard_api.router, prefix="/api")
 app.include_router(giftcard_api.ext_router, prefix="/api")
 app.include_router(admin_api.router)
 app.include_router(api_router)
-app.include_router(clerk_router)
+app.include_router(local_auth.router)
 app.include_router(email_auth.router)
 
 

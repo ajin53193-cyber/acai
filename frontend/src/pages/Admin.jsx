@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { fmtBJ, bjToday } from "@/lib/bjtime";
 import { Link, useNavigate } from "react-router-dom";
-import { Show, useUser } from "@clerk/react";
+import { Show, useUser } from "@/lib/auth";
 import { KeyRound, LayoutDashboard, Package, ShoppingBag, Star, DollarSign, Tag, Users, Plus, Pencil, Trash2, X, Loader2, ArrowLeft, TrendingUp, Clock, ShieldAlert, Settings, CreditCard, ArrowUp, ArrowDown, ImagePlus, Wallet, BadgeCheck, MessageSquare, Globe, Bell, Megaphone, LayoutGrid, Gift, ShieldCheck, ChevronDown, Construction, PanelLeftClose, PanelLeftOpen, Headphones, Volume2, VolumeX, Gauge, FileDown, Tags, Ban, ScrollText, Layers, BarChart3, FolderTree, Hash, PlusCircle, Search, Plug, FileBarChart, Home, Newspaper, Image, PanelBottom, Sparkles, Ticket, Receipt, Coins, Scale, UserCog, History, MessageSquareText, Mail, Languages, Dot } from "lucide-react";
 import { toast } from "sonner";
 import { useApi, publicApi } from "@/lib/api";

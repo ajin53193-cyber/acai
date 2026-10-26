@@ -55,12 +55,12 @@ export function Register({ onBack, onClose, finishTicket }) {
       if (kind === "phone") {
         const r = await publicApi.post("/auth/email/phone/register", { phone: toE164(dialCode, email), code: code.trim(), password: pw1 });
         toast.success(tr("註冊成功"));
-        await finishTicket(r.data.ticket);
+        await finishTicket(r.data.token);
         return;
       }
       const r = await publicApi.post("/auth/email/register", { email: email.trim(), code: code.trim(), password: pw1 });
       toast.success(tr("註冊成功"));
-      await finishTicket(r.data.ticket);
+      await finishTicket(r.data.token);
     } catch (e) { toast.error(e?.detail || apiErr(e, tr("註冊失敗，請稍後再試"))); }
     setLoading(false);
   };

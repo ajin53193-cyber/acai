@@ -12,7 +12,7 @@ from pydantic import BaseModel
 from emergentintegrations.payments.stripe.checkout import StripeCheckout, CheckoutSessionRequest
 
 from admin_api import current_admin
-from clerk_auth import require_user
+from local_auth import require_user
 
 logger = logging.getLogger("payments")
 router = APIRouter(prefix="/api")
@@ -21,8 +21,8 @@ current_member = None
 settle = None
 
 
-async def _member(user: dict = Depends(require_user)) -> dict:
-    return await current_member(user)
+async def _member(request: Request, user: dict = Depends(require_user)) -> dict:
+    return await current_member(request, user)
 
 wallet = None
 upload_b64 = None

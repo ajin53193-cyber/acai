@@ -8,7 +8,7 @@ from fastapi import APIRouter, HTTPException, Depends, Request
 from pydantic import BaseModel
 
 from admin_api import current_admin
-from clerk_auth import require_user
+from local_auth import require_user
 
 router = APIRouter(prefix="/api")
 db = None
@@ -41,9 +41,9 @@ async def system_notify(user_id: str, text: str):
 
 
 
-def _optional_user(request: Request) -> Optional[dict]:
+async def _optional_user(request: Request) -> Optional[dict]:
     try:
-        return require_user(request)
+        return await require_user(request)
     except HTTPException:
         return None
 
@@ -164,7 +164,7 @@ async def _member_info(user_id: str) -> dict:
 @router.post("/chat/sessions")
 async def open_session(body: SessionIn, request: Request):
     _check_guest(body.guest_id)
-    user = _optional_user(request)
+    user = await _optional_user(request)
     cond = {"status": "open", "$or": [{"guest_id": body.guest_id}] + ([{"user_id": user["user_id"]}] if user else [])}
     s = await db.chat_sessions.find_one(cond, {"_id": 0}, sort=[("last_at", -1)])
     patch = {}
@@ -187,7 +187,7 @@ async def open_session(body: SessionIn, request: Request):
 
 @router.get("/chat/sessions/{sid}/messages")
 async def user_messages(sid: str, request: Request, guest_id: str = "", after: str = ""):
-    user = _optional_user(request)
+    user = await _optional_user(request)
     s = await db.chat_sessions.find_one(await _owner_cond(sid, guest_id, user), {"_id": 0})
     if not s:
         raise HTTPException(status_code=404, detail="session not found")
@@ -202,7 +202,7 @@ async def user_messages(sid: str, request: Request, guest_id: str = "", after: s
 
 @router.post("/chat/sessions/{sid}/messages")
 async def user_send(sid: str, body: MessageIn, request: Request):
-    user = _optional_user(request)
+    user = await _optional_user(request)
     s = await db.chat_sessions.find_one(await _owner_cond(sid, body.guest_id, user), {"_id": 0})
     if not s:
         raise HTTPException(status_code=404, detail="session not found")
@@ -246,7 +246,7 @@ async def chat_status():
 @router.post("/chat/sessions/{sid}/close")
 async def user_close_session(sid: str, body: EndIn, request: Request):
     """Visitor closed the widget: stamp closed_at so the sweeper deletes it after CHAT_CLOSE_TTL."""
-    user = _optional_user(request)
+    user = await _optional_user(request)
     try:
         s = await db.chat_sessions.find_one(await _owner_cond(sid, body.guest_id, user), {"_id": 0, "id": 1})
     except HTTPException:
@@ -259,7 +259,7 @@ async def user_close_session(sid: str, body: EndIn, request: Request):
 @router.post("/chat/sessions/{sid}/end")
 async def user_end_session(sid: str, body: EndIn, request: Request):
     """Visitor tapped 結束: immediately end the conversation and delete its records."""
-    user = _optional_user(request)
+    user = await _optional_user(request)
     try:
         s = await db.chat_sessions.find_one(await _owner_cond(sid, body.guest_id, user), {"_id": 0, "id": 1})
     except HTTPException:

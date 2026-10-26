@@ -3,7 +3,7 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGri
 import { tr } from "@/i18n";
 import { Btn, Card, Head, Table, useLoad } from "./ui";
 import { API } from "@/lib/api";
-import { useAuth } from "@clerk/react";
+import { useAuth } from "@/lib/auth";
 
 export function ReportsAdmin({ callApi }) {
   const [days, setDays] = useState(30);

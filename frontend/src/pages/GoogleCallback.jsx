@@ -1,13 +1,13 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useSignIn } from "@clerk/react/legacy";
+import { useSession } from "@/lib/auth";
 import { toast } from "sonner";
 import { publicApi } from "@/lib/api";
 import { tr } from "@/i18n";
 
 // REMINDER: DO NOT HARDCODE THE URL, OR ADD ANY FALLBACKS OR REDIRECT URLS, THIS BREAKS THE AUTH
 export default function GoogleCallback() {
-  const { signIn, setActive, isLoaded } = useSignIn();
+  const { signIn, isLoaded } = useSession();
   const navigate = useNavigate();
   const [error, setError] = useState("");
   const ran = useRef(false);
@@ -22,8 +22,7 @@ export default function GoogleCallback() {
         if (q.get("error")) throw new Error(tr("已取消 Google 登入"));
         if (!q.get("code") || q.get("state") !== sessionStorage.getItem("g_oauth_state")) throw new Error(tr("登入狀態無效，請重新嘗試"));
         const r = await publicApi.post("/auth/email/google", { code: q.get("code"), redirect_uri: window.location.origin + "/auth/google" });
-        const si = await signIn.create({ strategy: "ticket", ticket: r.data.ticket });
-        await setActive({ session: si.createdSessionId });
+        await signIn(r.data.token);
         toast.success(r.data.is_new ? tr("註冊成功") : tr("登入成功"));
         navigate(back.startsWith("/auth/") ? "/" : back, { replace: true });
       } catch (e) {
@@ -33,7 +32,7 @@ export default function GoogleCallback() {
         sessionStorage.removeItem("g_oauth_return");
       }
     })();
-  }, [isLoaded, signIn, setActive, navigate]);
+  }, [isLoaded, signIn, navigate]);
 
   return (
     <div className="min-h-[60vh] flex flex-col items-center justify-center gap-4 text-center px-6" data-testid="google-callback">

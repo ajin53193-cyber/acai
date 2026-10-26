@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef } from "react";
 import { Link } from "react-router-dom";
 import { ChevronRight, ChevronLeft, Zap, Megaphone, ShieldCheck, Rocket, Headphones, Tag, Globe, Star, Gift, Percent, Volume2 } from "lucide-react";
-import { useUser } from "@clerk/react";
+import { useUser } from "@/lib/auth";
 import { publicApi } from "@/lib/api";
 import { useAuthModal } from "@/components/auth/AuthModal";
 

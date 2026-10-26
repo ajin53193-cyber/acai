@@ -10,7 +10,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
 import admin_api
-from clerk_auth import require_user
+from local_auth import require_user
 
 db = None
 upload_b64 = None

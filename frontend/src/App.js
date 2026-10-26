@@ -1,10 +1,9 @@
 import "@/App.css";
 import { BrowserRouter, Routes, Route, Outlet, useLocation } from "react-router-dom";
 import { scrollPageTo } from "@/lib/scroller";
-import { AuthenticateWithRedirectCallback, useUser } from "@clerk/react";
+import { AuthProvider, useUser } from "@/lib/auth";
 import { useEffect, useLayoutEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import ClerkAuthProvider from "@/components/auth/ClerkAuthProvider";
 import { AuthModalProvider, useAuthModal } from "@/components/auth/AuthModal";
 import { CurrencyProvider } from "@/context/CurrencyContext";
 import { CartProvider } from "@/context/CartContext";
@@ -93,7 +92,7 @@ function App() {
   return (
     <div className="App">
       <BrowserRouter>
-        <ClerkAuthProvider>
+        <AuthProvider>
           <CurrencyProvider>
             <CartProvider>
               <GeoGate>
@@ -126,12 +125,11 @@ function App() {
                 <Route path={ADMIN_LOGIN} element={<AdminLogin />} />
                 <Route path={ADMIN_BASE} element={<Admin />} />
                 <Route path="/auth/google" element={<GoogleCallback />} />
-                <Route path="/sso-callback" element={<AuthenticateWithRedirectCallback signInFallbackRedirectUrl="/" signUpFallbackRedirectUrl="/" />} />
               </Routes>
               </GeoGate>
             </CartProvider>
           </CurrencyProvider>
-        </ClerkAuthProvider>
+        </AuthProvider>
       </BrowserRouter>
     </div>
   );

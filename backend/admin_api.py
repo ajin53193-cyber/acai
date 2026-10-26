@@ -21,7 +21,8 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
 import email_auth
-from clerk_auth import require_user
+import local_auth
+from local_auth import require_user
 from mailer import send_mail, notify_email
 from sms import send_sms_text, _dagou_sign
 from translate import translate_batch
@@ -78,7 +79,7 @@ def _level_of(spend: float, levels: list) -> dict:
 
 def _sign(payload: dict, ttl: int) -> str:
     body = json.dumps({**payload, "exp": int(time.time()) + ttl}, separators=(",", ":")).encode()
-    sig = hmac.new(os.environ["CLERK_SECRET_KEY"].encode(), body, hashlib.sha256).digest()
+    sig = hmac.new(local_auth.secret().encode(), body, hashlib.sha256).digest()
     return base64.urlsafe_b64encode(body).decode().rstrip("=") + "." + base64.urlsafe_b64encode(sig).decode().rstrip("=")
 
 
@@ -87,7 +88,7 @@ def _verify(token: str) -> Optional[dict]:
         b, s = token.split(".")
         body = base64.urlsafe_b64decode(b + "=" * (-len(b) % 4))
         sig = base64.urlsafe_b64decode(s + "=" * (-len(s) % 4))
-        if not hmac.compare_digest(hmac.new(os.environ["CLERK_SECRET_KEY"].encode(), body, hashlib.sha256).digest(), sig):
+        if not hmac.compare_digest(hmac.new(local_auth.secret().encode(), body, hashlib.sha256).digest(), sig):
             return None
         data = json.loads(body)
         return data if data.get("exp", 0) > time.time() else None
@@ -159,17 +160,17 @@ async def admin_login(body: AdminLoginIn, request: Request):
     ident = body.identifier.strip().lower()
     ip = _req_ip(request)
     _fail_guard(f"login:{ident}", f"ip:{ip}")
-    user = await email_auth._phone_user(ident) if ident.startswith("+") else await email_auth._find_user(ident)
+    user = await local_auth.find_by_identifier(ident)
     if not user:
         _fail_mark(f"login:{ident}", f"ip:{ip}")
         raise HTTPException(status_code=401, detail="帳號或密碼錯誤")
-    r = await email_auth._clerk("POST", f"/users/{user['id']}/verify_password", json={"password": body.password})
-    if r.status_code != 200 or not r.json().get("verified"):
+    if not await local_auth.verify_password(user, body.password):
         _fail_mark(f"login:{ident}", f"ip:{ip}")
         raise HTTPException(status_code=401, detail="帳號或密碼錯誤")
     _fail_clear(f"login:{ident}")
-    m = await db.users.find_one({"user_id": user["id"]}, {"_id": 0})
-    if not m or m.get("role") != "admin":
+    user["id"] = user["user_id"]
+    m = user
+    if m.get("role") != "admin":
         raise HTTPException(status_code=403, detail="此帳號沒有後台權限")
     rec = await db.admin_2fa.find_one({"user_id": user["id"]}, {"_id": 0})
     setup = None
@@ -193,7 +194,8 @@ async def admin_totp(body: AdminTotpIn, request: Request):
         raise HTTPException(status_code=400, detail="驗證碼錯誤")
     _fail_clear(f"totp:{data['uid']}", f"ip:{ip}")
     await db.admin_2fa.update_one({"user_id": data["uid"]}, {"$set": {"enabled": True, "verified_at": datetime.now(timezone.utc).isoformat()}})
-    return {"ticket": await email_auth._ticket(data["uid"]), "admin_token": _sign({"uid": data["uid"]}, ADMIN_TOKEN_TTL), "expires_in": ADMIN_TOKEN_TTL}
+    tok = await local_auth.token_for(data["uid"])
+    return {"token": tok, "ticket": tok, "admin_token": _sign({"uid": data["uid"]}, ADMIN_TOKEN_TTL), "expires_in": ADMIN_TOKEN_TTL}
 
 
 # ----------------------------- USDT top-ups -----------------------------
@@ -313,9 +315,7 @@ async def admin_member_detail(uid: str, admin: dict = Depends(current_admin)):
     u = await db.users.find_one({"user_id": uid}, {"_id": 0})
     if not u:
         raise HTTPException(status_code=404, detail="會員不存在")
-    r = await email_auth._clerk("GET", f"/users/{uid}")
-    c = r.json() if r.status_code == 200 else {}
-    emails = [e["email_address"] for e in c.get("email_addresses", []) if not e["email_address"].endswith("@" + email_auth.PHONE_DOMAIN)]
+    emails = [e for e in [local_auth.real_email(u.get("email", ""))] + list(u.get("alt_emails") or []) if e]
     acct = await db.phone_accounts.find_one({"user_id": uid}, {"_id": 0})
     orders = await db.orders.find({"user_id": uid}, {"_id": 0, "id": 1, "status": 1, "total_usd": 1, "created_at": 1, "items": 1}).sort("created_at", -1).to_list(20)
     txs = await db.wallet_transactions.find({"user_id": uid}, {"_id": 0}).sort("created_at", -1).to_list(20)
@@ -327,11 +327,11 @@ async def admin_member_detail(uid: str, admin: dict = Depends(current_admin)):
     balance = round((bal_agg[0]["bal"] if bal_agg else 0) or 0, 2)
     level = _level_of(spent, await _levels())
     ptx = await db.point_transactions.find({"user_id": uid}, {"_id": 0}).sort("created_at", -1).to_list(20)
-    return {**u, "emails": emails, "account_no": account_no(uid), "verified": verified, "order_count": order_count, "spent_usd": spent, "phone": acct["phone"] if acct else (c.get("public_metadata") or {}).get("phone", ""),
-            "google": bool((c.get("public_metadata") or {}).get("google_sub")) or any(a.get("provider") == "oauth_google" for a in c.get("external_accounts", [])),
-            "password_enabled": c.get("password_enabled", False), "banned": c.get("banned", False) or u.get("banned", False), "ban_reason": u.get("ban_reason", ""),
+    return {**u, "emails": emails, "account_no": account_no(uid), "verified": verified, "order_count": order_count, "spent_usd": spent, "phone": acct["phone"] if acct else u.get("phone", ""),
+            "google": bool(u.get("google_sub") or (u.get("public_metadata") or {}).get("google_sub")),
+            "password_enabled": bool(u.get("password_hash")) if "password_hash" in u else await local_auth.has_password(u), "banned": u.get("banned", False), "ban_reason": u.get("ban_reason", ""),
             "points": int(u.get("points") or 0), "tags": u.get("tags", []), "level": level, "point_transactions": ptx,
-            "last_sign_in_at": c.get("last_sign_in_at"), "orders": orders, "transactions": txs, "balance_usd": balance}
+            "last_sign_in_at": u.get("last_seen_at"), "orders": orders, "transactions": txs, "balance_usd": balance}
 
 
 @router.get("/members/{uid}/recent")
@@ -372,20 +372,15 @@ async def admin_member_create_test(body: TestAccountIn, admin: dict = Depends(cu
         raise HTTPException(status_code=400, detail="請輸入正確的信箱")
     if not email_auth._pw_ok(body.password):
         raise HTTPException(status_code=400, detail="密碼長度為8~32位，數字、字母、符號至少包含兩種")
-    if await email_auth._find_user(email):
+    if await local_auth.find_by_email(email):
         raise HTTPException(status_code=409, detail="此信箱已有帳號，可直接在會員列表標記為測試帳號")
-    r = await email_auth._clerk("POST", "/users", json={"email_address": [email], "password": body.password, "skip_password_checks": True})
-    if r.status_code >= 300:
-        raise HTTPException(status_code=400, detail=(r.json().get("errors") or [{}])[0].get("long_message") or "建立失敗")
-    uid = r.json()["id"]
-    await db.users.update_one({"user_id": uid}, {"$set": {"user_id": uid, "email": email, "name": email, "role": "user", "is_test": True, "created_at": datetime.now(timezone.utc).isoformat()}}, upsert=True)
-    return {"ok": True, "user_id": uid}
+    u = await local_auth.create_user(email=email, password=body.password, is_test=True)
+    return {"ok": True, "user_id": u["user_id"]}
 
 
 @router.post("/members/{uid}/ban")
 async def admin_member_ban(uid: str, body: BanIn = BanIn(), admin: dict = Depends(current_admin)):
-    await email_auth._clerk("POST", f"/users/{uid}/ban")
-    await db.users.update_one({"user_id": uid}, {"$set": {"banned": True, "ban_reason": body.reason, "banned_at": datetime.now(timezone.utc).isoformat()}})
+    await db.users.update_one({"user_id": uid}, {"$inc": {"token_ver": 1}, "$set": {"banned": True, "ban_reason": body.reason, "banned_at": datetime.now(timezone.utc).isoformat()}})
     if log_user:
         await log_user(uid, "ban", "加入黑名單", body.reason or f"管理員 {admin.get('email', '')} 操作")
     return {"ok": True, "banned": True}
@@ -393,7 +388,6 @@ async def admin_member_ban(uid: str, body: BanIn = BanIn(), admin: dict = Depend
 
 @router.post("/members/{uid}/unban")
 async def admin_member_unban(uid: str, admin: dict = Depends(current_admin)):
-    await email_auth._clerk("POST", f"/users/{uid}/unban")
     await db.users.update_one({"user_id": uid}, {"$set": {"banned": False}, "$unset": {"ban_reason": "", "banned_at": ""}})
     if log_user:
         await log_user(uid, "ban", "解除黑名單", f"管理員 {admin.get('email', '')} 操作")
@@ -404,9 +398,7 @@ async def admin_member_unban(uid: str, admin: dict = Depends(current_admin)):
 async def admin_member_reset_pw(uid: str, body: ResetPwIn, admin: dict = Depends(current_admin)):
     if not email_auth._pw_ok(body.new_password):
         raise HTTPException(status_code=400, detail="密碼長度為8~32位，數字、字母、符號至少包含兩種")
-    r = await email_auth._clerk("PATCH", f"/users/{uid}", json={"password": body.new_password, "skip_password_checks": True, "sign_out_of_other_sessions": True})
-    if r.status_code >= 300:
-        raise HTTPException(status_code=400, detail="重設失敗")
+    await local_auth.set_password(uid, body.new_password, sign_out_others=True)
     return {"ok": True}
 
 
@@ -1763,14 +1755,7 @@ def _admin_pw_ok(p: str) -> bool:
 
 
 async def _set_clerk_password(uid: str, new_password: str):
-    r = await email_auth._clerk("PATCH", f"/users/{uid}", json={"password": new_password, "sign_out_of_other_sessions": True})
-    if r.status_code >= 300:
-        code = ((r.json().get("errors") or [{}])[0].get("code") or "") if r.headers.get("content-type", "").startswith("application/json") else ""
-        if code == "form_password_pwned":
-            raise HTTPException(status_code=400, detail="此密碼曾出現在外洩資料庫中，請換一個更安全的密碼")
-        if code.startswith("form_password"):
-            raise HTTPException(status_code=400, detail=PW_RULE)
-        raise HTTPException(status_code=502, detail="密碼服務暫時無法使用，請稍後再試")
+    await local_auth.set_password(uid, new_password, sign_out_others=True)
 
 
 @router.post("/me/password")
@@ -1779,8 +1764,7 @@ async def admin_change_own_password(body: AdminChangePwIn, admin: dict = Depends
         raise HTTPException(status_code=400, detail=PW_RULE)
     if body.new_password == body.old_password:
         raise HTTPException(status_code=400, detail="新密碼不可與舊密碼相同")
-    r = await email_auth._clerk("POST", f"/users/{admin['user_id']}/verify_password", json={"password": body.old_password})
-    if r.status_code != 200 or not r.json().get("verified"):
+    if not await local_auth.verify_password(admin, body.old_password):
         raise HTTPException(status_code=401, detail="舊密碼錯誤")
     await _set_clerk_password(admin["user_id"], body.new_password)
     await record_admin_log(admin["user_id"], admin.get("email", ""), "PASSWORD", "管理員修改自己的密碼", 200)
@@ -1837,15 +1821,10 @@ async def admin_admins_create(body: AdminCreateIn, admin: dict = Depends(require
         raise HTTPException(status_code=400, detail="請輸入正確的信箱")
     if not email_auth._pw_ok(body.password):
         raise HTTPException(status_code=400, detail="密碼長度為8~32位，數字、字母、符號至少包含兩種")
-    if await email_auth._find_user(email):
+    if await local_auth.find_by_email(email):
         raise HTTPException(status_code=409, detail="此信箱已有帳號，請改用「提升為管理員」")
-    r = await email_auth._clerk("POST", "/users", json={"email_address": [email], "password": body.password, "skip_password_checks": True})
-    if r.status_code >= 300:
-        raise HTTPException(status_code=400, detail=(r.json().get("errors") or [{}])[0].get("long_message") or "建立失敗")
-    uid = r.json()["id"]
-    upd = {"user_id": uid, "email": email, "name": email, "role": "admin", "admin_super": False, "admin_role_id": body.role_id or "", "created_at": datetime.now(timezone.utc).isoformat()}
-    await db.users.update_one({"user_id": uid}, {"$set": upd}, upsert=True)
-    return {"ok": True, "user_id": uid}
+    u = await local_auth.create_user(email=email, password=body.password, role="admin", admin_super=False, admin_role_id=body.role_id or "")
+    return {"ok": True, "user_id": u["user_id"]}
 
 
 @router.post("/admins/promote")

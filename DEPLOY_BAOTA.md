@@ -3,7 +3,7 @@
 > ⚠️ 重要前提
 > 1. **Windows 10 是桌面系统，不建议作为正式生产服务器**（稳定性/并发/长时间运行都不理想）。如条件允许，强烈建议改用 Linux 服务器或直接用 Emergent 一键部署。
 > 2. 本应用**仍会调用 Emergent 托管服务**：图片上传（对象存储）和繁转简/英自动翻译都依赖 `EMERGENT_LLM_KEY`，会消耗你的 Emergent 积分，且需要服务器能访问 `integrations.emergentagent.com`。
-> 3. 登录用的 **Clerk** 当前是 Emergent 托管的开发实例，自托管需换成你自己的 Clerk 应用密钥。
+> 3. 账号系统为**自建**（bcrypt 密码 + JWT，全部存在你自己的 MongoDB），后端 `.env` 需配置 `AUTH_SECRET`（随机长字符串，用于签发登录令牌；一旦更换所有用户需重新登录）。
 
 ---
 
@@ -38,7 +38,7 @@ pip install emergentintegrations==0.2.2 --extra-index-url https://d33sy5i8bnduwe
 ```
 复制 `.env.example` 为 `.env` 并填写真实值（见文件内注释）：
 - `MONGO_URL` 改成你本机 MongoDB，如 `mongodb://127.0.0.1:27017`
-- `EMERGENT_LLM_KEY`、`CLERK_*`、`STRIPE_API_KEY`、`APP_PUBLIC_URL`、`CORS_ORIGINS` 等按注释填
+- `EMERGENT_LLM_KEY`、`AUTH_SECRET`、`STRIPE_API_KEY`、`APP_PUBLIC_URL`、`CORS_ORIGINS` 等按注释填
 
 启动后端（二选一）：
 ```powershell
@@ -86,12 +86,11 @@ yarn build         # 生成 build 目录（静态文件）
 - **Stripe**：webhook 指向 `https://你的域名/api/webhook/stripe`
 - **PayPal**：webhook 指向 `https://你的域名/api/webhook/paypal`
 - **Google 登录**：在 Google Cloud Console 把 `https://你的域名/...` 加入授权重定向 URI
-- **Clerk**：在你自己的 Clerk 应用里配置允许的域名
 
 ---
 
 ## 常见问题
 - **图片上传失败**：检查 `EMERGENT_LLM_KEY` 是否有效、服务器能否访问 `integrations.emergentagent.com`、Emergent 积分是否充足；或改写 `backend/storage.py` 接入你自己的对象存储（S3/阿里云 OSS）。
-- **登录无法用**：Clerk 的 dev 实例密钥不适合自有域名，请在 clerk.com 新建应用，替换 `CLERK_PUBLISHABLE_KEY` / `CLERK_SECRET_KEY` 并配置域名。
+- **登录无法用**：确认后端 `.env` 有 `AUTH_SECRET`；老用户（Clerk 时期注册）首次用旧密码登录时会自动迁移密码，若 `CLERK_SECRET_KEY` 已删除则需用验证码登录或「忘记密码」重设。
 - **/api 404 或 502**：确认后端 8001 在运行、Nginx 的 `/api/` 反代配置正确。
 - **刷新页面 404**：确认 `try_files ... /index.html` 已配置（SPA 回退）。
