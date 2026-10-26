@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import { publicApi } from "@/lib/api";
 import { PhoneInput, toE164, isValidPhone } from "./PhoneInput";
+import { useCooldown, sentToast } from "./useCooldown";
 import { tr } from "@/i18n";
 
 const field = "w-full min-w-0 h-11 md:h-14 rounded-full md:rounded-2xl bg-[#F5F5F5] md:bg-slate-100 px-5 text-sm md:text-base outline-none focus:ring-2 focus:ring-orange-300 placeholder:text-slate-400";
@@ -19,6 +20,7 @@ export function Register({ onBack, onClose, finishTicket }) {
   const [agree, setAgree] = useState(true);
   const [loading, setLoading] = useState(false);
   const [sent, setSent] = useState(false);
+  const cd = useCooldown();
 
   const switchKind = (k) => { setKind(k); setEmail(""); setCode(""); setSent(false); };
 
@@ -33,8 +35,8 @@ export function Register({ onBack, onClose, finishTicket }) {
       } else {
         await publicApi.post("/auth/email/send-code", { email: email.trim(), purpose: "register" });
       }
-      setSent(true);
-      toast.success(tr("驗證碼已發送"));
+      setSent(true); cd.start();
+      toast.success(sentToast(tr, kind === "phone"));
     } catch (e) {
       toast.error(e?.detail || apiErr(e, tr("發送失敗，請稍後再試")));
     }
@@ -81,9 +83,9 @@ export function Register({ onBack, onClose, finishTicket }) {
         )}
         <div className="relative">
           <input data-testid="register-code" size={1} value={code} onChange={(e) => setCode(e.target.value)} placeholder={tr("驗證碼")} inputMode="numeric" maxLength={6} className={`${field} pr-32`} />
-          <button data-testid="register-send-code" onClick={sendCode} disabled={loading}
+          <button data-testid="register-send-code" onClick={sendCode} disabled={loading || cd.left > 0}
             className="absolute right-1.5 md:right-2 top-1/2 -translate-y-1/2 h-8 md:h-10 px-3 rounded-full md:rounded-xl bg-orange-100 text-orange-500 md:text-orange-600 font-semibold md:font-bold text-sm hover:bg-orange-200 disabled:opacity-50 whitespace-nowrap transition-colors">
-            {sent ? tr("重新發送") : tr("發送驗證碼")}
+            {cd.left > 0 ? tr("{0}s 後重發", cd.left) : sent ? tr("重新發送") : tr("發送驗證碼")}
           </button>
         </div>
         <input data-testid="register-password" size={1} type="password" value={pw1} onChange={(e) => setPw1(e.target.value)} placeholder={tr("請設定密碼")} className={field} />

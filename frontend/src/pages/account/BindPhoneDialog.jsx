@@ -34,8 +34,8 @@ export function BindPhoneDialog({ onClose, kind = "phone" }) {
     setBusy(true);
     try {
       await callApi({ method: "POST", url: "/auth/email/me/bind/send-code", data: { identifier } });
-      setSent(true); setLeft(60);
-      toast.success(tr("驗證碼已發送"));
+      setSent(true); setLeft(90);
+      toast.success(isPhone ? tr("驗證碼將在 90 秒內發送至您的手機號") : tr("驗證碼將在 90 秒內發送至您的信箱"));
     } catch (e) { toast.error(errMsg(e)); }
     setBusy(false);
   };

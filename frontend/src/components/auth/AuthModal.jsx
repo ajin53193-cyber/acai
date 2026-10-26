@@ -6,6 +6,7 @@ import { INFO_CONTENT } from "@/pages/Info";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { PhoneInput, toE164, isValidPhone } from "./PhoneInput";
+import { useCooldown, sentToast } from "./useCooldown";
 import { ForgotPassword } from "./ForgotPassword";
 import { Register } from "./Register";
 import { tr } from "@/i18n";
@@ -41,6 +42,7 @@ function AuthModal({ open, onOpenChange, initialView = "login" }) {
   const [password, setPassword] = useState("");
   const [code, setCode] = useState("");
   const [sent, setSent] = useState(false);
+  const cd = useCooldown();
   const [agree, setAgree] = useState(true);
   const [loading, setLoading] = useState(false);
   const [dialCode, setDialCode] = useState("+86");
@@ -104,8 +106,8 @@ function AuthModal({ open, onOpenChange, initialView = "login" }) {
     try {
       if (tab === "email") await publicApi.post("/auth/email/send-code", { email: identifier.trim(), purpose: "login" });
       else await publicApi.post("/auth/email/phone/send-code", { phone: phoneFull, purpose: "login" });
-      setSent(true);
-      toast.success(tr("驗證碼已發送"));
+      setSent(true); cd.start();
+      toast.success(sentToast(tr, tab === "phone"));
     } catch (e) {
       toast.error(apiErr(e, tr("發送失敗，請稍後再試")));
     }
@@ -292,10 +294,10 @@ function AuthModal({ open, onOpenChange, initialView = "login" }) {
                 <button
                   data-testid="auth-send-code"
                   onClick={sendCode}
-                  disabled={loading}
+                  disabled={loading || cd.left > 0}
                   className="shrink-0 h-12 md:h-14 px-3 md:px-4 rounded-full md:rounded-2xl bg-orange-100 md:bg-orange-100 text-orange-500 md:text-orange-600 font-medium md:font-bold text-sm hover:bg-orange-200 disabled:opacity-50 whitespace-nowrap transition-colors max-md:absolute max-md:right-1.5 max-md:top-1/2 max-md:-translate-y-1/2 max-md:h-8 max-md:text-xs"
                 >
-                  {tr("發送驗證碼")}
+                  {cd.left > 0 ? tr("{0}s 後重發", cd.left) : tr("發送驗證碼")}
                 </button>
               </div>
             )}
@@ -341,7 +343,7 @@ function AuthModal({ open, onOpenChange, initialView = "login" }) {
 
           {/* helper links */}
           <div className="flex items-center justify-between mt-3 md:mt-4 px-3 md:px-0 text-[13px] md:text-sm text-slate-500">
-            <button data-testid="auth-resend" onClick={sendCode} className="hover:text-orange-500">{tr("收不到驗證碼？")}</button>
+            <button data-testid="auth-resend" onClick={sendCode} disabled={cd.left > 0} className="hover:text-orange-500 disabled:opacity-50">{cd.left > 0 ? tr("{0}s 後重發", cd.left) : tr("收不到驗證碼？")}</button>
             <button data-testid="auth-forgot" onClick={() => setView("forgot")} className="hover:text-orange-500">{tr("忘記密碼？")}</button>
           </div>
 

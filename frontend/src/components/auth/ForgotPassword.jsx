@@ -3,6 +3,7 @@ import { useSignIn } from "@clerk/react/legacy";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import { PhoneInput, toE164, isValidPhone } from "./PhoneInput";
+import { useCooldown, sentToast } from "./useCooldown";
 import { tr } from "@/i18n";
 import { publicApi } from "@/lib/api";
 
@@ -32,6 +33,7 @@ export function ForgotPassword({ onBack, onClose }) {
   const [agree, setAgree] = useState(true);
   const [loading, setLoading] = useState(false);
   const [sent, setSent] = useState(false);
+  const cd = useCooldown();
 
   const switchTab = (t) => { setTab(t); setSent(false); setCode(""); setIdentifier(""); };
 
@@ -44,8 +46,8 @@ export function ForgotPassword({ onBack, onClose }) {
     try {
       if (tab === "email") await publicApi.post("/auth/email/send-code", { email: id, purpose: "reset" });
       else await publicApi.post("/auth/email/phone/send-code", { phone: id, purpose: "reset" });
-      setSent(true);
-      toast.success(tr("驗證碼已發送"));
+      setSent(true); cd.start();
+      toast.success(sentToast(tr, tab === "phone"));
     } catch (e) {
       toast.error(apiErr(e, tr("發送失敗，請確認帳號是否已註冊")));
     }
@@ -107,10 +109,10 @@ export function ForgotPassword({ onBack, onClose }) {
           <button
             data-testid="forgot-send-code"
             onClick={sendCode}
-            disabled={loading}
+            disabled={loading || cd.left > 0}
             className="absolute right-1.5 md:right-2 top-1/2 -translate-y-1/2 h-8 md:h-10 px-3 rounded-full md:rounded-xl bg-orange-100 text-orange-500 md:text-orange-600 font-semibold md:font-bold text-sm hover:bg-orange-200 disabled:opacity-50 whitespace-nowrap transition-colors"
           >
-            {tr("發送驗證碼")}
+            {cd.left > 0 ? tr("{0}s 後重發", cd.left) : tr("發送驗證碼")}
           </button>
         </div>
         <input data-testid="forgot-password" size={1} type="password" value={pw1} onChange={(e) => setPw1(e.target.value)} placeholder={tr("請輸入新密碼")} className={field} />

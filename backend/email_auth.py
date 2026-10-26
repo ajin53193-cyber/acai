@@ -19,7 +19,7 @@ from sms import send_sms_code
 logger = logging.getLogger("email_auth")
 router = APIRouter(prefix="/api/auth/email")
 CODE_TTL_MIN = 10
-RESEND_SECONDS = 60
+RESEND_SECONDS = 90
 MAX_PER_HOUR = 6
 MAX_ATTEMPTS = 5
 PURPOSES = ("login", "register", "reset", "change_password", "bind")
