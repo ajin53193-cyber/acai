@@ -7,7 +7,7 @@ import { tr } from "@/i18n";
 import { ADMIN_BASE } from "@/lib/adminPath";
 
 const inp = "w-full h-12 rounded-xl bg-slate-100 px-4 text-sm outline-none focus:ring-2 focus:ring-orange-300 placeholder:text-slate-400";
-const err = (e, f) => e?.response?.data?.detail || e?.errors?.[0]?.message || f;
+const err = (e, f) => e?.response?.data?.detail || e?.errors?.[0]?.message || (e?.response ? `${f}（HTTP ${e.response.status}）` : e?.message) || f;
 
 export default function AdminLogin() {
   const { signIn, isLoaded } = useSession();

@@ -45,7 +45,12 @@ export function AuthProvider({ children }) {
     ...state,
     userId: state.user?.id || null,
     getToken: async () => localStorage.getItem(KEY) || null,
-    signIn: async (token) => { localStorage.setItem(KEY, token); await load(); },
+    signIn: async (token) => {
+      if (!token || typeof token !== "string") throw new Error("後端尚未更新（未返回登入令牌），請先在伺服器重新部署後端");
+      localStorage.setItem(KEY, token);
+      const r = await axios.get(`${API}/auth/me`, { headers: { Authorization: `Bearer ${token}` } });
+      setState({ isLoaded: true, isSignedIn: true, user: toUser(r.data, load) });
+    },
     signOut: async () => { localStorage.removeItem(KEY); localStorage.removeItem("admin_token"); setState(signedOut); },
     reload: load,
   }), [state, load]);

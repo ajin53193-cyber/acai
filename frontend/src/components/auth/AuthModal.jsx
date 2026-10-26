@@ -12,7 +12,7 @@ import { Register } from "./Register";
 import { tr } from "@/i18n";
 import { publicApi } from "@/lib/api";
 
-const apiErr = (e, fallback) => e?.response?.data?.detail || e?.errors?.[0]?.message || fallback;
+const apiErr = (e, fallback) => e?.response?.data?.detail || e?.errors?.[0]?.message || (e?.response ? `${fallback}（HTTP ${e.response.status}）` : e?.message) || fallback;
 
 const Ctx = createContext({ openAuth: () => {} });
 export const useAuthModal = () => useContext(Ctx);
