@@ -48,6 +48,8 @@ export function UserInfoDialog({ uid, callApi, onClose }) {
                 <Row icon={Ban} label={tr("狀態")} value={d.banned ? tr("已封禁") : tr("正常")} />
                 <Row icon={Mail} label={tr("User ID")} value={d.user_id} mono copyable />
                 <Row icon={ShoppingBag} label={tr("註冊時間")} value={fmt(d.created_at)} />
+                <Row icon={Mail} label={tr("最後IP")} value={d.last_ip ? `${d.last_ip} · ${d.last_ip_region || tr("未知地區")}` : "-"} />
+                <Row icon={Mail} label={tr("註冊IP")} value={d.register_ip ? `${d.register_ip} · ${d.register_ip_region || tr("未知地區")}` : "-"} />
               </div>
             )}
         </div>

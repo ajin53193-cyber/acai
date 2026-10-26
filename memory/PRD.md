@@ -354,3 +354,10 @@
   - DEPLOY_SPLIT.md 增补"本地图片存储+老图迁移"章节。
 - 预览环境实测：migrate_images_local.py 扫出 2560 个图片路径，全量下载成功(新下载1904/跳过656/404=0/失败=0)；storage.get_object 本地读取链路验证通过。商品图完整(266-379KB)。
 - 迁移操作顺序（用户在后端服务器执行）：填好 .env(含 LOCAL_STORAGE_DIR 与仍有效的 EMERGENT_LLM_KEY) → deploy.sh backend 建 venv → bash migrate_images.sh 下载老图 → healthcheck.sh 验证。
+
+## 2026-06 更新（后台用户列表显示 IP / 地区）
+- 新增 `backend/ipgeo.py`：`current_member` 每次带登录态访问时节流（同 IP 10 分钟一次）记录 `last_ip / last_ip_region / last_seen_at`，首次写入 `register_ip / register_ip_region`。
+- IP 解析用 ip-api.com（lang=zh-CN，国家 省 市），结果缓存 `db.ip_geo`；内网 IP 显示「內網」；失败回退 cf-ipcountry 等国家头。
+- 后台会员列表新增「IP / 地區」列；会员详情 & 用户信息弹窗显示 最後IP / 註冊IP；搜索框支持按 IP / 地区关键字（如 "广东"、"越南"）过滤。
+- 旧用户无历史 IP 显示「-」，下次登录自动补上。
+- 已自测（curl + DB 校验）；待用户 Save to Github → 服务器 `git pull && bash deploy.sh backend/frontend` 后验证。

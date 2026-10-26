@@ -273,7 +273,8 @@ async def admin_members(q: str = "", limit: int = 200, admin: dict = Depends(cur
     query = {}
     q = (q or "").strip()
     if q:
-        query["$or"] = [{"email": {"$regex": q, "$options": "i"}}, {"phone": {"$regex": q, "$options": "i"}}, {"name": {"$regex": q, "$options": "i"}}, {"user_id": {"$regex": q, "$options": "i"}}, {"profile.name": {"$regex": q, "$options": "i"}}]
+        query["$or"] = [{"email": {"$regex": q, "$options": "i"}}, {"phone": {"$regex": q, "$options": "i"}}, {"name": {"$regex": q, "$options": "i"}}, {"user_id": {"$regex": q, "$options": "i"}}, {"profile.name": {"$regex": q, "$options": "i"}},
+                        {"last_ip": {"$regex": re.escape(q), "$options": "i"}}, {"last_ip_region": {"$regex": re.escape(q), "$options": "i"}}, {"register_ip_region": {"$regex": re.escape(q), "$options": "i"}}]
         if q.isdigit() and len(q) >= 6:
             # 會員 ID（account_no）是由 user_id 推導的數字，無法直接查庫，掃描比對後併入結果
             ids = [u["user_id"] async for u in db.users.find({}, {"_id": 0, "user_id": 1}) if account_no(u["user_id"]).startswith(q)]

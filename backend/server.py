@@ -30,6 +30,7 @@ import chat_api
 import review_auto
 import hub_api
 import hub_console
+import ipgeo
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -42,6 +43,7 @@ load_dotenv(ROOT_DIR / '.env')
 mongo_url = os.environ['MONGO_URL']
 client = AsyncIOMotorClient(mongo_url)
 db = client[os.environ['DB_NAME']]
+ipgeo.init(db)
 
 app = FastAPI()
 api_router = APIRouter(prefix="/api")
@@ -93,8 +95,9 @@ def _clerk_user_info(user_id: str) -> dict:
         return {"email": "", "name": ""}
 
 
-async def current_member(user: dict = Depends(require_user)) -> dict:
+async def current_member(request: Request, user: dict = Depends(require_user)) -> dict:
     uid = user["user_id"]
+    ipgeo.touch(uid, request)
     member = await db.users.find_one({"user_id": uid}, {"_id": 0})
     if member is None or not member.get("role"):
         role = "admin" if _is_admin_email(uid) else DEFAULT_ROLE

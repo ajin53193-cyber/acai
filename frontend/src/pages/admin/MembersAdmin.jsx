@@ -95,6 +95,8 @@ export function MemberDetail({ uid, callApi, onClose, onChanged }) {
             <InfoRow k="Google" v={d.google ? tr("已綁定") : tr("未綁定")} />
             <InfoRow k={tr("註冊時間")} v={fmt(d.created_at)} />
             <InfoRow k={tr("最近登入")} v={d.last_sign_in_at ? fmtBJ(d.last_sign_in_at, "minute") : "-"} />
+            <InfoRow k={tr("最後IP")} v={d.last_ip ? <span data-testid="member-detail-last-ip"><span className="font-mono">{d.last_ip}</span> · {d.last_ip_region || tr("未知地區")}{d.last_seen_at ? <span className="text-slate-400"> ({fmtBJ(d.last_seen_at, "minute")})</span> : null}</span> : "-"} />
+            <InfoRow k={tr("註冊IP")} v={d.register_ip ? <span data-testid="member-detail-register-ip"><span className="font-mono">{d.register_ip}</span> · {d.register_ip_region || tr("未知地區")}</span> : "-"} />
           </Card>
 
           {/* account data */}
@@ -192,15 +194,16 @@ export function MembersAdmin({ callApi }) {
       <Card className="overflow-x-auto">
         <table className="w-full text-sm" data-testid="members-table">
           <thead><tr className="text-left text-xs text-slate-500 border-b border-slate-200 bg-slate-50/70">
-            {[tr("帳戶ID"), tr("訂單數 / 消費"), tr("餘額"), tr("註冊時間"), tr("狀態"), tr("操作")].map((c) => <th key={c} className="px-4 py-3 font-semibold whitespace-nowrap">{c}</th>)}
+            {[tr("帳戶ID"), tr("訂單數 / 消費"), tr("餘額"), tr("IP / 地區"), tr("註冊時間"), tr("狀態"), tr("操作")].map((c) => <th key={c} className="px-4 py-3 font-semibold whitespace-nowrap">{c}</th>)}
           </tr></thead>
           <tbody className="divide-y divide-slate-100">
-            {rows.length === 0 ? <tr><td colSpan={6} className="px-4 py-14 text-center text-slate-400">{data === null ? tr("載入中…") : tr("暫無會員")}</td></tr> : rows.map((u) => {
+            {rows.length === 0 ? <tr><td colSpan={7} className="px-4 py-14 text-center text-slate-400">{data === null ? tr("載入中…") : tr("暫無會員")}</td></tr> : rows.map((u) => {
               return (
                 <tr key={u.user_id} data-testid={`member-row-${u.user_id}`} className="hover:bg-orange-50/30 transition-colors">
                   <td className="px-4 py-3 whitespace-nowrap"><span className="font-head font-bold text-slate-900">{u.account_no}</span></td>
                   <td className="px-4 py-3 text-slate-600 whitespace-nowrap">{u.order_count} / <span className="font-semibold text-slate-800">${Number(u.spent_usd || 0).toFixed(2)}</span></td>
                   <td className="px-4 py-3 font-head font-bold text-slate-900 whitespace-nowrap">${Number(u.balance_usd || 0).toFixed(2)}</td>
+                  <td className="px-4 py-3 whitespace-nowrap" data-testid={`member-ip-${u.user_id}`}>{u.last_ip ? <div><div className="font-mono text-xs text-slate-700">{u.last_ip}</div><div className="text-xs text-slate-500">{u.last_ip_region || tr("未知地區")}</div></div> : <span className="text-slate-400">-</span>}</td>
                   <td className="px-4 py-3 text-slate-500 whitespace-nowrap">{fmt(u.created_at)}</td>
                   <td className="px-4 py-3">{u.banned ? <Pill tone="red">{tr("封禁")}</Pill> : <Pill tone="emerald">{tr("正常")}</Pill>}{u.is_test && <Pill tone="amber">{tr("測試")}</Pill>}</td>
                   <td className="px-4 py-3"><Btn kind="ghost" data-testid={`member-view-${u.user_id}`} onClick={() => setSel(u.user_id)}>{tr("詳情")}</Btn></td>
