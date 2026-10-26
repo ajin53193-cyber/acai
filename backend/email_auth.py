@@ -137,8 +137,18 @@ async def _issue_code(email: str, purpose: str) -> dict:
         except Exception as e:
             logger.error("otp send failed: %s", e)
             await db.email_codes.delete_many({"email": email, "purpose": purpose})
-            raise HTTPException(status_code=502, detail="簡訊發送失敗，請稍後再試" if is_phone else "郵件發送失敗，請稍後再試")
+            raise HTTPException(status_code=503, detail="簡訊發送失敗，請稍後再試" if is_phone else "郵件發送失敗，請稍後再試")
     return {"sent": True, "resend_after": RESEND_SECONDS, "expires_in": CODE_TTL_MIN * 60}
+
+
+def _clerk_err(r) -> str:
+    try:
+        err = (r.json().get("errors") or [{}])[0]
+    except Exception:
+        err = {}
+    if err.get("code") == "user_quota_exceeded":
+        return "系統註冊名額已滿，請聯繫客服處理"
+    return err.get("long_message") or "註冊失敗，請稍後再試"
 
 
 async def _consume_code(email: str, purpose: str, code: str):
@@ -189,7 +199,7 @@ async def register(body: RegisterIn):
     r = await _clerk("POST", "/users", json={"email_address": [email], "password": body.password, "skip_password_checks": True})
     if r.status_code >= 300:
         logger.error("register failed: %s", r.text[:300])
-        raise HTTPException(status_code=400, detail=(r.json().get("errors") or [{}])[0].get("long_message") or "註冊失敗，請稍後再試")
+        raise HTTPException(status_code=400, detail=_clerk_err(r))
     return {"ticket": await _ticket(r.json()["id"])}
 
 
@@ -323,7 +333,7 @@ async def phone_register(body: PhoneRegisterIn):
                                              "skip_password_checks": True, "public_metadata": {"phone": phone}})
     if r.status_code >= 300:
         logger.error("phone register failed: %s", r.text[:300])
-        raise HTTPException(status_code=400, detail="註冊失敗，請稍後再試")
+        raise HTTPException(status_code=400, detail=_clerk_err(r))
     uid = r.json()["id"]
     await db.phone_accounts.insert_one({"phone": phone, "user_id": uid, "created_at": _now().isoformat()})
     await db.users.update_one({"user_id": uid}, {"$set": {"phone": phone}, "$setOnInsert": {"created_at": _now().isoformat()}}, upsert=True)
