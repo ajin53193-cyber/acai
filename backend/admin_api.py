@@ -2088,7 +2088,8 @@ async def admin_analytics_sales(date_from: str = "", date_to: str = "", tz_offse
     start = (d_from.replace(tzinfo=timezone.utc) + off).isoformat()
     end = (d_to.replace(tzinfo=timezone.utc) + off + timedelta(days=1)).isoformat()
     prev_start = (d_from.replace(tzinfo=timezone.utc) + off - timedelta(days=ndays)).isoformat()
-    rng = {"created_at": {"$gte": start, "$lt": end}}
+    nt = {"$nin": await _test_uids()}
+    rng = {"created_at": {"$gte": start, "$lt": end}, "user_id": nt}
     hourly = ndays == 1
 
     def bucket(created: str) -> str:
@@ -2099,7 +2100,7 @@ async def admin_analytics_sales(date_from: str = "", date_to: str = "", tz_offse
         return t.strftime("%H:00") if hourly else t.strftime("%m-%d")
 
     keys = [f"{h:02d}:00" for h in range(24)] if hourly else [(d_from + timedelta(days=i)).strftime("%m-%d") for i in range(ndays)]
-    series = {k: {"label": k, "orders": 0, "paid_orders": 0, "revenue_usd": 0.0, "topup_usd": 0.0, "topups": 0, "new_users": 0} for k in keys}
+    series = {k: {"label": k, "orders": 0, "paid_orders": 0, "revenue_usd": 0.0, "topup_usd": 0.0, "topups": 0, "new_users": 0, "first_topup_users": 0} for k in keys}
     status_dist: dict = {}
     product_rev: dict = {}
     orders_n = paid_n = 0
@@ -2127,9 +2128,12 @@ async def admin_analytics_sales(date_from: str = "", date_to: str = "", tz_offse
     topups_n = 0
     topup_usd = 0.0
     channels: dict = {}
-    async for t in db.topup_orders.find({**rng, "status": "paid"}, {"_id": 0, "created_at": 1, "amount_usd": 1, "provider": 1}):
+    first_seen: dict = {}
+    async for t in db.topup_orders.find({**rng, "status": "paid"}, {"_id": 0, "created_at": 1, "amount_usd": 1, "provider": 1, "user_id": 1}, sort=[("created_at", 1)]):
         amt = float(t.get("amount_usd") or 0)
         topups_n += 1
+        if t.get("user_id") and t["user_id"] not in first_seen:
+            first_seen[t["user_id"]] = t.get("created_at", "")
         topup_usd += amt
         r = series.get(bucket(t.get("created_at", "")))
         if r:
@@ -2138,12 +2142,30 @@ async def admin_analytics_sales(date_from: str = "", date_to: str = "", tz_offse
         c = channels.setdefault(t.get("provider") or "-", {"provider": t.get("provider") or "-", "count": 0, "amount": 0.0})
         c["count"] += 1
         c["amount"] += amt
-    async for u in db.users.find(rng, {"_id": 0, "created_at": 1}):
+    # 首次充值人數：期間內有到帳充值、且在期間開始前從未有過到帳充值的用戶
+    if first_seen:
+        earlier = set(await db.topup_orders.distinct("user_id", {"user_id": {"$in": list(first_seen)}, "status": "paid", "created_at": {"$lt": start}}))
+        for uid, created in first_seen.items():
+            if uid not in earlier:
+                r = series.get(bucket(created))
+                if r:
+                    r["first_topup_users"] += 1
+        first_topup_users = len(set(first_seen) - earlier)
+    else:
+        first_topup_users = 0
+    urng = {"created_at": rng["created_at"], "is_test": {"$ne": True}}
+    async for u in db.users.find(urng, {"_id": 0, "created_at": 1}):
         r = series.get(bucket(u.get("created_at", "")))
         if r:
             r["new_users"] += 1
-    new_users = await db.users.count_documents(rng)
+    new_users = await db.users.count_documents(urng)
     prev = await _period_stats(prev_start, start)
+    prev_first = await db.topup_orders.distinct("user_id", {"status": "paid", "created_at": {"$gte": prev_start, "$lt": start}, "user_id": nt})
+    if prev_first:
+        prev_earlier = set(await db.topup_orders.distinct("user_id", {"user_id": {"$in": prev_first}, "status": "paid", "created_at": {"$lt": prev_start}}))
+        prev["first_topup_users"] = len(set(prev_first) - prev_earlier)
+    else:
+        prev["first_topup_users"] = 0
     for r in series.values():
         r["revenue_usd"] = round(r["revenue_usd"], 2)
         r["topup_usd"] = round(r["topup_usd"], 2)
@@ -2153,7 +2175,7 @@ async def admin_analytics_sales(date_from: str = "", date_to: str = "", tz_offse
     return {
         "date_from": d_from.strftime("%Y-%m-%d"), "date_to": d_to.strftime("%Y-%m-%d"), "days": ndays, "hourly": hourly,
         "summary": {"orders": orders_n, "paid_orders": paid_n, "revenue_usd": round(revenue, 2), "avg_order_usd": round(revenue / paid_n, 2) if paid_n else 0,
-                    "topups": topups_n, "topup_usd": round(topup_usd, 2), "new_users": new_users},
+                    "topups": topups_n, "topup_usd": round(topup_usd, 2), "new_users": new_users, "first_topup_users": first_topup_users},
         "prev": prev,
         "series": list(series.values()),
         "status_dist": [{"status": k, "count": v} for k, v in sorted(status_dist.items(), key=lambda x: -x[1])],

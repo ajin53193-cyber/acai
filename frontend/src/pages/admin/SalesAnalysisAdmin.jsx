@@ -70,13 +70,14 @@ export function SalesAnalysisAdmin({ callApi }) {
         </div>
       </Card>
 
-      <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3 mb-5" data-testid="sales-stats">
+      <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-7 gap-3 mb-5" data-testid="sales-stats">
         <Stat testId="sales-stat-revenue" label={tr("訂單營收 (USD)")} value={money(s.revenue_usd)} raw={s.revenue_usd} prev={p.revenue_usd} tone="text-orange-600" />
         <Stat testId="sales-stat-orders" label={tr("訂單數")} value={s.orders ?? 0} prev={p.orders} tone="text-slate-900" />
         <Stat testId="sales-stat-paid" label={tr("已付款訂單")} value={s.paid_orders ?? 0} tone="text-emerald-600" />
         <Stat testId="sales-stat-avg" label={tr("客單價 (USD)")} value={money(s.avg_order_usd)} tone="text-slate-900" />
         <Stat testId="sales-stat-topup" label={tr("充值到帳 (USD)")} value={money(s.topup_usd)} raw={s.topup_usd} prev={p.topup_usd} tone="text-sky-600" />
         <Stat testId="sales-stat-users" label={tr("新增用戶")} value={s.new_users ?? 0} prev={p.new_users} tone="text-violet-600" />
+        <Stat testId="sales-stat-first-topup" label={tr("首次充值人數")} value={s.first_topup_users ?? 0} prev={p.first_topup_users} tone="text-pink-600" />
       </div>
 
       <Card className="p-4 mb-5" data-testid="sales-chart">
@@ -93,6 +94,7 @@ export function SalesAnalysisAdmin({ callApi }) {
             <Bar yAxisId="usd" dataKey="topup_usd" name={tr("充值到帳 USD")} fill="#38bdf8" radius={[4, 4, 0, 0]} />
             <Line yAxisId="n" type="linear" dataKey="orders" name={tr("訂單數")} stroke="#0f172a" strokeWidth={2} dot={false} />
             <Line yAxisId="n" type="linear" dataKey="new_users" name={tr("新增用戶")} stroke="#8b5cf6" strokeWidth={2} dot={false} />
+            <Line yAxisId="n" type="linear" dataKey="first_topup_users" name={tr("首次充值人數")} stroke="#db2777" strokeWidth={2} dot={false} />
           </ComposedChart>
         </ResponsiveContainer>
       </Card>
