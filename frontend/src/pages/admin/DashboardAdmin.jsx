@@ -40,7 +40,10 @@ const Todo = ({ icon: Icon, label, n, onClick, testId, alert }) => (
 const SOURCE_LABEL = { popup: tr("首訪海報彈窗"), auto: tr("首訪自動彈窗"), tip: tr("首訪提示條"), drawer: tr("側欄選單"), "detail-banner": tr("商品頁橫幅"), carousel: tr("輪播圖"), unknown: tr("其他") };
 function A2HSStats({ callApi, days }) {
   const [a, setA] = useState(null);
-  useEffect(() => { callApi({ method: "GET", url: `/admin/a2hs/stats?days=${days}` }).then((r) => setA(r.data)).catch(() => {}); }, [callApi, days]);
+  useEffect(() => {
+    const load = () => callApi({ method: "GET", url: `/admin/a2hs/stats?days=${days}` }).then((r) => setA(r.data)).catch(() => {});
+    load(); const t = setInterval(load, 60000); return () => clearInterval(t);
+  }, [callApi, days]);
   if (!a) return null;
   const series = a.series.map((r) => ({ ...r, label: r.date.slice(5) }));
   const stats = [[tr("提示條曝光"), a.tip_shown, "a2hs-stat-shown"], [tr("提示條點擊"), a.tip_open, "a2hs-stat-open"], [tr("點擊率"), `${a.tip_ctr}%`, "a2hs-stat-ctr"], [tr("教學彈窗打開"), a.dialog_open, "a2hs-stat-dialog"], [tr("桌面 App 啟動次數"), a.pwa_launch, "a2hs-stat-launch"]];
@@ -69,7 +72,12 @@ function A2HSStats({ callApi, days }) {
 export function DashboardAdmin({ callApi, go }) {
   const [days, setDays] = useState(30);
   const [d, setD] = useState(null);
-  useEffect(() => { callApi({ method: "GET", url: `/admin/dashboard?days=${days}` }).then((r) => setD(r.data)).catch(() => toast.error(tr("載入失敗"))); }, [callApi, days]);
+  // 每 60 秒自動刷新統計（靜默，失敗不打擾）
+  useEffect(() => {
+    let first = true;
+    const load = () => callApi({ method: "GET", url: `/admin/dashboard?days=${days}` }).then((r) => setD(r.data)).catch(() => { if (first) toast.error(tr("載入失敗")); }).finally(() => { first = false; });
+    load(); const t = setInterval(load, 60000); return () => clearInterval(t);
+  }, [callApi, days]);
   if (!d) return <div className="text-slate-400 text-sm">{tr("載入中…")}</div>;
   const { current: c, previous: p, totals: t } = d;
   const series = d.series.map((r) => ({ ...r, label: r.date.slice(5) }));
