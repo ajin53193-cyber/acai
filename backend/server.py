@@ -2526,10 +2526,7 @@ def _client_country(request: Request) -> str:
 
 
 def _client_ip(request: Request) -> str:
-    xff = (request.headers.get("x-forwarded-for") or "").strip()
-    if xff:
-        return xff.split(",")[0].strip()
-    return (request.headers.get("x-real-ip") or "").strip() or (request.client.host if request.client else "")
+    return ipgeo.client_ip(request)
 
 
 def _ip_whitelisted(request: Request) -> bool:

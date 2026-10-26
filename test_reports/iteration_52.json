@@ -1,0 +1,46 @@
+{
+  "summary": "Tested the self-hosted auth migration (bcrypt + HS256 JWT) end to end. Backend: 26 pytest cases in test_local_auth_migration.py. 22 passed and 4 failed (one more failed with a transient 502 in the parallel run and passed serially). Covered phone and email register, password login, OTP login, reset, change-by-old, legacy lazy migration, admin 2FA, ban/unban/reset/create-test and IP/region. Frontend: phone password login, refresh persistence, /account, logout, phone register via UI, email OTP login, admin login + TOTP -> dashboard, and the 用户列表 'IP / 地區' column all work.",
+  "backend_issues": {
+    "critical": [
+      {"endpoint": "GET /api/admin/members and GET /api/admin/members/{uid}", "issue": "SECURITY: both return the raw users doc (**u), which includes password_hash (bcrypt) for every member, and token_ver too. Confirmed: 16 rows leaked in the list, and the detail for user_993de66017fb213aee3ef136 leaked it as well. Strip password_hash (and token_ver) from both responses.", "priority": "HIGH"},
+      {"endpoint": "GET /api/admin/members?q=+12015556760", "issue": "Returns 500. q is used unescaped in $regex for email/phone/name/user_id/profile.name. A leading '+' gives pymongo OperationFailure 'quantifier does not follow a repeatable item'. Searching by E.164 phone breaks, and any regex metacharacter can cause a 500 or a ReDoS. Use re.escape(q) for all fields, as is already done for last_ip.", "priority": "HIGH"}
+    ],
+    "minor": [
+      {"endpoint": "POST /api/admin/members/{uid}/ban", "issue": "Ban also bumps token_ver, so the banned user's existing token gets 401 '登入已失效' on /api/me, not 403 '帳號已被停用' as the spec says. Password-login does return 403 correctly. Decide which is intended. The 403 branch in require_user can never be reached for tokens issued before the ban."},
+      {"endpoint": "local_auth.secret()", "issue": "AUTH_SECRET is not in backend/.env (only its presence was checked, count=0), so JWTs and admin tokens are signed with CLERK_SECRET_KEY. If that key is removed when Clerk is retired, every session and OTP hash breaks, and the lazy migration also stops. Add a dedicated AUTH_SECRET."},
+      {"endpoint": "POST /api/auth/email/password-login", "issue": "No brute-force throttling for members. Admin login has _fail_guard, but member password login does not."},
+      {"endpoint": "ipgeo.client_ip / admin _req_ip", "issue": "Trusts the first X-Forwarded-For value sent by the client. A test request with XFF 113.108.0.1 was stored as last_ip with region 中国 广东 广州市, so a user can fake their IP and region. The admin IP fail-guard can also be bypassed by rotating XFF."},
+      {"endpoint": "POST /api/auth/email/me/change-password-by-old and /me/change-password", "issue": "Do not bump token_ver, so other sessions stay valid after a password change. Reset-password does bump it."},
+      {"endpoint": "POST /api/admin/members/{uid}/ban|unban|reset-password", "issue": "Return ok:true for a uid that does not exist (no 404)."},
+      {"endpoint": "infra", "issue": "One transient 502 from Cloudflare/ingress during the parallel pytest run (test_phone_otp_login). It passed when run serially."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Admin 用户列表", "issues": ["Column header 'IP / 地區' is not converted in the ZH-CN locale (shows 地區 while the other headers are simplified). The i18n entry is missing."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_local_auth_migration.py", "/app/test_reports/pytest/pytest_local_auth.xml"],
+  "action_items": [
+    "Remove password_hash (and token_ver) from /api/admin/members list and detail responses",
+    "Use re.escape(q) for every $regex in admin_members (phone search with '+' currently returns 500)",
+    "Add a dedicated AUTH_SECRET env var instead of falling back to CLERK_SECRET_KEY",
+    "Decide on the ban semantics: keep token_ver bump (401) or return 403 as the spec says",
+    "Optional: rate-limit member password-login; only trust XFF set by the proxy; bump token_ver on password change"
+  ],
+  "critical_code_review_comments": [
+    "admin_api.py is about 2230 lines; split it by domain",
+    "has_password() calls the Clerk API on every /api/auth/me for legacy users without a password_hash key; cache the result",
+    "OTP verify endpoints (/verify, /phone/verify) do not check banned before issuing a token (require_user still blocks it later)",
+    "admin TOTP codes can be replayed within the valid window (no last-used counter stored)"
+  ],
+  "updated_files": ["/app/backend/tests/test_local_auth_migration.py"],
+  "success_rate": {"backend": "85% (22/26)", "frontend": "100%"},
+  "seed_data_creation": "Created about 15 test users (phones +1201555xxxxx, emails qa*/otp*/rst*/qa-test*+clerk_test@shop.com, and one phone account registered via the UI). Nothing was deleted. The legacy tester+clerk_test@shop.com is now migrated (password_hash set). +12015556760's password was not changed.",
+  "test_credentials": "Used /app/memory/test_credentials.md; all listed creds worked.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Run: cd /app/backend && REACT_APP_BACKEND_URL=... pytest tests/test_local_auth_migration.py (pytest.ini adds xdist; use -n 0 for serial). The 4 expected failures: password_hash leak (x2), the + phone search 500, and test_banned_token_gets_403 (spec 403 vs actual 401). UI is ZH-CN by default, so text checks must use simplified characters (e.g. 我的帐户/帐户ID). Admin members is the sidebar tab '用户列表', not a /members route."
+}

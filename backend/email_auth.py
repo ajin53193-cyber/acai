@@ -9,9 +9,10 @@ from datetime import datetime, timezone, timedelta
 from typing import Optional
 
 import httpx
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, Request
 from pydantic import BaseModel, EmailStr
 
+import ipgeo
 import local_auth
 from local_auth import require_user
 from mailer import send_mail, otp_email
@@ -163,6 +164,7 @@ async def verify_login(body: VerifyIn):
     user = await _find_user(email)
     if not user:
         raise HTTPException(status_code=404, detail="此信箱尚未註冊，請先註冊")
+    _not_banned(user)
     return _session(user["user_id"], await _ticket(user["user_id"]), is_new=False)
 
 
@@ -178,18 +180,31 @@ async def register(body: RegisterIn):
     return _session(u["user_id"], await _ticket(u["user_id"]))
 
 
-@router.post("/password-login")
-async def password_login(body: PasswordLoginIn):
-    ident = body.identifier.strip().lower()
-    user = await _find_user(ident)
-    if not user:
-        raise HTTPException(status_code=401, detail="帳號或密碼錯誤")
+def _ip(request: Request) -> str:
+    return ipgeo.client_ip(request)
+
+
+def _not_banned(user: dict):
     if user.get("banned"):
         raise HTTPException(status_code=403, detail="帳號已被停用")
+
+
+@router.post("/password-login")
+async def password_login(body: PasswordLoginIn, request: Request):
+    ident = body.identifier.strip().lower()
+    ip = _ip(request)
+    local_auth.fail_guard(ident, ip)
+    user = await _find_user(ident)
+    if not user:
+        local_auth.fail_mark(ident, ip)
+        raise HTTPException(status_code=401, detail="帳號或密碼錯誤")
+    _not_banned(user)
     if not await local_auth.verify_password(user, body.password):
+        local_auth.fail_mark(ident, ip)
         if not await local_auth.has_password(user):
             raise HTTPException(status_code=400, detail="此帳號尚未設定密碼，請使用驗證碼登入")
         raise HTTPException(status_code=401, detail="帳號或密碼錯誤")
+    local_auth.fail_clear(ident)
     return _session(user["user_id"], await _ticket(user["user_id"]))
 
 
@@ -224,7 +239,7 @@ async def me_change_password(body: ChangePwIn, user: dict = Depends(require_user
     u = await local_auth.get_user(user["user_id"]) or {}
     await _consume_code(_primary_contact(u), "change_password", body.code)
     await local_auth.set_password(user["user_id"], body.new_password)
-    return {"ok": True}
+    return {"ok": True, "token": await _ticket(user["user_id"])}
 
 
 @router.post("/me/set-password")
@@ -236,7 +251,7 @@ async def me_set_password(body: SetPwIn, user: dict = Depends(require_user)):
     if await local_auth.has_password(u):
         raise HTTPException(status_code=409, detail="帳號已設定密碼，請使用修改密碼")
     await local_auth.set_password(user["user_id"], body.password)
-    return {"ok": True}
+    return {"ok": True, "token": await _ticket(user["user_id"])}
 
 
 # ----------------------------- Phone -----------------------------
@@ -301,6 +316,7 @@ async def phone_verify(body: PhoneVerifyIn):
     user = await _phone_user(phone)
     if not user:
         raise HTTPException(status_code=404, detail="此手機號尚未註冊，請先註冊")
+    _not_banned(user)
     return _session(user["user_id"], await _ticket(user["user_id"]))
 
 
@@ -347,8 +363,7 @@ async def google_login(body: GoogleIn):
         user = await local_auth.create_user(email=email, name=name, google_sub=g.get("sub", ""))
     elif not user.get("google_sub"):
         await db.users.update_one({"user_id": user["user_id"]}, {"$set": {"google_sub": g.get("sub", "")}})
-    if user.get("banned"):
-        raise HTTPException(status_code=403, detail="帳號已被停用")
+    _not_banned(user)
     return _session(user["user_id"], await _ticket(user["user_id"]), is_new=is_new, email=email)
 
 
@@ -360,7 +375,7 @@ async def me_change_password_by_old(body: ChangePwByOldIn, user: dict = Depends(
     if await local_auth.has_password(u) and not await local_auth.verify_password(u, body.current_password):
         raise HTTPException(status_code=400, detail="舊密碼錯誤")
     await local_auth.set_password(user["user_id"], body.new_password)
-    return {"ok": True}
+    return {"ok": True, "token": await _ticket(user["user_id"])}
 
 
 # ----------------------------- Bind email / phone to the logged-in account -----------------------------

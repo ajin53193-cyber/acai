@@ -57,10 +57,12 @@ async def require_user(request: Request) -> dict:
         raise HTTPException(status_code=401, detail="Not signed in")
     claims = decode_token(token)
     u = await db.users.find_one({"user_id": claims["sub"]}, {"_id": 0, "token_ver": 1, "banned": 1})
-    if u is None or int(u.get("token_ver") or 0) != int(claims.get("ver") or 0):
+    if u is None:
         raise HTTPException(status_code=401, detail="登入已失效，請重新登入")
     if u.get("banned"):
         raise HTTPException(status_code=403, detail="帳號已被停用")
+    if int(u.get("token_ver") or 0) != int(claims.get("ver") or 0):
+        raise HTTPException(status_code=401, detail="登入已失效，請重新登入")
     return {"user_id": claims["sub"], "session_id": claims.get("sid"), "claims": claims}
 
 
@@ -137,7 +139,10 @@ async def has_password(user: dict) -> bool:
         async with httpx.AsyncClient(timeout=15) as c:
             r = await c.get(f"{CLERK_BACKEND_API}/users/{user['user_id']}", headers={"Authorization": f"Bearer {key}", "User-Agent": "gogo589-backend"})
         if r.status_code == 200:
-            return bool(r.json().get("password_enabled"))
+            enabled = bool(r.json().get("password_enabled"))
+            if not enabled:
+                await db.users.update_one({"user_id": user["user_id"]}, {"$set": {"password_hash": ""}})
+            return enabled
         if r.status_code == 404:
             await db.users.update_one({"user_id": user["user_id"]}, {"$set": {"password_hash": ""}})
     except Exception as e:
@@ -161,11 +166,39 @@ async def verify_password(user: dict, password: str) -> bool:
     return False
 
 
-async def set_password(uid: str, password: str, sign_out_others: bool = False):
+async def set_password(uid: str, password: str, sign_out_others: bool = True):
     upd = {"$set": {"password_hash": hash_password(password)}}
     if sign_out_others:
         upd["$inc"] = {"token_ver": 1}
     await db.users.update_one({"user_id": uid}, upd)
+
+
+# 會員密碼登入暴力破解防護：帳號 / IP 各自 15 分鐘內錯 10 次即鎖定
+_fails: dict = {}
+FAIL_MAX, FAIL_WINDOW = 10, 900
+
+
+def _fail_key_check(*keys: str):
+    now = _now().timestamp()
+    for k in keys:
+        ts = [t for t in _fails.get(k, []) if now - t < FAIL_WINDOW]
+        _fails[k] = ts
+        if len(ts) >= FAIL_MAX:
+            raise HTTPException(status_code=429, detail="錯誤次數過多，請 15 分鐘後再試")
+
+
+def fail_guard(ident: str, ip: str):
+    _fail_key_check(f"id:{ident}", f"ip:{ip}")
+
+
+def fail_mark(ident: str, ip: str):
+    now = _now().timestamp()
+    for k in (f"id:{ident}", f"ip:{ip}"):
+        _fails.setdefault(k, []).append(now)
+
+
+def fail_clear(ident: str):
+    _fails.pop(f"id:{ident}", None)
 
 
 async def token_for(uid: str) -> str:

@@ -21,6 +21,7 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
 import email_auth
+import ipgeo
 import local_auth
 from local_auth import require_user
 from mailer import send_mail, notify_email
@@ -151,8 +152,7 @@ def _fail_clear(*keys: str):
 
 
 def _req_ip(request: Request) -> str:
-    fwd = request.headers.get("x-forwarded-for", "")
-    return fwd.split(",")[0].strip() if fwd else (request.client.host if request.client else "")
+    return ipgeo.client_ip(request)
 
 
 @router.post("/auth/login")
@@ -270,19 +270,29 @@ class ResetPwIn(BaseModel):
     new_password: str
 
 
+SAFE_USER = {"_id": 0, "password_hash": 0, "token_ver": 0}
+
+
+async def _member_or_404(uid: str) -> dict:
+    u = await db.users.find_one({"user_id": uid}, {"_id": 0, "user_id": 1})
+    if not u:
+        raise HTTPException(status_code=404, detail="會員不存在")
+    return u
+
+
 @router.get("/members")
 async def admin_members(q: str = "", limit: int = 200, admin: dict = Depends(current_admin)):
     query = {}
     q = (q or "").strip()
     if q:
-        query["$or"] = [{"email": {"$regex": q, "$options": "i"}}, {"phone": {"$regex": q, "$options": "i"}}, {"name": {"$regex": q, "$options": "i"}}, {"user_id": {"$regex": q, "$options": "i"}}, {"profile.name": {"$regex": q, "$options": "i"}},
-                        {"last_ip": {"$regex": re.escape(q), "$options": "i"}}, {"last_ip_region": {"$regex": re.escape(q), "$options": "i"}}, {"register_ip_region": {"$regex": re.escape(q), "$options": "i"}}]
+        rx = {"$regex": re.escape(q), "$options": "i"}
+        query["$or"] = [{f: rx} for f in ("email", "phone", "name", "user_id", "profile.name", "last_ip", "last_ip_region", "register_ip_region")]
         if q.isdigit() and len(q) >= 6:
             # 會員 ID（account_no）是由 user_id 推導的數字，無法直接查庫，掃描比對後併入結果
             ids = [u["user_id"] async for u in db.users.find({}, {"_id": 0, "user_id": 1}) if account_no(u["user_id"]).startswith(q)]
             if ids:
                 query["$or"].append({"user_id": {"$in": ids}})
-    users = await db.users.find(query, {"_id": 0}).sort("created_at", -1).to_list(limit)
+    users = await db.users.find(query, SAFE_USER).sort("created_at", -1).to_list(limit)
     uids = [u["user_id"] for u in users]
     orders = {o["_id"]: o async for o in db.orders.aggregate([{"$match": {"user_id": {"$in": uids}}}, {"$group": {"_id": "$user_id", "count": {"$sum": 1}, "spent": {"$sum": "$total_usd"}}}])}
     bal = {b["_id"]: b["bal"] async for b in db.wallet_transactions.aggregate([{"$match": {"user_id": {"$in": uids}}}, {"$group": {"_id": "$user_id", "bal": {"$sum": "$amount_usd"}}}])}
@@ -313,6 +323,8 @@ async def admin_member_stats(admin: dict = Depends(current_admin)):
 @router.get("/members/{uid}")
 async def admin_member_detail(uid: str, admin: dict = Depends(current_admin)):
     u = await db.users.find_one({"user_id": uid}, {"_id": 0})
+    has_pw = bool(u.get("password_hash")) if u and "password_hash" in u else None
+    u = {k: v for k, v in (u or {}).items() if k not in ("password_hash", "token_ver")} if u else None
     if not u:
         raise HTTPException(status_code=404, detail="會員不存在")
     emails = [e for e in [local_auth.real_email(u.get("email", ""))] + list(u.get("alt_emails") or []) if e]
@@ -329,7 +341,7 @@ async def admin_member_detail(uid: str, admin: dict = Depends(current_admin)):
     ptx = await db.point_transactions.find({"user_id": uid}, {"_id": 0}).sort("created_at", -1).to_list(20)
     return {**u, "emails": emails, "account_no": account_no(uid), "verified": verified, "order_count": order_count, "spent_usd": spent, "phone": acct["phone"] if acct else u.get("phone", ""),
             "google": bool(u.get("google_sub") or (u.get("public_metadata") or {}).get("google_sub")),
-            "password_enabled": bool(u.get("password_hash")) if "password_hash" in u else await local_auth.has_password(u), "banned": u.get("banned", False), "ban_reason": u.get("ban_reason", ""),
+            "password_enabled": has_pw if has_pw is not None else await local_auth.has_password(u), "banned": u.get("banned", False), "ban_reason": u.get("ban_reason", ""),
             "points": int(u.get("points") or 0), "tags": u.get("tags", []), "level": level, "point_transactions": ptx,
             "last_sign_in_at": u.get("last_seen_at"), "orders": orders, "transactions": txs, "balance_usd": balance}
 
@@ -380,7 +392,8 @@ async def admin_member_create_test(body: TestAccountIn, admin: dict = Depends(cu
 
 @router.post("/members/{uid}/ban")
 async def admin_member_ban(uid: str, body: BanIn = BanIn(), admin: dict = Depends(current_admin)):
-    await db.users.update_one({"user_id": uid}, {"$inc": {"token_ver": 1}, "$set": {"banned": True, "ban_reason": body.reason, "banned_at": datetime.now(timezone.utc).isoformat()}})
+    await _member_or_404(uid)
+    await db.users.update_one({"user_id": uid}, {"$set": {"banned": True, "ban_reason": body.reason, "banned_at": datetime.now(timezone.utc).isoformat()}})
     if log_user:
         await log_user(uid, "ban", "加入黑名單", body.reason or f"管理員 {admin.get('email', '')} 操作")
     return {"ok": True, "banned": True}
@@ -388,6 +401,7 @@ async def admin_member_ban(uid: str, body: BanIn = BanIn(), admin: dict = Depend
 
 @router.post("/members/{uid}/unban")
 async def admin_member_unban(uid: str, admin: dict = Depends(current_admin)):
+    await _member_or_404(uid)
     await db.users.update_one({"user_id": uid}, {"$set": {"banned": False}, "$unset": {"ban_reason": "", "banned_at": ""}})
     if log_user:
         await log_user(uid, "ban", "解除黑名單", f"管理員 {admin.get('email', '')} 操作")
@@ -396,6 +410,7 @@ async def admin_member_unban(uid: str, admin: dict = Depends(current_admin)):
 
 @router.post("/members/{uid}/reset-password")
 async def admin_member_reset_pw(uid: str, body: ResetPwIn, admin: dict = Depends(current_admin)):
+    await _member_or_404(uid)
     if not email_auth._pw_ok(body.new_password):
         raise HTTPException(status_code=400, detail="密碼長度為8~32位，數字、字母、符號至少包含兩種")
     await local_auth.set_password(uid, body.new_password, sign_out_others=True)
@@ -1768,7 +1783,7 @@ async def admin_change_own_password(body: AdminChangePwIn, admin: dict = Depends
         raise HTTPException(status_code=401, detail="舊密碼錯誤")
     await _set_clerk_password(admin["user_id"], body.new_password)
     await record_admin_log(admin["user_id"], admin.get("email", ""), "PASSWORD", "管理員修改自己的密碼", 200)
-    return {"ok": True}
+    return {"ok": True, "token": await local_auth.token_for(admin["user_id"])}
 
 
 @router.post("/admins/{uid}/password")

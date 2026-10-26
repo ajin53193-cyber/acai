@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useUser, useClerk } from "@/lib/auth";
+import { useUser, useClerk, useSession } from "@/lib/auth";
 import { useNavigate } from "react-router-dom";
 import { LogOut } from "lucide-react";
 import { Check, ChevronDown } from "lucide-react";
@@ -16,6 +16,7 @@ export default function MyAccount() {
   const callApi = useApi();
   const { user } = useUser();
   const { signOut } = useClerk();
+  const { signIn } = useSession();
   const navigate = useNavigate();
   const [info, setInfo] = useState(null);
   const [form, setForm] = useState({ name: "", gender: "male", contact_type: tr("微信"), contact: "" });
@@ -42,7 +43,8 @@ export default function MyAccount() {
     if (!pw.n1 || pw.n1.length < 8) return toast.error(tr("新密碼至少 8 位"));
     if (pw.n1 !== pw.n2) return toast.error(tr("兩次輸入的新密碼不一致"));
     try {
-      await callApi({ method: "POST", url: "/auth/email/me/change-password-by-old", data: { current_password: pw.cur, new_password: pw.n1 } });
+      const r = await callApi({ method: "POST", url: "/auth/email/me/change-password-by-old", data: { current_password: pw.cur, new_password: pw.n1 } });
+      if (r?.data?.token) await signIn(r.data.token);
       toast.success(tr("密碼已更新")); setPw({ cur: "", n1: "", n2: "" });
     } catch (e) { toast.error(e?.response?.data?.detail || tr("密碼更新失敗")); }
   };

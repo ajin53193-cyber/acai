@@ -2388,5 +2388,9 @@
   "已實名": "Verified",
   "驗證碼將在 90 秒內發送至您的手機號": "The code will reach your phone within 90 seconds",
   "驗證碼將在 90 秒內發送至您的信箱": "The code will reach your inbox within 90 seconds",
-  "首次充值人數": "First-time top-up users"
+  "首次充值人數": "First-time top-up users",
+  "IP / 地區": "IP / Region",
+  "最後IP": "Last IP",
+  "註冊IP": "Signup IP",
+  "未知地區": "Unknown region"
 }

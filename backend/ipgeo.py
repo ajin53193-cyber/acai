@@ -19,10 +19,15 @@ def init(db):
 
 
 def client_ip(request: Request) -> str:
+    """Proxy-set headers first (Cloudflare / Nginx overwrite these); the client-forgeable first XFF entry is never used."""
+    for h in ("cf-connecting-ip", "x-real-ip"):
+        v = (request.headers.get(h) or "").strip()
+        if v:
+            return v
     xff = (request.headers.get("x-forwarded-for") or "").strip()
     if xff:
-        return xff.split(",")[0].strip()
-    return (request.headers.get("x-real-ip") or "").strip() or (request.client.host if request.client else "")
+        return xff.split(",")[-1].strip()
+    return request.client.host if request.client else ""
 
 
 def _header_country(request: Request) -> str:

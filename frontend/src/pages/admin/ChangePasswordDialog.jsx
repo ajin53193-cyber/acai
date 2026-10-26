@@ -2,6 +2,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { Btn, Input, Field, Modal } from "@/pages/admin/ui";
 import { tr } from "@/i18n";
+import { useSession } from "@/lib/auth";
 
 export const pwOk = (p) => p.length >= 8 && p.length <= 32 && /[0-9]/.test(p) && /[a-zA-Z]/.test(p);
 const RULE = tr("密碼需 8~32 位，且同時包含字母與數字");
@@ -10,14 +11,16 @@ export function ChangePasswordDialog({ callApi, onClose, target }) {
   const [f, setF] = useState({ old: "", pw: "", pw2: "" });
   const [busy, setBusy] = useState(false);
   const self = !target;
+  const { signIn } = useSession();
   const submit = async () => {
     if (self && !f.old) return toast.error(tr("請輸入舊密碼"));
     if (!pwOk(f.pw)) return toast.error(RULE);
     if (f.pw !== f.pw2) return toast.error(tr("兩次輸入的新密碼不一致"));
     setBusy(true);
     try {
-      await callApi(self ? { method: "POST", url: "/admin/me/password", data: { old_password: f.old, new_password: f.pw } }
+      const r = await callApi(self ? { method: "POST", url: "/admin/me/password", data: { old_password: f.old, new_password: f.pw } }
         : { method: "POST", url: `/admin/admins/${target.user_id}/password`, data: { new_password: f.pw } });
+      if (r?.data?.token) await signIn(r.data.token);
       toast.success(self ? tr("密碼已更新") : tr("已重設 {0} 的密碼", target.email));
       onClose();
     } catch (e) { toast.error(e.response?.data?.detail || tr("修改失敗")); }

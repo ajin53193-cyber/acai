@@ -361,3 +361,14 @@
 - 后台会员列表新增「IP / 地區」列；会员详情 & 用户信息弹窗显示 最後IP / 註冊IP；搜索框支持按 IP / 地区关键字（如 "广东"、"越南"）过滤。
 - 旧用户无历史 IP 显示「-」，下次登录自动补上。
 - 已自测（curl + DB 校验）；待用户 Save to Github → 服务器 `git pull && bash deploy.sh backend/frontend` 后验证。
+
+## 2026-06 更新（账号系统脱离 Clerk → 自建 bcrypt + JWT）
+- 根因：生产用的是 Clerk 开发实例密钥，100 用户上限已满导致注册失败。用户要求不用任何第三方、数据全在自己服务器。
+- 新增 `backend/local_auth.py`：bcrypt 密码哈希、HS256 JWT（`AUTH_SECRET`，30 天）、`require_user`（校验 token_ver + banned）、`/api/auth/me`、会员密码登录防爆破（账号/IP 15 分钟 10 次）。
+- `email_auth.py` 全部改本地实现；`admin_api.py` 后台登录/封禁/重设密码/建管理员改本地；删除 `clerk_auth.py`，前端移除 `@clerk/react`，新增 `frontend/src/lib/auth.jsx`（AuthProvider + useUser/useAuth/useClerk/useSession/Show 兼容层，token 存 localStorage.auth_token）。
+- 老用户懒迁移：32 位 Clerk user_id 的用户首次密码登录时后端向 Clerk 校验一次成功后写入 bcrypt（需 `CLERK_SECRET_KEY` 仍在 .env）。验证码登录/忘记密码不受影响。
+- 密码修改/重设/封禁：重设与修改密码会 bump `token_ver`（其他设备下线）并给当前端返回新 token；封禁直接 403。
+- 客户端 IP 统一 `ipgeo.client_ip`：cf-connecting-ip → x-real-ip → XFF 最后一段（防伪造）。
+- 后台会员接口不再返回 password_hash/token_ver；搜索全部 re.escape。
+- 生产部署：后端 `.env` 需新增 `AUTH_SECRET=<随机长字符串>`；已登录用户需重新登录一次。
+- 测试：testing_agent iteration_52 + 修复后 pytest 26/26 通过（backend/tests/test_local_auth_migration.py）。
