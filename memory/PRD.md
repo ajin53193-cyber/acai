@@ -372,3 +372,6 @@
 - 后台会员接口不再返回 password_hash/token_ver；搜索全部 re.escape。
 - 生产部署：后端 `.env` 需新增 `AUTH_SECRET=<随机长字符串>`；已登录用户需重新登录一次。
 - 测试：testing_agent iteration_52 + 修复后 pytest 26/26 通过（backend/tests/test_local_auth_migration.py）。
+
+## 2026-06 修复（每日/每週/每月限购改为北京时间自然日/周/月）
+- 原逻辑为滚动 24h/7d/30d 窗口，导致昨天买过今天仍「已達限購」。现改为 `_window_start`：daily=北京今日 00:00，weekly=本周一 00:00，monthly=本月 1 日 00:00（server.py `_used_in_window`）。前端提示改为「明天 / 下週一 / 下月 1 日」。

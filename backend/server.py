@@ -998,7 +998,6 @@ async def _member_context(user_id: str) -> dict:
 
 LIMIT_KINDS = ("daily", "weekly", "monthly", "lifetime", "newcomer")
 LIMIT_LABEL = {"daily": "每日", "weekly": "每週", "monthly": "每月", "lifetime": "終生"}
-LIMIT_WINDOW = {"daily": timedelta(hours=24), "weekly": timedelta(days=7), "monthly": timedelta(days=30)}
 
 
 def _limit_kind(badge: str):
@@ -1033,13 +1032,29 @@ async def _daily_limited_specs(user_id: str, product_ids: List[str]):
     return used
 
 
+def _window_start(kind: str) -> datetime:
+    """Calendar windows in Beijing time: daily = today 00:00, weekly = Monday 00:00, monthly = 1st 00:00."""
+    n = _bj.now()
+    start = n.replace(hour=0, minute=0, second=0, microsecond=0)
+    if kind == "weekly":
+        start -= timedelta(days=start.weekday())
+    elif kind == "monthly":
+        start = start.replace(day=1)
+    return start.astimezone(timezone.utc)
+
+
 def _used_in_window(kind: str, stamps: Optional[list]) -> int:
     if not stamps:
         return 0
     if kind == "lifetime":
         return len(stamps)
-    cutoff = datetime.now(timezone.utc) - LIMIT_WINDOW[kind]
-    return sum(1 for s in stamps if datetime.fromisoformat(s) > cutoff)
+    cutoff = _window_start(kind)
+    return sum(1 for s in stamps if _bj_dt(s) >= cutoff)
+
+
+def _bj_dt(s: str) -> datetime:
+    d = datetime.fromisoformat(str(s).replace("Z", "+00:00"))
+    return d if d.tzinfo else d.replace(tzinfo=timezone.utc)
 
 
 def _is_locked(kind: str, stamps, count: int = 1) -> bool:

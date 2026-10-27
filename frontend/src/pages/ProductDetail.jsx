@@ -212,7 +212,7 @@ export default function ProductDetail() {
           {spec && specLimited(spec) && (
             <div data-testid="daily-limit-notice" className={`mx-5 sm:mx-8 mb-4 rounded-xl px-4 py-2.5 text-sm ${specLocked(spec) ? "bg-slate-100 text-slate-600" : "bg-orange-50 text-orange-600"}`}>
               {specLocked(spec)
-                ? (limitKind(spec) === "newcomer" ? tr("「新用戶專享」規格僅限首次下單使用，請選擇其他規格。") : limitKind(spec) === "lifetime" ? tr("您已達此「{0}」規格的購買上限，請選擇其他規格。", limitText(spec)) : tr("您已購買過此「{0}」規格，{1}即可再次購買；也可選擇其他規格。", limitText(spec), { monthly: tr("30 天後"), weekly: tr("7 天後"), daily: tr("明天") }[limitKind(spec)]))
+                ? (limitKind(spec) === "newcomer" ? tr("「新用戶專享」規格僅限首次下單使用，請選擇其他規格。") : limitKind(spec) === "lifetime" ? tr("您已達此「{0}」規格的購買上限，請選擇其他規格。", limitText(spec)) : tr("您已購買過此「{0}」規格，{1}即可再次購買；也可選擇其他規格。", limitText(spec), { monthly: tr("下月 1 日"), weekly: tr("下週一"), daily: tr("明天") }[limitKind(spec)]))
                 : (limitKind(spec) === "newcomer" ? tr("此規格為「新用戶專享」特價：僅限首單購買 {0} 份。", limitCount(spec)) : tr("此規格為「{0}」特價：每個帳號{1}限購 {2} 份。", limitText(spec), { monthly: tr("每月"), weekly: tr("每週"), daily: tr("每天"), lifetime: tr("終生") }[limitKind(spec)], limitCount(spec)))}
             </div>
           )}
